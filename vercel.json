@@ -4,8 +4,7 @@
   "outputDirectory": "client/dist",
   "functions": {
     "api/[...route].js": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 30
+      "runtime": "nodejs20.x"
     }
   },
   "rewrites": [
@@ -13,8 +12,5 @@
       "source": "/api/(.*)",
       "destination": "/api/[...route].js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
