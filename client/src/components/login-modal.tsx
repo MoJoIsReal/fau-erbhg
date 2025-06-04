@@ -21,9 +21,15 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const { t } = useLanguage();
 
   const loginMutation = useMutation({
-    mutationFn: (data: { username: string; password: string }) =>
-      apiRequest('POST', '/api/auth/login', data),
-    onSuccess: () => {
+    mutationFn: async (data: { username: string; password: string }) => {
+      const response = await apiRequest('POST', '/api/auth/login', data);
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Store JWT token in localStorage
+      if (data.token) {
+        localStorage.setItem('auth_token', data.token);
+      }
       toast({
         title: t.modals.login.success,
         description: t.modals.login.successDesc,

@@ -19,6 +19,8 @@ export function useAuth() {
   const logoutMutation = useMutation({
     mutationFn: () => apiRequest('POST', '/api/auth/logout', {}),
     onSuccess: () => {
+      // Remove JWT token from localStorage
+      localStorage.removeItem('auth_token');
       queryClient.setQueryData(['/api/auth/user'], null);
       queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
     },
