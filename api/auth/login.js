@@ -25,7 +25,7 @@ export default async function handler(req, res) {
       role: user.role
     };
 
-    res.setHeader('Set-Cookie', `session=${JSON.stringify(sessionData)}; HttpOnly; Path=/; Max-Age=86400`);
+    res.setHeader('Set-Cookie', `session=${JSON.stringify(sessionData)}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=86400`);
     
     res.status(200).json({
       message: 'Innlogging vellykket',

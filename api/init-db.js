@@ -7,6 +7,12 @@ export default async function handler(req, res) {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
+  // Security: Require admin authentication for database initialization
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_PASSWORD}`) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
   try {
     // Create tables if they don't exist
     await db.execute(sql`
@@ -80,6 +86,6 @@ export default async function handler(req, res) {
     res.status(200).json({ message: 'Database initialized successfully' });
   } catch (error) {
     console.error('Database initialization error:', error);
-    res.status(500).json({ message: 'Database initialization failed', error: error.message });
+    res.status(500).json({ message: 'Database initialization failed' });
   }
 }
