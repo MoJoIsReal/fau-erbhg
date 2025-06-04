@@ -1,11 +1,8 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import ws from "ws";
+import { neon } from '@neondatabase/serverless';
 
-neonConfig.webSocketConstructor = ws;
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const sql = neon(process.env.DATABASE_URL);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -19,14 +16,14 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'Brukernavn og passord er påkrevd' });
     }
 
-    // Find user by username using raw SQL
-    const result = await pool.query('SELECT id, username, password, name, role FROM users WHERE username = $1', [username]);
+    // Find user by username using Neon SQL
+    const result = await sql`SELECT id, username, password, name, role FROM users WHERE username = ${username}`;
     
-    if (result.rows.length === 0) {
+    if (result.length === 0) {
       return res.status(401).json({ message: 'Ugyldig brukernavn eller passord' });
     }
 
-    const user = result.rows[0];
+    const user = result[0];
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
