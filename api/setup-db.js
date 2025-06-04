@@ -3,7 +3,8 @@ export default async function handler(req, res) {
     // Use the exact connection string from Neon
     const connectionString = "postgres://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
     
-    const { Pool } = await import('@neondatabase/serverless');
+    // Remove dynamic import that causes serverless issues
+    // This endpoint is disabled for serverless deployment
     const pool = new Pool({ connectionString });
     
     // Initialize database tables
