@@ -1,14 +1,5 @@
-import express from 'express';
-import { registerRoutes } from '../server/routes.js';
-
-const app = express();
-
-// Configure middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// CORS configuration for production
-app.use((req, res, next) => {
+export default function handler(req, res) {
+  // CORS headers
   const allowedOrigins = [
     'https://fau-erdalbhg.vercel.app',
     'https://fau-erdal-barnehage.vercel.app'
@@ -24,22 +15,14 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
-  next();
-});
 
-// Security headers
-app.use((req, res, next) => {
+  // Security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  next();
-});
 
-// Register routes
-await registerRoutes(app);
-
-export default app;
+  return res.status(404).json({ message: 'API route not found' });
+}

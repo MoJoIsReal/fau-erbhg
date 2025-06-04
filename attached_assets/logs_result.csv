@@ -1,0 +1,198 @@
+"TimeUTC","timestampInMs","requestPath","requestMethod","requestQueryString","responseStatusCode","requestId","requestUserAgent","level","environment","branch","vercelCache","type","function","host","deploymentDomain","deploymentId","durationMs","region","maxMemoryUsed","memorySize","message","projectId","traceId","sessionId","invocationId","instanceId"
+"2025-06-04 17:45:59",1749059159456,"fau-erdalbhg.vercel.app/api/status","GET","",-1,"7cnhf-1749059159162-dad4cd04a111","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","6-sP9jfSa8NPuBbzdDFHx3qdFMMKeBZfGqysDt4um_Q=",""
+"2025-06-04 17:45:59",1749059159207,"fau-erdalbhg.vercel.app/api/status","GET","",500,"7cnhf-1749059159162-dad4cd04a111","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",224,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","6-sP9jfSa8NPuBbzdDFHx3qdFMMKeBZfGqysDt4um_Q=",""
+"2025-06-04 17:45:48",1749059148336,"fau-erdalbhg.vercel.app/api/status","GET","",-1,"5zx4z-1749059148058-2eb9b4d1c68b","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","qmJKZ4yGYOPcF-_nizQcaVrvNBrlm5KqCAQ1i2p5Qi8=",""
+"2025-06-04 17:45:48",1749059148111,"fau-erdalbhg.vercel.app/api/status","GET","",500,"5zx4z-1749059148058-2eb9b4d1c68b","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",206,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","qmJKZ4yGYOPcF-_nizQcaVrvNBrlm5KqCAQ1i2p5Qi8=",""
+"2025-06-04 17:45:24",1749059124692,"fau-erdalbhg.vercel.app/api/status","GET","",-1,"v7vkd-1749059124410-f7a48a8360fe","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","Dj_FxxAxN90Cl-YMPMcqEdgwu9XxbPF1PxzIwciEqho=",""
+"2025-06-04 17:45:24",1749059124455,"fau-erdalbhg.vercel.app/api/status","GET","",500,"v7vkd-1749059124410-f7a48a8360fe","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",215,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","Dj_FxxAxN90Cl-YMPMcqEdgwu9XxbPF1PxzIwciEqho=",""
+"2025-06-04 17:44:47",1749059087966,"fau-erdalbhg.vercel.app/api/status","GET","",-1,"hjhh2-1749059087680-37b57fe12b1c","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","xNMxDFL3dwHhOUj39i9WFQHmorkak-YxCrbilkspRpk=",""
+"2025-06-04 17:44:47",1749059087729,"fau-erdalbhg.vercel.app/api/status","GET","",500,"hjhh2-1749059087680-37b57fe12b1c","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",212,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","xNMxDFL3dwHhOUj39i9WFQHmorkak-YxCrbilkspRpk=",""
+"2025-06-04 17:44:23",1749059063813,"fau-erdalbhg.vercel.app/api/status","GET","",-1,"nxc7k-1749059063536-7d357680520f","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","SsZkv7c61fFbZ1Qdcv9YhdSrfmVTckZKzoWAUrmp6Yc=",""
+"2025-06-04 17:44:23",1749059063583,"fau-erdalbhg.vercel.app/api/status","GET","",500,"nxc7k-1749059063536-7d357680520f","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",215,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","SsZkv7c61fFbZ1Qdcv9YhdSrfmVTckZKzoWAUrmp6Yc=",""
+"2025-06-04 17:44:05",1749059045921,"fau-erdalbhg.vercel.app/api/health","HEAD","",-1,"wq8v6-1749059045632-5e4db82d1c88","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","mj1rYosIuurREiaqENtZvoggPh5U7bevZMs2BJUufTU=",""
+"2025-06-04 17:44:05",1749059045680,"fau-erdalbhg.vercel.app/api/health","HEAD","",500,"wq8v6-1749059045632-5e4db82d1c88","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",218,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","mj1rYosIuurREiaqENtZvoggPh5U7bevZMs2BJUufTU=",""
+"2025-06-04 17:43:58",1749059038965,"fau-erdalbhg.vercel.app/api/setup-db","GET","",-1,"4lpmq-1749059038152-a8a0fac5310f","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","yafelrDGTZGryQZHOlZTg9Y74mbw0jjlVZa9dupCZw4=",""
+"2025-06-04 17:43:58",1749059038197,"fau-erdalbhg.vercel.app/api/setup-db","GET","",500,"4lpmq-1749059038152-a8a0fac5310f","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",213,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","yafelrDGTZGryQZHOlZTg9Y74mbw0jjlVZa9dupCZw4=",""
+"2025-06-04 17:23:36",1749057816078,"fau-erdalbhg.vercel.app/api/health","GET","",-1,"2fnj5-1749057815807-e8e930692ae3","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","2pmTBWcsAm7hV6ng_gKC3YqjyGYFBn4PlcNr_tn1ZOA=",""
+"2025-06-04 17:23:35",1749057815849,"fau-erdalbhg.vercel.app/api/health","GET","",500,"2fnj5-1749057815807-e8e930692ae3","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",205,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","2pmTBWcsAm7hV6ng_gKC3YqjyGYFBn4PlcNr_tn1ZOA=",""
+"2025-06-04 17:23:04",1749057784591,"fau-erdalbhg.vercel.app/api/minimal-test","GET","",-1,"wb22f-1749057784270-373574cd0df6","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","qu_JzRawPUwBRasYnXGyrE3-i79GJD-ZlwyH40EKt-E=",""
+"2025-06-04 17:23:04",1749057784341,"fau-erdalbhg.vercel.app/api/minimal-test","GET","",500,"wb22f-1749057784270-373574cd0df6","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",228,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","qu_JzRawPUwBRasYnXGyrE3-i79GJD-ZlwyH40EKt-E=",""
+"2025-06-04 17:22:51",1749057771992,"fau-erdalbhg.vercel.app/api/test-connection","GET","",-1,"blzl7-1749057771720-11276cb9ae05","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","DzruSnI5tUTdHv2vJjoTuvZ5t2V7M-83S8WPlLCnHQc=",""
+"2025-06-04 17:22:51",1749057771764,"fau-erdalbhg.vercel.app/api/test-connection","GET","",500,"blzl7-1749057771720-11276cb9ae05","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",214,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","DzruSnI5tUTdHv2vJjoTuvZ5t2V7M-83S8WPlLCnHQc=",""
+"2025-06-04 17:22:39",1749057759757,"fau-erdalbhg.vercel.app/api/check-storage","GET","",-1,"vt85w-1749057758854-f8a74b407a84","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",-1,"iad1",-1,-1,"Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/task/server/storage' imported from /var/task/server/routes.js
+    at finalizeResolution (node:internal/modules/esm/resolve:281:11)
+    at moduleResolve (node:internal/modules/esm/resolve:866:10)
+    at moduleResolveWithNodePath (node:internal/modules/esm/resolve:990:14)
+    at defaultResolve (node:internal/modules/esm/resolve:1033:79)
+    at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+    at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+    at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+    at ModuleJob._link (node:internal/modules/esm/module_job:137:49) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///var/task/server/storage'
+}
+Node.js process exited with exit status: 1. The logs above can help with debugging the issue.","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","WEWxFisz4FvOIbpBrXBSAT8iQsW165yv4lylApfbsjg=",""
+"2025-06-04 17:22:39",1749057759035,"fau-erdalbhg.vercel.app/api/check-storage","GET","",500,"vt85w-1749057758854-f8a74b407a84","curl/8.11.1","error","production","main","MISS","lambda","/api/[...route]","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",215,"iad1",90,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","WEWxFisz4FvOIbpBrXBSAT8iQsW165yv4lylApfbsjg=",""
+"2025-06-04 17:22:25",1749057745418,"fau-erdalbhg.vercel.app/api/debug","GET","",200,"rdfkv-1749057745369-9d80636a5ee8","curl/8.11.1","info","production","main","MISS","lambda","/api/debug","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",9,"iad1",80,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","6fW5oorAvxwQqc-UybHqL-ocCHK-tYZ5Fm9xRgaq9Zo=","F3qcKV8upUjT"
+"2025-06-04 17:22:21",1749057741135,"fau-erdalbhg.vercel.app/api/debug","GET","",200,"857ld-1749057741077-d7242d69d7c4","curl/8.11.1","info","production","main","MISS","lambda","/api/debug","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",31,"iad1",80,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","o0g6KtHYtFJQgLFxMqjv_yTprPpV0A2Y7QcS6L86EnE=","F3qcKV8upUjT"
+"2025-06-04 17:18:17",1749057497999,"fau-erdalbhg.vercel.app/api/user","GET","",200,"zpkzx-1749057497613-9bc6e59e34f0","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36","info","production","main","MISS","lambda","/api/user","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",28,"iad1",81,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","WfYYKXUe2uJNZsBpD9gH313CKv2WVG2lgRpe_EBFYjE=","s8AhI91SBFyx"
+"2025-06-04 17:18:17",1749057497666,"fau-erdalbhg.vercel.app/api/events","GET","",500,"cm975-1749057497605-d9b4a063f9fc","Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36","error","production","main","MISS","lambda","/api/events","fau-erdalbhg.vercel.app","fau-erdalbhg.vercel.app","dpl_2UKUVdg2SksWdGcMkLRsq9CMMcXv",35,"iad1",82,1024,"","prj_7elQut0AK3PByYRWzvMDDQuJvDXI","","","hs87PSFTLfQ0qi61Oz-vO3TAQDTs7tWvDqP_sClZ3Wo=","TXOZiqJDWTLI"

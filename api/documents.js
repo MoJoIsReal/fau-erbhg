@@ -10,15 +10,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    const dbUrl = process.env.DATABASE_URL || 
-                   process.env.POSTGRES_URL || 
-                   process.env.POSTGRES_PRISMA_URL ||
-                   process.env.POSTGRES_URL_NON_POOLING;
-    if (!dbUrl) {
-      return res.status(500).json({ message: 'Database ikke konfigurert' });
-    }
-
-    const sql = neon(dbUrl);
+    // Use direct connection string from Neon
+    const connectionString = "postgres://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    const sql = neon(connectionString);
 
     if (req.method === 'GET') {
       // Get all documents (public access for viewing)
