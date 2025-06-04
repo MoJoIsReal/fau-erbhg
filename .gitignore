@@ -1,10 +1,43 @@
-node_modules
-dist
-.DS_Store
+# Dependencies
+node_modules/
+npm-debug.log*
+
+# Environment variables
 .env
-server/public
-vite.config.ts.*
-*.tar.gz
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Uploads
 uploads/
-attached_assets/
-VERCEL_MIGRATION.md
+
+# Database
+*.sqlite
+*.db
+
+# Vercel
+.vercel
