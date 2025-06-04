@@ -1,12 +1,6 @@
 {
-  "version": 2,
   "buildCommand": "vite build",
   "outputDirectory": "client/dist",
-  "functions": {
-    "api/[...route].js": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
