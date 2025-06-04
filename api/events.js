@@ -10,7 +10,11 @@ export default async function handler(req, res) {
   }
 
   try {
-    const dbUrl = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_PRISMA_URL;
+    const dbUrl = process.env.POSTGRES_URL || 
+                   process.env.DATABASE_URL || 
+                   process.env.POSTGRES_PRISMA_URL ||
+                   process.env.POSTGRES_URL_NON_POOLING ||
+                   process.env.NEON_DATABASE_URL;
     if (!dbUrl) {
       return res.status(500).json({ message: 'Database ikke konfigurert' });
     }
