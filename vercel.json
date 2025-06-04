@@ -11,6 +11,14 @@
       "destination": "/api/user.js"
     },
     {
+      "source": "/api/events",
+      "destination": "/api/events.js"
+    },
+    {
+      "source": "/api/documents",
+      "destination": "/api/documents.js"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/[...route].js"
     }
