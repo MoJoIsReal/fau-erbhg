@@ -1,10 +1,28 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import { db } from '../server/db.js';
-import { users } from '../shared/schema.js';
-import { eq } from 'drizzle-orm';
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const { Pool, neonConfig } = require('@neondatabase/serverless');
+const { drizzle } = require('drizzle-orm/neon-serverless');
+const { eq } = require('drizzle-orm');
+const ws = require('ws');
 
-export default async function handler(req, res) {
+neonConfig.webSocketConstructor = ws;
+
+// Define users table schema inline for serverless
+const { pgTable, serial, text, timestamp } = require('drizzle-orm/pg-core');
+
+const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").notNull().unique(),
+  password: text("password").notNull(),
+  name: text("name").notNull(),
+  role: text("role").notNull().default("member"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle(pool);
+
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
