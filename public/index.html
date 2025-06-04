@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAU Erdal Barnehage</title>
+  <meta name="description" content="FAU Erdal Barnehage - Foreldreråd for Erdal barnehage. Informasjon om møter, arrangementer og viktige dokumenter.">
+  <meta property="og:title" content="FAU Erdal Barnehage">
+  <meta property="og:description" content="Foreldreråd for Erdal barnehage. Informasjon om møter, arrangementer og viktige dokumenter.">
+  <meta property="og:type" content="website">
+  <link rel="canonical" href="https://fau-erdal-barnehage.vercel.app/">
+  <style>
+    :root {
+      --primary: 220 47% 55%;
+      --primary-foreground: 210 40% 98%;
+      --background: 0 0% 100%;
+      --foreground: 222.2 84% 4.9%;
+      --muted: 210 40% 96%;
+      --muted-foreground: 215.4 16.3% 46.9%;
+      --border: 214.3 31.8% 91.4%;
+      --input: 214.3 31.8% 91.4%;
+      --ring: 222.2 84% 4.9%;
+    }
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      background: hsl(var(--background));
+      color: hsl(var(--foreground));
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      text-align: center;
+      padding: 80px 20px;
+      background: linear-gradient(135deg, hsl(var(--primary)), hsl(220 47% 45%));
+      color: hsl(var(--primary-foreground));
+      margin-bottom: 40px;
+    }
+    
+    .logo {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .subtitle {
+      font-size: 1.2rem;
+      opacity: 0.9;
+    }
+    
+    .nav {
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .nav-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+    }
+    
+    .nav-link {
+      padding: 12px 24px;
+      background: hsl(var(--muted));
+      border-radius: 8px;
+      text-decoration: none;
+      color: hsl(var(--foreground));
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .nav-link:hover {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+    }
+    
+    .content {
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: 12px;
+      padding: 40px;
+      margin-bottom: 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    
+    .section {
+      margin-bottom: 40px;
+    }
+    
+    .section h2 {
+      color: hsl(var(--primary));
+      margin-bottom: 20px;
+      font-size: 1.8rem;
+    }
+    
+    .section h3 {
+      margin-bottom: 15px;
+      font-size: 1.3rem;
+    }
+    
+    .section p {
+      margin-bottom: 15px;
+    }
+    
+    .contact-info {
+      background: hsl(var(--muted));
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+    
+    .login-form {
+      max-width: 400px;
+      margin: 0 auto;
+      padding: 30px;
+      background: hsl(var(--background));
+      border: 1px solid hsl(var(--border));
+      border-radius: 12px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid hsl(var(--border));
+      border-radius: 6px;
+      font-size: 16px;
+    }
+    
+    .btn {
+      background: hsl(var(--primary));
+      color: hsl(var(--primary-foreground));
+      border: none;
+      padding: 12px 24px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 500;
+      width: 100%;
+      transition: all 0.2s;
+    }
+    
+    .btn:hover {
+      background: hsl(220 47% 45%);
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: hsl(var(--muted-foreground));
+      border-top: 1px solid hsl(var(--border));
+    }
+    
+    @media (max-width: 768px) {
+      .logo {
+        font-size: 2rem;
+      }
+      
+      .nav-links {
+        flex-direction: column;
+        align-items: center;
+      }
+      
+      .content {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">FAU Erdal Barnehage</div>
+    <div class="subtitle">Foreldrenes arbeidsutvalg</div>
+  </div>
+
+  <div class="container">
+    <nav class="nav">
+      <div class="nav-links">
+        <a href="#hjem" class="nav-link">Hjem</a>
+        <a href="#om-oss" class="nav-link">Om oss</a>
+        <a href="#arrangementer" class="nav-link">Arrangementer</a>
+        <a href="#dokumenter" class="nav-link">Dokumenter</a>
+        <a href="#kontakt" class="nav-link">Kontakt</a>
+        <a href="#admin" class="nav-link">Admin</a>
+      </div>
+    </nav>
+
+    <div class="content">
+      <section id="hjem" class="section">
+        <h2>Velkommen til FAU Erdal Barnehage</h2>
+        <p>Vi er foreldrenes arbeidsutvalg (FAU) for Erdal barnehage. Vårt mål er å være en brobygger mellom foreldre og barnehagen, og å skape de beste forholdene for våre barn.</p>
+        
+        <h3>Vårt arbeid</h3>
+        <p>FAU arbeider for å:</p>
+        <ul style="margin-left: 20px; margin-bottom: 15px;">
+          <li>Styrke samarbeidet mellom hjem og barnehage</li>
+          <li>Arrangere sosiale aktiviteter for familier</li>
+          <li>Være rådgivende organ for barnehagens ledelse</li>
+          <li>Formidle synspunkter mellom foreldre og barnehage</li>
+        </ul>
+      </section>
+
+      <section id="om-oss" class="section">
+        <h2>Om oss</h2>
+        <p>FAU Erdal Barnehage består av engasjerte foreldre som ønsker å bidra til et godt miljø for barn og familier. Vi møtes jevnlig for å diskutere saker som angår barnehagen og planlegge aktiviteter.</p>
+        
+        <h3>Møter</h3>
+        <p>Vi holder ordinære møter hver måned. Alle foreldre er velkomne til å delta. Informasjon om kommende møter finner du under arrangementer.</p>
+      </section>
+
+      <section id="arrangementer" class="section">
+        <h2>Arrangementer</h2>
+        <p>Her finner du informasjon om kommende arrangementer og aktiviteter. Vi arrangerer både møter og sosiale aktiviteter gjennom året.</p>
+        
+        <h3>Kommende arrangementer</h3>
+        <p>Ingen arrangementer er planlagt for øyeblikket. Sjekk tilbake senere eller kontakt oss for mer informasjon.</p>
+      </section>
+
+      <section id="dokumenter" class="section">
+        <h2>Dokumenter</h2>
+        <p>Her vil du finne møtereferater, årsrapporter og andre viktige dokumenter fra FAU.</p>
+        
+        <h3>Møtereferater</h3>
+        <p>Møtereferater vil bli publisert her etter hvert møte.</p>
+      </section>
+
+      <section id="kontakt" class="section">
+        <h2>Kontakt oss</h2>
+        <p>Vi ønsker å høre fra deg! Ta kontakt hvis du har spørsmål, forslag eller ønsker å engasjere deg i FAU-arbeidet.</p>
+        
+        <div class="contact-info">
+          <h3>Kontaktinformasjon</h3>
+          <p><strong>E-post:</strong> <a href="mailto:fauerdalbarnehage@gmail.com">fauerdalbarnehage@gmail.com</a></p>
+          <p>Vi svarer vanligvis innen 1-2 virkedager.</p>
+        </div>
+      </section>
+
+      <section id="admin" class="section">
+        <h2>Administratorinnlogging</h2>
+        <p>For FAU-medlemmer som skal administrere innhold på nettsiden.</p>
+        
+        <div class="login-form">
+          <form>
+            <div class="form-group">
+              <label for="username">Brukernavn:</label>
+              <input type="email" id="username" name="username" required>
+            </div>
+            <div class="form-group">
+              <label for="password">Passord:</label>
+              <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit" class="btn">Logg inn</button>
+          </form>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>&copy; 2024 FAU Erdal Barnehage. Alle rettigheter forbeholdt.</p>
+  </footer>
+
+  <script>
+    // Simple navigation
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const target = document.querySelector(link.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      });
+    });
+
+    // Simple form handling placeholder
+    document.querySelector('form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      alert('Innloggingsfunksjonen vil være tilgjengelig snart. Kontakt oss på e-post for assistanse.');
+    });
+  </script>
+</body>
+</html>
