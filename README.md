@@ -38,9 +38,10 @@ npm run dev
 
 ### Database Setup
 
-After deployment, initialize the database by calling:
-```
-POST /api/init-db
+After deployment, initialize the database with admin authorization:
+```bash
+curl -X POST https://your-domain.vercel.app/api/init-db \
+  -H "Authorization: Bearer YOUR_ADMIN_PASSWORD"
 ```
 
 ## Tech Stack

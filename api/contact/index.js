@@ -1,14 +1,33 @@
 import { storage } from '../../server/storage.js';
 import { insertContactMessageSchema } from '../../shared/schema.js';
 import { sendContactEmail } from '../../server/email.js';
+import { securityHeaders, validateInput, sanitizeInput } from '../middleware/security.js';
 
 export default async function handler(req, res) {
+  securityHeaders(res);
+  
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
 
   try {
-    const validatedData = insertContactMessageSchema.parse(req.body);
+    // Input validation
+    const validation = validateInput(req.body, ['name', 'email', 'subject', 'message']);
+    if (!validation.valid) {
+      return res.status(400).json({ message: `${validation.field} er påkrevd` });
+    }
+
+    // Sanitize inputs
+    const sanitizedData = {
+      ...req.body,
+      name: sanitizeInput(req.body.name),
+      email: sanitizeInput(req.body.email),
+      subject: sanitizeInput(req.body.subject),
+      message: sanitizeInput(req.body.message),
+      phone: req.body.phone ? sanitizeInput(req.body.phone) : null
+    };
+
+    const validatedData = insertContactMessageSchema.parse(sanitizedData);
     
     // Save to database
     const message = await storage.createContactMessage(validatedData);
