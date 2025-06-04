@@ -1,7 +1,26 @@
 {
   "buildCommand": "vite build",
   "outputDirectory": "dist/public",
+  "functions": {
+    "api/login.js": {
+      "runtime": "nodejs22.x"
+    },
+    "api/user.js": {
+      "runtime": "nodejs22.x"
+    },
+    "api/[...route].js": {
+      "runtime": "nodejs22.x"
+    }
+  },
   "rewrites": [
+    {
+      "source": "/api/login",
+      "destination": "/api/login.js"
+    },
+    {
+      "source": "/api/user", 
+      "destination": "/api/user.js"
+    },
     {
       "source": "/api/(.*)",
       "destination": "/api/[...route].js"
