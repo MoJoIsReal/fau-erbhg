@@ -1,0 +1,33 @@
+Files ready for Git commit to https://github.com/MoJoIsReal/fau-er-bhg.git
+
+Essential files for Vercel deployment:
+- package.json (dependencies)
+- package-lock.json (lock file)
+- vercel.json (Vercel configuration)
+- tsconfig.json (TypeScript config)
+- tailwind.config.ts (styling)
+- postcss.config.js (CSS processing)
+- drizzle.config.ts (database config)
+- components.json (UI components)
+- vite.config.ts (build config)
+
+Documentation:
+- README.md (project overview)
+- DEPLOYMENT.md (deployment instructions)
+- .env.example (environment variables template)
+
+Source code:
+- client/ (frontend React app)
+- server/ (backend Express API)
+- shared/ (shared types and schemas)
+- api/ (Vercel API routes)
+
+Configuration:
+- .gitignore (Git ignore rules)
+
+You can now run:
+git add .
+git commit -m "Add FAU Erdal Barnehage platform ready for Vercel deployment"
+git push origin main
+
+Then deploy on Vercel with the environment variables provided.
