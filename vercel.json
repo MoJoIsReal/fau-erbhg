@@ -5,39 +5,5 @@
     }
   },
   "buildCommand": "vite build",
-  "outputDirectory": "dist/public",
-  "rewrites": [
-    {
-      "source": "/api/login",
-      "destination": "/api/login.js"
-    },
-    {
-      "source": "/api/user", 
-      "destination": "/api/user.js"
-    },
-    {
-      "source": "/api/events",
-      "destination": "/api/events.js"
-    },
-    {
-      "source": "/api/documents",
-      "destination": "/api/documents.js"
-    },
-    {
-      "source": "/api/upload",
-      "destination": "/api/upload.js"
-    },
-    {
-      "source": "/api/setup-db",
-      "destination": "/api/setup-db.js"
-    },
-    {
-      "source": "/api/status",
-      "destination": "/api/status.js"
-    },
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/[...route].js"
-    }
-  ]
+  "outputDirectory": "dist/public"
 }
