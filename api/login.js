@@ -20,8 +20,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ message: 'Brukernavn og passord er påkrevd' });
     }
 
-    // Use direct connection string from Neon
-    const connectionString = "postgres://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    // Use environment variable for database connection
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      return res.status(500).json({ message: 'Database configuration missing' });
+    }
     const sql = neon(connectionString);
 
     // Get user from database
@@ -37,8 +40,8 @@ module.exports = async (req, res) => {
 
     const user = users[0];
     
-    // For admin credentials, check password
-    const isValidPassword = password === 'admin123' && username === 'fauerdalbarnehage@gmail.com';
+    // Verify password against stored hash (simplified check for now)
+    const isValidPassword = user.password_hash === password;
     
     if (!isValidPassword) {
       return res.status(401).json({ message: 'Ugyldig brukernavn eller passord' });

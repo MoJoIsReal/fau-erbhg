@@ -10,8 +10,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Use direct connection string from Neon
-    const connectionString = "postgres://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    // Use environment variable for database connection
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      return res.status(500).json({ message: 'Database configuration missing' });
+    }
     const sql = neon(connectionString);
 
     // Initialize database tables
@@ -77,22 +80,19 @@ module.exports = async (req, res) => {
       )
     `;
 
-    // Insert admin user if not exists
-    const existingAdmin = await sql`
-      SELECT id FROM users WHERE username = 'fauerdalbarnehage@gmail.com'
+    // Check if any admin users exist
+    const adminUsers = await sql`
+      SELECT COUNT(*) as count FROM users WHERE role = 'admin'
     `;
 
-    if (existingAdmin.length === 0) {
-      await sql`
-        INSERT INTO users (username, password_hash, name, role)
-        VALUES ('fauerdalbarnehage@gmail.com', 'admin123', 'FAU Erdal Barnehage', 'admin')
-      `;
-    }
+    const hasAdminUser = parseInt(adminUsers[0].count) > 0;
 
     return res.status(200).json({
       status: 'success',
       message: 'Database initialized successfully',
-      tables_created: ['users', 'events', 'event_registrations', 'documents', 'contact_messages']
+      tables_created: ['users', 'events', 'event_registrations', 'documents', 'contact_messages'],
+      admin_user_exists: hasAdminUser,
+      note: hasAdminUser ? 'Admin user already configured' : 'Admin user needs to be created through secure configuration'
     });
   } catch (error) {
     console.error('Database setup error:', error);

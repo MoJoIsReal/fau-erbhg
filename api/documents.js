@@ -10,8 +10,11 @@ module.exports = async (req, res) => {
   }
 
   try {
-    // Use direct connection string from Neon
-    const connectionString = "postgres://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    // Use environment variable for database connection
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      return res.status(500).json({ message: 'Database configuration missing' });
+    }
     const sql = neon(connectionString);
 
     if (req.method === 'GET') {

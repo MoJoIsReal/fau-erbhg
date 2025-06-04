@@ -15,8 +15,8 @@
 - `/api/setup-db` - Database initialization with table creation
 
 ## Database Configuration
-- Direct Neon PostgreSQL connection string configured
-- Admin user: fauerdalbarnehage@gmail.com / admin123
+- Uses DATABASE_URL environment variable for secure connection
+- Admin user setup required through Vercel environment configuration
 - All tables created: users, events, event_registrations, documents, contact_messages
 
 ## Changes Made
