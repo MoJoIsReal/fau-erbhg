@@ -1,5 +1,6 @@
-import { initializeDatabase } from '../server/init-database.js';
-import { initializeAdmin } from '../server/init-admin.js';
+import { db } from '../server/db.js';
+import { storage } from '../server/storage.js';
+import { hashPassword } from '../server/auth.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -7,15 +8,39 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Initialize database tables
-    await initializeDatabase();
+    // Test database connection
+    const testQuery = await db.execute('SELECT 1 as test');
+    console.log('Database connection successful:', testQuery);
+
+    // Check if admin user already exists
+    const existingAdmin = await storage.getUserByUsername('admin');
     
-    // Initialize admin user
-    await initializeAdmin();
+    if (existingAdmin) {
+      return res.status(200).json({ 
+        message: 'Database already initialized',
+        adminExists: true
+      });
+    }
+
+    // Create admin user
+    const hashedPassword = await hashPassword('admin123');
+    const adminUser = await storage.createUser({
+      username: 'admin',
+      name: 'System Administrator',
+      email: 'admin@fau-erdal.no',
+      password: hashedPassword,
+      role: 'admin'
+    });
+
+    console.log('Admin user created:', adminUser);
     
     res.status(200).json({ 
       message: 'Database initialized successfully',
-      adminUser: 'Check server logs for admin credentials'
+      adminUser: {
+        username: 'admin',
+        password: 'admin123',
+        note: 'Please change this password after first login'
+      }
     });
   } catch (error) {
     console.error('Database initialization error:', error);
