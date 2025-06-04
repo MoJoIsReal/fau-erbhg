@@ -1,0 +1,35 @@
+[13:07:03.275] Running build in Washington, D.C., USA (East) – iad1
+[13:07:03.276] Build machine configuration: 2 cores, 8 GB
+[13:07:03.290] Cloning github.com/MoJoIsReal/fau-erdal-barnehage (Branch: main, Commit: 564218e)
+[13:07:03.297] Skipping build cache, deployment was triggered without cache.
+[13:07:03.661] Cloning completed: 371.000ms
+[13:07:03.951] Running "vercel build"
+[13:07:04.387] Vercel CLI 42.2.0
+[13:07:05.079] Running "install" command: `npm install`...
+[13:07:09.286] npm warn deprecated q@1.5.1: You or someone you depend on is using Q, the JavaScript Promise library that gave JavaScript developers strong feelings about promises. They can almost certainly migrate to the native JavaScript promise now. Thank you literally everyone for joining me in this bet against the odds. Be excellent to each other.
+[13:07:09.286] npm warn deprecated
+[13:07:09.287] npm warn deprecated (For a CapTP with native promises, see @endo/eventual-send and @endo/captp)
+[13:07:10.108] npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+[13:07:14.969] 
+[13:07:14.970] added 465 packages, and audited 466 packages in 10s
+[13:07:14.970] 
+[13:07:14.970] 63 packages are looking for funding
+[13:07:14.971]   run `npm fund` for details
+[13:07:14.971] 
+[13:07:14.972] found 0 vulnerabilities
+[13:07:15.842] npm warn exec The following package was not found and will be installed: vite@6.3.5
+[13:07:21.708] [31mfailed to load config from /vercel/path0/vite.config.ts[39m
+[13:07:21.709] [31merror during build:
+[13:07:21.710] Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'vite' imported from /vercel/path0/node_modules/.vite-temp/vite.config.ts.timestamp-1749035241705-8ee4435298ce.mjs
+[13:07:21.710]     at Object.getPackageJSONURL (node:internal/modules/package_json_reader:268:9)
+[13:07:21.710]     at packageResolve (node:internal/modules/esm/resolve:768:81)
+[13:07:21.710]     at moduleResolve (node:internal/modules/esm/resolve:854:18)
+[13:07:21.710]     at defaultResolve (node:internal/modules/esm/resolve:984:11)
+[13:07:21.711]     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:780:12)
+[13:07:21.711]     at #cachedDefaultResolve (node:internal/modules/esm/loader:704:25)
+[13:07:21.711]     at ModuleLoader.resolve (node:internal/modules/esm/loader:687:38)
+[13:07:21.711]     at ModuleLoader.getModuleJobForImport (node:internal/modules/esm/loader:305:38)
+[13:07:21.711]     at ModuleJob._link (node:internal/modules/esm/module_job:137:49)[39m
+[13:07:21.734] Error: Command "npx vite build" exited with 1
+[13:07:21.947] 
+[13:07:24.837] Exiting build container
