@@ -22,7 +22,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
-      const response = await apiRequest('POST', '/api/auth/login', data);
+      const response = await apiRequest('POST', '/api/login', data);
       return response.json();
     },
     onSuccess: (data) => {
@@ -34,7 +34,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         title: t.modals.login.success,
         description: t.modals.login.successDesc,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       onClose();
       setUsername('');
       setPassword('');

@@ -12,7 +12,7 @@ export function useAuth() {
   const queryClient = useQueryClient();
 
   const { data: user, isLoading } = useQuery({
-    queryKey: ['/api/auth/user'],
+    queryKey: ['/api/user'],
     retry: false,
   });
 
@@ -21,8 +21,8 @@ export function useAuth() {
     onSuccess: () => {
       // Remove JWT token from localStorage
       localStorage.removeItem('auth_token');
-      queryClient.setQueryData(['/api/auth/user'], null);
-      queryClient.invalidateQueries({ queryKey: ['/api/auth/user'] });
+      queryClient.setQueryData(['/api/user'], null);
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     },
   });
 
