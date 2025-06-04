@@ -2,9 +2,16 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { neon } from '@neondatabase/serverless';
 
-const sql = neon(process.env.DATABASE_URL);
-
 export default async function handler(req, res) {
+  // Add CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -15,6 +22,18 @@ export default async function handler(req, res) {
     if (!username || !password) {
       return res.status(400).json({ message: 'Brukernavn og passord er påkrevd' });
     }
+
+    // Try different possible database URL environment variables
+    const dbUrl = process.env.DATABASE_URL || 
+                  process.env.POSTGRES_URL || 
+                  process.env.POSTGRES_PRISMA_URL ||
+                  process.env.NEON_DATABASE_URL;
+
+    if (!dbUrl) {
+      return res.status(500).json({ message: 'Database ikke konfigurert' });
+    }
+
+    const sql = neon(dbUrl);
 
     // Find user by username using Neon SQL
     const result = await sql`SELECT id, username, password, name, role FROM users WHERE username = ${username}`;
