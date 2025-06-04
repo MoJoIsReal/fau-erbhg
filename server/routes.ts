@@ -447,11 +447,8 @@ Crawl-delay: 1`;
         return res.status(400).json({ message: "No file uploaded" });
       }
 
-      // Upload file to Cloudinary
-      const cloudinaryResult = await uploadFile(req.file.path, req.file.originalname);
-      
-      // Delete temporary file
-      fs.unlinkSync(req.file.path);
+      // Upload file to Cloudinary using buffer (serverless compatible)
+      const cloudinaryResult = await uploadFile(req.file.buffer, req.file.originalname);
 
       const validatedData = insertDocumentSchema.parse({
         title: req.body.title,
@@ -468,10 +465,6 @@ Crawl-delay: 1`;
       const document = await storage.createDocument(validatedData);
       res.status(201).json(document);
     } catch (error) {
-      // Clean up temporary file if it exists
-      if (req.file && fs.existsSync(req.file.path)) {
-        fs.unlinkSync(req.file.path);
-      }
       res.status(400).json({ message: "Invalid document data", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });

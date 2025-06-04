@@ -6,14 +6,17 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export async function uploadFile(filePath: string, originalName: string, folder = 'fau-documents'): Promise<{
+export async function uploadFile(fileBuffer: Buffer, originalName: string, folder = 'fau-documents'): Promise<{
   url: string;
   publicId: string;
   format: string;
   bytes: number;
 }> {
   try {
-    const result = await cloudinary.uploader.upload(filePath, {
+    // Convert buffer to base64 for upload
+    const base64String = `data:application/octet-stream;base64,${fileBuffer.toString('base64')}`;
+    
+    const result = await cloudinary.uploader.upload(base64String, {
       folder: folder,
       public_id: originalName.replace(/\.[^/.]+$/, ''), // Remove file extension
       resource_type: 'auto', // Automatically detect file type
