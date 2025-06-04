@@ -1,5 +1,3 @@
-import { storage } from '../../server/storage.js';
-
 function getSessionFromCookie(req) {
   const cookies = req.headers.cookie;
   if (!cookies) return null;
@@ -14,7 +12,7 @@ function getSessionFromCookie(req) {
   }
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
