@@ -282,7 +282,7 @@ export default function Layout({ children }: LayoutProps) {
                     </Link>
                   </>
                 ) : (
-                  <p className="text-sm text-neutral-300">Ingen møter planlagt</p>
+                  <p className="text-sm text-neutral-300">{t.home.noEvents}</p>
                 )}
               </div>
             </div>
