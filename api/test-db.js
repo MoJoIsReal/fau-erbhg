@@ -2,11 +2,8 @@ import { neon } from '@neondatabase/serverless';
 
 export default async function handler(req, res) {
   try {
-    // Check all possible database environment variable names
-    const dbUrl = process.env.DATABASE_URL || 
-                  process.env.POSTGRES_URL || 
-                  process.env.POSTGRES_PRISMA_URL ||
-                  process.env.NEON_DATABASE_URL;
+    // Use the Postgres URL from Vercel's environment variables
+    const dbUrl = process.env.POSTGRES_URL;
     
     if (!dbUrl) {
       return res.json({
