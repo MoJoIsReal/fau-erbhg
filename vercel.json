@@ -3,13 +3,13 @@
   "outputDirectory": "dist/public",
   "functions": {
     "api/login.js": {
-      "runtime": "nodejs22.x"
+      "runtime": "nodejs20.x"
     },
     "api/user.js": {
-      "runtime": "nodejs22.x"
+      "runtime": "nodejs20.x"
     },
     "api/[...route].js": {
-      "runtime": "nodejs22.x"
+      "runtime": "nodejs20.x"
     }
   },
   "rewrites": [
