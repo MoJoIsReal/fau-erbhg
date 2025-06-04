@@ -19,6 +19,10 @@
       "destination": "/api/documents.js"
     },
     {
+      "source": "/api/upload",
+      "destination": "/api/upload.js"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/[...route].js"
     }
