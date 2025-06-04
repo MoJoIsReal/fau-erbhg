@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -12,37 +12,44 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Get token from Authorization header or cookies
     const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Ikke innlogget' });
+    const cookieToken = req.headers.cookie?.split(';')
+      .find(c => c.trim().startsWith('auth-token='))
+      ?.split('=')[1];
+
+    const token = authHeader?.replace('Bearer ', '') || cookieToken;
+
+    if (!token) {
+      return res.status(401).json({ message: 'No token provided' });
     }
 
-    const token = authHeader.substring(7);
-    
+    // Decode token
     try {
-      const decoded = JSON.parse(Buffer.from(token, 'base64').toString());
+      const tokenData = JSON.parse(Buffer.from(token, 'base64').toString());
       
-      // Validate token structure and expiry (24 hours)
-      if (decoded.userId && decoded.username && decoded.role && decoded.timestamp) {
-        const tokenAge = Date.now() - decoded.timestamp;
-        const maxAge = 24 * 60 * 60 * 1000; // 24 hours
-        
-        if (tokenAge < maxAge) {
-          return res.json({
-            userId: decoded.userId,
-            username: decoded.username,
-            name: decoded.name,
-            role: decoded.role
-          });
-        }
+      // Basic token validation
+      if (!tokenData.userId || !tokenData.username) {
+        return res.status(401).json({ message: 'Invalid token format' });
       }
-    } catch (parseError) {
-      // Token is invalid
+
+      // Check if token is not too old (24 hours)
+      const tokenAge = Date.now() - tokenData.timestamp;
+      if (tokenAge > 24 * 60 * 60 * 1000) {
+        return res.status(401).json({ message: 'Token expired' });
+      }
+
+      return res.status(200).json({
+        id: tokenData.userId,
+        username: tokenData.username,
+        name: tokenData.name,
+        role: tokenData.role
+      });
+    } catch (decodeError) {
+      return res.status(401).json({ message: 'Invalid token' });
     }
-    
-    return res.status(401).json({ message: 'Ikke innlogget' });
   } catch (error) {
-    console.error('Auth verification error:', error);
-    return res.status(401).json({ message: 'Ikke innlogget' });
+    console.error('User API error:', error);
+    return res.status(500).json({ message: 'Server error' });
   }
-}
+};
