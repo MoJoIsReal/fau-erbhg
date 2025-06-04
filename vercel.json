@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node@20"
+    }
+  },
   "buildCommand": "vite build",
   "outputDirectory": "dist/public",
   "rewrites": [
@@ -21,6 +26,14 @@
     {
       "source": "/api/upload",
       "destination": "/api/upload.js"
+    },
+    {
+      "source": "/api/setup-db",
+      "destination": "/api/setup-db.js"
+    },
+    {
+      "source": "/api/status",
+      "destination": "/api/status.js"
     },
     {
       "source": "/api/(.*)",
