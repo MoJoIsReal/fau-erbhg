@@ -1,6 +1,19 @@
-import { authenticateUser } from '../../server/auth.js';
+const bcryptjs = require('bcryptjs');
 
-export default async function handler(req, res) {
+// Environment-based authentication
+async function authenticateUser(username, password) {
+  if (username === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+    return {
+      id: 1,
+      username: process.env.ADMIN_EMAIL,
+      name: process.env.ADMIN_NAME || 'Administrator',
+      role: 'admin'
+    };
+  }
+  return null;
+}
+
+module.exports = async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
