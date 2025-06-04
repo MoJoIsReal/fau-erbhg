@@ -1,12 +1,10 @@
+import { neon } from '@neondatabase/serverless';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -18,32 +16,51 @@ export default async function handler(req, res) {
       return res.status(400).json({ message: 'Brukernavn og passord er påkrevd' });
     }
 
-    // For now, use hardcoded admin credentials until we resolve the database connection
-    if (username === 'fauerdalbarnehage@gmail.com' && password === 'admin123') {
-      // Create a simple base64 token
-      const tokenData = {
-        userId: 1,
-        username: 'fauerdalbarnehage@gmail.com',
-        name: 'FAU Erdal Barnehage',
-        role: 'admin',
-        timestamp: Date.now()
-      };
-      
-      const token = Buffer.from(JSON.stringify(tokenData)).toString('base64');
+    // Use direct connection string from Neon
+    const connectionString = "postgres://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    const sql = neon(connectionString);
 
-      return res.json({
-        message: 'Innlogging vellykket',
-        token,
-        user: {
-          id: 1,
-          username: 'fauerdalbarnehage@gmail.com',
-          name: 'FAU Erdal Barnehage',
-          role: 'admin'
-        }
-      });
-    } else {
+    // Get user from database
+    const users = await sql`
+      SELECT id, username, password_hash, name, role 
+      FROM users 
+      WHERE username = ${username}
+    `;
+
+    if (users.length === 0) {
       return res.status(401).json({ message: 'Ugyldig brukernavn eller passord' });
     }
+
+    const user = users[0];
+    
+    // For admin credentials, check password
+    const isValidPassword = password === 'admin123' && username === 'fauerdalbarnehage@gmail.com';
+    
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Ugyldig brukernavn eller passord' });
+    }
+
+    // Create token
+    const tokenData = {
+      userId: user.id,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+      timestamp: Date.now()
+    };
+    
+    const token = Buffer.from(JSON.stringify(tokenData)).toString('base64');
+
+    return res.json({
+      message: 'Innlogging vellykket',
+      token,
+      user: {
+        id: user.id,
+        username: user.username,
+        name: user.name,
+        role: user.role
+      }
+    });
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({ message: 'Serverfeil ved innlogging' });
