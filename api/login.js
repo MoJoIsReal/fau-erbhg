@@ -1,28 +1,13 @@
-const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
-const { Pool, neonConfig } = require('@neondatabase/serverless');
-const { drizzle } = require('drizzle-orm/neon-serverless');
-const { eq } = require('drizzle-orm');
-const ws = require('ws');
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import ws from "ws";
 
 neonConfig.webSocketConstructor = ws;
 
-// Define users table schema inline for serverless
-const { pgTable, serial, text, timestamp } = require('drizzle-orm/pg-core');
-
-const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  password: text("password").notNull(),
-  name: text("name").notNull(),
-  role: text("role").notNull().default("member"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const db = drizzle(pool);
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -34,12 +19,14 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ message: 'Brukernavn og passord er påkrevd' });
     }
 
-    // Find user by username
-    const [user] = await db.select().from(users).where(eq(users.username, username));
+    // Find user by username using raw SQL
+    const result = await pool.query('SELECT id, username, password, name, role FROM users WHERE username = $1', [username]);
     
-    if (!user) {
+    if (result.rows.length === 0) {
       return res.status(401).json({ message: 'Ugyldig brukernavn eller passord' });
     }
+
+    const user = result.rows[0];
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
