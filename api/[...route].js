@@ -10,13 +10,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // CORS configuration for production
 app.use((req, res, next) => {
   const allowedOrigins = [
-    'https://fau-erdal-barnehage.vercel.app',
-    'https://your-custom-domain.com' // Replace with actual domain
+    'https://fau-erdalbhg.vercel.app',
+    'https://fau-erdal-barnehage.vercel.app'
   ];
   
   const origin = req.headers.origin;
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

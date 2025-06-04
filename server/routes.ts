@@ -5,7 +5,7 @@ import { insertEventSchema, insertEventRegistrationSchema, insertContactMessageS
 import { uploadFile, deleteFile } from "./cloudinary";
 import { authenticateUser, requireCouncilMember } from "./auth";
 import { sendContactEmail, sendEventConfirmationEmail, sendEventCancellationEmail } from "./email";
-import session from "express-session";
+import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
 
@@ -102,25 +102,13 @@ Crawl-delay: 1`;
     res.send('google-site-verification: google9ba7dafbc787aa0b.html');
   });
 
-  // Configure session middleware with secure settings
+  // JWT-based authentication for serverless deployment
   const isProduction = process.env.NODE_ENV === 'production';
-  const sessionSecret = process.env.SESSION_SECRET || 'fallback-dev-secret-change-in-production';
+  const jwtSecret = process.env.SESSION_SECRET || 'fallback-dev-secret-change-in-production';
   
-  if (isProduction && sessionSecret === 'fallback-dev-secret-change-in-production') {
+  if (isProduction && jwtSecret === 'fallback-dev-secret-change-in-production') {
     throw new Error('SESSION_SECRET environment variable must be set in production');
   }
-  
-  app.use(session({
-    secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      secure: isProduction,
-      httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'strict' // CSRF protection
-    }
-  }));
 
   // Authentication routes
   app.post('/api/auth/login', async (req, res) => {
@@ -136,16 +124,21 @@ Crawl-delay: 1`;
         return res.status(401).json({ message: 'Ugyldig brukernavn eller passord' });
       }
 
-      // Store user session
-      (req.session as any).user = {
-        userId: user.id,
-        username: user.username,
-        name: user.name,
-        role: user.role
-      };
+      // Create JWT token
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role
+        },
+        jwtSecret,
+        { expiresIn: '24h' }
+      );
 
       res.json({ 
         message: 'Innlogging vellykket',
+        token,
         user: { id: user.id, username: user.username, name: user.name, role: user.role }
       });
     } catch (error) {
@@ -155,19 +148,26 @@ Crawl-delay: 1`;
   });
 
   app.post('/api/auth/logout', (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ message: 'Feil ved utlogging' });
-      }
-      res.json({ message: 'Utlogging vellykket' });
-    });
+    res.json({ message: 'Utlogging vellykket' });
   });
 
   app.get('/api/auth/user', (req, res) => {
-    const user = (req.session as any)?.user;
-    if (user) {
-      res.json(user);
-    } else {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Ikke innlogget' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, jwtSecret) as any;
+      
+      res.json({
+        userId: decoded.userId,
+        username: decoded.username,
+        name: decoded.name,
+        role: decoded.role
+      });
+    } catch (error) {
       res.status(401).json({ message: 'Ikke innlogget' });
     }
   });
