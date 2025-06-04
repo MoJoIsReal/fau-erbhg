@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Open+Sans:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 20 14.3% 4.1%;
+  --muted: 60 4.8% 95.9%;
+  --muted-foreground: 25 5.3% 44.7%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 20 14.3% 4.1%;
+  --card: 0 0% 100%;
+  --card-foreground: 20 14.3% 4.1%;
+  --border: 20 5.9% 90%;
+  --input: 20 5.9% 90%;
+  --primary: 16 100% 70%; /* #FF8A65 */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 194 100% 70%; /* #4FC3F7 */
+  --secondary-foreground: 0 0% 100%;
+  --accent: 122 39% 72%; /* #81C784 */
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 60 9.1% 97.8%;
+  --ring: 16 100% 70%;
+  --radius: 0.75rem;
+  
+  /* Custom colors for the kindergarten theme */
+  --kindergarten-orange: 16 100% 70%; /* #FF8A65 */
+  --kindergarten-orange-dark: 14 89% 55%; /* #F4511E */
+  --kindergarten-blue: 194 100% 70%; /* #4FC3F7 */
+  --kindergarten-blue-dark: 198 100% 66%; /* #29B6F6 */
+  --kindergarten-green: 122 39% 72%; /* #81C784 */
+  --kindergarten-green-dark: 123 43% 67%; /* #66BB6A */
+  
+  /* Neutral colors */
+  --neutral-50: 0 0% 98%;
+  --neutral-100: 0 0% 96%;
+  --neutral-200: 0 0% 88%;
+  --neutral-600: 0 0% 45%;
+  --neutral-700: 0 0% 35%;
+  --neutral-800: 0 0% 26%;
+  --neutral-900: 0 0% 13%;
+}
+
+.dark {
+  --background: 240 10% 3.9%;
+  --foreground: 0 0% 98%;
+  --muted: 240 3.7% 15.9%;
+  --muted-foreground: 240 5% 64.9%;
+  --popover: 240 10% 3.9%;
+  --popover-foreground: 0 0% 98%;
+  --card: 240 10% 3.9%;
+  --card-foreground: 0 0% 98%;
+  --border: 240 3.7% 15.9%;
+  --input: 240 3.7% 15.9%;
+  --primary: 16 100% 70%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 194 100% 70%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 122 39% 72%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --ring: 240 4.9% 83.9%;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+    font-family: 'Open Sans', sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Poppins', sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: 'Poppins', sans-serif;
+  }
+  
+  .font-body {
+    font-family: 'Open Sans', sans-serif;
+  }
+
+  .text-primary-orange {
+    color: hsl(var(--kindergarten-orange));
+  }
+  
+  .text-primary-orange-dark {
+    color: hsl(var(--kindergarten-orange-dark));
+  }
+  
+  .bg-primary-orange {
+    background-color: hsl(var(--kindergarten-orange));
+  }
+  
+  .bg-primary-orange-dark {
+    background-color: hsl(var(--kindergarten-orange-dark));
+  }
+  
+  .text-secondary-blue {
+    color: hsl(var(--kindergarten-blue));
+  }
+  
+  .bg-secondary-blue {
+    background-color: hsl(var(--kindergarten-blue));
+  }
+  
+  .text-accent-green {
+    color: hsl(var(--kindergarten-green));
+  }
+  
+  .bg-accent-green {
+    background-color: hsl(var(--kindergarten-green));
+  }
+}

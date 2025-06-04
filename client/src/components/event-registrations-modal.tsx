@@ -1,0 +1,24 @@
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import EventRegistrationsView from "./event-registrations-view";
+import type { Event } from "@shared/schema";
+
+interface EventRegistrationsModalProps {
+  event: Event | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export default function EventRegistrationsModal({ event, isOpen, onClose }: EventRegistrationsModalProps) {
+  if (!event) return null;
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Påmeldinger - {event.title}</DialogTitle>
+        </DialogHeader>
+        <EventRegistrationsView event={event} />
+      </DialogContent>
+    </Dialog>
+  );
+}
