@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/*.js": {
-      "runtime": "nodejs20.x"
-    }
-  },
   "buildCommand": "vite build",
   "outputDirectory": "dist/public"
 }
