@@ -8,13 +8,13 @@ import { sendContactEmail, sendEventConfirmationEmail, sendEventCancellationEmai
 import session from "express-session";
 import multer from "multer";
 import path from "path";
-import fs from "fs";
 
-// Configure multer for file uploads
+// Configure multer for file uploads with enhanced security
 const upload = multer({
-  dest: 'uploads/',
+  storage: multer.memoryStorage(), // Use memory storage for serverless
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 5 * 1024 * 1024, // 5MB limit for better performance
+    files: 1 // Only allow one file at a time
   },
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
@@ -25,18 +25,26 @@ const upload = multer({
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     ];
     
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only PDF, Word, and Excel files are allowed.'));
+    // Enhanced security checks
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error('Invalid file type. Only PDF, Word, and Excel files are allowed.'));
     }
+    
+    // Check file extension matches MIME type
+    const allowedExtensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx'];
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    if (!allowedExtensions.includes(fileExtension)) {
+      return cb(new Error('Invalid file extension.'));
+    }
+    
+    cb(null, true);
   }
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // SEO Routes MUST come first before other routes
   app.get('/sitemap.xml', (req, res) => {
-    const baseUrl = 'https://fau-erdal-barnehage.onrender.com';
+    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'https://fau-erdal-barnehage.vercel.app';
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -73,7 +81,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const robots = `User-agent: *
 Allow: /
 
-Sitemap: https://fau-erdal-barnehage.onrender.com/sitemap.xml
+Sitemap: https://fau-erdal-barnehage.vercel.app/sitemap.xml
 
 # Specific rules for FAU Erdal Barnehage
 User-agent: Googlebot
@@ -94,17 +102,23 @@ Crawl-delay: 1`;
     res.send('google-site-verification: google9ba7dafbc787aa0b.html');
   });
 
-  // Configure session middleware - using memory store to avoid SSL issues
+  // Configure session middleware with secure settings
   const isProduction = process.env.NODE_ENV === 'production';
+  const sessionSecret = process.env.SESSION_SECRET || 'fallback-dev-secret-change-in-production';
+  
+  if (isProduction && sessionSecret === 'fallback-dev-secret-change-in-production') {
+    throw new Error('SESSION_SECRET environment variable must be set in production');
+  }
   
   app.use(session({
-    secret: 'fau-erdal-barnehage-secret-2024',
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: isProduction, // HTTPS in production
+      secure: isProduction,
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      sameSite: 'strict' // CSRF protection
     }
   }));
 

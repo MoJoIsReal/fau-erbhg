@@ -3,7 +3,7 @@
   "buildCommand": "vite build",
   "outputDirectory": "client/dist",
   "functions": {
-    "server/index.ts": {
+    "api/[...route].js": {
       "runtime": "nodejs20.x",
       "maxDuration": 30
     }
@@ -11,7 +11,10 @@
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/server/index.ts"
+      "destination": "/api/[...route].js"
     }
-  ]
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
 }
