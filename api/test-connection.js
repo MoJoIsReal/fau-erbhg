@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
   try {
-    // Try the exact connection string you provided
-    const connectionString = "postgresql://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require";
+    // Use environment variable for database connection
+    const connectionString = process.env.DATABASE_URL;
     
     const { Pool } = await import('@neondatabase/serverless');
     const pool = new Pool({ connectionString });
