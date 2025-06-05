@@ -37,7 +37,7 @@
 
 ### Environment Variables for Vercel
 ```
-DATABASE_URL=postgres://neondb_owner:npg_oUFVkyKrQ5Z7@ep-silent-breeze-a2v8zuzu-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgres://your_user:your_password@your-host-pooler.region.aws.neon.tech/your_db?sslmode=require
 SESSION_SECRET=your_secure_session_secret
 GMAIL_USER=fauerdalbarnehage@gmail.com
 GMAIL_APP_PASSWORD=your_gmail_app_password
