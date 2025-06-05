@@ -273,7 +273,7 @@ Crawl-delay: 1`;
       const validatedData = insertEventSchema.parse(req.body);
       const event = await storage.createEvent(validatedData);
       res.status(201).json(event);
-    } catch (error) {
+    } catch (error: any) {
       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
         return res.status(401).json({ message: 'Invalid or expired token' });
       }
