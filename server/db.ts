@@ -1,6 +1,10 @@
-import { Pool } from 'pg';
-import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool, neonConfig } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import ws from "ws";
 import * as schema from "@shared/schema";
+
+// Configure Neon for serverless environment
+neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -8,22 +12,6 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Configure SSL for production
-const isProduction = process.env.NODE_ENV === 'production';
-
-// Parse DATABASE_URL and add SSL parameters for production
-let connectionConfig: any = {
-  connectionString: process.env.DATABASE_URL
-};
-
-if (isProduction && process.env.DATABASE_URL) {
-  // For Render PostgreSQL, add SSL parameters to connection string
-  const dbUrl = new URL(process.env.DATABASE_URL);
-  dbUrl.searchParams.set('sslmode', 'require');
-  connectionConfig.connectionString = dbUrl.toString();
-  connectionConfig.ssl = { rejectUnauthorized: false };
-}
-
-export const pool = new Pool(connectionConfig);
-
+// Use Neon's serverless driver for better connection handling
+export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle({ client: pool, schema });
