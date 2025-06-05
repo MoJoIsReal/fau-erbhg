@@ -26,17 +26,50 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
   const deleteRegistrationMutation = useMutation({
     mutationFn: (registrationId: number) => 
       apiRequest("DELETE", `/api/registrations/${registrationId}`),
+    onMutate: async (registrationId: number) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
+      
+      // Snapshot the previous value
+      const previousRegistrations = queryClient.getQueryData([`/api/registrations?eventId=${event.id}`]);
+      
+      // Optimistically update to new value
+      queryClient.setQueryData([`/api/registrations?eventId=${event.id}`], (old: EventRegistration[] | undefined) => {
+        return old?.filter(reg => reg.id !== registrationId) || [];
+      });
+      
+      // Update events list attendee count
+      queryClient.setQueryData(["/api/events"], (oldEvents: any) => {
+        if (!oldEvents) return oldEvents;
+        return oldEvents.map((evt: any) => {
+          if (evt.id === event.id) {
+            const deletedReg = registrations.find(r => r.id === registrationId);
+            const attendeeReduction = deletedReg?.attendeeCount || 1;
+            return {
+              ...evt,
+              currentAttendees: Math.max(0, (evt.currentAttendees || 0) - attendeeReduction)
+            };
+          }
+          return evt;
+        });
+      });
+      
+      return { previousRegistrations };
+    },
     onSuccess: () => {
       toast({
         title: language === 'no' ? "Påmelding slettet" : "Registration deleted",
         description: language === 'no' ? "Påmeldingen har blitt slettet." : "The registration has been deleted.",
       });
-      // Invalidate multiple cache keys to ensure UI updates
+      // Invalidate to sync with server
       queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/secure-events"] });
     },
-    onError: () => {
+    onError: (err, registrationId, context) => {
+      // Rollback on error
+      if (context?.previousRegistrations) {
+        queryClient.setQueryData([`/api/registrations?eventId=${event.id}`], context.previousRegistrations);
+      }
       toast({
         title: language === 'no' ? "Feil ved sletting" : "Delete error",
         description: language === 'no' ? "Kunne ikke slette påmeldingen. Prøv igjen senere." : "Could not delete the registration. Please try again later.",
