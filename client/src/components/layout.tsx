@@ -31,7 +31,7 @@ export default function Layout({ children }: LayoutProps) {
   // Find next meeting
   const nextMeeting = events
     .filter(event => 
-      event.type === 'Møte' && 
+      event.type === 'meeting' && 
       event.status === 'active' && 
       new Date(event.date) >= new Date()
     )
