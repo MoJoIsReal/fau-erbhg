@@ -34,7 +34,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         title: t.modals.login.success,
         description: t.modals.login.successDesc,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/secure-auth'] });
+      // Force refresh authentication state
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      queryClient.refetchQueries({ queryKey: ['/api/user'] });
       onClose();
       setUsername('');
       setPassword('');

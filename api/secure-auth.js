@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -44,16 +45,17 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      const tokenData = {
-        userId: user.id,
-        username: user.username,
-        name: user.name,
-        role: user.role,
-        timestamp: Date.now(),
-        expires: Date.now() + (24 * 60 * 60 * 1000)
-      };
-
-      const token = Buffer.from(JSON.stringify(tokenData)).toString('base64');
+      // Create JWT token
+      const token = jwt.sign(
+        { 
+          userId: user.id, 
+          username: user.username, 
+          name: user.name,
+          role: user.role 
+        },
+        process.env.SESSION_SECRET,
+        { expiresIn: '24h' }
+      );
 
       return res.status(200).json({
         success: true,
