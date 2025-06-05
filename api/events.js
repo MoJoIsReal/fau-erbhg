@@ -24,8 +24,11 @@ export default async function handler(req, res) {
     // Get all active events (public access)
     const events = await sql`
       SELECT 
-        id, title, description, date, time, location, custom_location,
-        max_attendees, current_attendees, type, status
+        id, title, description, date, time, location, 
+        custom_location as "customLocation",
+        max_attendees as "maxAttendees", 
+        current_attendees as "currentAttendees", 
+        type, status
       FROM events 
       WHERE status = 'active'
       ORDER BY date ASC, time ASC
