@@ -59,12 +59,12 @@ The secure API endpoints are created but need routing priority over the existing
 5. **Create Admin User** - Use `/api/secure-auth` with setup key
 
 ### For Gmail Integration:
-- App password already generated: `nmsvzkyuivvstlki`
+- App password configured for Gmail integration
 - 2FA enabled on fauerdalbarnehage@gmail.com
 - Ready for production use
 
 ### For Cloudinary:
-- Account configured: `dphthnvcl`
+- Account configured for file storage
 - API keys ready for file uploads
 - Document storage ready
 
