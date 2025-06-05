@@ -8,40 +8,40 @@ Copy these exact variable names and values into your Vercel dashboard:
 ```
 DATABASE_URL
 ```
-Value: `postgresql://neondb_owner:npg_oPhyftK9l5DR@ep-sweet-truth-a5u52k4c.us-east-2.aws.neon.tech/neondb?sslmode=require`
+Value: `[Get from Neon dashboard - rotate password first]`
 
 ### Email Configuration
 ```
 GMAIL_APP_PASSWORD
 ```
-Value: `nmsvzkyuivvstlki`
+Value: `[16-character Gmail app password]`
 
 ### File Upload Configuration
 ```
 CLOUDINARY_CLOUD_NAME
 ```
-Value: `dphthnvcl`
+Value: `[Your Cloudinary cloud name]`
 
 ```
 CLOUDINARY_API_KEY
 ```
-Value: `921956512463694`
+Value: `[Your Cloudinary API key]`
 
 ```
 CLOUDINARY_API_SECRET
 ```
-Value: `-86LwxQoGCUmPFi_NlMGHZNW0k0`
+Value: `[Your Cloudinary API secret]`
 
 ### Security Configuration
 ```
 SESSION_SECRET
 ```
-Value: `secure-session-key-for-fau-barnehage-2024`
+Value: `[Generate 32-character random string]`
 
 ```
 ADMIN_SETUP_KEY
 ```
-Value: `fau-admin-setup-2024-secure`
+Value: `[Generate secure random key]`
 
 ```
 NODE_ENV

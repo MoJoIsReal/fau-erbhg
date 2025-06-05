@@ -14,13 +14,13 @@
 
 ### 2. Environment Variables Configured
 ```
-DATABASE_URL=postgresql://neondb_owner:***@ep-sweet-truth-a5u52k4c.us-east-2.aws.neon.tech/neondb?sslmode=require
-SESSION_SECRET=secure-session-key-for-fau-barnehage-2024
-GMAIL_APP_PASSWORD=nmsvzkyuivvstlki
-CLOUDINARY_CLOUD_NAME=dphthnvcl
-CLOUDINARY_API_KEY=921956512463694
-CLOUDINARY_API_SECRET=-86LwxQoGCUmPFi_NlMGHZNW0k0
-ADMIN_SETUP_KEY=fau-admin-setup-2024-secure
+DATABASE_URL=[Configured in Vercel environment]
+SESSION_SECRET=[32-character random string]
+GMAIL_APP_PASSWORD=[Gmail app password]
+CLOUDINARY_CLOUD_NAME=[Cloudinary account name]
+CLOUDINARY_API_KEY=[Cloudinary API key]
+CLOUDINARY_API_SECRET=[Cloudinary secret]
+ADMIN_SETUP_KEY=[Random secure key]
 ```
 
 ### 3. Security Features Implemented
