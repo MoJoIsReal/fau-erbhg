@@ -56,6 +56,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       onClose();
       // Invalidate events to refresh the attendee count
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      queryClient.refetchQueries({ queryKey: ["/api/events"] });
     },
     onError: (error: any) => {
       let errorMessage = error.message || t.modals.eventRegistration.errorDesc;
