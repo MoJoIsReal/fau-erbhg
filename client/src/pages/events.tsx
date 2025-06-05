@@ -137,8 +137,22 @@ export default function Events() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
-  const currentEvents = sortedEvents.filter(event => new Date(event.date) >= today);
-  const pastEvents = sortedEvents.filter(event => new Date(event.date) < today).reverse();
+  // Filter out cancelled events that have passed their date
+  const visibleEvents = sortedEvents.filter(event => {
+    const eventDate = new Date(event.date);
+    // If event is cancelled and date has passed, hide it completely
+    if (event.status === 'cancelled' && eventDate < today) {
+      return false;
+    }
+    return true;
+  });
+  
+  const currentEvents = visibleEvents.filter(event => new Date(event.date) >= today);
+  const pastEvents = visibleEvents.filter(event => {
+    const eventDate = new Date(event.date);
+    // Only show past events that are not cancelled
+    return eventDate < today && event.status !== 'cancelled';
+  }).reverse();
 
   if (isLoading) {
     return (
