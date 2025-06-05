@@ -72,7 +72,7 @@ export default async function handler(req, res) {
 
       // Send confirmation email
       try {
-        const emailResponse = await fetch(`${req.headers.origin || 'http://localhost:5000'}/api/secure-email`, {
+        const emailResponse = await fetch(`${req.headers.origin || 'http://localhost:5000'}/api/email-gmail`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

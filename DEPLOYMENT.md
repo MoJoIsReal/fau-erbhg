@@ -15,7 +15,7 @@ Configure these in your Vercel dashboard under Settings → Environment Variable
 ```
 DATABASE_URL=postgresql://username:password@ep-xxx.neon.tech/dbname
 SESSION_SECRET=your_secure_random_32_character_string
-SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxx
+GMAIL_APP_PASSWORD=your_16_character_gmail_app_password
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=123456789012345
 CLOUDINARY_API_SECRET=your_cloudinary_secret
@@ -30,11 +30,11 @@ NODE_ENV=production
 2. Copy connection string to DATABASE_URL
 3. Database will auto-initialize on first API call
 
-#### SendGrid Email
-1. Create account at sendgrid.com
-2. Generate API key with Mail Send permissions
-3. Verify sender email: fauerdalbarnehage@gmail.com
-4. Add API key to SENDGRID_API_KEY
+#### Gmail Email Setup
+1. Enable 2-factor authentication on fauerdalbarnehage@gmail.com
+2. Go to Google Account settings → Security → App passwords
+3. Generate new app password for "Mail"
+4. Add the 16-character password to GMAIL_APP_PASSWORD
 
 #### Cloudinary File Storage
 1. Create account at cloudinary.com
