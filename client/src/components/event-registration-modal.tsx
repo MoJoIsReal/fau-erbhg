@@ -45,7 +45,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
       if (!event) throw new Error("Ingen arrangement valgt");
-      return apiRequest("POST", `/api/events/${event.id}/registrations`, { ...data, language });
+      return apiRequest("POST", `/api/registrations`, { ...data, eventId: event.id, language });
     },
     onSuccess: () => {
       toast({

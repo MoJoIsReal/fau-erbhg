@@ -1,27 +1,28 @@
 # Critical Deployment Fixes Required
 
 ## Issue
-Vercel deployment showing 404 NOT_FOUND error due to incorrect build configuration.
+Missing API endpoints causing 404 errors during signup and login.
 
 ## Files to Commit
-1. `api/events.js` - New public events API endpoint
-2. `api/secure-events.js` - Fixed database column references
-3. `vercel.json` - Corrected build output directory from "dist" to "dist/public"
+1. `api/user.js` - JWT-based user authentication endpoint
+2. `api/login.js` - User login with bcrypt password verification
+3. `api/registrations.js` - Event registration with capacity checking
+4. `client/src/components/event-registration-modal.tsx` - Updated API endpoint
 
 ## Git Commands
 ```bash
-git add api/events.js api/secure-events.js vercel.json
-git commit -m "Fix Vercel deployment: correct build output directory and API endpoints"
+git add api/user.js api/login.js api/registrations.js client/src/components/event-registration-modal.tsx
+git commit -m "Add missing authentication and registration API endpoints"
 git push origin main
 ```
 
 ## Expected Result
 After deployment:
-- Frontend serves proper HTML instead of raw JavaScript
-- API endpoints return JSON data instead of HTML
-- Events page displays 3 sample events from database
-- Login functionality works with fauerdalbarnehage@gmail.com
+- User login works with JWT authentication
+- Event registration creates database entries
+- Capacity checking prevents overbooking
+- Frontend properly communicates with backend
 
 ## Current Status
-- Local development works correctly
-- Production deployment needs these fixes to function
+- Events displaying correctly ✓
+- Need authentication and registration endpoints deployed
