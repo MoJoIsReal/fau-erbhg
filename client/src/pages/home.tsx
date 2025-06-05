@@ -19,9 +19,12 @@ export default function Home() {
     queryKey: ["/api/events"],
   });
 
-  // Filter and sort upcoming events (next 3)
+  // Filter and sort upcoming events (next 3) - exclude cancelled events
   const upcomingEvents = allEvents
-    .filter(event => new Date(event.date) >= new Date())
+    .filter(event => 
+      new Date(event.date) >= new Date() && 
+      event.status === 'active'
+    )
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
 
