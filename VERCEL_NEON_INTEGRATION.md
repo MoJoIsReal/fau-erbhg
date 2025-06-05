@@ -11,16 +11,16 @@ Using the new Neon database with pooling for optimal serverless performance:
 
 ### Primary Database Connection
 ```
-DATABASE_URL=postgres://neondb_owner:npg_oUFVkyKrQ5Z7@ep-silent-breeze-a2v8zuzu-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgres://your_user:your_password@your-host-pooler.region.aws.neon.tech/your_db?sslmode=require
 ```
 
 ### Alternative Connection Options (if needed)
 ```
 # Unpooled connection (for migrations or specific use cases)
-DATABASE_URL_UNPOOLED=postgresql://neondb_owner:npg_oUFVkyKrQ5Z7@ep-silent-breeze-a2v8zuzu.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL_UNPOOLED=postgresql://your_user:your_password@your-host.region.aws.neon.tech/your_db?sslmode=require
 
 # Vercel Postgres compatible format
-POSTGRES_URL=postgres://neondb_owner:npg_oUFVkyKrQ5Z7@ep-silent-breeze-a2v8zuzu-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+POSTGRES_URL=postgres://your_user:your_password@your-host-pooler.region.aws.neon.tech/your_db?sslmode=require
 ```
 
 ### Other Required Environment Variables

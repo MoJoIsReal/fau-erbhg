@@ -14,8 +14,13 @@ export async function initializeAdmin() {
     console.log('Creating admin user...');
 
     // Create only the admin user
-    const adminPassword = process.env.ADMIN_PASSWORD || "EW^nF0fm8ZzW1He";
+    const adminPassword = process.env.ADMIN_PASSWORD;
     const adminEmail = process.env.ADMIN_EMAIL || "fauerdalbarnehage@gmail.com";
+    
+    if (!adminPassword) {
+      console.log('ADMIN_PASSWORD environment variable not set, skipping admin creation');
+      return;
+    }
     
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
     const adminUser: InsertUser = {
