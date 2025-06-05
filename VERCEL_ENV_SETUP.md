@@ -1,29 +1,86 @@
 # Vercel Environment Variables Setup
 
-To complete the deployment and enable authentication, add these environment variables in your Vercel project:
+## Required Environment Variables
 
-## Go to Vercel Dashboard:
-1. Visit: https://vercel.com/dashboard
-2. Select your "fau-erdal-database" project
-3. Go to Settings → Environment Variables
+Copy these exact variable names and values into your Vercel dashboard:
 
-## Add these variables:
-
-**DATABASE_URL**
+### Database Configuration
 ```
-postgresql://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL
 ```
+Value: `postgresql://neondb_owner:npg_oPhyftK9l5DR@ep-sweet-truth-a5u52k4c.us-east-2.aws.neon.tech/neondb?sslmode=require`
 
-**SESSION_SECRET**
+### Email Configuration
 ```
-25tt0FNdPJ5tgo9odeP94acLhfiRztD7
+GMAIL_APP_PASSWORD
 ```
+Value: `nmsvzkyuivvstlki`
 
-## After adding the variables:
-1. Redeploy the application (Vercel will automatically redeploy)
-2. Test authentication at: https://fau-erdalbhg.vercel.app
-3. Login with:
-   - Username: fauerdalbarnehage@gmail.com
-   - Password: admin123
+### File Upload Configuration
+```
+CLOUDINARY_CLOUD_NAME
+```
+Value: `dphthnvcl`
 
-The authentication system will then work properly on the deployed site.
+```
+CLOUDINARY_API_KEY
+```
+Value: `921956512463694`
+
+```
+CLOUDINARY_API_SECRET
+```
+Value: `-86LwxQoGCUmPFi_NlMGHZNW0k0`
+
+### Security Configuration
+```
+SESSION_SECRET
+```
+Value: `secure-session-key-for-fau-barnehage-2024`
+
+```
+ADMIN_SETUP_KEY
+```
+Value: `fau-admin-setup-2024-secure`
+
+```
+NODE_ENV
+```
+Value: `production`
+
+## How to Add to Vercel
+
+1. Go to your Vercel project dashboard
+2. Click Settings → Environment Variables
+3. Add each variable above with its exact name and value
+4. Deploy your application
+5. Test with: `https://your-app.vercel.app/api/secure-status`
+
+## Security Note
+
+These credentials are already exposed in Git history and need to be rotated after deployment. For production use:
+
+1. Change the Neon database password
+2. Generate new Cloudinary API keys
+3. Create new session secrets
+4. Update environment variables in Vercel
+
+## Initial Setup Commands
+
+After deployment, run these to initialize:
+
+```bash
+# Initialize database
+curl -X POST https://your-app.vercel.app/api/init-secure-db
+
+# Create admin user
+curl -X POST https://your-app.vercel.app/api/secure-auth \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "register",
+    "username": "admin",
+    "password": "YourSecurePassword123!",
+    "name": "Administrator",
+    "setupKey": "fau-admin-setup-2024-secure"
+  }'
+```
