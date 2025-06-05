@@ -3,7 +3,7 @@ import { neon } from '@neondatabase/serverless';
 export default async function handler(req, res) {
   // Security headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (req.method === 'OPTIONS') {
@@ -67,6 +67,37 @@ export default async function handler(req, res) {
       }
 
       return res.status(200).json(updatedEvent[0]);
+    }
+
+    if (req.method === 'PATCH') {
+      // Handle event actions (like cancellation)
+      const { id, action } = req.query;
+
+      if (action === 'cancel') {
+        // Get all registrations for this event first
+        const registrations = await sql`
+          SELECT * FROM event_registrations WHERE event_id = ${id}
+        `;
+
+        // Cancel the event
+        const cancelledEvent = await sql`
+          UPDATE events 
+          SET status = 'cancelled'
+          WHERE id = ${id}
+          RETURNING *
+        `;
+
+        if (cancelledEvent.length === 0) {
+          return res.status(404).json({ error: 'Event not found' });
+        }
+
+        // Note: Email sending would be handled by the local server in development
+        // In production, this would need additional email service configuration
+
+        return res.status(200).json(cancelledEvent[0]);
+      }
+
+      return res.status(400).json({ error: 'Invalid action' });
     }
 
     if (req.method === 'DELETE') {
