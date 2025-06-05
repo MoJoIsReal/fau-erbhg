@@ -42,7 +42,7 @@ export default function Events() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   const { data: events = [], isLoading } = useQuery({
-    queryKey: ["/api/secure-events"]
+    queryKey: ["/api/events"]
   });
 
   const deleteMutation = useMutation({
