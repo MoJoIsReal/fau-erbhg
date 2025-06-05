@@ -1,28 +1,26 @@
-# Critical Deployment Fixes Required
+# Cache Refresh Fix Required
 
 ## Issue
-Missing API endpoints causing 404 errors during signup and login.
+Registration works and saves to database, but attendee count doesn't update on frontend.
 
 ## Files to Commit
-1. `api/user.js` - JWT-based user authentication endpoint
-2. `api/login.js` - User login with bcrypt password verification
-3. `api/registrations.js` - Event registration with capacity checking
-4. `client/src/components/event-registration-modal.tsx` - Updated API endpoint
+1. `client/src/components/event-registration-modal.tsx` - Aggressive cache invalidation
 
 ## Git Commands
 ```bash
-git add api/user.js api/login.js api/registrations.js client/src/components/event-registration-modal.tsx
-git commit -m "Add missing authentication and registration API endpoints"
+git add client/src/components/event-registration-modal.tsx
+git commit -m "Fix attendee count display with aggressive cache invalidation"
 git push origin main
 ```
 
+## Technical Details
+- Database correctly shows event #3 has 1 attendee
+- API returns correct `currentAttendees: 1` 
+- Frontend cache not refreshing on production
+- Added cache removal + delayed refetch
+
 ## Expected Result
 After deployment:
-- User login works with JWT authentication
-- Event registration creates database entries
-- Capacity checking prevents overbooking
-- Frontend properly communicates with backend
-
-## Current Status
-- Events displaying correctly ✓
-- Need authentication and registration endpoints deployed
+- Attendee count updates immediately after registration
+- "påmeldte" displays correct numbers from database
+- Cache properly invalidates and refetches
