@@ -89,7 +89,7 @@ export default async function handler(req, res) {
       if (adminResult.rows.length === 0) {
         await pool.query(
           'INSERT INTO users (username, password, name, role) VALUES ($1, $2, $3, $4)',
-          ['fauerdalbarnehage@gmail.com', 'admin123', 'FAU Erdal Barnehage', 'admin']
+          ['fauerdalbarnehage@gmail.com', 'secure_admin_password', 'FAU Erdal Barnehage', 'admin']
         );
       }
 
