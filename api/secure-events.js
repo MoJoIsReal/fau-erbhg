@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       const events = await sql`
         SELECT 
           id, title, description, date, time, location, custom_location,
-          max_attendees, current_attendees, status, created_at
+          max_attendees, current_attendees, type, status
         FROM events 
         WHERE status = 'active'
         ORDER BY date ASC, time ASC
