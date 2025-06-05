@@ -15,7 +15,16 @@ export default async function handler(req, res) {
 
   // Extract route from URL path
   const urlPath = req.url.split('?')[0];
-  const route = urlPath.replace('/api/secure', '');
+  let route = urlPath.replace('/api/secure', '');
+  
+  // Handle both /api/secure/auth and /api/secure-auth patterns
+  if (urlPath.includes('/secure-auth')) route = '/auth';
+  if (urlPath.includes('/secure-events')) route = '/events';
+  if (urlPath.includes('/secure-registrations')) route = '/registrations';
+  if (urlPath.includes('/secure-contact')) route = '/contact';
+  if (urlPath.includes('/secure-documents')) route = '/documents';
+  if (urlPath.includes('/secure-upload')) route = '/upload';
+  if (urlPath.includes('/secure-status')) route = '/status';
 
   // JWT authentication check for most routes
   if (!route.includes('/status')) {
