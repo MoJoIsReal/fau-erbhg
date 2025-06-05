@@ -9,7 +9,6 @@ import {
   Users, 
   UserPlus, 
   Heart, 
-  ShoppingCart, 
   Plus,
   List,
   Grid,
@@ -276,23 +275,14 @@ export default function Events() {
                               <AlertTriangle className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Arrangementet er avlyst' : 'Event is cancelled'}</span>
                             </div>
-                          ) : event.type === "event" ? (
-                            <>
-                              <Button 
-                                onClick={() => handleRegisterClick(event)}
-                                className="bg-primary hover:bg-primary/90 text-white"
-                              >
-                                <Heart className="h-4 w-4 mr-2" />
-                                {language === 'no' ? 'Meld deg som frivillig' : 'Volunteer'}
-                              </Button>
-                              <Button 
-                                variant="outline"
-                                className="border-secondary text-secondary hover:bg-secondary hover:text-white"
-                              >
-                                <ShoppingCart className="h-4 w-4 mr-2" />
-                                {language === 'no' ? 'Lever inn varer' : 'Deliver goods'}
-                              </Button>
-                            </>
+                          ) : event.type === "dugnad" ? (
+                            <Button 
+                              onClick={() => handleRegisterClick(event)}
+                              className="bg-primary hover:bg-primary/90 text-white"
+                            >
+                              <Heart className="h-4 w-4 mr-2" />
+                              {language === 'no' ? 'Meld deg som frivillig' : 'Volunteer'}
+                            </Button>
                           ) : (
                             <Button 
                               onClick={() => handleRegisterClick(event)}
