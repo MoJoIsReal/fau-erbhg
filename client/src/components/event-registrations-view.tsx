@@ -1,11 +1,13 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Mail, Phone, MessageSquare, Calendar, Download } from "lucide-react";
+import { Users, Mail, Phone, MessageSquare, Calendar, Download, Trash2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { exportAttendeesToExcel } from "@/lib/excel-export";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { Event, EventRegistration } from "@shared/schema";
 
 interface EventRegistrationsViewProps {
@@ -14,13 +16,46 @@ interface EventRegistrationsViewProps {
 
 export default function EventRegistrationsView({ event }: EventRegistrationsViewProps) {
   const { language } = useLanguage();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: registrations = [], isLoading } = useQuery<EventRegistration[]>({
     queryKey: [`/api/registrations?eventId=${event.id}`],
   });
 
+  const deleteRegistrationMutation = useMutation({
+    mutationFn: (registrationId: number) => 
+      apiRequest("DELETE", `/api/registrations/${registrationId}`),
+    onSuccess: () => {
+      toast({
+        title: language === 'no' ? "Påmelding slettet" : "Registration deleted",
+        description: language === 'no' ? "Påmeldingen har blitt slettet." : "The registration has been deleted.",
+      });
+      // Invalidate multiple cache keys to ensure UI updates
+      queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/secure-events"] });
+    },
+    onError: () => {
+      toast({
+        title: language === 'no' ? "Feil ved sletting" : "Delete error",
+        description: language === 'no' ? "Kunne ikke slette påmeldingen. Prøv igjen senere." : "Could not delete the registration. Please try again later.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleExportExcel = () => {
     exportAttendeesToExcel(event, registrations, language);
+  };
+
+  const handleDeleteRegistration = (registrationId: number, registrationName: string) => {
+    if (confirm(language === 'no' 
+      ? `Er du sikker på at du vil slette påmeldingen for ${registrationName}?`
+      : `Are you sure you want to delete the registration for ${registrationName}?`
+    )) {
+      deleteRegistrationMutation.mutate(registrationId);
+    }
   };
 
   if (isLoading) {
@@ -112,7 +147,18 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                         {registration.attendeeCount || 1} {language === 'no' ? 'personer' : 'people'}
                       </Badge>
                     </div>
-                    <span className="text-sm text-neutral-500">#{index + 1}</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm text-neutral-500">#{index + 1}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteRegistration(registration.id, registration.name)}
+                        disabled={deleteRegistrationMutation.isPending}
+                        className="border-red-500 text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
                   
                   <div className="grid md:grid-cols-2 gap-4">
