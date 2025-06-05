@@ -44,6 +44,8 @@ app.use((req, res, next) => {
   const { initializeAdmin } = await import("./init-admin");
   await initializeAdmin();
   
+  // Register both existing and secure routes
+  await registerSecureRoutes(app);
   const server = await registerRoutes(app);
   
   // Start the reminder scheduler

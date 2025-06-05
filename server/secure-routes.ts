@@ -126,7 +126,7 @@ export async function registerSecureRoutes(app: Express): Promise<Server> {
         timestamp: new Date().toISOString()
       });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Database initialization error:', error);
       res.status(500).json({
         error: 'Database initialization failed',
@@ -224,7 +224,7 @@ export async function registerSecureRoutes(app: Express): Promise<Server> {
         res.status(400).json({ error: 'Invalid action' });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Auth error:', error);
       res.status(500).json({ error: 'Authentication failed' });
     }
@@ -293,7 +293,7 @@ export async function registerSecureRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const transporter = nodemailer.createTransporter({
+      const transporter = nodemailer.createTransport({
         service: 'gmail',
         auth: {
           user: 'fauerdalbarnehage@gmail.com',
@@ -389,7 +389,7 @@ export async function registerSecureRoutes(app: Express): Promise<Server> {
         res.status(400).json({ error: 'Invalid email type' });
       }
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Gmail email error:', error);
       res.status(500).json({ 
         error: 'Email sending failed',
@@ -443,7 +443,7 @@ export async function registerSecureRoutes(app: Express): Promise<Server> {
         if (!emailResponse.ok) {
           console.warn('Failed to send notification email');
         }
-      } catch (emailError) {
+      } catch (emailError: any) {
         console.warn('Email service unavailable:', emailError.message);
       }
 
