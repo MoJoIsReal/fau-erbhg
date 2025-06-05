@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "vite build",
+  "outputDirectory": "dist/public",
   "functions": {
     "api/**/*.js": {
       "maxDuration": 30
@@ -7,7 +9,11 @@
   },
   "rewrites": [
     {
-      "source": "/((?!api).*)",
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ]

@@ -1,0 +1,1773 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// shared/schema.ts
+var schema_exports = {};
+__export(schema_exports, {
+  contactMessages: () => contactMessages,
+  documents: () => documents,
+  eventRegistrations: () => eventRegistrations,
+  events: () => events,
+  insertContactMessageSchema: () => insertContactMessageSchema,
+  insertDocumentSchema: () => insertDocumentSchema,
+  insertEventRegistrationSchema: () => insertEventRegistrationSchema,
+  insertEventSchema: () => insertEventSchema,
+  insertUserSchema: () => insertUserSchema,
+  users: () => users
+});
+import { pgTable, text, serial, integer } from "drizzle-orm/pg-core";
+import { createInsertSchema } from "drizzle-zod";
+var users, events, eventRegistrations, contactMessages, documents, insertEventSchema, insertEventRegistrationSchema, insertContactMessageSchema, insertDocumentSchema, insertUserSchema;
+var init_schema = __esm({
+  "shared/schema.ts"() {
+    "use strict";
+    users = pgTable("users", {
+      id: serial("id").primaryKey(),
+      username: text("username").notNull().unique(),
+      password: text("password").notNull(),
+      name: text("name").notNull(),
+      role: text("role").notNull().default("member"),
+      // "admin", "member"
+      createdAt: text("created_at").notNull()
+    });
+    events = pgTable("events", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      description: text("description").notNull(),
+      date: text("date").notNull(),
+      time: text("time").notNull(),
+      location: text("location").notNull(),
+      customLocation: text("custom_location"),
+      // For "Annet" locations
+      maxAttendees: integer("max_attendees"),
+      currentAttendees: integer("current_attendees").default(0),
+      type: text("type").notNull(),
+      // "meeting", "event", "dugnad", etc.
+      status: text("status").default("active").notNull()
+      // "active", "cancelled"
+    });
+    eventRegistrations = pgTable("event_registrations", {
+      id: serial("id").primaryKey(),
+      eventId: integer("event_id").notNull(),
+      name: text("name").notNull(),
+      email: text("email").notNull(),
+      phone: text("phone"),
+      attendeeCount: integer("attendee_count").default(1),
+      comments: text("comments"),
+      language: text("language").default("no")
+    });
+    contactMessages = pgTable("contact_messages", {
+      id: serial("id").primaryKey(),
+      name: text("name").notNull(),
+      email: text("email").notNull(),
+      phone: text("phone"),
+      subject: text("subject").notNull(),
+      message: text("message").notNull(),
+      createdAt: text("created_at").notNull()
+    });
+    documents = pgTable("documents", {
+      id: serial("id").primaryKey(),
+      title: text("title").notNull(),
+      filename: text("filename").notNull(),
+      category: text("category").notNull(),
+      // "protocol", "regulations", "budget", "other"
+      description: text("description"),
+      uploadedBy: text("uploaded_by").notNull(),
+      uploadedAt: text("uploaded_at").notNull(),
+      fileSize: integer("file_size"),
+      mimeType: text("mime_type"),
+      cloudinaryUrl: text("cloudinary_url"),
+      cloudinaryPublicId: text("cloudinary_public_id")
+    });
+    insertEventSchema = createInsertSchema(events).omit({ id: true, currentAttendees: true });
+    insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true });
+    insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
+    insertDocumentSchema = createInsertSchema(documents).omit({ id: true, uploadedAt: true });
+    insertUserSchema = createInsertSchema(users).omit({ id: true });
+  }
+});
+
+// server/db.ts
+import { Pool, neonConfig } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/neon-serverless";
+import ws from "ws";
+var pool, db;
+var init_db = __esm({
+  "server/db.ts"() {
+    "use strict";
+    init_schema();
+    neonConfig.webSocketConstructor = ws;
+    if (!process.env.DATABASE_URL) {
+      throw new Error(
+        "DATABASE_URL must be set. Did you forget to provision a database?"
+      );
+    }
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    db = drizzle({ client: pool, schema: schema_exports });
+  }
+});
+
+// server/init-admin.ts
+var init_admin_exports = {};
+__export(init_admin_exports, {
+  initializeAdmin: () => initializeAdmin
+});
+import bcrypt3 from "bcryptjs";
+async function initializeAdmin() {
+  try {
+    const existingUsers = await db.select().from(users).limit(1);
+    if (existingUsers.length > 0) {
+      console.log("Admin user already exists, skipping initialization...");
+      return;
+    }
+    console.log("Creating admin user...");
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    const adminEmail = process.env.ADMIN_EMAIL || "fauerdalbarnehage@gmail.com";
+    if (!adminPassword) {
+      console.log("ADMIN_PASSWORD environment variable not set, skipping admin creation");
+      return;
+    }
+    const hashedPassword = await bcrypt3.hash(adminPassword, 10);
+    const adminUser = {
+      username: adminEmail,
+      password: hashedPassword,
+      name: "FAU Erdal Barnehage",
+      role: "admin",
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    await db.insert(users).values(adminUser);
+    console.log("Admin user created successfully!");
+  } catch (error) {
+    console.error("Error creating admin user:", error);
+  }
+}
+var init_init_admin = __esm({
+  "server/init-admin.ts"() {
+    "use strict";
+    init_db();
+    init_schema();
+  }
+});
+
+// server/index.ts
+import "dotenv/config";
+import express2 from "express";
+
+// server/routes.ts
+import { createServer } from "http";
+
+// server/database-storage.ts
+init_db();
+init_schema();
+import { eq, sql } from "drizzle-orm";
+var DatabaseStorage = class {
+  // User methods
+  async getUser(id) {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || void 0;
+  }
+  async getUserByUsername(username) {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user || void 0;
+  }
+  async createUser(insertUser) {
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  // Event methods
+  async getAllEvents() {
+    return await db.select().from(events);
+  }
+  async getEvent(id) {
+    const [event] = await db.select().from(events).where(eq(events.id, id));
+    return event || void 0;
+  }
+  async createEvent(event) {
+    const [newEvent] = await db.insert(events).values({
+      ...event,
+      currentAttendees: 0
+    }).returning();
+    return newEvent;
+  }
+  async updateEvent(id, event) {
+    const [updated] = await db.update(events).set(event).where(eq(events.id, id)).returning();
+    return updated || void 0;
+  }
+  async deleteEvent(id) {
+    const result = await db.delete(events).where(eq(events.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+  async cancelEvent(id) {
+    const [updatedEvent] = await db.update(events).set({ status: "cancelled" }).where(eq(events.id, id)).returning();
+    return updatedEvent;
+  }
+  // Event registration methods
+  async getEventRegistrations(eventId) {
+    return await db.select().from(eventRegistrations).where(eq(eventRegistrations.eventId, eventId));
+  }
+  async createEventRegistration(registration) {
+    const [newRegistration] = await db.insert(eventRegistrations).values(registration).returning();
+    await db.update(events).set({
+      currentAttendees: sql`${events.currentAttendees} + ${registration.attendeeCount || 1}`
+    }).where(eq(events.id, registration.eventId));
+    return newRegistration;
+  }
+  async deleteEventRegistration(id) {
+    const [registration] = await db.select().from(eventRegistrations).where(eq(eventRegistrations.id, id));
+    if (!registration) return false;
+    const result = await db.delete(eventRegistrations).where(eq(eventRegistrations.id, id));
+    if ((result.rowCount ?? 0) > 0) {
+      await db.update(events).set({
+        currentAttendees: sql`${events.currentAttendees} - ${registration.attendeeCount || 1}`
+      }).where(eq(events.id, registration.eventId));
+      return true;
+    }
+    return false;
+  }
+  // Contact message methods
+  async getAllContactMessages() {
+    return await db.select().from(contactMessages);
+  }
+  async createContactMessage(message) {
+    const [newMessage] = await db.insert(contactMessages).values({
+      ...message,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    }).returning();
+    return newMessage;
+  }
+  // Document methods
+  async getAllDocuments() {
+    return await db.select().from(documents);
+  }
+  async getDocument(id) {
+    const [document] = await db.select().from(documents).where(eq(documents.id, id));
+    return document || void 0;
+  }
+  async getDocumentsByCategory(category) {
+    return await db.select().from(documents).where(eq(documents.category, category));
+  }
+  async createDocument(document) {
+    const [newDocument] = await db.insert(documents).values({
+      ...document,
+      uploadedAt: (/* @__PURE__ */ new Date()).toISOString()
+    }).returning();
+    return newDocument;
+  }
+  async deleteDocument(id) {
+    const result = await db.delete(documents).where(eq(documents.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+};
+
+// server/storage.ts
+var storage = new DatabaseStorage();
+
+// server/routes.ts
+init_schema();
+
+// server/cloudinary.ts
+import { v2 as cloudinary } from "cloudinary";
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+async function uploadFile(fileBuffer, originalName, folder = "fau-documents") {
+  try {
+    const base64String = `data:application/octet-stream;base64,${fileBuffer.toString("base64")}`;
+    const result = await cloudinary.uploader.upload(base64String, {
+      folder,
+      public_id: originalName.replace(/\.[^/.]+$/, ""),
+      // Remove file extension
+      resource_type: "auto",
+      // Automatically detect file type
+      use_filename: true,
+      unique_filename: true,
+      access_mode: "public"
+      // Ensure public access
+    });
+    return {
+      url: result.secure_url,
+      publicId: result.public_id,
+      format: result.format,
+      bytes: result.bytes
+    };
+  } catch (error) {
+    console.error("Cloudinary upload error:", error);
+    throw new Error("Failed to upload file to Cloudinary");
+  }
+}
+async function deleteFile(publicId) {
+  try {
+    const result = await cloudinary.uploader.destroy(publicId);
+    return result.result === "ok";
+  } catch (error) {
+    console.error("Cloudinary delete error:", error);
+    return false;
+  }
+}
+
+// server/auth.ts
+import bcrypt from "bcryptjs";
+async function verifyPassword(password, hashedPassword) {
+  return bcrypt.compare(password, hashedPassword);
+}
+async function authenticateUser(username, password) {
+  const user = await storage.getUserByUsername(username);
+  if (!user) {
+    return null;
+  }
+  const isValidPassword = await verifyPassword(password, user.password);
+  if (!isValidPassword) {
+    return null;
+  }
+  return user;
+}
+function isAuthenticated(req) {
+  return req.session && req.session.user;
+}
+function requireCouncilMember(req, res, next) {
+  if (!isAuthenticated(req)) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+  const userRole = req.session.user.role;
+  if (userRole !== "admin" && userRole !== "member") {
+    return res.status(403).json({ message: "Council member access required" });
+  }
+  next();
+}
+
+// server/email.ts
+import nodemailer from "nodemailer";
+async function sendContactEmail(params) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.log("Email credentials not configured, skipping email send");
+    return false;
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+    const subjectMap = {
+      general: "Generell Henvendelse",
+      anonymous: "Anonym Henvendelse",
+      events: "Forslag til Arrangement",
+      feedback: "Tilbakemeldinger",
+      join: "Bli med i FAU",
+      other: "Annet"
+    };
+    const subjectText = subjectMap[params.subject] || params.subject;
+    let emailContent = `Ny henvendelse fra FAU Erdal Barnehage kontaktskjema
+
+`;
+    emailContent += `Emne: ${subjectText}
+
+`;
+    if (params.isAnonymous) {
+      emailContent += `ANONYM HENVENDELSE - Ingen kontaktinformasjon tilgjengelig
+
+`;
+    } else {
+      emailContent += `Kontaktinformasjon:
+`;
+      emailContent += `Navn: ${params.name}
+`;
+      emailContent += `E-post: ${params.email}
+`;
+      if (params.phone) {
+        emailContent += `Telefon: ${params.phone}
+`;
+      }
+      emailContent += `
+`;
+    }
+    emailContent += `Melding:
+${params.message}
+
+`;
+    emailContent += `---
+Sendt fra FAU Erdal Barnehage nettside`;
+    const mailOptions = {
+      from: process.env.GMAIL_USER,
+      to: "fauerdalbarnehage@gmail.com",
+      subject: `FAU Kontakt: ${subjectText}`,
+      text: emailContent,
+      replyTo: params.isAnonymous ? void 0 : params.email
+    };
+    await transporter.sendMail(mailOptions);
+    console.log("Contact email sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send contact email:", error);
+    return false;
+  }
+}
+var emailTemplates = {
+  no: {
+    greeting: (name) => `Hei ${name}`,
+    thankYou: (eventTitle) => `Takk for at du har meldt deg p\xE5 ${eventTitle}!`,
+    date: "Dato:",
+    time: "Tid:",
+    location: "Sted:",
+    cancellation: "Dersom du plutselig ikke har anledning til \xE5 delta allikevel h\xE5per vi at du sender oss ett svar p\xE5 denne eposten hvor du gir beskjed om at du ikke kan komme allikevel.",
+    signature: "Mvh\nFAU Erdal Barnehage",
+    subject: (eventTitle) => `P\xE5meldingsbekreftelse: ${eventTitle}`
+  },
+  en: {
+    greeting: (name) => `Hi ${name}`,
+    thankYou: (eventTitle) => `Thank you for registering for ${eventTitle}!`,
+    date: "Date:",
+    time: "Time:",
+    location: "Location:",
+    cancellation: "If you suddenly cannot attend, please reply to this email to let us know that you cannot come after all.",
+    signature: "Best regards\nFAU Erdal Barnehage",
+    subject: (eventTitle) => `Registration confirmation: ${eventTitle}`
+  }
+};
+async function sendEventConfirmationEmail(params) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.log("Email credentials not configured, skipping email send");
+    return false;
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+    const { registration, event, language = "no" } = params;
+    const template = emailTemplates[language];
+    const locale = language === "no" ? "no-NO" : "en-US";
+    const eventDate = new Date(event.date).toLocaleDateString(locale, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+    let emailContent = `${template.greeting(registration.name)}
+
+`;
+    emailContent += `${template.thankYou(event.title)}
+
+`;
+    emailContent += `${event.title}
+`;
+    emailContent += `${template.date} ${eventDate}
+`;
+    emailContent += `${template.time} ${event.time}
+`;
+    if (event.location) {
+      let locationText = event.location;
+      if (event.location === "Annet" && event.customLocation) {
+        locationText = event.customLocation;
+      } else {
+        switch (event.location) {
+          case "Sm\xE5barnsfl\xF8yen":
+            locationText = "Sm\xE5barnsfl\xF8yen: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          case "Storbarnsfl\xF8yen":
+            locationText = "Storbarnsfl\xF8yen: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          case "M\xF8terom":
+            locationText = "M\xF8terom: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          case "Ute":
+            locationText = "Ute: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          default:
+            locationText = event.location;
+        }
+      }
+      emailContent += `${template.location} ${locationText}
+`;
+    }
+    if (event.description) {
+      emailContent += `
+${event.description}
+`;
+    }
+    emailContent += `
+`;
+    emailContent += `${template.cancellation}
+
+`;
+    emailContent += template.signature;
+    const mailOptions = {
+      from: process.env.GMAIL_USER,
+      to: registration.email,
+      subject: template.subject(event.title),
+      text: emailContent,
+      replyTo: "fauerdalbarnehage@gmail.com"
+    };
+    await transporter.sendMail(mailOptions);
+    console.log("Event confirmation email sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send event confirmation email:", error);
+    return false;
+  }
+}
+async function sendEventCancellationEmail(params) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.log("Email credentials not configured, skipping email send");
+    return false;
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+    const { registration, event, language = "no" } = params;
+    const template = emailTemplates[language];
+    const eventDate = new Date(event.date).toLocaleDateString(language === "no" ? "no-NO" : "en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+    const subject = language === "no" ? `AVLYST: ${event.title}` : `CANCELLED: ${event.title}`;
+    let emailContent = `${template.greeting(registration.name)}!
+
+`;
+    if (language === "no") {
+      emailContent += `Vi m\xE5 dessverre informere deg om at f\xF8lgende arrangement er avlyst:
+
+`;
+    } else {
+      emailContent += `We regret to inform you that the following event has been cancelled:
+
+`;
+    }
+    emailContent += `${event.title}
+`;
+    emailContent += `${template.date} ${eventDate}
+`;
+    emailContent += `${template.time} ${event.time}
+`;
+    let locationText = event.location;
+    if (event.location === "Annet" && event.customLocation) {
+      locationText = event.customLocation;
+    } else {
+      switch (event.location) {
+        case "Sm\xE5barnsfl\xF8yen":
+          locationText = "Sm\xE5barnsfl\xF8yen: Steinr\xE5sa 5, 5306 Erdal";
+          break;
+        case "Storbarnsfl\xF8yen":
+          locationText = "Storbarnsfl\xF8yen: Steinr\xE5sa 5, 5306 Erdal";
+          break;
+        case "M\xF8terom":
+          locationText = "M\xF8terom: Steinr\xE5sa 5, 5306 Erdal";
+          break;
+        case "Ute":
+          locationText = "Ute: Steinr\xE5sa 5, 5306 Erdal";
+          break;
+        default:
+          locationText = event.location;
+      }
+    }
+    emailContent += `${template.location} ${locationText}
+
+`;
+    if (language === "no") {
+      emailContent += `Vi beklager eventuelle ulemper dette m\xE5tte medf\xF8re.
+
+`;
+      emailContent += `For sp\xF8rsm\xE5l, vennligst kontakt oss p\xE5 fauerdalbarnehage@gmail.com
+
+`;
+    } else {
+      emailContent += `We apologize for any inconvenience this may cause.
+
+`;
+      emailContent += `For questions, please contact us at fauerdalbarnehage@gmail.com
+
+`;
+    }
+    emailContent += template.signature;
+    const mailOptions = {
+      from: process.env.GMAIL_USER,
+      to: registration.email,
+      subject,
+      text: emailContent,
+      replyTo: "fauerdalbarnehage@gmail.com"
+    };
+    await transporter.sendMail(mailOptions);
+    console.log("Event cancellation email sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send event cancellation email:", error);
+    return false;
+  }
+}
+async function sendEventReminderEmail(params) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.log("Email credentials not configured, skipping email send");
+    return false;
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
+    });
+    const { registration, event, language = "no" } = params;
+    const eventDate = new Date(event.date).toLocaleDateString(language === "no" ? "no-NO" : "en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+    const subject = language === "no" ? `P\xE5minnelse: ${event.title} i morgen` : `Reminder: ${event.title} tomorrow`;
+    let emailContent = "";
+    if (language === "no") {
+      emailContent += `Hei ${registration.name},
+
+`;
+      emailContent += `Dette er en p\xE5minnelse om at du er p\xE5meldt til f\xF8lgende arrangement i morgen:
+
+`;
+      emailContent += `Arrangement: ${event.title}
+`;
+      emailContent += `Dato: ${eventDate}
+`;
+      emailContent += `Tid: ${event.time}
+`;
+      let locationText = event.location;
+      if (event.customLocation && event.customLocation.trim()) {
+        locationText = event.customLocation;
+      } else {
+        switch (event.location) {
+          case "Barnehagen":
+            locationText = "Barnehagen: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          case "Grupperom":
+            locationText = "Grupperom: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          case "Ute":
+            locationText = "Ute: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          default:
+            locationText = event.location;
+        }
+      }
+      emailContent += `Sted: ${locationText}
+
+`;
+      emailContent += `Vi gleder oss til \xE5 se deg!
+
+`;
+      emailContent += `Hvis du ikke kan delta, vennligst gi oss beskjed s\xE5 snart som mulig.
+
+`;
+      emailContent += `Med vennlig hilsen,
+FAU Erdal Barnehage
+fauerdalbarnehage@gmail.com`;
+    } else {
+      emailContent += `Hello ${registration.name},
+
+`;
+      emailContent += `This is a reminder that you are registered for the following event tomorrow:
+
+`;
+      emailContent += `Event: ${event.title}
+`;
+      emailContent += `Date: ${eventDate}
+`;
+      emailContent += `Time: ${event.time}
+`;
+      let locationText = event.location;
+      if (event.customLocation && event.customLocation.trim()) {
+        locationText = event.customLocation;
+      } else {
+        switch (event.location) {
+          case "Barnehagen":
+            locationText = "Kindergarten: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          case "Grupperom":
+            locationText = "Group room: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          case "Ute":
+            locationText = "Outside: Steinr\xE5sa 5, 5306 Erdal";
+            break;
+          default:
+            locationText = event.location;
+        }
+      }
+      emailContent += `Location: ${locationText}
+
+`;
+      emailContent += `We look forward to seeing you!
+
+`;
+      emailContent += `If you cannot attend, please let us know as soon as possible.
+
+`;
+      emailContent += `Best regards,
+FAU Erdal Kindergarten
+fauerdalbarnehage@gmail.com`;
+    }
+    const mailOptions = {
+      from: process.env.GMAIL_USER,
+      to: registration.email,
+      subject,
+      text: emailContent,
+      replyTo: "fauerdalbarnehage@gmail.com"
+    };
+    await transporter.sendMail(mailOptions);
+    console.log("Event reminder email sent successfully");
+    return true;
+  } catch (error) {
+    console.error("Failed to send event reminder email:", error);
+    return false;
+  }
+}
+
+// server/routes.ts
+import jwt from "jsonwebtoken";
+import multer from "multer";
+import path from "path";
+var upload = multer({
+  storage: multer.memoryStorage(),
+  // Use memory storage for serverless
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    // 5MB limit for better performance
+    files: 1
+    // Only allow one file at a time
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return cb(new Error("Invalid file type. Only PDF, Word, and Excel files are allowed."));
+    }
+    const allowedExtensions = [".pdf", ".doc", ".docx", ".xls", ".xlsx"];
+    const fileExtension = path.extname(file.originalname).toLowerCase();
+    if (!allowedExtensions.includes(fileExtension)) {
+      return cb(new Error("Invalid file extension."));
+    }
+    cb(null, true);
+  }
+});
+async function registerRoutes(app2) {
+  app2.get("/sitemap.xml", (req, res) => {
+    const baseUrl = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "https://fau-erdal-barnehage.vercel.app";
+    const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>${baseUrl}/</loc>
+    <lastmod>${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/events</loc>
+    <lastmod>${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/contact</loc>
+    <lastmod>${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>${baseUrl}/files</loc>
+    <lastmod>${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>`;
+    res.set("Content-Type", "application/xml");
+    res.send(sitemap);
+  });
+  app2.get("/robots.txt", (req, res) => {
+    const robots = `User-agent: *
+Allow: /
+
+Sitemap: https://fau-erdal-barnehage.vercel.app/sitemap.xml
+
+# Specific rules for FAU Erdal Barnehage
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1`;
+    res.set("Content-Type", "text/plain");
+    res.send(robots);
+  });
+  app2.get("/google9ba7dafbc787aa0b.html", (req, res) => {
+    res.set("Content-Type", "text/plain");
+    res.send("google-site-verification: google9ba7dafbc787aa0b.html");
+  });
+  const isProduction = process.env.NODE_ENV === "production";
+  const jwtSecret = process.env.SESSION_SECRET || "fallback-dev-secret-change-in-production";
+  if (isProduction && jwtSecret === "fallback-dev-secret-change-in-production") {
+    throw new Error("SESSION_SECRET environment variable must be set in production");
+  }
+  app2.post("/api/auth/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      if (!username || !password) {
+        return res.status(400).json({ message: "Brukernavn og passord er p\xE5krevd" });
+      }
+      const user = await authenticateUser(username, password);
+      if (!user) {
+        return res.status(401).json({ message: "Ugyldig brukernavn eller passord" });
+      }
+      const token = jwt.sign(
+        {
+          userId: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role
+        },
+        jwtSecret,
+        { expiresIn: "24h" }
+      );
+      res.json({
+        message: "Innlogging vellykket",
+        token,
+        user: { id: user.id, username: user.username, name: user.name, role: user.role }
+      });
+    } catch (error) {
+      console.error("Login error:", error);
+      res.status(500).json({ message: "Serverfeil ved innlogging" });
+    }
+  });
+  app2.post("/api/auth/logout", (req, res) => {
+    res.json({ message: "Utlogging vellykket" });
+  });
+  app2.get("/api/auth/user", (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ message: "Ikke innlogget" });
+      }
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, jwtSecret);
+      res.json({
+        userId: decoded.userId,
+        username: decoded.username,
+        name: decoded.name,
+        role: decoded.role
+      });
+    } catch (error) {
+      res.status(401).json({ message: "Ikke innlogget" });
+    }
+  });
+  app2.get("/api/events", async (req, res) => {
+    try {
+      const events2 = await storage.getAllEvents();
+      res.json(events2);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch events" });
+    }
+  });
+  app2.post("/api/add-sample-past-event", async (req, res) => {
+    try {
+      const pastEvent = await storage.createEvent({
+        title: "Juleavslutning 2024",
+        description: "Tradisjonell juleavslutning med pepperkakebaking, julesanger og bes\xF8k av julenissen. Alle familier invitert til hyggestund.",
+        date: "2024-12-15",
+        time: "15:00",
+        location: "Sm\xE5barnsfl\xF8yen",
+        customLocation: null,
+        maxAttendees: 25,
+        type: "arrangement",
+        status: "active"
+      });
+      const registrations = [
+        { name: "Emma Hansen", email: "emma.hansen@example.com", phone: "+4792345678", attendeeCount: 3, comments: null },
+        { name: "Lars Andersen", email: "lars.andersen@example.com", phone: "+4791234567", attendeeCount: 2, comments: null },
+        { name: "Sofie Johansen", email: "sofie.johansen@example.com", phone: "+4793456789", attendeeCount: 4, comments: null },
+        { name: "Martin Olsen", email: "martin.olsen@example.com", phone: "+4794567890", attendeeCount: 2, comments: null },
+        { name: "Ingrid Nilsen", email: "ingrid.nilsen@example.com", phone: "+4795678901", attendeeCount: 3, comments: null },
+        { name: "Thomas Berg", email: "thomas.berg@example.com", phone: "+4796789012", attendeeCount: 4, comments: null }
+      ];
+      for (const reg of registrations) {
+        await storage.createEventRegistration({
+          ...reg,
+          eventId: pastEvent.id
+        });
+      }
+      res.json({ message: "Past event sample created", event: pastEvent });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create sample", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+  app2.get("/api/events/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const event = await storage.getEvent(id);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      res.json(event);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch event" });
+    }
+  });
+  app2.post("/api/events", requireCouncilMember, async (req, res) => {
+    try {
+      const validatedData = insertEventSchema.parse(req.body);
+      const event = await storage.createEvent(validatedData);
+      res.status(201).json(event);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid event data", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+  app2.put("/api/events/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertEventSchema.partial().parse(req.body);
+      const event = await storage.updateEvent(id, validatedData);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      res.json(event);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid event data", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+  app2.delete("/api/events/:id", requireCouncilMember, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const registrations = await storage.getEventRegistrations(id);
+      if (registrations.length > 0) {
+        return res.status(400).json({
+          message: "Cannot delete event with registered attendees. Cancel the event instead.",
+          hasAttendees: true
+        });
+      }
+      const deleted = await storage.deleteEvent(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete event" });
+    }
+  });
+  app2.patch("/api/events/:id/cancel", requireCouncilMember, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const event = await storage.getEvent(id);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      const registrations = await storage.getEventRegistrations(id);
+      const cancelledEvent = await storage.cancelEvent(id);
+      if (!cancelledEvent) {
+        return res.status(500).json({ message: "Failed to cancel event" });
+      }
+      const emailPromises = registrations.map(
+        (registration) => sendEventCancellationEmail({
+          registration,
+          event: cancelledEvent,
+          language: "no"
+          // Default to Norwegian, could be enhanced to detect user language
+        })
+      );
+      try {
+        await Promise.all(emailPromises);
+        console.log(`Sent cancellation emails to ${registrations.length} attendees`);
+      } catch (emailError) {
+        console.error("Some cancellation emails failed to send:", emailError);
+      }
+      res.json(cancelledEvent);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to cancel event" });
+    }
+  });
+  app2.get("/api/events/:eventId/registrations", async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const registrations = await storage.getEventRegistrations(eventId);
+      res.json(registrations);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch registrations" });
+    }
+  });
+  app2.post("/api/events/:eventId/registrations", async (req, res) => {
+    try {
+      const eventId = parseInt(req.params.eventId);
+      const validatedData = insertEventRegistrationSchema.parse({
+        ...req.body,
+        eventId
+      });
+      const event = await storage.getEvent(eventId);
+      if (!event) {
+        return res.status(404).json({ message: "Event not found" });
+      }
+      if (event.status === "cancelled") {
+        return res.status(400).json({ message: "Cannot register for cancelled event" });
+      }
+      const existingRegistrations = await storage.getEventRegistrations(eventId);
+      const emailExists = existingRegistrations.some(
+        (reg) => reg.email.toLowerCase() === validatedData.email.toLowerCase()
+      );
+      if (emailExists) {
+        return res.status(400).json({
+          message: "This email is already registered for this event"
+        });
+      }
+      if (event.maxAttendees && event.currentAttendees && event.currentAttendees + (validatedData.attendeeCount || 1) > event.maxAttendees) {
+        return res.status(400).json({ message: "Event is full" });
+      }
+      const registration = await storage.createEventRegistration(validatedData);
+      try {
+        const language = req.body.language || "no";
+        await sendEventConfirmationEmail({ registration, event, language });
+        console.log("Event confirmation email sent successfully");
+      } catch (error) {
+        console.error("Failed to send confirmation email:", error);
+      }
+      res.status(201).json(registration);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid registration data", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+  app2.delete("/api/registrations/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteEventRegistration(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Registration not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete registration" });
+    }
+  });
+  app2.get("/api/contact-messages", async (req, res) => {
+    try {
+      const messages = await storage.getAllContactMessages();
+      res.json(messages);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch contact messages" });
+    }
+  });
+  app2.post("/api/contact-messages", async (req, res) => {
+    try {
+      const validatedData = insertContactMessageSchema.parse(req.body);
+      const isAnonymous = validatedData.subject === "anonymous";
+      await sendContactEmail({
+        name: isAnonymous ? "" : validatedData.name,
+        email: isAnonymous ? "" : validatedData.email,
+        phone: isAnonymous ? "" : validatedData.phone || "",
+        subject: validatedData.subject,
+        message: validatedData.message,
+        isAnonymous
+      });
+      const message = await storage.createContactMessage(validatedData);
+      res.status(201).json(message);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid message data", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+  app2.get("/api/documents", async (req, res) => {
+    try {
+      const category = req.query.category;
+      const documents2 = category ? await storage.getDocumentsByCategory(category) : await storage.getAllDocuments();
+      res.json(documents2);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch documents" });
+    }
+  });
+  app2.post("/api/documents", requireCouncilMember, upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      const cloudinaryResult = await uploadFile(req.file.buffer, req.file.originalname);
+      const validatedData = insertDocumentSchema.parse({
+        title: req.body.title,
+        filename: req.file.originalname,
+        category: req.body.category,
+        description: req.body.description,
+        uploadedBy: req.body.uploadedBy || "Unknown",
+        fileSize: cloudinaryResult.bytes,
+        mimeType: req.file.mimetype,
+        cloudinaryUrl: cloudinaryResult.url,
+        cloudinaryPublicId: cloudinaryResult.publicId
+      });
+      const document = await storage.createDocument(validatedData);
+      res.status(201).json(document);
+    } catch (error) {
+      res.status(400).json({ message: "Invalid document data", error: error instanceof Error ? error.message : "Unknown error" });
+    }
+  });
+  app2.get("/api/documents/:id/download", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      if (document.cloudinaryUrl) {
+        const downloadUrl = document.cloudinaryUrl.replace("/upload/", "/upload/fl_attachment/");
+        console.log("Redirecting to download URL:", downloadUrl);
+        return res.redirect(downloadUrl);
+      } else {
+        return res.status(404).json({ message: "File not available" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to download document" });
+    }
+  });
+  app2.delete("/api/documents/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      if (document.cloudinaryPublicId) {
+        await deleteFile(document.cloudinaryPublicId);
+      }
+      const deleted = await storage.deleteDocument(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Document not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete document" });
+    }
+  });
+  const httpServer = createServer(app2);
+  return httpServer;
+}
+
+// server/secure-routes.ts
+import { createServer as createServer2 } from "http";
+import { neon } from "@neondatabase/serverless";
+import bcrypt2 from "bcryptjs";
+import nodemailer2 from "nodemailer";
+import multer2 from "multer";
+var upload2 = multer2({
+  storage: multer2.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+    // 5MB limit
+    files: 1
+  }
+});
+async function registerSecureRoutes(app2) {
+  app2.get("/api/secure-status", (req, res) => {
+    const hasDatabase = !!process.env.DATABASE_URL;
+    const hasSession = !!process.env.SESSION_SECRET;
+    const hasEmail = !!process.env.GMAIL_APP_PASSWORD;
+    const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY);
+    res.json({
+      status: "healthy",
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      message: "FAU Erdal Barnehage API - Secure Version",
+      version: "2.0.0",
+      environment: {
+        database_configured: hasDatabase,
+        session_configured: hasSession,
+        email_configured: hasEmail,
+        cloudinary_configured: hasCloudinary,
+        node_version: process.version
+      }
+    });
+  });
+  app2.post("/api/init-secure-db", async (req, res) => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        return res.status(500).json({ error: "Database configuration missing" });
+      }
+      const sql2 = neon(process.env.DATABASE_URL);
+      await sql2`
+        CREATE TABLE IF NOT EXISTS users (
+          id SERIAL PRIMARY KEY,
+          username VARCHAR(255) UNIQUE NOT NULL,
+          password_hash VARCHAR(255) NOT NULL,
+          name VARCHAR(255) NOT NULL,
+          role VARCHAR(50) DEFAULT 'user',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      await sql2`
+        CREATE TABLE IF NOT EXISTS events (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          description TEXT,
+          date DATE NOT NULL,
+          time TIME NOT NULL,
+          location VARCHAR(255),
+          custom_location VARCHAR(255),
+          max_attendees INTEGER,
+          current_attendees INTEGER DEFAULT 0,
+          status VARCHAR(50) DEFAULT 'active',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      await sql2`
+        CREATE TABLE IF NOT EXISTS event_registrations (
+          id SERIAL PRIMARY KEY,
+          event_id INTEGER REFERENCES events(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          phone VARCHAR(50),
+          language VARCHAR(10) DEFAULT 'no',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      await sql2`
+        CREATE TABLE IF NOT EXISTS documents (
+          id SERIAL PRIMARY KEY,
+          title VARCHAR(255) NOT NULL,
+          category VARCHAR(100) NOT NULL,
+          file_url TEXT NOT NULL,
+          uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      await sql2`
+        CREATE TABLE IF NOT EXISTS contact_messages (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          phone VARCHAR(50),
+          subject VARCHAR(255) NOT NULL,
+          message TEXT NOT NULL,
+          is_anonymous BOOLEAN DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+      res.json({
+        success: true,
+        message: "Database initialized successfully",
+        timestamp: (/* @__PURE__ */ new Date()).toISOString()
+      });
+    } catch (error) {
+      console.error("Database initialization error:", error);
+      res.status(500).json({
+        error: "Database initialization failed",
+        details: error.message
+      });
+    }
+  });
+  app2.post("/api/secure-auth", async (req, res) => {
+    try {
+      if (!process.env.DATABASE_URL || !process.env.SESSION_SECRET) {
+        return res.status(500).json({ error: "Server configuration missing" });
+      }
+      const sql2 = neon(process.env.DATABASE_URL);
+      const { username, password, action } = req.body;
+      if (action === "login") {
+        if (!username || !password) {
+          return res.status(400).json({ error: "Username and password required" });
+        }
+        const users2 = await sql2`
+          SELECT id, username, password_hash, name, role 
+          FROM users 
+          WHERE username = ${username}
+        `;
+        if (users2.length === 0) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        const user = users2[0];
+        const isValid = await bcrypt2.compare(password, user.password_hash);
+        if (!isValid) {
+          return res.status(401).json({ error: "Invalid credentials" });
+        }
+        const tokenData = {
+          userId: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role,
+          timestamp: Date.now(),
+          expires: Date.now() + 24 * 60 * 60 * 1e3
+        };
+        const token = Buffer.from(JSON.stringify(tokenData)).toString("base64");
+        res.json({
+          success: true,
+          user: {
+            id: user.id,
+            username: user.username,
+            name: user.name,
+            role: user.role
+          },
+          token
+        });
+      } else if (action === "register") {
+        const { name, setupKey } = req.body;
+        if (!username || !password || !name) {
+          return res.status(400).json({ error: "All fields required" });
+        }
+        if (setupKey === process.env.ADMIN_SETUP_KEY) {
+          const existingAdmin = await sql2`
+            SELECT id FROM users WHERE role = 'admin'
+          `;
+          if (existingAdmin.length > 0) {
+            return res.status(400).json({ error: "Admin already exists" });
+          }
+          const hashedPassword = await bcrypt2.hash(password, 12);
+          const newAdmin = await sql2`
+            INSERT INTO users (username, password_hash, name, role)
+            VALUES (${username}, ${hashedPassword}, ${name}, 'admin')
+            RETURNING id, username, name, role
+          `;
+          res.status(201).json({
+            success: true,
+            message: "Admin user created",
+            user: newAdmin[0]
+          });
+        } else {
+          res.status(403).json({ error: "Registration not allowed" });
+        }
+      } else {
+        res.status(400).json({ error: "Invalid action" });
+      }
+    } catch (error) {
+      console.error("Auth error:", error);
+      res.status(500).json({ error: "Authentication failed" });
+    }
+  });
+  app2.get("/api/secure-events", async (req, res) => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        return res.status(500).json({ error: "Database configuration missing" });
+      }
+      const sql2 = neon(process.env.DATABASE_URL);
+      const events2 = await sql2`
+        SELECT 
+          id, title, description, date, time, location, custom_location,
+          max_attendees, current_attendees, status, created_at
+        FROM events 
+        WHERE status = 'active'
+        ORDER BY date ASC, time ASC
+      `;
+      res.json(events2);
+    } catch (error) {
+      console.error("Events API error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  app2.post("/api/secure-events", async (req, res) => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        return res.status(500).json({ error: "Database configuration missing" });
+      }
+      const sql2 = neon(process.env.DATABASE_URL);
+      const { title, description, date, time, location, custom_location, max_attendees } = req.body;
+      if (!title || !date || !time) {
+        return res.status(400).json({ error: "Title, date, and time are required" });
+      }
+      const newEvent = await sql2`
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees)
+        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${custom_location}, ${max_attendees})
+        RETURNING *
+      `;
+      res.status(201).json(newEvent[0]);
+    } catch (error) {
+      console.error("Events API error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  app2.post("/api/email-gmail", async (req, res) => {
+    try {
+      if (!process.env.GMAIL_APP_PASSWORD) {
+        return res.status(500).json({
+          error: "Gmail configuration missing",
+          setup_instructions: "Create Gmail app password in Google Account settings"
+        });
+      }
+      const transporter = nodemailer2.createTransport({
+        service: "gmail",
+        auth: {
+          user: "fauerdalbarnehage@gmail.com",
+          pass: process.env.GMAIL_APP_PASSWORD
+        }
+      });
+      const { type, data } = req.body;
+      if (type === "contact") {
+        const { name, email, phone, subject, message, isAnonymous } = data;
+        const mailOptions = {
+          from: "fauerdalbarnehage@gmail.com",
+          to: "fauerdalbarnehage@gmail.com",
+          subject: `Contact Form: ${subject}`,
+          html: `
+            <h2>New Contact Message</h2>
+            <p><strong>From:</strong> ${isAnonymous ? "Anonymous" : `${name} (${email})`}</p>
+            ${phone ? `<p><strong>Phone:</strong> ${phone}</p>` : ""}
+            <p><strong>Subject:</strong> ${subject}</p>
+            <p><strong>Message:</strong></p>
+            <p>${message.replace(/\n/g, "<br>")}</p>
+            <hr>
+            <p><em>Sent from FAU Erdal Barnehage website</em></p>
+          `
+        };
+        await transporter.sendMail(mailOptions);
+        res.json({
+          success: true,
+          message: "Contact message sent successfully"
+        });
+      } else if (type === "event_confirmation") {
+        const { registration, event, language = "no" } = data;
+        const isNorwegian = language === "no";
+        const subject = isNorwegian ? `P\xE5melding bekreftet: ${event.title}` : `Registration confirmed: ${event.title}`;
+        const mailOptions = {
+          from: "fauerdalbarnehage@gmail.com",
+          to: registration.email,
+          subject,
+          html: isNorwegian ? `
+            <h2>P\xE5melding bekreftet!</h2>
+            <p>Hei ${registration.name},</p>
+            <p>Din p\xE5melding til f\xF8lgende arrangement er bekreftet:</p>
+            
+            <div style="background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px;">
+              <h3>${event.title}</h3>
+              <p><strong>Dato:</strong> ${event.date}</p>
+              <p><strong>Tid:</strong> ${event.time}</p>
+              <p><strong>Sted:</strong> ${event.location}${event.custom_location ? ` - ${event.custom_location}` : ""}</p>
+              ${event.description ? `<p><strong>Beskrivelse:</strong> ${event.description}</p>` : ""}
+            </div>
+            
+            <p>Vi gleder oss til \xE5 se deg!</p>
+            <p>Hvis du har sp\xF8rsm\xE5l, kan du kontakte oss p\xE5 fauerdalbarnehage@gmail.com</p>
+            
+            <hr>
+            <p><em>FAU Erdal Barnehage</em></p>
+          ` : `
+            <h2>Registration Confirmed!</h2>
+            <p>Hello ${registration.name},</p>
+            <p>Your registration for the following event has been confirmed:</p>
+            
+            <div style="background: #f5f5f5; padding: 15px; margin: 15px 0; border-radius: 5px;">
+              <h3>${event.title}</h3>
+              <p><strong>Date:</strong> ${event.date}</p>
+              <p><strong>Time:</strong> ${event.time}</p>
+              <p><strong>Location:</strong> ${event.location}${event.custom_location ? ` - ${event.custom_location}` : ""}</p>
+              ${event.description ? `<p><strong>Description:</strong> ${event.description}</p>` : ""}
+            </div>
+            
+            <p>We look forward to seeing you!</p>
+            <p>If you have any questions, please contact us at fauerdalbarnehage@gmail.com</p>
+            
+            <hr>
+            <p><em>FAU Erdal Barnehage</em></p>
+          `
+        };
+        await transporter.sendMail(mailOptions);
+        res.json({
+          success: true,
+          message: "Confirmation email sent"
+        });
+      } else {
+        res.status(400).json({ error: "Invalid email type" });
+      }
+    } catch (error) {
+      console.error("Gmail email error:", error);
+      res.status(500).json({
+        error: "Email sending failed",
+        details: error.message
+      });
+    }
+  });
+  app2.post("/api/secure-contact", async (req, res) => {
+    try {
+      if (!process.env.DATABASE_URL) {
+        return res.status(500).json({ error: "Database configuration missing" });
+      }
+      const sql2 = neon(process.env.DATABASE_URL);
+      const { name, email, phone, subject, message, isAnonymous = false } = req.body;
+      if (!subject || !message) {
+        return res.status(400).json({ error: "Subject and message are required" });
+      }
+      if (!isAnonymous && (!name || !email)) {
+        return res.status(400).json({ error: "Name and email are required for non-anonymous messages" });
+      }
+      await sql2`
+        INSERT INTO contact_messages (name, email, phone, subject, message, is_anonymous)
+        VALUES (${name || "Anonymous"}, ${email || ""}, ${phone || ""}, ${subject}, ${message}, ${isAnonymous})
+      `;
+      try {
+        const emailResponse = await fetch(`http://localhost:5000/api/email-gmail`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            type: "contact",
+            data: {
+              name,
+              email,
+              phone,
+              subject,
+              message,
+              isAnonymous
+            }
+          })
+        });
+        if (!emailResponse.ok) {
+          console.warn("Failed to send notification email");
+        }
+      } catch (emailError) {
+        console.warn("Email service unavailable:", emailError.message);
+      }
+      res.status(201).json({
+        success: true,
+        message: "Message sent successfully"
+      });
+    } catch (error) {
+      console.error("Contact API error:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+  const httpServer = createServer2(app2);
+  return httpServer;
+}
+
+// server/vite.ts
+import express from "express";
+import fs from "fs";
+import path3 from "path";
+import { createServer as createViteServer, createLogger } from "vite";
+
+// vite.config.ts
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import path2 from "path";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+var vite_config_default = defineConfig({
+  plugins: [
+    react(),
+    runtimeErrorOverlay(),
+    ...process.env.NODE_ENV !== "production" && process.env.REPL_ID !== void 0 ? [
+      await import("@replit/vite-plugin-cartographer").then(
+        (m) => m.cartographer()
+      )
+    ] : []
+  ],
+  resolve: {
+    alias: {
+      "@": path2.resolve(import.meta.dirname, "client", "src"),
+      "@shared": path2.resolve(import.meta.dirname, "shared"),
+      "@assets": path2.resolve(import.meta.dirname, "attached_assets")
+    }
+  },
+  root: path2.resolve(import.meta.dirname, "client"),
+  build: {
+    outDir: path2.resolve(import.meta.dirname, "dist/public"),
+    emptyOutDir: true
+  },
+  server: {
+    fs: {
+      strict: true,
+      deny: ["**/.*"]
+    }
+  }
+});
+
+// server/vite.ts
+import { nanoid } from "nanoid";
+var viteLogger = createLogger();
+function log(message, source = "express") {
+  const formattedTime = (/* @__PURE__ */ new Date()).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  });
+  console.log(`${formattedTime} [${source}] ${message}`);
+}
+async function setupVite(app2, server) {
+  const serverOptions = {
+    middlewareMode: true,
+    hmr: { server },
+    allowedHosts: true
+  };
+  const vite = await createViteServer({
+    ...vite_config_default,
+    configFile: false,
+    customLogger: {
+      ...viteLogger,
+      error: (msg, options) => {
+        viteLogger.error(msg, options);
+        process.exit(1);
+      }
+    },
+    server: serverOptions,
+    appType: "custom"
+  });
+  app2.use(vite.middlewares);
+  app2.use("*", async (req, res, next) => {
+    const url = req.originalUrl;
+    try {
+      const clientTemplate = path3.resolve(
+        import.meta.dirname,
+        "..",
+        "client",
+        "index.html"
+      );
+      let template = await fs.promises.readFile(clientTemplate, "utf-8");
+      template = template.replace(
+        `src="/src/main.tsx"`,
+        `src="/src/main.tsx?v=${nanoid()}"`
+      );
+      const page = await vite.transformIndexHtml(url, template);
+      res.status(200).set({ "Content-Type": "text/html" }).end(page);
+    } catch (e) {
+      vite.ssrFixStacktrace(e);
+      next(e);
+    }
+  });
+}
+function serveStatic(app2) {
+  const distPath = path3.resolve(import.meta.dirname, "public");
+  if (!fs.existsSync(distPath)) {
+    throw new Error(
+      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    );
+  }
+  app2.use(express.static(distPath));
+  app2.use("*", (_req, res) => {
+    res.sendFile(path3.resolve(distPath, "index.html"));
+  });
+}
+
+// server/scheduler.ts
+var ReminderScheduler = class {
+  intervalId = null;
+  sentReminders = /* @__PURE__ */ new Set();
+  start() {
+    this.intervalId = setInterval(() => {
+      this.checkForReminders();
+    }, 60 * 60 * 1e3);
+    this.checkForReminders();
+    console.log("Event reminder scheduler started");
+  }
+  stop() {
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+      console.log("Event reminder scheduler stopped");
+    }
+  }
+  async checkForReminders() {
+    try {
+      const events2 = await storage.getAllEvents();
+      const now = /* @__PURE__ */ new Date();
+      const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1e3);
+      for (const event of events2) {
+        if (event.status === "cancelled") continue;
+        const eventDateTime = /* @__PURE__ */ new Date(`${event.date}T${event.time}`);
+        const timeDiff = eventDateTime.getTime() - now.getTime();
+        const hoursUntilEvent = timeDiff / (1e3 * 60 * 60);
+        if (hoursUntilEvent >= 23 && hoursUntilEvent <= 25) {
+          const reminderKey = `${event.id}-${event.date}`;
+          if (!this.sentReminders.has(reminderKey)) {
+            await this.sendRemindersForEvent(event);
+            this.sentReminders.add(reminderKey);
+          }
+        }
+        if (timeDiff < -3 * 24 * 60 * 60 * 1e3) {
+          const oldReminderKey = `${event.id}-${event.date}`;
+          this.sentReminders.delete(oldReminderKey);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking for event reminders:", error);
+    }
+  }
+  async sendRemindersForEvent(event) {
+    try {
+      const registrations = await storage.getEventRegistrations(event.id);
+      for (const registration of registrations) {
+        const language = registration.language || "no";
+        await sendEventReminderEmail({
+          registration,
+          event,
+          language
+        });
+        await new Promise((resolve) => setTimeout(resolve, 1e3));
+      }
+      console.log(`Sent reminder emails for event: ${event.title} (${registrations.length} recipients)`);
+    } catch (error) {
+      console.error(`Error sending reminders for event ${event.title}:`, error);
+    }
+  }
+};
+var reminderScheduler = new ReminderScheduler();
+
+// server/index.ts
+var app = express2();
+app.use(express2.json());
+app.use(express2.urlencoded({ extended: false }));
+app.use((req, res, next) => {
+  const start = Date.now();
+  const path4 = req.path;
+  let capturedJsonResponse = void 0;
+  const originalResJson = res.json;
+  res.json = function(bodyJson, ...args) {
+    capturedJsonResponse = bodyJson;
+    return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+  res.on("finish", () => {
+    const duration = Date.now() - start;
+    if (path4.startsWith("/api")) {
+      let logLine = `${req.method} ${path4} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "\u2026";
+      }
+      log(logLine);
+    }
+  });
+  next();
+});
+(async () => {
+  const { initializeAdmin: initializeAdmin2 } = await Promise.resolve().then(() => (init_init_admin(), init_admin_exports));
+  await initializeAdmin2();
+  await registerSecureRoutes(app);
+  const server = await registerRoutes(app);
+  reminderScheduler.start();
+  app.use((err, _req, res, _next) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
+    throw err;
+  });
+  if (app.get("env") === "development") {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+  const port = 5e3;
+  server.listen({
+    port,
+    host: "0.0.0.0",
+    reusePort: true
+  }, () => {
+    log(`serving on port ${port}`);
+  });
+})();
