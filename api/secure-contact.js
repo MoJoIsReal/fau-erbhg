@@ -38,17 +38,34 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Name and email are required for non-anonymous messages' });
       }
 
-      const newMessage = await sql`
-        INSERT INTO contact_messages (name, email, phone, subject, message, is_anonymous)
-        VALUES (${name || 'Anonymous'}, ${email || ''}, ${phone || ''}, ${subject}, ${message}, ${isAnonymous})
-        RETURNING id, created_at
-      `;
+      // Send email notification
+      try {
+        const emailResponse = await fetch(`${req.headers.origin || 'http://localhost:5000'}/api/secure-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'contact',
+            data: {
+              name,
+              email,
+              phone,
+              subject,
+              message,
+              isAnonymous
+            }
+          })
+        });
+        
+        if (!emailResponse.ok) {
+          console.warn('Failed to send notification email');
+        }
+      } catch (emailError) {
+        console.warn('Email service unavailable:', emailError.message);
+      }
 
       return res.status(201).json({
         success: true,
-        message: 'Message sent successfully',
-        id: newMessage[0].id,
-        timestamp: newMessage[0].created_at
+        message: 'Message sent successfully'
       });
     }
 

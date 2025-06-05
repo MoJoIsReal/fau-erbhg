@@ -1,0 +1,2 @@
+PGUSER=neondb_owner
+PGPASSWORD=npg_oPhyftK9l5DR

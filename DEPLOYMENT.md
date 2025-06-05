@@ -1,77 +1,126 @@
-# Vercel Deployment Instructions
+# Secure Deployment Guide - FAU Erdal Barnehage
 
-## Prerequisites
-- GitHub account
-- Vercel account
-- Neon database (already configured)
-- Cloudinary account (credentials provided)
+## Pre-Deployment Security Checklist
 
-## Step 1: Prepare Repository
+### 1. Rotate Exposed Credentials
+- **CRITICAL**: Change Neon database password immediately
+- Update DATABASE_URL in Vercel environment variables
+- Generate new SESSION_SECRET
+- Verify no sensitive data in Git history
 
-1. Download all project files from Replit
-2. Create a new GitHub repository
-3. Upload/commit all files to your GitHub repository
+### 2. Required Environment Variables
 
-## Step 2: Vercel Setup
-
-1. Go to [vercel.com](https://vercel.com)
-2. Sign in with your GitHub account
-3. Click "Import Project"
-4. Select your GitHub repository
-
-## Step 3: Configure Environment Variables
-
-In Vercel dashboard, add these environment variables:
+Configure these in your Vercel dashboard under Settings → Environment Variables:
 
 ```
-DATABASE_URL=postgres://neondb_owner:npg_P5nSRsy4FYHq@ep-rapid-moon-a202ppv3-pooler.eu-central-1.aws.neon.tech/neondb?sslmode=require
-
-SESSION_SECRET=your_secure_session_secret_here
-
-CLOUDINARY_CLOUD_NAME=dphthnvcl
-CLOUDINARY_API_KEY=921956512463694
-CLOUDINARY_API_SECRET=-86LwxQoGCUmPFi_NlMGHZNW0k0
-
+DATABASE_URL=postgresql://username:password@ep-xxx.neon.tech/dbname
+SESSION_SECRET=your_secure_random_32_character_string
+SENDGRID_API_KEY=SG.xxxxxxxxxxxxxxxxxx
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=123456789012345
+CLOUDINARY_API_SECRET=your_cloudinary_secret
+ADMIN_SETUP_KEY=your_secure_admin_setup_key
 NODE_ENV=production
 ```
 
-## Step 4: Deploy
+### 3. Service Setup Required
 
-1. Click "Deploy" in Vercel
-2. Wait for build to complete
-3. Your app will be available at `https://your-project-name.vercel.app`
+#### Neon PostgreSQL
+1. Create new database on neon.tech
+2. Copy connection string to DATABASE_URL
+3. Database will auto-initialize on first API call
 
-## Step 5: Database Initialization
+#### SendGrid Email
+1. Create account at sendgrid.com
+2. Generate API key with Mail Send permissions
+3. Verify sender email: fauerdalbarnehage@gmail.com
+4. Add API key to SENDGRID_API_KEY
 
-The database will automatically initialize on first deployment. The admin user credentials will be displayed in the Vercel function logs.
+#### Cloudinary File Storage
+1. Create account at cloudinary.com
+2. Copy cloud name, API key, and secret
+3. Configure upload settings for documents/images
 
-## Project Structure Ready for Deployment
+## Deployment Steps
 
-✅ **Vercel Configuration**: `vercel.json` properly configured
-✅ **API Routes**: Serverless-compatible API structure in `/api/`
-✅ **Database**: Neon PostgreSQL with Drizzle ORM
-✅ **File Uploads**: Cloudinary integration with buffer-based uploads
-✅ **Security**: Session management, CSRF protection, secure headers
-✅ **Frontend**: React build optimized for static hosting
+### 1. Prepare Repository
+```bash
+# Ensure no sensitive data in current files
+git status
+git add .
+git commit -m "Secure rebuild with environment variables"
+```
 
-## Features Included
+### 2. Deploy to Vercel
+1. Connect repository to Vercel
+2. Add all environment variables
+3. Deploy from main branch
+4. Test deployment with /api/secure-status
 
-- Event management system
-- Document upload/download
-- Contact form with email notifications
-- Multilingual support (Norwegian/English)
-- User authentication
-- Responsive design
+### 3. Initialize Database
+```bash
+curl -X POST https://your-app.vercel.app/api/init-secure-db
+```
 
-## Email Configuration (Optional)
+### 4. Create Admin User
+```bash
+curl -X POST https://your-app.vercel.app/api/secure-auth \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "register",
+    "username": "admin",
+    "password": "your_secure_password",
+    "name": "Administrator",
+    "setupKey": "your_admin_setup_key"
+  }'
+```
 
-For email notifications to work, add email service credentials to environment variables. Contact the development team for email service setup if needed.
+## API Endpoints
 
-## Support
+- `GET /api/secure-status` - Health check
+- `POST /api/init-secure-db` - Initialize database
+- `POST /api/secure-auth` - Authentication
+- `GET/POST /api/secure-events` - Event management
+- `GET/POST /api/secure-registrations` - Event registrations
+- `GET/POST /api/secure-documents` - Document management
+- `POST /api/secure-contact` - Contact forms
+- `POST /api/secure-upload` - File uploads
+- `POST /api/secure-email` - Email notifications
 
-- Database: Neon PostgreSQL (configured)
-- File Storage: Cloudinary (configured)
-- Hosting: Vercel (ready to deploy)
-- Domain: Will be assigned by Vercel
+## Security Features
 
-Your project is production-ready with all security measures and optimizations in place.
+- All credentials stored in environment variables
+- No hardcoded secrets in source code
+- CORS properly configured
+- Input validation on all endpoints
+- Secure password hashing
+- JWT token-based authentication
+- Protected admin endpoints
+
+## Email Integration
+
+Contact forms automatically send notifications to: **fauerdalbarnehage@gmail.com**
+
+Event registrations send confirmation emails to participants in Norwegian/English.
+
+## Monitoring
+
+Check deployment health:
+```bash
+curl https://your-app.vercel.app/api/secure-status
+```
+
+Expected response:
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-01-01T12:00:00.000Z",
+  "message": "FAU Erdal Barnehage API - Secure Version",
+  "version": "2.0.0",
+  "environment": {
+    "database_configured": true,
+    "session_configured": true,
+    "node_version": "v20.x.x"
+  }
+}
+```
