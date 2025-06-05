@@ -151,6 +151,28 @@ Crawl-delay: 1`;
     res.json({ message: 'Utlogging vellykket' });
   });
 
+  // User authentication endpoint (matches frontend expectations)
+  app.get('/api/user', (req, res) => {
+    try {
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Ikke innlogget' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, jwtSecret) as any;
+      
+      res.json({
+        userId: decoded.userId,
+        username: decoded.username,
+        name: decoded.name,
+        role: decoded.role
+      });
+    } catch (error) {
+      res.status(401).json({ message: 'Ikke innlogget' });
+    }
+  });
+
   app.get('/api/auth/user', (req, res) => {
     try {
       const authHeader = req.headers.authorization;
@@ -232,12 +254,29 @@ Crawl-delay: 1`;
     }
   });
 
-  app.post("/api/events", requireCouncilMember, async (req, res) => {
+  app.post("/api/events", async (req, res) => {
     try {
+      // JWT authentication check
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
+
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, jwtSecret) as any;
+      
+      // Check if user has permission to create events
+      if (decoded.role !== 'admin' && decoded.role !== 'member') {
+        return res.status(403).json({ message: 'Council member access required' });
+      }
+
       const validatedData = insertEventSchema.parse(req.body);
       const event = await storage.createEvent(validatedData);
       res.status(201).json(event);
     } catch (error) {
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        return res.status(401).json({ message: 'Invalid or expired token' });
+      }
       res.status(400).json({ message: "Invalid event data", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
