@@ -70,6 +70,28 @@ export default async function handler(req, res) {
         WHERE id = ${eventId}
       `;
 
+      // Send confirmation email
+      try {
+        const emailResponse = await fetch(`${req.headers.origin || 'http://localhost:5000'}/api/secure-email`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'event_confirmation',
+            data: {
+              registration: newRegistration[0],
+              event: event,
+              language: language
+            }
+          })
+        });
+        
+        if (!emailResponse.ok) {
+          console.warn('Failed to send confirmation email');
+        }
+      } catch (emailError) {
+        console.warn('Email service unavailable:', emailError.message);
+      }
+
       return res.status(201).json({
         success: true,
         registration: newRegistration[0],
