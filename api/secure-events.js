@@ -37,13 +37,13 @@ export default async function handler(req, res) {
     const sql = neon(process.env.DATABASE_URL);
 
     if (req.method === 'GET') {
-      // Get all active events
+      // Get all events including cancelled ones
       const events = await sql`
         SELECT 
           id, title, description, date, time, location, custom_location,
           max_attendees, current_attendees, type, status
         FROM events 
-        WHERE status = 'active'
+        WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
       `;
 
