@@ -1,17 +1,14 @@
 import { neon } from '@neondatabase/serverless';
+import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
   // Security headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
-  }
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
@@ -21,20 +18,61 @@ export default async function handler(req, res) {
 
     const sql = neon(process.env.DATABASE_URL);
 
-    // Get all active events (public access)
-    const events = await sql`
-      SELECT 
-        id, title, description, date, time, location, 
-        custom_location as "customLocation",
-        max_attendees as "maxAttendees", 
-        current_attendees as "currentAttendees", 
-        type, status
-      FROM events 
-      WHERE status = 'active'
-      ORDER BY date ASC, time ASC
-    `;
+    if (req.method === 'GET') {
+      // Get all active events (public access)
+      const events = await sql`
+        SELECT 
+          id, title, description, date, time, location, 
+          custom_location as "customLocation",
+          max_attendees as "maxAttendees", 
+          current_attendees as "currentAttendees", 
+          type, status
+        FROM events 
+        WHERE status = 'active'
+        ORDER BY date ASC, time ASC
+      `;
 
-    return res.status(200).json(events);
+      return res.status(200).json(events);
+    }
+
+    if (req.method === 'POST') {
+      // JWT authentication check
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const token = authHeader.substring(7);
+      const jwtSecret = process.env.SESSION_SECRET || 'fallback-dev-secret-change-in-production';
+      
+      try {
+        const decoded = jwt.verify(token, jwtSecret);
+        
+        // Check if user has permission to create events
+        if (decoded.role !== 'admin' && decoded.role !== 'member') {
+          return res.status(403).json({ error: 'Council member access required' });
+        }
+      } catch (jwtError) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+
+      // Create new event
+      const { title, description, date, time, location, customLocation, maxAttendees, type } = req.body;
+
+      if (!title || !description || !date || !time || !location || !type) {
+        return res.status(400).json({ error: 'Required fields missing' });
+      }
+
+      const newEvent = await sql`
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, current_attendees, type, status)
+        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${customLocation || null}, ${maxAttendees || null}, 0, ${type}, 'active')
+        RETURNING *
+      `;
+
+      return res.status(201).json(newEvent[0]);
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (error) {
     console.error('Events API error:', error);
