@@ -255,23 +255,31 @@ Crawl-delay: 1`;
   });
 
   app.post("/api/events", async (req, res) => {
+    console.log('POST /api/events called with headers:', req.headers);
+    console.log('POST /api/events called with body:', req.body);
+    
     try {
       // JWT authentication check
       const authHeader = req.headers.authorization;
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        console.log('No auth header found:', authHeader);
         return res.status(401).json({ message: 'Authentication required' });
       }
 
       const token = authHeader.substring(7);
       const decoded = jwt.verify(token, jwtSecret) as any;
+      console.log('JWT decoded successfully:', { userId: decoded.userId, role: decoded.role });
       
       // Check if user has permission to create events
       if (decoded.role !== 'admin' && decoded.role !== 'member') {
+        console.log('Insufficient permissions:', decoded.role);
         return res.status(403).json({ message: 'Council member access required' });
       }
 
       const validatedData = insertEventSchema.parse(req.body);
+      console.log('Validated data:', validatedData);
       const event = await storage.createEvent(validatedData);
+      console.log('Event created successfully:', event);
       res.status(201).json(event);
     } catch (error: any) {
       if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
