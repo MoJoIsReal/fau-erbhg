@@ -22,7 +22,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
-      const response = await apiRequest('POST', '/api/secure/auth', { ...data, action: 'login' });
+      const response = await apiRequest('POST', '/api/secure-auth', { ...data, action: 'login' });
       return response.json();
     },
     onSuccess: (data) => {
