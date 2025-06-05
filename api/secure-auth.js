@@ -28,7 +28,7 @@ export default async function handler(req, res) {
       }
 
       const users = await sql`
-        SELECT id, username, password_hash, name, role 
+        SELECT id, username, password, name, role 
         FROM users 
         WHERE username = ${username}
       `;
@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       }
 
       const user = users[0];
-      const isValid = await bcrypt.compare(password, user.password_hash);
+      const isValid = await bcrypt.compare(password, user.password);
 
       if (!isValid) {
         return res.status(401).json({ error: 'Invalid credentials' });
