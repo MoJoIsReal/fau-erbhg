@@ -45,13 +45,13 @@ export default function Events() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/secure-events?id=${id}`),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/secure/events?id=${id}`),
     onSuccess: () => {
       toast({
         title: language === 'no' ? "Arrangement slettet" : "Event deleted",
         description: language === 'no' ? "Arrangementet har blitt slettet." : "The event has been deleted.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/secure-events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/secure/events"] });
     },
     onError: () => {
       toast({
@@ -63,13 +63,13 @@ export default function Events() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("PATCH", `/api/secure-events?id=${id}&action=cancel`),
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/secure/events?id=${id}&action=cancel`),
     onSuccess: () => {
       toast({
         title: language === 'no' ? "Arrangement avlyst" : "Event cancelled",
         description: language === 'no' ? "Arrangementet har blitt avlyst og e-poster er sendt til alle påmeldte." : "The event has been cancelled and emails have been sent to all attendees.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/secure-events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/secure/events"] });
     },
     onError: () => {
       toast({
