@@ -383,6 +383,100 @@ Crawl-delay: 1`;
     }
   });
 
+  // Registrations API route (to match production Vercel function)
+  app.get("/api/registrations", async (req, res) => {
+    try {
+      const { eventId } = req.query;
+      
+      if (!eventId || isNaN(parseInt(eventId as string))) {
+        return res.status(400).json({ error: 'Valid event ID required' });
+      }
+
+      const eventIdNum = parseInt(eventId as string);
+      const registrations = await storage.getEventRegistrations(eventIdNum);
+      res.json(registrations);
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  app.post("/api/registrations", async (req, res) => {
+    try {
+      const { eventId, name, email, phone, attendeeCount, comments, language } = req.body;
+
+      if (!eventId || !name || !email) {
+        return res.status(400).json({ error: 'Event ID, name and email are required' });
+      }
+
+      const eventIdNum = parseInt(eventId);
+      
+      if (isNaN(eventIdNum)) {
+        return res.status(400).json({ error: 'Valid event ID required' });
+      }
+
+      const validatedData = insertEventRegistrationSchema.parse({
+        eventId: eventIdNum,
+        name,
+        email,
+        phone: phone || null,
+        attendeeCount: attendeeCount || 1,
+        comments: comments || null,
+        language: language || 'no'
+      });
+      
+      // Check if event exists and has space
+      const event = await storage.getEvent(eventIdNum);
+      if (!event) {
+        return res.status(404).json({ error: "Event not found or not active" });
+      }
+      
+      // Check if event is cancelled
+      if (event.status === "cancelled") {
+        return res.status(400).json({ error: "Cannot register for cancelled event" });
+      }
+      
+      // Check for duplicate email registration
+      const existingRegistrations = await storage.getEventRegistrations(eventIdNum);
+      const emailExists = existingRegistrations.some(reg => 
+        reg.email.toLowerCase() === validatedData.email.toLowerCase()
+      );
+      
+      if (emailExists) {
+        return res.status(400).json({ 
+          error: "This email is already registered for this event" 
+        });
+      }
+      
+      const requestedAttendees = validatedData.attendeeCount || 1;
+      
+      // Check capacity
+      if (event.maxAttendees && 
+          (event.currentAttendees + requestedAttendees) > event.maxAttendees) {
+        return res.status(400).json({ 
+          error: 'Event is at capacity',
+          available: event.maxAttendees - event.currentAttendees
+        });
+      }
+
+      const registration = await storage.createEventRegistration(validatedData);
+      
+      // Send confirmation email
+      try {
+        await sendEventConfirmationEmail({ 
+          registration, 
+          event,
+          language: validatedData.language as 'no' | 'en'
+        });
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+      }
+      
+      res.status(201).json(registration);
+    } catch (error) {
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   app.delete("/api/registrations/:id", async (req, res) => {
     try {
       const id = parseInt(req.params.id);
