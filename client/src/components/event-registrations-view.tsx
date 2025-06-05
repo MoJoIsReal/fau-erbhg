@@ -16,7 +16,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
   const { language } = useLanguage();
 
   const { data: registrations = [], isLoading } = useQuery<EventRegistration[]>({
-    queryKey: [`/api/events/${event.id}/registrations`],
+    queryKey: [`/api/registrations?eventId=${event.id}`],
   });
 
   const handleExportExcel = () => {
