@@ -7,11 +7,22 @@ import { reminderScheduler } from "./scheduler";
 
 const app = express();
 
-// Add CORS headers for development
+// Add CORS headers with environment-specific origins
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = process.env.NODE_ENV === 'production' 
+    ? ['https://fau-erdal-barnehage.vercel.app', 'https://*.vercel.app']
+    : ['http://localhost:5000', 'http://localhost:3000'];
+  
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin) || process.env.NODE_ENV === 'development') {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+  
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'DENY');
+  res.header('X-XSS-Protection', '1; mode=block');
   
   if (req.method === 'OPTIONS') {
     res.sendStatus(200);
