@@ -43,18 +43,36 @@ export default function Settings() {
   });
 
   // Fetch board members
-  const { data: boardMembers = [], isLoading } = useQuery({
+  const { data: boardMembers = [], isLoading } = useQuery<BoardMember[]>({
     queryKey: ['/api/secure-board-members'],
-    enabled: isAuthenticated
+    enabled: isAuthenticated,
+    queryFn: async () => {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/secure-board-members', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to fetch board members');
+      return response.json();
+    }
   });
 
   // Add board member mutation
   const addMemberMutation = useMutation({
-    mutationFn: (data: BoardMemberFormData) => 
-      apiRequest('/api/secure-board-members', {
+    mutationFn: async (data: BoardMemberFormData) => {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch('/api/secure-board-members', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(data)
-      }),
+      });
+      if (!response.ok) throw new Error('Failed to add member');
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/secure-board-members'] });
       setIsAddModalOpen(false);
@@ -75,11 +93,19 @@ export default function Settings() {
 
   // Update board member mutation
   const updateMemberMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: BoardMemberFormData }) =>
-      apiRequest(`/api/secure-board-members?id=${id}`, {
+    mutationFn: async ({ id, data }: { id: number; data: BoardMemberFormData }) => {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/secure-board-members?id=${id}`, {
         method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(data)
-      }),
+      });
+      if (!response.ok) throw new Error('Failed to update member');
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/secure-board-members'] });
       setEditingMember(null);
@@ -100,10 +126,17 @@ export default function Settings() {
 
   // Delete board member mutation
   const deleteMemberMutation = useMutation({
-    mutationFn: (id: number) =>
-      apiRequest(`/api/secure-board-members?id=${id}`, {
-        method: 'DELETE'
-      }),
+    mutationFn: async (id: number) => {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`/api/secure-board-members?id=${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) throw new Error('Failed to delete member');
+      return response.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/secure-board-members'] });
       toast({
@@ -329,7 +362,7 @@ export default function Settings() {
               </div>
             ) : (
               <div className="space-y-4">
-                {boardMembers.map((member: BoardMember) => (
+                {(boardMembers as BoardMember[]).map((member: BoardMember) => (
                   <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">

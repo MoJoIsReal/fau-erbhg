@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Info, Calendar, Mail, Folder, LogIn, LogOut, User } from "lucide-react";
+import { Menu, X, Info, Calendar, Mail, Folder, LogIn, LogOut, User, Settings } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -94,6 +94,16 @@ export default function Layout({ children }: LayoutProps) {
                       <User className="h-4 w-4" />
                       <span>{user?.name}</span>
                     </div>
+                    <Link href="/settings">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center space-x-2"
+                      >
+                        <Settings className="h-4 w-4" />
+                        <span>{t.language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                      </Button>
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"
