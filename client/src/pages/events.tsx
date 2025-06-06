@@ -14,7 +14,8 @@ import {
   Grid,
   Trash2,
   AlertTriangle,
-  MapPin
+  MapPin,
+  Monitor
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -123,6 +124,8 @@ export default function Events() {
         return Heart;
       case "dugnad":
         return Users;
+      case "digitalt":
+        return Monitor;
       default:
         return Calendar;
     }
@@ -136,6 +139,8 @@ export default function Events() {
         return "bg-secondary/20 text-secondary";
       case "dugnad":
         return "bg-accent/20 text-accent";
+      case "digitalt":
+        return "bg-blue-100 text-blue-700";
       default:
         return "bg-primary/20 text-primary";
     }
