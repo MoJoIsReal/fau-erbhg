@@ -228,7 +228,6 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
                       <SelectItem value="meeting">Møte</SelectItem>
                       <SelectItem value="event">Arrangement</SelectItem>
                       <SelectItem value="volunteer">Dugnad</SelectItem>
-                      <SelectItem value="digitalt">Digitalt</SelectItem>
                       <SelectItem value="internal">Internt</SelectItem>
                       <SelectItem value="other">Annet</SelectItem>
                     </SelectContent>
