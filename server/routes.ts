@@ -658,6 +658,42 @@ Crawl-delay: 1`;
     }
   });
 
+  // Secure documents route (requires authentication) - matches Vercel function
+  app.get("/api/secure-documents", requireCouncilMember, async (req, res) => {
+    try {
+      const documents = await storage.getAllDocuments();
+      res.json(documents);
+    } catch (error) {
+      console.error('Secure documents fetch error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  app.delete("/api/secure-documents", requireCouncilMember, async (req, res) => {
+    try {
+      const { id } = req.query;
+      
+      if (!id || isNaN(parseInt(id as string))) {
+        return res.status(400).json({ error: 'Valid document ID is required' });
+      }
+      
+      const documentId = parseInt(id as string);
+      const deleted = await storage.deleteDocument(documentId);
+      
+      if (!deleted) {
+        return res.status(404).json({ error: 'Document not found' });
+      }
+
+      res.json({ 
+        success: true, 
+        message: 'Document deleted successfully' 
+      });
+    } catch (error) {
+      console.error('Document deletion error:', error);
+      res.status(500).json({ error: 'Failed to delete document from database' });
+    }
+  });
+
   // Secure registration deletion route (requires authentication)
   app.delete("/api/secure-registrations/:id", requireCouncilMember, async (req, res) => {
     try {
