@@ -94,16 +94,7 @@ export default function Layout({ children }: LayoutProps) {
                       <User className="h-4 w-4" />
                       <span>{user?.name}</span>
                     </div>
-                    <Link href="/settings">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center space-x-2"
-                      >
-                        <Settings className="h-4 w-4" />
-                        <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
-                      </Button>
-                    </Link>
+
                     <Button
                       variant="outline"
                       size="sm"
