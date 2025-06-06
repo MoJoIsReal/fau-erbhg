@@ -47,15 +47,28 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
-      const deletedDoc = await sql`
-        DELETE FROM documents WHERE id = ${id} RETURNING file_url
-      `;
       
-      if (deletedDoc.length === 0) {
-        return res.status(404).json({ error: 'Document not found' });
+      if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: 'Valid document ID is required' });
       }
+      
+      try {
+        const deletedDoc = await sql`
+          DELETE FROM documents WHERE id = ${parseInt(id)} RETURNING file_url, filename
+        `;
+        
+        if (deletedDoc.length === 0) {
+          return res.status(404).json({ error: 'Document not found' });
+        }
 
-      return res.status(200).json({ success: true });
+        return res.status(200).json({ 
+          success: true, 
+          message: 'Document deleted successfully' 
+        });
+      } catch (dbError) {
+        console.error('Database deletion error:', dbError);
+        return res.status(500).json({ error: 'Failed to delete document from database' });
+      }
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
