@@ -53,8 +53,8 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-3">
-              <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden">
-                <img src={childIcon} alt="FAU Erdal Barnehage" className="w-10 h-10 object-cover" />
+              <div className="w-10 h-10 flex items-center justify-center">
+                <img src={childIcon} alt="FAU Erdal Barnehage" className="w-10 h-10 object-contain" />
               </div>
               <div className="min-w-0 flex-1">
                 <h1 className="font-heading font-bold text-lg text-neutral-900 leading-tight">{t.header.title}</h1>
@@ -128,8 +128,8 @@ export default function Layout({ children }: LayoutProps) {
               </SheetTrigger>
               <SheetContent side="right" className="w-[300px] sm:w-[400px]">
                 <div className="flex items-center space-x-3 mb-8">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
-                    <img src={childIcon} alt="FAU Erdal Barnehage" className="w-8 h-8 object-cover" />
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <img src={childIcon} alt="FAU Erdal Barnehage" className="w-8 h-8 object-contain" />
                   </div>
                   <div>
                     <h2 className="font-heading font-bold text-lg">{t.header.title}</h2>
@@ -210,8 +210,8 @@ export default function Layout({ children }: LayoutProps) {
           <div className="grid md:grid-cols-3 gap-8">
             <div>
               <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center overflow-hidden">
-                  <img src={childIcon} alt="FAU Erdal Barnehage" className="w-8 h-8 object-cover" />
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <img src={childIcon} alt="FAU Erdal Barnehage" className="w-8 h-8 object-contain" />
                 </div>
                 <span className="font-heading font-bold text-lg">{t.header.title}</span>
               </div>
