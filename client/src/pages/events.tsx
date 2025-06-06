@@ -277,7 +277,7 @@ export default function Events() {
                             {event.location === "Digitalt" ? (
                               <div className="flex items-center text-blue-600 text-sm mb-2">
                                 <Monitor className="h-4 w-4 mr-2" />
-                                <span>Digitalt arrangement</span>
+                                <span>{language === 'no' ? 'Digitalt arrangement' : 'Digital event'}</span>
                               </div>
                             ) : (
                               <div className="flex items-center text-neutral-600 text-sm mb-2">
