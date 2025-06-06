@@ -188,13 +188,10 @@ export default function Contact() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                          <SelectItem value="anonymous">{t.contact.subjects.anonymous}</SelectItem>
                           <SelectItem value="general">{t.contact.subjects.general}</SelectItem>
-                          <SelectItem value="anonymous">{t.contact.anonymous}</SelectItem>
-                          <SelectItem value="meeting">{t.contact.subjects.meeting}</SelectItem>
-                          <SelectItem value="event">{t.contact.subjects.event}</SelectItem>
                           <SelectItem value="concern">{t.contact.subjects.concern}</SelectItem>
-                          <SelectItem value="suggestion">{t.contact.subjects.suggestion}</SelectItem>
-                          <SelectItem value="other">{t.contact.subjects.other}</SelectItem>
+                          <SelectItem value="feedback">{t.contact.subjects.feedback}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
