@@ -38,9 +38,11 @@ export default function Events() {
   const queryClient = useQueryClient();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [selectedEventForRegistrations, setSelectedEventForRegistrations] = useState<Event | null>(null);
+  const [selectedEventForEdit, setSelectedEventForEdit] = useState<Event | null>(null);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [isRegistrationsModalOpen, setIsRegistrationsModalOpen] = useState(false);
   const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   const { data: events = [], isLoading } = useQuery({
@@ -362,6 +364,19 @@ export default function Events() {
                                 </div>
                               ) : (
                                 <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedEventForEdit(event);
+                                      setIsEditModalOpen(true);
+                                    }}
+                                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    <span>{language === 'no' ? 'Rediger' : 'Edit'}</span>
+                                  </Button>
+                                  
                                   {(event.currentAttendees || 0) > 0 ? (
                                     <Button 
                                       variant="outline"
@@ -480,6 +495,16 @@ export default function Events() {
       <EventCreationModal
         isOpen={isCreationModalOpen}
         onClose={() => setIsCreationModalOpen(false)}
+      />
+
+      {/* Event Edit Modal */}
+      <EventEditModal
+        event={selectedEventForEdit}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setSelectedEventForEdit(null);
+        }}
       />
 
       {/* Event Registrations Modal */}
