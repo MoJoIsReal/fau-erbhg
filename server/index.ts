@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
-import { registerSecureRoutes } from "./secure-routes";
+
 import { setupVite, serveStatic, log } from "./vite";
 import { reminderScheduler } from "./scheduler";
 
@@ -44,8 +44,7 @@ app.use((req, res, next) => {
   const { initializeAdmin } = await import("./init-admin");
   await initializeAdmin();
   
-  // Register both existing and secure routes
-  await registerSecureRoutes(app);
+  // Register main routes only
   const server = await registerRoutes(app);
   
   // Start the reminder scheduler
