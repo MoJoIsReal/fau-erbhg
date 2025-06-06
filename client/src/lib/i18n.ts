@@ -108,12 +108,10 @@ export interface Translations {
     subjectPlaceholder: string;
     selectSubject: string;
     subjects: {
+      anonymous: string;
       general: string;
-      meeting: string;
-      event: string;
       concern: string;
-      suggestion: string;
-      other: string;
+      feedback: string;
     };
   };
   // Documents page
@@ -363,12 +361,10 @@ export const translations: Record<Language, Translations> = {
       subjectPlaceholder: "Velg et emne",
       selectSubject: "Vennligst velg et emne",
       subjects: {
-        general: "Generell henvendelse",
-        meeting: "Møte/arrangement",
-        event: "Aktivitet/dugnad",
-        concern: "Bekymring/klage",
-        suggestion: "Forslag/tilbakemelding",
-        other: "Annet"
+        anonymous: "Anonym Henvendelse",
+        general: "Generell Henvendelse",
+        concern: "Bekymring",
+        feedback: "Tilbakemelding"
       }
     },
     documents: {
@@ -612,12 +608,10 @@ export const translations: Record<Language, Translations> = {
       subjectPlaceholder: "Select a subject",
       selectSubject: "Please select a subject",
       subjects: {
-        general: "General inquiry",
-        meeting: "Meeting/event",
-        event: "Activity/volunteer work",
-        concern: "Concern/complaint",
-        suggestion: "Suggestion/feedback",
-        other: "Other"
+        anonymous: "Anonymous Inquiry",
+        general: "General Inquiry",
+        concern: "Concern",
+        feedback: "Feedback"
       }
     },
     documents: {
