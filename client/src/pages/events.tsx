@@ -347,7 +347,7 @@ export default function Events() {
                           
                           {isAuthenticated && (
                             <>
-                              {!event.vigiloSignup && (
+                              {!event.vigiloSignup && event.type !== "internal" && (
                                 <Button 
                                   variant="outline"
                                   size="sm"
