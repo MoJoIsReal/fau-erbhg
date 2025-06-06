@@ -188,7 +188,6 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                       <SelectItem value="protokoll">Møtereferat</SelectItem>
                       <SelectItem value="vedtekter">Vedtekter</SelectItem>
                       <SelectItem value="budsjett">Årsplaner/Annet</SelectItem>
-                      <SelectItem value="annet">Annet</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
