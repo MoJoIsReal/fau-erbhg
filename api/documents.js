@@ -56,6 +56,7 @@ export default async function handler(req, res) {
         mime_type as "mimeType",
         category, 
         description, 
+        uploaded_by as "uploadedBy",
         uploaded_at as "uploadedAt"
       FROM documents 
       ORDER BY uploaded_at DESC
