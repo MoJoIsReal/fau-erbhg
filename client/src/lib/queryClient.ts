@@ -47,7 +47,13 @@ export const getQueryFn: <T>(options: {
       headers["Authorization"] = `Bearer ${token}`;
     }
 
-    const res = await fetch(queryKey[0] as string, {
+    // Handle development vs production URLs
+    const baseUrl = queryKey[0] as string;
+    const url = import.meta.env.DEV && baseUrl.startsWith('/api/') 
+      ? `http://localhost:5000${baseUrl}`
+      : baseUrl;
+
+    const res = await fetch(url, {
       headers,
       credentials: "include",
     });
