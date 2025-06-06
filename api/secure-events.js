@@ -63,6 +63,34 @@ export default async function handler(req, res) {
       return res.status(201).json(newEvent[0]);
     }
 
+    if (req.method === 'PUT') {
+      const { id } = req.query;
+      const { title, description, date, time, location, customLocation, maxAttendees } = req.body;
+
+      if (!title || !date || !time) {
+        return res.status(400).json({ error: 'Title, date, and time are required' });
+      }
+
+      const updatedEvent = await sql`
+        UPDATE events 
+        SET title = ${title},
+            description = ${description},
+            date = ${date},
+            time = ${time},
+            location = ${location},
+            custom_location = ${customLocation || null},
+            max_attendees = ${maxAttendees || null}
+        WHERE id = ${id}
+        RETURNING *
+      `;
+
+      if (updatedEvent.length === 0) {
+        return res.status(404).json({ error: 'Event not found' });
+      }
+
+      return res.status(200).json(updatedEvent[0]);
+    }
+
     if (req.method === 'PATCH') {
       const { id, action } = req.query;
 
