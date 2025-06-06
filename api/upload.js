@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     });
 
     const sql = neon(process.env.DATABASE_URL);
-    const { fileData, filename, title, category, description } = req.body;
+    const { fileData, filename, title, category, description, uploadedBy } = req.body;
     
     if (!fileData || !filename || !title) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -78,7 +78,7 @@ export default async function handler(req, res) {
     // Save document to database
     const newDocument = await sql`
       INSERT INTO documents (title, filename, cloudinary_url, file_size, mime_type, category, description, uploaded_by, uploaded_at)
-      VALUES (${title}, ${filename}, ${uploadResult.secure_url}, ${uploadResult.bytes || 0}, ${uploadResult.format || 'unknown'}, ${category || 'annet'}, ${description || ''}, 'admin', NOW())
+      VALUES (${title}, ${filename}, ${uploadResult.secure_url}, ${uploadResult.bytes || 0}, ${uploadResult.format || 'unknown'}, ${category || 'annet'}, ${description || ''}, ${uploadedBy || 'Unknown'}, NOW())
       RETURNING *
     `;
 

@@ -71,7 +71,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         title: data.title,
         category: data.category,
         description: data.description || "",
-        uploadedBy: data.uploadedBy || "Admin",
+        uploadedBy: data.uploadedBy,
         filename: data.file.name,
         fileData: fileBase64
       };
