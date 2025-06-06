@@ -10,7 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { TimeInput24h } from "@/components/time-input-24h";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { insertEventSchema } from "@shared/schema";
+import { insertEventSchema, type Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { validateAddress } from "@/lib/location-utils";
 import { z } from "zod";
@@ -33,16 +33,26 @@ type FormData = z.infer<typeof formSchema>;
 interface EventCreationModalProps {
   isOpen: boolean;
   onClose: () => void;
+  event?: Event | null; // For editing mode
 }
 
-export default function EventCreationModal({ isOpen, onClose }: EventCreationModalProps) {
+export default function EventCreationModal({ isOpen, onClose, event }: EventCreationModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: event ? {
+      title: event.title || "",
+      description: event.description || "",
+      date: event.date || "",
+      time: event.time || "",
+      location: event.location || "",
+      type: event.type || "meeting",
+      maxAttendees: event.maxAttendees || null,
+      customLocation: event.customLocation || ""
+    } : {
       title: "",
       description: "",
       date: "",
@@ -66,12 +76,21 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
         ...data,
         customLocation: data.location === "Annet" ? data.customLocation : null
       };
-      return apiRequest("POST", "/api/events", eventData);
+      
+      if (event) {
+        // Editing mode - use PUT request
+        return apiRequest("PUT", `/api/secure-events?id=${event.id}`, eventData);
+      } else {
+        // Creation mode - use POST request
+        return apiRequest("POST", "/api/events", eventData);
+      }
     },
     onSuccess: () => {
       toast({
-        title: "Arrangement opprettet!",
-        description: "Det nye arrangementet er nå tilgjengelig for påmelding.",
+        title: event ? "Arrangement oppdatert!" : "Arrangement opprettet!",
+        description: event 
+          ? "Arrangementet har blitt oppdatert." 
+          : "Det nye arrangementet er nå tilgjengelig for påmelding.",
       });
       form.reset();
       onClose();
@@ -79,8 +98,8 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
     },
     onError: (error: any) => {
       toast({
-        title: "Feil ved opprettelse",
-        description: error.message || "Kunne ikke opprette arrangementet. Prøv igjen senere.",
+        title: event ? "Feil ved oppdatering" : "Feil ved opprettelse",
+        description: error.message || (event ? "Kunne ikke oppdatere arrangementet. Prøv igjen senere." : "Kunne ikke opprette arrangementet. Prøv igjen senere."),
         variant: "destructive"
       });
     }
