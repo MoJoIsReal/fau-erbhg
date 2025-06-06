@@ -32,7 +32,7 @@ export default async function handler(req, res) {
         id, 
         title, 
         filename, 
-        file_url as "fileUrl", 
+        cloudinary_url as "fileUrl", 
         file_size as "fileSize", 
         mime_type as "mimeType",
         category, 
