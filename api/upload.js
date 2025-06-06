@@ -60,8 +60,8 @@ export default async function handler(req, res) {
 
     // Save document to database
     const newDocument = await sql`
-      INSERT INTO documents (title, filename, file_url, file_size, mime_type, category, description)
-      VALUES (${title}, ${filename}, ${uploadResult.secure_url}, ${uploadResult.bytes || 0}, ${uploadResult.format || 'unknown'}, ${category || 'general'}, ${description || ''})
+      INSERT INTO documents (title, filename, cloudinary_url, file_size, mime_type, category, description, uploaded_by, uploaded_at)
+      VALUES (${title}, ${filename}, ${uploadResult.secure_url}, ${uploadResult.bytes || 0}, ${uploadResult.format || 'unknown'}, ${category || 'annet'}, ${description || ''}, 'admin', NOW())
       RETURNING *
     `;
 
