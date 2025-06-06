@@ -308,6 +308,7 @@ export default function Events() {
                         </div>
                         
                         <div className="flex flex-col space-y-3 mt-6 md:mt-0 md:ml-6">
+                          {console.log(`Event ${event.id}: vigiloSignup =`, event.vigiloSignup, typeof event.vigiloSignup)}
                           {event.status === "cancelled" ? (
                             <div className="flex items-center text-red-600 text-sm font-medium bg-red-50 px-3 py-2 rounded-lg">
                               <AlertTriangle className="h-4 w-4 mr-2" />
