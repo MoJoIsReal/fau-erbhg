@@ -45,25 +45,49 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("category", data.category);
-      formData.append("description", data.description || "");
-      formData.append("uploadedBy", data.uploadedBy);
-      formData.append("file", data.file);
+      const file = data.file;
+      const reader = new FileReader();
+      
+      return new Promise((resolve, reject) => {
+        reader.onload = async () => {
+          try {
+            const fileData = reader.result as string;
+            
+            const token = localStorage.getItem('auth_token');
+            if (!token) {
+              throw new Error('No authentication token found');
+            }
 
-      const response = await fetch("/api/documents", {
-        method: "POST",
-        body: formData,
-        credentials: "include"
+            const response = await fetch("/api/upload", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                title: data.title,
+                category: data.category,
+                description: data.description || "",
+                filename: file.name,
+                fileData: fileData
+              })
+            });
+
+            if (!response.ok) {
+              const error = await response.json();
+              throw new Error(error.error || "Upload failed");
+            }
+
+            const result = await response.json();
+            resolve(result);
+          } catch (error) {
+            reject(error);
+          }
+        };
+        
+        reader.onerror = () => reject(new Error('File reading failed'));
+        reader.readAsDataURL(file);
       });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Upload failed");
-      }
-
-      return response.json();
     },
     onSuccess: () => {
       toast({
