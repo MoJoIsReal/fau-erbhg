@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 import { storage } from './storage';
 import type { User } from '@shared/schema';
 
@@ -33,7 +34,25 @@ export async function authenticateUser(username: string, password: string): Prom
 }
 
 export function isAuthenticated(req: any): boolean {
-  return req.session && req.session.user;
+  // Check session-based authentication
+  if (req.session && req.session.user) {
+    return true;
+  }
+  
+  // Check JWT token authentication
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.substring(7);
+    try {
+      const decoded = jwt.verify(token, process.env.SESSION_SECRET || 'fallback-secret') as any;
+      req.user = decoded; // Store decoded token data
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+  
+  return false;
 }
 
 export function requireAuth(req: any, res: any, next: any) {
@@ -62,7 +81,8 @@ export function requireCouncilMember(req: any, res: any, next: any) {
     return res.status(401).json({ message: 'Authentication required' });
   }
   
-  const userRole = req.session.user.role;
+  // Get role from either session or JWT token
+  const userRole = req.session?.user?.role || req.user?.role;
   if (userRole !== 'admin' && userRole !== 'member') {
     return res.status(403).json({ message: 'Council member access required' });
   }
