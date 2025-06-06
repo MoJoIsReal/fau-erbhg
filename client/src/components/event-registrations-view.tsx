@@ -25,7 +25,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
 
   const deleteRegistrationMutation = useMutation({
     mutationFn: (registrationId: number) => 
-      apiRequest("DELETE", `/api/secure-registrations/${registrationId}`),
+      apiRequest("DELETE", `/api/secure-registrations?id=${registrationId}`),
     onMutate: async (registrationId: number) => {
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });

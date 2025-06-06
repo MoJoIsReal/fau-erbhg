@@ -34,11 +34,6 @@ export default async function handler(req, res) {
 
     const sql = neon(process.env.DATABASE_URL);
     const { eventId, id } = req.query;
-    
-    // Extract ID from URL path for DELETE requests (e.g., /api/secure-registrations/12)
-    const pathSegments = req.url.split('/');
-    const urlId = pathSegments[pathSegments.length - 1];
-    const registrationId = id || (urlId && !isNaN(parseInt(urlId)) ? urlId : null);
 
     if (req.method === 'GET' && eventId) {
       const registrations = await sql`
@@ -52,9 +47,9 @@ export default async function handler(req, res) {
       return res.status(200).json(registrations);
     }
 
-    if (req.method === 'DELETE' && registrationId) {
+    if (req.method === 'DELETE' && id) {
       const deletedReg = await sql`
-        DELETE FROM event_registrations WHERE id = ${registrationId} RETURNING event_id, attendee_count
+        DELETE FROM event_registrations WHERE id = ${id} RETURNING event_id, attendee_count
       `;
 
       if (deletedReg.length === 0) {
