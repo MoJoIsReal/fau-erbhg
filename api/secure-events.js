@@ -44,7 +44,17 @@ export default async function handler(req, res) {
         WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
       `;
-      return res.status(200).json(events);
+      
+      // Map database fields to frontend camelCase
+      const mappedEvents = events.map(event => ({
+        ...event,
+        customLocation: event.custom_location,
+        maxAttendees: event.max_attendees,
+        currentAttendees: event.current_attendees,
+        vigiloSignup: event.vigilo_signup
+      }));
+      
+      return res.status(200).json(mappedEvents);
     }
 
     if (req.method === 'POST') {
@@ -60,7 +70,16 @@ export default async function handler(req, res) {
         RETURNING *
       `;
 
-      return res.status(201).json(newEvent[0]);
+      // Map database fields to frontend camelCase
+      const mappedEvent = {
+        ...newEvent[0],
+        customLocation: newEvent[0].custom_location,
+        maxAttendees: newEvent[0].max_attendees,
+        currentAttendees: newEvent[0].current_attendees,
+        vigiloSignup: newEvent[0].vigilo_signup
+      };
+
+      return res.status(201).json(mappedEvent);
     }
 
     if (req.method === 'PUT') {
@@ -93,7 +112,16 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Event not found' });
       }
 
-      return res.status(200).json(updatedEvent[0]);
+      // Map database fields to frontend camelCase
+      const mappedEvent = {
+        ...updatedEvent[0],
+        customLocation: updatedEvent[0].custom_location,
+        maxAttendees: updatedEvent[0].max_attendees,
+        currentAttendees: updatedEvent[0].current_attendees,
+        vigiloSignup: updatedEvent[0].vigilo_signup
+      };
+
+      return res.status(200).json(mappedEvent);
     }
 
     if (req.method === 'PATCH') {
