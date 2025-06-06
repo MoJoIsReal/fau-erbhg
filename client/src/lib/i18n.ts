@@ -182,6 +182,42 @@ export interface Translations {
         other: string;
       };
     };
+    eventCreation: {
+      title: string;
+      description: string;
+      titleLabel: string;
+      titlePlaceholder: string;
+      descriptionLabel: string;
+      descriptionPlaceholder: string;
+      dateLabel: string;
+      timeLabel: string;
+      locationLabel: string;
+      locationPlaceholder: string;
+      typeLabel: string;
+      maxAttendeesLabel: string;
+      maxAttendeesPlaceholder: string;
+      customLocationLabel: string;
+      customLocationPlaceholder: string;
+      cancel: string;
+      create: string;
+      creating: string;
+      success: string;
+      successDesc: string;
+      error: string;
+      errorDesc: string;
+      types: {
+        meeting: string;
+        event: string;
+        dugnad: string;
+        internal: string;
+        annet: string;
+      };
+      locations: {
+        erdal: string;
+        digitalt: string;
+        annet: string;
+      };
+    };
     eventRegistration: {
       title: string;
       name: string;
@@ -396,8 +432,43 @@ export const translations: Record<Language, Translations> = {
         categories: {
           protocol: "Møtereferat",
           regulations: "Vedtekter",
-          budget: "Budsjett/Regnskap", 
-          other: "Annet"
+          budget: "Årsplaner/Annet"
+        }
+      },
+      eventCreation: {
+        title: "Opprett nytt arrangement",
+        description: "Fyll ut skjemaet for å opprette et nytt arrangement eller møte.",
+        titleLabel: "Tittel",
+        titlePlaceholder: "Navn på arrangementet",
+        descriptionLabel: "Beskrivelse",
+        descriptionPlaceholder: "Beskriv arrangementet...",
+        dateLabel: "Dato",
+        timeLabel: "Klokkeslett",
+        locationLabel: "Sted",
+        locationPlaceholder: "Velg sted",
+        typeLabel: "Type arrangement",
+        maxAttendeesLabel: "Maks deltakere",
+        maxAttendeesPlaceholder: "La stå tom for ubegrenset",
+        customLocationLabel: "Egen adresse",
+        customLocationPlaceholder: "Skriv inn adresse...",
+        cancel: "Avbryt",
+        create: "Opprett arrangement",
+        creating: "Oppretter...",
+        success: "Arrangement opprettet!",
+        successDesc: "Det nye arrangementet er nå tilgjengelig for påmelding.",
+        error: "Feil ved opprettelse",
+        errorDesc: "Kunne ikke opprette arrangementet. Prøv igjen senere.",
+        types: {
+          meeting: "Møte",
+          event: "Arrangement",
+          dugnad: "Dugnad",
+          internal: "Internt",
+          annet: "Annet"
+        },
+        locations: {
+          erdal: "Erdal Barnehage",
+          digitalt: "Digitalt",
+          annet: "Annet"
         }
       },
       eventRegistration: {
@@ -611,6 +682,42 @@ export const translations: Record<Language, Translations> = {
           protocol: "Meeting minutes",
           regulations: "Bylaws",
           budget: "Annual Plans/Other"
+        }
+      },
+      eventCreation: {
+        title: "Create new event",
+        description: "Fill out the form to create a new event or meeting.",
+        titleLabel: "Title",
+        titlePlaceholder: "Event name",
+        descriptionLabel: "Description",
+        descriptionPlaceholder: "Describe the event...",
+        dateLabel: "Date",
+        timeLabel: "Time",
+        locationLabel: "Location",
+        locationPlaceholder: "Select location",
+        typeLabel: "Event type",
+        maxAttendeesLabel: "Max attendees",
+        maxAttendeesPlaceholder: "Leave empty for unlimited",
+        customLocationLabel: "Custom address",
+        customLocationPlaceholder: "Enter address...",
+        cancel: "Cancel",
+        create: "Create event",
+        creating: "Creating...",
+        success: "Event created!",
+        successDesc: "The new event is now available for registration.",
+        error: "Creation error",
+        errorDesc: "Could not create the event. Please try again later.",
+        types: {
+          meeting: "Meeting",
+          event: "Event",
+          dugnad: "Volunteer work",
+          internal: "Internal",
+          annet: "Other"
+        },
+        locations: {
+          erdal: "Erdal Kindergarten",
+          digitalt: "Digital",
+          annet: "Other"
         }
       },
       eventRegistration: {
