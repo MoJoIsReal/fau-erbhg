@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { title, description, date, time, location, customLocation, maxAttendees, type } = req.body;
+      const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup } = req.body;
 
       if (!title || !date || !time) {
         return res.status(400).json({ error: 'Title, date, and time are required' });
