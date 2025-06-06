@@ -41,6 +41,17 @@ export default function Files() {
 
   const { data: allDocuments = [], isLoading } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
+    queryFn: async () => {
+      const apiUrl = import.meta.env.DEV 
+        ? "http://localhost:5000/api/documents" 
+        : "/api/documents";
+      
+      const response = await fetch(apiUrl);
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+      return response.json();
+    }
   });
 
   const getFileIcon = (mimeType: string) => {
