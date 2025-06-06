@@ -45,25 +45,35 @@ export default function Events() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/secure/events?id=${id}`),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/secure-events?id=${id}`),
     onSuccess: () => {
       toast({
         title: language === 'no' ? "Arrangement slettet" : "Event deleted",
         description: language === 'no' ? "Arrangementet har blitt slettet." : "The event has been deleted.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/secure/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
-    onError: () => {
-      toast({
-        title: language === 'no' ? "Kunne ikke slette" : "Could not delete",
-        description: language === 'no' ? "Arrangementet kunne ikke slettes. Det kan være at det har påmeldinger." : "Could not delete the event. It may have registrations.",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      const errorData = error?.response?.data || error;
+      
+      if (errorData.hasRegistrations) {
+        toast({
+          title: language === 'no' ? "Kan ikke slette" : "Cannot delete",
+          description: language === 'no' ? "Dette arrangementet har påmeldinger og kan ikke slettes. Du kan avlyse det i stedet." : "This event has registrations and cannot be deleted. You can cancel it instead.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: language === 'no' ? "Kunne ikke slette" : "Could not delete",
+          description: errorData.message || (language === 'no' ? "En feil oppstod ved sletting av arrangementet." : "An error occurred while deleting the event."),
+          variant: "destructive",
+        });
+      }
     },
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("PATCH", `/api/secure/events?id=${id}&action=cancel`),
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/secure-events?id=${id}&action=cancel`),
     onSuccess: () => {
       toast({
         title: language === 'no' ? "Arrangement avlyst" : "Event cancelled",
