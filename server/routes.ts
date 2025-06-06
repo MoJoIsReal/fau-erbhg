@@ -658,6 +658,35 @@ Crawl-delay: 1`;
     }
   });
 
+  // Secure registration deletion route (requires authentication)
+  app.delete("/api/secure-registrations/:id", requireCouncilMember, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
+        return res.status(400).json({ error: 'Valid registration ID required' });
+      }
+
+      // Get registration details before deletion for event update
+      const registrations = await storage.getEventRegistrations(0); // Get all to find this one
+      const registration = registrations.find(r => r.id === id);
+      
+      if (!registration) {
+        return res.status(404).json({ error: 'Registration not found' });
+      }
+
+      const deleted = await storage.deleteEventRegistration(id);
+      if (!deleted) {
+        return res.status(404).json({ error: 'Registration not found' });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Registration deletion error:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
