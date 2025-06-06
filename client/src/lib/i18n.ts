@@ -432,7 +432,8 @@ export const translations: Record<Language, Translations> = {
         categories: {
           protocol: "Møtereferat",
           regulations: "Vedtekter",
-          budget: "Årsplaner/Annet"
+          budget: "Årsplaner/Annet",
+          other: "Annet"
         }
       },
       eventCreation: {

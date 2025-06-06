@@ -141,7 +141,7 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
                 name="date"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Dato</FormLabel>
+                    <FormLabel>{t.modals.eventCreation.dateLabel}</FormLabel>
                     <FormControl>
                       <Input type="date" {...field} />
                     </FormControl>
@@ -155,7 +155,7 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
                 name="time"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tid</FormLabel>
+                    <FormLabel>{t.modals.eventCreation.timeLabel}</FormLabel>
                     <FormControl>
                       <TimeInput24h
                         value={field.value}
@@ -175,11 +175,11 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
               name="location"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sted</FormLabel>
+                  <FormLabel>{t.modals.eventCreation.locationLabel}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Velg sted" />
+                        <SelectValue placeholder={t.modals.eventCreation.locationPlaceholder} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -187,8 +187,8 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
                       <SelectItem value="Storbarnsfløyen">Storbarnsfløyen</SelectItem>
                       <SelectItem value="Møterom">Møterom</SelectItem>
                       <SelectItem value="Ute">Ute</SelectItem>
-                      <SelectItem value="Digitalt">Digitalt</SelectItem>
-                      <SelectItem value="Annet">Annet</SelectItem>
+                      <SelectItem value="Digitalt">{t.modals.eventCreation.locations.digitalt}</SelectItem>
+                      <SelectItem value="Annet">{t.modals.eventCreation.locations.annet}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -202,10 +202,10 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
                 name="customLocation"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Spesifiser sted</FormLabel>
+                    <FormLabel>{t.modals.eventCreation.customLocationLabel}</FormLabel>
                     <FormControl>
                       <Input 
-                        placeholder="Skriv inn adresse eller stedbeskrivelse"
+                        placeholder={t.modals.eventCreation.customLocationPlaceholder}
                         {...field}
                         value={field.value || ""}
                       />
@@ -221,7 +221,7 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
               name="type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type</FormLabel>
+                  <FormLabel>{t.modals.eventCreation.typeLabel}</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
@@ -229,11 +229,11 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="meeting">Møte</SelectItem>
-                      <SelectItem value="event">Arrangement</SelectItem>
-                      <SelectItem value="volunteer">Dugnad</SelectItem>
-                      <SelectItem value="internal">Internt</SelectItem>
-                      <SelectItem value="other">Annet</SelectItem>
+                      <SelectItem value="meeting">{t.modals.eventCreation.types.meeting}</SelectItem>
+                      <SelectItem value="event">{t.modals.eventCreation.types.event}</SelectItem>
+                      <SelectItem value="dugnad">{t.modals.eventCreation.types.dugnad}</SelectItem>
+                      <SelectItem value="internal">{t.modals.eventCreation.types.internal}</SelectItem>
+                      <SelectItem value="annet">{t.modals.eventCreation.types.annet}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -246,11 +246,11 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
               name="maxAttendees"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Maks antall deltakere (valgfritt)</FormLabel>
+                  <FormLabel>{t.modals.eventCreation.maxAttendeesLabel}</FormLabel>
                   <FormControl>
                     <Input 
                       type="number"
-                      placeholder="La stå tom for ubegrenset"
+                      placeholder={t.modals.eventCreation.maxAttendeesPlaceholder}
                       {...field}
                       value={field.value || ""}
                       onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
@@ -263,10 +263,10 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
 
             <div className="flex justify-end space-x-3 pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
-                Avbryt
+                {t.modals.eventCreation.cancel}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? "Oppretter..." : "Opprett arrangement"}
+                {mutation.isPending ? t.modals.eventCreation.creating : t.modals.eventCreation.create}
               </Button>
             </div>
           </form>
