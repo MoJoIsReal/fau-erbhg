@@ -179,7 +179,6 @@ export interface Translations {
         protocol: string;
         regulations: string;
         budget: string;
-        other: string;
       };
     };
     eventCreation: {
@@ -432,8 +431,7 @@ export const translations: Record<Language, Translations> = {
         categories: {
           protocol: "Møtereferat",
           regulations: "Vedtekter",
-          budget: "Årsplaner/Annet",
-          other: "Annet"
+          budget: "Årsplaner/Annet"
         }
       },
       eventCreation: {
@@ -682,8 +680,7 @@ export const translations: Record<Language, Translations> = {
         categories: {
           protocol: "Meeting minutes",
           regulations: "Bylaws",
-          budget: "Annual Plans/Other",
-          other: "Other"
+          budget: "Annual Plans/Other"
         }
       },
       eventCreation: {
