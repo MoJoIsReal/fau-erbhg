@@ -54,12 +54,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       });
       form.reset();
       onClose();
-      // Force refresh events to show updated attendee count
-      queryClient.removeQueries({ queryKey: ["/api/events"] });
+      // Refresh events to show updated attendee count
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      setTimeout(() => {
-        queryClient.refetchQueries({ queryKey: ["/api/events"] });
-      }, 100);
     },
     onError: (error: any) => {
       let errorMessage = error.message || t.modals.eventRegistration.errorDesc;
