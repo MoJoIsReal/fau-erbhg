@@ -101,7 +101,7 @@ export default function Layout({ children }: LayoutProps) {
                         className="flex items-center space-x-2"
                       >
                         <Settings className="h-4 w-4" />
-                        <span>{t.language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                        <span>{t.header.language === 'no' ? 'Innstillinger' : 'Settings'}</span>
                       </Button>
                     </Link>
                     <Button

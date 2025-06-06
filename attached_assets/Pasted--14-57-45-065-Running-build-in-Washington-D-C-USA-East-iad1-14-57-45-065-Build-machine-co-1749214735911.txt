@@ -1,0 +1,34 @@
+[14:57:45.065] Running build in Washington, D.C., USA (East) – iad1
+[14:57:45.065] Build machine configuration: 2 cores, 8 GB
+[14:57:45.083] Cloning github.com/MoJoIsReal/fau-erbhg (Branch: main, Commit: 3d19b44)
+[14:57:45.619] Cloning completed: 535.000ms
+[14:57:46.429] Restored build cache from previous deployment (DKJi98B7JhQrBk3oYL7ywdd89yy1)
+[14:57:47.021] Running "vercel build"
+[14:57:47.473] Vercel CLI 42.2.0
+[14:57:48.259] Installing dependencies...
+[14:57:49.983] 
+[14:57:49.984] up to date in 1s
+[14:57:49.984] 
+[14:57:49.984] 75 packages are looking for funding
+[14:57:49.984]   run `npm fund` for details
+[14:57:50.360] [36mvite v5.4.19 [32mbuilding for production...[36m[39m
+[14:57:50.734] transforming...
+[14:57:55.772] [32m✓[39m 1848 modules transformed.
+[14:57:56.201] rendering chunks...
+[14:57:56.235] computing gzip size...
+[14:57:56.278] [2m../dist/public/[22m[32mindex.html                                   [39m[1m[2m    3.41 kB[22m[1m[22m[2m │ gzip:   1.08 kB[22m
+[14:57:56.279] [2m../dist/public/[22m[2massets/[22m[32mchild-DIsy75mk.png                    [39m[1m[2m   45.43 kB[22m[1m[22m
+[14:57:56.279] [2m../dist/public/[22m[2massets/[22m[32mkindergarten-playground-Ck-nXXvx.png  [39m[1m[2m2,627.48 kB[22m[1m[22m
+[14:57:56.279] [2m../dist/public/[22m[2massets/[22m[35mindex-B-XrGqY-.css                    [39m[1m[2m   68.12 kB[22m[1m[22m[2m │ gzip:  12.04 kB[22m
+[14:57:56.280] [2m../dist/public/[22m[2massets/[22m[36mindex-Bt9yxUsB.js                     [39m[1m[33m  566.61 kB[39m[22m[2m │ gzip: 168.92 kB[22m
+[14:57:56.280] [33m
+[14:57:56.280] (!) Some chunks are larger than 500 kB after minification. Consider:
+[14:57:56.280] - Using dynamic import() to code-split the application
+[14:57:56.280] - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+[14:57:56.281] - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[14:57:56.282] [32m✓ built in 5.60s[39m
+[14:58:02.425] Build Completed in /vercel/output [14s]
+[14:58:02.622] Deploying outputs...
+[14:58:04.169] Error: No more than 12 Serverless Functions can be added to a Deployment on the Hobby plan. Create a team (Pro plan) to deploy more. Learn More: https://vercel.link/function-count-limit
+[14:58:04.453] 
+[14:58:07.046] Exiting build container
