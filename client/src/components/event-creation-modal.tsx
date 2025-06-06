@@ -94,9 +94,9 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Opprett nytt arrangement</DialogTitle>
+          <DialogTitle>{t.modals.eventCreation.title}</DialogTitle>
           <DialogDescription>
-            Fyll ut skjemaet for å opprette et nytt arrangement eller møte.
+            {t.modals.eventCreation.description}
           </DialogDescription>
         </DialogHeader>
         
@@ -107,9 +107,9 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tittel</FormLabel>
+                  <FormLabel>{t.modals.eventCreation.titleLabel}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Navn på arrangementet" {...field} />
+                    <Input placeholder={t.modals.eventCreation.titlePlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -121,10 +121,10 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Beskrivelse</FormLabel>
+                  <FormLabel>{t.modals.eventCreation.descriptionLabel}</FormLabel>
                   <FormControl>
                     <Textarea 
-                      placeholder="Beskriv arrangementet..."
+                      placeholder={t.modals.eventCreation.descriptionPlaceholder}
                       rows={3}
                       {...field}
                       value={field.value || ""}
