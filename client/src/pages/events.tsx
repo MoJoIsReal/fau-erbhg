@@ -313,6 +313,11 @@ export default function Events() {
                               <AlertTriangle className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Arrangementet er avlyst' : 'Event is cancelled'}</span>
                             </div>
+                          ) : event.vigiloSignup ? (
+                            <div className="flex items-center text-blue-600 text-sm font-medium bg-blue-50 px-3 py-2 rounded-lg">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              <span>{language === 'no' ? 'Vigilo Påmelding' : 'Vigilo Signup'}</span>
+                            </div>
                           ) : event.type === "internal" ? (
                             <div className="flex items-center text-gray-600 text-sm font-medium bg-gray-50 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
