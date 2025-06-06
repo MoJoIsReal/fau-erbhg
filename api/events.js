@@ -39,7 +39,7 @@ export default async function handler(req, res) {
           custom_location as "customLocation",
           max_attendees as "maxAttendees", 
           current_attendees as "currentAttendees", 
-          type, status
+          type, status, vigilo_signup as "vigiloSignup"
         FROM events 
         WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
