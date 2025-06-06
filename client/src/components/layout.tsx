@@ -22,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const { user, isAuthenticated, logout, isLoggingOut } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Fetch events to find next meeting
   const { data: events = [] } = useQuery<Event[]>({
@@ -101,7 +101,7 @@ export default function Layout({ children }: LayoutProps) {
                         className="flex items-center space-x-2"
                       >
                         <Settings className="h-4 w-4" />
-                        <span>{t.header.language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                        <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
                       </Button>
                     </Link>
                     <Button
