@@ -126,6 +126,8 @@ export default function Events() {
         return Users;
       case "digitalt":
         return Monitor;
+      case "internal":
+        return Calendar;
       default:
         return Calendar;
     }
@@ -141,6 +143,8 @@ export default function Events() {
         return "bg-accent/20 text-accent";
       case "digitalt":
         return "bg-blue-100 text-blue-700";
+      case "internal":
+        return "bg-gray-100 text-gray-700";
       default:
         return "bg-primary/20 text-primary";
     }
@@ -310,6 +314,11 @@ export default function Events() {
                             <div className="flex items-center text-red-600 text-sm font-medium bg-red-50 px-3 py-2 rounded-lg">
                               <AlertTriangle className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Arrangementet er avlyst' : 'Event is cancelled'}</span>
+                            </div>
+                          ) : event.type === "internal" ? (
+                            <div className="flex items-center text-gray-600 text-sm font-medium bg-gray-50 px-3 py-2 rounded-lg">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              <span>{language === 'no' ? 'Internt arrangement' : 'Internal event'}</span>
                             </div>
                           ) : event.type === "dugnad" ? (
                             <Button 
