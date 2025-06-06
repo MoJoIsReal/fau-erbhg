@@ -65,7 +65,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { title, description, date, time, location, customLocation, maxAttendees } = req.body;
+      const { title, description, date, time, location, customLocation, maxAttendees, type } = req.body;
 
       if (!title || !date || !time) {
         return res.status(400).json({ error: 'Title, date, and time are required' });
@@ -79,7 +79,8 @@ export default async function handler(req, res) {
             time = ${time},
             location = ${location},
             custom_location = ${customLocation || null},
-            max_attendees = ${maxAttendees || null}
+            max_attendees = ${maxAttendees || null},
+            type = ${type || 'meeting'}
         WHERE id = ${id}
         RETURNING *
       `;
