@@ -271,6 +271,10 @@ export interface Translations {
     unknownSize: string;
     bytes: string;
     required: string;
+    file: string;
+    cancel: string;
+    upload: string;
+    uploading: string;
   };
 }
 
@@ -536,7 +540,11 @@ export const translations: Record<Language, Translations> = {
       loading: "Laster...",
       unknownSize: "Ukjent størrelse",
       bytes: "Bytes",
-      required: "påkrevd"
+      required: "påkrevd",
+      file: "Fil",
+      cancel: "Avbryt",
+      upload: "Last opp",
+      uploading: "Laster opp..."
     }
   },
   en: {
@@ -800,7 +808,11 @@ export const translations: Record<Language, Translations> = {
       loading: "Loading...",
       unknownSize: "Unknown size",
       bytes: "Bytes",
-      required: "required"
+      required: "required",
+      file: "File",
+      cancel: "Cancel",
+      upload: "Upload",
+      uploading: "Uploading..."
     }
   }
 };
