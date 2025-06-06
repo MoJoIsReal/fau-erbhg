@@ -1,4 +1,5 @@
 import { useForm, useWatch } from "react-hook-form";
+import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -63,6 +64,33 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       customLocation: ""
     }
   });
+
+  // Reset form when event changes (for editing mode)
+  useEffect(() => {
+    if (event) {
+      form.reset({
+        title: event.title || "",
+        description: event.description || "",
+        date: event.date || "",
+        time: event.time || "",
+        location: event.location || "",
+        type: event.type || "meeting",
+        maxAttendees: event.maxAttendees || null,
+        customLocation: event.customLocation || ""
+      });
+    } else {
+      form.reset({
+        title: "",
+        description: "",
+        date: "",
+        time: "",
+        location: "",
+        type: "meeting",
+        maxAttendees: null,
+        customLocation: ""
+      });
+    }
+  }, [event, form]);
 
   const selectedLocation = useWatch({
     control: form.control,
