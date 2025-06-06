@@ -54,7 +54,7 @@ export default async function handler(req, res) {
 
       // Check if event exists and is active
       const events = await sql`
-        SELECT id, title, max_attendees, current_attendees 
+        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees 
         FROM events 
         WHERE id = ${eventIdNum} AND status = 'active'
       `;
