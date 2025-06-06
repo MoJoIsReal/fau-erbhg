@@ -23,7 +23,10 @@ export default async function handler(req, res) {
 
   try {
     const token = authHeader.substring(7);
-    const decoded = jwt.verify(token, process.env.SESSION_SECRET || 'fallback-secret');
+    if (!process.env.SESSION_SECRET) {
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+    const decoded = jwt.verify(token, process.env.SESSION_SECRET);
     if (!decoded) {
       return res.status(401).json({ error: 'Invalid token' });
     }
@@ -75,8 +78,7 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Upload API error:', error);
     return res.status(500).json({ 
-      error: 'Upload failed',
-      details: error.message 
+      error: 'Upload failed'
     });
   }
 }

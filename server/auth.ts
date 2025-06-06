@@ -44,7 +44,10 @@ export function isAuthenticated(req: any): boolean {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.substring(7);
     try {
-      const decoded = jwt.verify(token, process.env.SESSION_SECRET || 'fallback-secret') as any;
+      if (!process.env.SESSION_SECRET) {
+        throw new Error('SESSION_SECRET environment variable must be set');
+      }
+      const decoded = jwt.verify(token, process.env.SESSION_SECRET) as any;
       req.user = decoded; // Store decoded token data
       return true;
     } catch (error) {
