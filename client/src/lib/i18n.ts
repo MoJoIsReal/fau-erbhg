@@ -345,8 +345,8 @@ export const translations: Record<Language, Translations> = {
         protocolDesc: "Referater fra møter",
         regulations: "Vedtekter & Regler", 
         regulationsDesc: "Retningslinjer og vedtekter",
-        budget: "Budsjett & Regnskap",
-        budgetDesc: "Økonomiske dokumenter"
+        budget: "Årsplaner & Annet",
+        budgetDesc: "Årsplaner og andre dokumenter"
       },
       noDocuments: "Ingen dokumenter funnet",
       noDocumentsDesc: "Det er ingen dokumenter i denne kategorien ennå.",
@@ -610,7 +610,7 @@ export const translations: Record<Language, Translations> = {
         categories: {
           protocol: "Meeting minutes",
           regulations: "Bylaws",
-          budget: "Budget/Accounting",
+          budget: "Annual Plans/Other",
           other: "Other"
         }
       },
