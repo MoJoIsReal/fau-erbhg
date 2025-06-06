@@ -559,8 +559,8 @@ export const translations: Record<Language, Translations> = {
         protocolDesc: "Meeting records",
         regulations: "Bylaws & Rules",
         regulationsDesc: "Guidelines and bylaws",
-        budget: "Budget & Accounting",
-        budgetDesc: "Financial documents"
+        budget: "Annual Plans & Other",
+        budgetDesc: "Annual plans and other documents"
       },
       noDocuments: "No documents found",
       noDocumentsDesc: "There are no documents in this category yet.",
