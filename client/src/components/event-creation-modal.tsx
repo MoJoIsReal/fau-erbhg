@@ -1,7 +1,7 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -95,6 +95,9 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Opprett nytt arrangement</DialogTitle>
+          <DialogDescription>
+            Fyll ut skjemaet for å opprette et nytt arrangement eller møte.
+          </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
