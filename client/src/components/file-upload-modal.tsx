@@ -54,7 +54,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       formData.append("title", data.title);
       formData.append("category", data.category);
       formData.append("description", data.description || "");
-      formData.append("uploadedBy", data.uploadedBy);
+      formData.append("uploadedBy", data.uploadedBy || "Admin");
       formData.append("file", data.file);
 
       // Use full URL in development to bypass Vite proxy issues
