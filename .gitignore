@@ -33,6 +33,7 @@ logs
 tmp/
 temp/
 uploads/
+attached_assets/
 
 # IDE files
 .vscode/
