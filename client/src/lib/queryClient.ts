@@ -23,7 +23,12 @@ export async function apiRequest(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
+  // Handle development vs production URLs
+  const finalUrl = import.meta.env.DEV && url.startsWith('/api/') 
+    ? `http://localhost:5000${url}`
+    : url;
+
+  const res = await fetch(finalUrl, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
