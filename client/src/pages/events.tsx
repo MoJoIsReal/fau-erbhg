@@ -25,7 +25,6 @@ import { formatDate } from "@/lib/i18n";
 import type { Event } from "@shared/schema";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import EventCreationModal from "@/components/event-creation-modal";
-import EventEditModal from "@/components/event-edit-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
 import CalendarView from "@/components/calendar-view";
 import LocationMapLink from "@/components/location-map-link";
@@ -42,7 +41,6 @@ export default function Events() {
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [isRegistrationsModalOpen, setIsRegistrationsModalOpen] = useState(false);
   const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
   const { data: events = [], isLoading } = useQuery({
@@ -369,7 +367,7 @@ export default function Events() {
                                     size="sm"
                                     onClick={() => {
                                       setSelectedEventForEdit(event);
-                                      setIsEditModalOpen(true);
+                                      setIsCreationModalOpen(true);
                                     }}
                                     className="border-blue-500 text-blue-600 hover:bg-blue-50"
                                   >
@@ -491,20 +489,14 @@ export default function Events() {
         }}
       />
 
-      {/* Event Creation Modal */}
+      {/* Event Creation/Edit Modal */}
       <EventCreationModal
         isOpen={isCreationModalOpen}
-        onClose={() => setIsCreationModalOpen(false)}
-      />
-
-      {/* Event Edit Modal */}
-      <EventEditModal
-        event={selectedEventForEdit}
-        isOpen={isEditModalOpen}
         onClose={() => {
-          setIsEditModalOpen(false);
+          setIsCreationModalOpen(false);
           setSelectedEventForEdit(null);
         }}
+        event={selectedEventForEdit}
       />
 
       {/* Event Registrations Modal */}

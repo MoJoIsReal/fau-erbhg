@@ -113,9 +113,11 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{t.modals.eventCreation.title}</DialogTitle>
+          <DialogTitle>
+            {event ? (t.modals.eventEdit?.title || "Rediger arrangement") : t.modals.eventCreation.title}
+          </DialogTitle>
           <DialogDescription>
-            {t.modals.eventCreation.description}
+            {event ? (t.modals.eventEdit?.description || "Oppdater arrangementets detaljer") : t.modals.eventCreation.description}
           </DialogDescription>
         </DialogHeader>
         
@@ -285,7 +287,10 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 {t.modals.eventCreation.cancel}
               </Button>
               <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending ? t.modals.eventCreation.creating : t.modals.eventCreation.create}
+                {mutation.isPending 
+                  ? (event ? "Oppdaterer..." : t.modals.eventCreation.creating)
+                  : (event ? "Oppdater arrangement" : t.modals.eventCreation.create)
+                }
               </Button>
             </div>
           </form>
