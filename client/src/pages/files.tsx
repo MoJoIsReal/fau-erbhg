@@ -187,8 +187,11 @@ export default function Files() {
                             <div className="min-w-0 flex-1">
                               <p className="font-medium text-sm text-neutral-900 truncate">{doc.title}</p>
                               <p className="text-xs text-neutral-600">
-                                {formatDate(doc.uploadedAt)}
+                                {formatDate(doc.uploadedAt)} • {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
                               </p>
+                              {doc.description && (
+                                <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{doc.description}</p>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-1">
@@ -295,8 +298,13 @@ export default function Files() {
                           <p className="text-sm text-neutral-600">
                             {formatDate(doc.uploadedAt)} • {formatFileSize(doc.fileSize)}
                           </p>
+                          <p className="text-sm text-neutral-500">
+                            {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
+                          </p>
                           {doc.description && (
-                            <p className="text-sm text-neutral-500 mt-1">{doc.description}</p>
+                            <p className="text-sm text-neutral-500 mt-2 bg-neutral-50 p-2 rounded border-l-2 border-neutral-200">
+                              {doc.description}
+                            </p>
                           )}
                         </div>
                       </div>
