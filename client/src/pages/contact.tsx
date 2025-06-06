@@ -76,14 +76,14 @@ export default function Contact() {
     mutationFn: (data: FormData) => {
       // For anonymous submissions, remove personal data before sending
       if (data.subject === "anonymous") {
-        return apiRequest("POST", "/api/contact-messages", {
+        return apiRequest("POST", "/api/documents?contact=true", {
           ...data,
           name: "",
           email: "",
           phone: ""
         });
       }
-      return apiRequest("POST", "/api/contact-messages", data);
+      return apiRequest("POST", "/api/documents?contact=true", data);
     },
     onSuccess: () => {
       toast({
