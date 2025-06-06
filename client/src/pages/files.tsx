@@ -39,18 +39,27 @@ export default function Files() {
     }
   ];
 
-  const { data: allDocuments = [], isLoading } = useQuery<Document[]>({
+  const { data: allDocuments = [], isLoading, error } = useQuery<Document[]>({
     queryKey: ["/api/documents"],
     queryFn: async () => {
       const apiUrl = import.meta.env.DEV 
         ? "http://localhost:5000/api/documents" 
         : "/api/documents";
       
+      console.log('Fetching documents from:', apiUrl);
+      
       const response = await fetch(apiUrl);
+      console.log('Response status:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch documents');
+        const errorText = await response.text();
+        console.error('API Error:', errorText);
+        throw new Error(`Failed to fetch documents: ${response.status} ${errorText}`);
       }
-      return response.json();
+      
+      const data = await response.json();
+      console.log('Documents data:', data);
+      return data;
     }
   });
 
@@ -107,6 +116,17 @@ export default function Files() {
               </CardContent>
             </Card>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 className="text-red-800 font-medium">Failed to load documents</h3>
+          <p className="text-red-600 text-sm mt-1">{error.message}</p>
         </div>
       </div>
     );
