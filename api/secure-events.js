@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const events = await sql`
         SELECT id, title, description, date, time, location, custom_location,
-               max_attendees, current_attendees, type, status
+               max_attendees, current_attendees, type, status, vigilo_signup
         FROM events 
         WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
@@ -80,7 +80,8 @@ export default async function handler(req, res) {
             location = ${location},
             custom_location = ${customLocation || null},
             max_attendees = ${maxAttendees || null},
-            type = ${type || 'meeting'}
+            type = ${type || 'meeting'},
+            vigilo_signup = ${vigiloSignup || false}
         WHERE id = ${id}
         RETURNING *
       `;
