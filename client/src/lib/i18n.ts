@@ -442,32 +442,7 @@ export const translations: Record<Language, Translations> = {
         error: "Innlogging feilet",
         invalidCredentials: "Ugyldig brukernavn eller passord"
       },
-      upload: {
-        title: "Last opp dokument",
-        category: "Dokumenttype",
-        categoryPlaceholder: "Velg type",
-        fileName: "Filnavn/Tittel",
-        file: "Fil",
-        yourName: "Ditt navn",
-        yourNamePlaceholder: "For hvem laster opp",
-        description: "Beskrivelse",
-        descriptionPlaceholder: "Kort beskrivelse av dokumentet...",
-        dragDrop: "Dra og slipp filen her, eller",
-        selectFile: "velg fil",
-        supportedFormats: "Støttede formater: PDF, Word, Excel (maks 10MB)",
-        cancel: "Avbryt",
-        upload: "Last opp", 
-        uploading: "Laster opp...",
-        success: "Dokument lastet opp!",
-        successDesc: "Dokumentet er nå tilgjengelig for alle.",
-        error: "Feil ved opplasting",
-        errorDesc: "Kunne ikke laste opp dokumentet. Prøv igjen senere.",
-        categories: {
-          protocol: "Møtereferat",
-          regulations: "Vedtekter",
-          budget: "Årsplaner/Annet"
-        }
-      },
+
       eventCreation: {
         title: "Opprett nytt arrangement",
         description: "Fyll ut skjemaet for å opprette et nytt arrangement eller møte.",
