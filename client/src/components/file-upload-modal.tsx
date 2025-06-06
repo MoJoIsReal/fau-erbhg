@@ -259,17 +259,17 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                         <>
                           <CloudUpload className="h-8 w-8 text-neutral-400 mx-auto mb-2" />
                           <p className="text-sm text-neutral-600 mb-2">
-                            Dra og slipp filen her, eller
+                            {t.documents.dragDropText}
                           </p>
                           <Button
                             type="button"
                             variant="outline"
                             onClick={() => document.getElementById("file-input")?.click()}
                           >
-                            velg fil
+                            {t.documents.orClickToSelect}
                           </Button>
                           <p className="text-xs text-neutral-500 mt-2">
-                            Støttede formater: PDF, Word, Excel (maks 10MB)
+                            {t.documents.maxFileSize}
                           </p>
                         </>
                       )}
@@ -295,9 +295,9 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               name="uploadedBy"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Ditt navn *</FormLabel>
+                  <FormLabel>{t.documents.uploadedByLabel} *</FormLabel>
                   <FormControl>
-                    <Input placeholder="For hvem laster opp" {...field} />
+                    <Input placeholder={t.documents.uploadedByPlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
