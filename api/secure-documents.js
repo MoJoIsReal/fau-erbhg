@@ -66,7 +66,7 @@ export default async function handler(req, res) {
       
       try {
         const deletedDoc = await sql`
-          DELETE FROM documents WHERE id = ${documentId} RETURNING id, file_url, filename
+          DELETE FROM documents WHERE id = ${documentId} RETURNING id, cloudinary_url, filename
         `;
         
         console.log('Database deletion result:', deletedDoc);
