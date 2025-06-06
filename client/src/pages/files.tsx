@@ -300,14 +300,27 @@ export default function Files() {
                           )}
                         </div>
                       </div>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Last ned
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
+                        >
+                          <Download className="h-4 w-4 mr-2" />
+                          Last ned
+                        </Button>
+                        {isAuthenticated && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300 hover:bg-red-50"
+                            onClick={() => deleteDocumentMutation.mutate(doc.id)}
+                            disabled={deleteDocumentMutation.isPending}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
