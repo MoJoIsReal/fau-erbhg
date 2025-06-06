@@ -48,15 +48,15 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { title, description, date, time, location, custom_location, max_attendees } = req.body;
+      const { title, description, date, time, location, custom_location, max_attendees, type, vigiloSignup } = req.body;
 
       if (!title || !date || !time) {
         return res.status(400).json({ error: 'Title, date, and time are required' });
       }
 
       const newEvent = await sql`
-        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees)
-        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${custom_location}, ${max_attendees})
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, type, vigilo_signup)
+        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${custom_location}, ${max_attendees}, ${type || 'meeting'}, ${vigiloSignup || false})
         RETURNING *
       `;
 
