@@ -274,14 +274,21 @@ export default function Events() {
                           </div>
                           
                           <div className="mb-4">
-                            <div className="flex items-center text-neutral-600 text-sm mb-2">
-                              <LocationMapLink 
-                                location={event.location}
-                                customLocation={event.customLocation || undefined}
-                                variant="ghost"
-                                size="sm"
-                              />
-                            </div>
+                            {event.type === "digitalt" ? (
+                              <div className="flex items-center text-neutral-600 text-sm mb-2">
+                                <Monitor className="h-4 w-4 mr-2" />
+                                <span>Digitalt arrangement</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center text-neutral-600 text-sm mb-2">
+                                <LocationMapLink 
+                                  location={event.location}
+                                  customLocation={event.customLocation || undefined}
+                                  variant="ghost"
+                                  size="sm"
+                                />
+                              </div>
+                            )}
                             <p className="text-neutral-700">{event.description}</p>
                           </div>
 
