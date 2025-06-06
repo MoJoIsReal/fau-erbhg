@@ -309,11 +309,11 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Beskrivelse</FormLabel>
+                  <FormLabel>{t.documents.description}</FormLabel>
                   <FormControl>
                     <Textarea 
                       rows={2} 
-                      placeholder="Kort beskrivelse av dokumentet..."
+                      placeholder={t.documents.descriptionPlaceholder}
                       {...field}
                     />
                   </FormControl>
@@ -324,14 +324,14 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
 
             <div className="flex space-x-3 pt-4">
               <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-                Avbryt
+                {t.common.cancel}
               </Button>
               <Button 
                 type="submit" 
                 className="flex-1 bg-primary hover:bg-primary/90"
                 disabled={mutation.isPending}
               >
-                {mutation.isPending ? "Laster opp..." : "Last opp"}
+                {mutation.isPending ? t.common.uploading : t.common.upload}
               </Button>
             </div>
           </form>

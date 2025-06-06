@@ -47,14 +47,19 @@ export function createRateLimit(options: RateLimitOptions) {
 
 // Security headers middleware
 export function securityHeaders(req: Request, res: Response, next: NextFunction) {
-  // Content Security Policy
+  // Content Security Policy - Allow localhost connections in development
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const connectSrc = isDevelopment 
+    ? "'self' http://localhost:* https://api.cloudinary.com wss://ws-us3.pusher.com"
+    : "'self' https://api.cloudinary.com wss://ws-us3.pusher.com";
+    
   const cspDirectives = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://api.cloudinary.com wss://ws-us3.pusher.com",
+    `connect-src ${connectSrc}`,
     "frame-src 'none'",
     "object-src 'none'",
     "base-uri 'self'"
