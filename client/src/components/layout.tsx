@@ -28,10 +28,10 @@ export default function Layout({ children }: LayoutProps) {
     queryKey: ["/api/events"],
   });
 
-  // Find next meeting
+  // Find next meeting (including internal events)
   const nextMeeting = events
     .filter(event => 
-      event.type === 'meeting' && 
+      (event.type === 'meeting' || event.type === 'internal') && 
       event.status === 'active' && 
       new Date(event.date) >= new Date()
     )
