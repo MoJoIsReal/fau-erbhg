@@ -343,7 +343,7 @@ export const translations: Record<Language, Translations> = {
       categories: {
         protocol: "Møtereferater",
         protocolDesc: "Referater fra møter",
-        regulations: "Vedtekter & Reglement", 
+        regulations: "Vedtekter", 
         regulationsDesc: "Vedtekter og retningslinjer",
         budget: "Årsplaner & Annet",
         budgetDesc: "Årsplaner og andre dokumenter"
@@ -557,7 +557,7 @@ export const translations: Record<Language, Translations> = {
       categories: {
         protocol: "Meeting Minutes",
         protocolDesc: "Meeting records",
-        regulations: "Bylaws & Rules",
+        regulations: "Bylaws",
         regulationsDesc: "Guidelines and bylaws",
         budget: "Annual Plans & Other",
         budgetDesc: "Annual plans and other documents"
