@@ -124,8 +124,6 @@ export default function Events() {
         return Heart;
       case "dugnad":
         return Users;
-      case "digitalt":
-        return Monitor;
       case "internal":
         return Calendar;
       default:
@@ -141,8 +139,6 @@ export default function Events() {
         return "bg-secondary/20 text-secondary";
       case "dugnad":
         return "bg-accent/20 text-accent";
-      case "digitalt":
-        return "bg-blue-100 text-blue-700";
       case "internal":
         return "bg-gray-100 text-gray-700";
       default:
@@ -278,8 +274,8 @@ export default function Events() {
                           </div>
                           
                           <div className="mb-4">
-                            {event.type === "digitalt" ? (
-                              <div className="flex items-center text-neutral-600 text-sm mb-2">
+                            {event.location === "Digitalt" ? (
+                              <div className="flex items-center text-blue-600 text-sm mb-2">
                                 <Monitor className="h-4 w-4 mr-2" />
                                 <span>Digitalt arrangement</span>
                               </div>
