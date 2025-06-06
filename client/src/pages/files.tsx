@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Gavel, Calendar, Upload, Download, Plus, Edit, FileSpreadsheet, FileIcon } from "lucide-react";
+import { FileText, Gavel, Calendar, Upload, Download, Plus, Edit, FileSpreadsheet, FileIcon, Trash2 } from "lucide-react";
 import FileUploadModal from "@/components/file-upload-modal";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { Document } from "@shared/schema";
 
 export default function Files() {
@@ -14,6 +16,8 @@ export default function Files() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { isAuthenticated } = useAuth();
   const { language, t } = useLanguage();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const categories = [
     { 
@@ -41,6 +45,27 @@ export default function Files() {
 
   const { data: allDocuments = [], isLoading, error } = useQuery<Document[]>({
     queryKey: ["/api/documents"]
+  });
+
+  const deleteDocumentMutation = useMutation({
+    mutationFn: (documentId: number) => 
+      apiRequest("DELETE", `/api/secure-documents?id=${documentId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+      toast({
+        title: language === 'no' ? "Dokument slettet" : "Document deleted",
+        description: language === 'no' ? "Dokumentet ble slettet." : "The document was deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: language === 'no' ? "Feil" : "Error",
+        description: language === 'no' ? 
+          "Kunne ikke slette dokumentet. Prøv igjen." : 
+          "Could not delete document. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const getFileIcon = (mimeType: string) => {
@@ -166,14 +191,27 @@ export default function Files() {
                               </p>
                             </div>
                           </div>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-primary hover:text-primary/90 ml-2"
-                            onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-primary hover:text-primary/90"
+                              onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            {isAuthenticated && (
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                onClick={() => deleteDocumentMutation.mutate(doc.id)}
+                                disabled={deleteDocumentMutation.isPending}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       );
                     })
