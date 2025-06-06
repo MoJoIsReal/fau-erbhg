@@ -316,7 +316,7 @@ export default function Events() {
                           ) : event.vigiloSignup ? (
                             <div className="flex items-center text-blue-600 text-sm font-medium bg-blue-50 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
-                              <span>{language === 'no' ? 'Vigilo Påmelding' : 'Vigilo Signup'}</span>
+                              <span>{language === 'no' ? 'Påmelding i Vigilo' : 'Register in Vigilo'}</span>
                             </div>
                           ) : event.type === "internal" ? (
                             <div className="flex items-center text-gray-600 text-sm font-medium bg-gray-50 px-3 py-2 rounded-lg">
@@ -347,18 +347,20 @@ export default function Events() {
                           
                           {isAuthenticated && (
                             <>
-                              <Button 
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setSelectedEventForRegistrations(event);
-                                  setIsRegistrationsModalOpen(true);
-                                }}
-                                className="flex items-center space-x-2"
-                              >
-                                <Users className="h-4 w-4" />
-                                <span>{language === 'no' ? 'Se påmeldinger' : 'View registrations'}</span>
-                              </Button>
+                              {!event.vigiloSignup && (
+                                <Button 
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedEventForRegistrations(event);
+                                    setIsRegistrationsModalOpen(true);
+                                  }}
+                                  className="flex items-center space-x-2"
+                                >
+                                  <Users className="h-4 w-4" />
+                                  <span>{language === 'no' ? 'Se påmeldinger' : 'View registrations'}</span>
+                                </Button>
+                              )}
                               
                               {event.status === "cancelled" ? (
                                 <div className="flex items-center text-red-600 text-sm font-medium">
