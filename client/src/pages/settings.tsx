@@ -44,11 +44,11 @@ export default function Settings() {
 
   // Fetch board members
   const { data: boardMembers = [], isLoading } = useQuery<BoardMember[]>({
-    queryKey: ['/api/secure-board-members'],
+    queryKey: ['/api/secure-documents/board-members'],
     enabled: isAuthenticated,
     queryFn: async () => {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/secure-board-members', {
+      const response = await fetch('/api/secure-documents/board-members', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -62,7 +62,7 @@ export default function Settings() {
   const addMemberMutation = useMutation({
     mutationFn: async (data: BoardMemberFormData) => {
       const token = localStorage.getItem('authToken');
-      const response = await fetch('/api/secure-board-members', {
+      const response = await fetch('/api/secure-documents/board-members', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -74,7 +74,7 @@ export default function Settings() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/secure-board-members'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/secure-documents/board-members'] });
       setIsAddModalOpen(false);
       resetForm();
       toast({
@@ -95,7 +95,7 @@ export default function Settings() {
   const updateMemberMutation = useMutation({
     mutationFn: async ({ id, data }: { id: number; data: BoardMemberFormData }) => {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/secure-board-members?id=${id}`, {
+      const response = await fetch(`/api/secure-documents/board-members?id=${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -107,7 +107,7 @@ export default function Settings() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/secure-board-members'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/secure-documents/board-members'] });
       setEditingMember(null);
       resetForm();
       toast({
@@ -128,7 +128,7 @@ export default function Settings() {
   const deleteMemberMutation = useMutation({
     mutationFn: async (id: number) => {
       const token = localStorage.getItem('authToken');
-      const response = await fetch(`/api/secure-board-members?id=${id}`, {
+      const response = await fetch(`/api/secure-documents/board-members?id=${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -138,7 +138,7 @@ export default function Settings() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/secure-board-members'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/secure-documents/board-members'] });
       toast({
         title: language === 'no' ? 'Medlem slettet' : 'Member deleted',
         description: language === 'no' ? 'Styremedlem er slettet' : 'Board member has been deleted'
