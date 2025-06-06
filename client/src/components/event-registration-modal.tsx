@@ -153,7 +153,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                 <FormItem>
                   <FormLabel>Telefon</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="+47 xxx xx xxx" {...field} />
+                    <Input type="tel" placeholder="+47 xxx xx xxx" {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -196,6 +196,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                       rows={3} 
                       placeholder="Eventuelle allergier, spørsmål eller kommentarer..."
                       {...field}
+                      value={field.value || ""}
                     />
                   </FormControl>
                   <FormMessage />

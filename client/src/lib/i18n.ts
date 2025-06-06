@@ -170,32 +170,7 @@ export interface Translations {
       error: string;
       invalidCredentials: string;
     };
-    upload: {
-      title: string;
-      category: string;
-      categoryPlaceholder: string;
-      fileName: string;
-      file: string;
-      yourName: string;
-      yourNamePlaceholder: string;
-      description: string;
-      descriptionPlaceholder: string;
-      dragDrop: string;
-      selectFile: string;
-      supportedFormats: string;
-      cancel: string;
-      upload: string;
-      uploading: string;
-      success: string;
-      successDesc: string;
-      error: string;
-      errorDesc: string;
-      categories: {
-        protocol: string;
-        regulations: string;
-        budget: string;
-      };
-    };
+
     eventCreation: {
       title: string;
       description: string;
@@ -685,32 +660,7 @@ export const translations: Record<Language, Translations> = {
         error: "Login failed",
         invalidCredentials: "Invalid username or password"
       },
-      upload: {
-        title: "Upload document",
-        category: "Document type",
-        categoryPlaceholder: "Select type",
-        fileName: "Filename/Title",
-        file: "File",
-        yourName: "Your name",
-        yourNamePlaceholder: "Who is uploading",
-        description: "Description",
-        descriptionPlaceholder: "Brief description of the document...",
-        dragDrop: "Drag and drop the file here, or",
-        selectFile: "select file",
-        supportedFormats: "Supported formats: PDF, Word, Excel (max 10MB)",
-        cancel: "Cancel",
-        upload: "Upload",
-        uploading: "Uploading...",
-        success: "Document uploaded!",
-        successDesc: "The document is now available to everyone.",
-        error: "Upload error",
-        errorDesc: "Could not upload the document. Please try again later.",
-        categories: {
-          protocol: "Meeting minutes",
-          regulations: "Bylaws",
-          budget: "Annual Plans/Other"
-        }
-      },
+
       eventCreation: {
         title: "Create new event",
         description: "Fill out the form to create a new event or meeting.",
