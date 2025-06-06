@@ -57,7 +57,12 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       formData.append("uploadedBy", data.uploadedBy);
       formData.append("file", data.file);
 
-      const response = await fetch("/api/documents", {
+      // Use full URL in development to bypass Vite proxy issues
+      const apiUrl = import.meta.env.DEV 
+        ? "http://localhost:5000/api/documents" 
+        : "/api/documents";
+        
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`
