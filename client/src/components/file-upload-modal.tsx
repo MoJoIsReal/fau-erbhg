@@ -50,24 +50,35 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         throw new Error('No authentication token found');
       }
 
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("category", data.category);
-      formData.append("description", data.description || "");
-      formData.append("uploadedBy", data.uploadedBy || "Admin");
-      formData.append("file", data.file);
+      // Convert file to base64
+      const fileBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(data.file);
+      });
 
-      // Use full URL in development to bypass Vite proxy issues
+      const payload = {
+        title: data.title,
+        category: data.category,
+        description: data.description || "",
+        uploadedBy: data.uploadedBy || "Admin",
+        filename: data.file.name,
+        fileData: fileBase64
+      };
+
+      // Use upload endpoint specifically
       const apiUrl = import.meta.env.DEV 
-        ? "http://localhost:5000/api/documents" 
-        : "/api/documents";
+        ? "http://localhost:5000/api/upload" 
+        : "/api/upload";
         
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
         },
-        body: formData
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
@@ -174,10 +185,10 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="protocol">Møtereferat</SelectItem>
-                      <SelectItem value="regulations">Vedtekter</SelectItem>
-                      <SelectItem value="budget">Budsjett/Regnskap</SelectItem>
-                      <SelectItem value="other">Annet</SelectItem>
+                      <SelectItem value="protokoll">Møtereferat</SelectItem>
+                      <SelectItem value="vedtekter">Vedtekter</SelectItem>
+                      <SelectItem value="budsjett">Budsjett/Regnskap</SelectItem>
+                      <SelectItem value="annet">Annet</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

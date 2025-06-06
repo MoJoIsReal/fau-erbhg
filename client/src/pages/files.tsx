@@ -17,21 +17,21 @@ export default function Files() {
 
   const categories = [
     { 
-      id: "protocol", 
+      id: "protokoll", 
       name: t.documents.categories.protocol, 
       icon: FileText, 
       color: "bg-primary/20 text-primary",
       description: t.documents.categories.protocolDesc
     },
     { 
-      id: "regulations", 
+      id: "vedtekter", 
       name: t.documents.categories.regulations, 
       icon: Gavel, 
       color: "bg-secondary/20 text-secondary",
       description: t.documents.categories.regulationsDesc
     },
     { 
-      id: "budget", 
+      id: "budsjett", 
       name: t.documents.categories.budget, 
       icon: TrendingUp, 
       color: "bg-accent/20 text-accent",
