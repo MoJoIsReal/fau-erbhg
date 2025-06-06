@@ -343,8 +343,8 @@ export const translations: Record<Language, Translations> = {
       categories: {
         protocol: "Møtereferater",
         protocolDesc: "Referater fra møter",
-        regulations: "Vedtekter", 
-        regulationsDesc: "Retningslinjer og vedtekter",
+        regulations: "Vedtekter & Reglement", 
+        regulationsDesc: "Vedtekter og retningslinjer",
         budget: "Årsplaner & Annet",
         budgetDesc: "Årsplaner og andre dokumenter"
       },
