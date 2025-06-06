@@ -15,7 +15,8 @@ import {
   Trash2,
   AlertTriangle,
   MapPin,
-  Monitor
+  Monitor,
+  Edit
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -24,6 +25,7 @@ import { formatDate } from "@/lib/i18n";
 import type { Event } from "@shared/schema";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import EventCreationModal from "@/components/event-creation-modal";
+import EventEditModal from "@/components/event-edit-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
 import CalendarView from "@/components/calendar-view";
 import LocationMapLink from "@/components/location-map-link";
