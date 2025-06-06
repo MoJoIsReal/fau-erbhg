@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Gavel, TrendingUp, Upload, Download, Plus, Edit, Calendar, FileSpreadsheet, FileIcon } from "lucide-react";
+import { FileText, Gavel, Calendar, Upload, Download, Plus, Edit, FileSpreadsheet, FileIcon } from "lucide-react";
 import FileUploadModal from "@/components/file-upload-modal";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -33,7 +33,7 @@ export default function Files() {
     { 
       id: "budsjett", 
       name: t.documents.categories.budget, 
-      icon: TrendingUp, 
+      icon: Calendar, 
       color: "bg-accent/20 text-accent",
       description: t.documents.categories.budgetDesc
     }
