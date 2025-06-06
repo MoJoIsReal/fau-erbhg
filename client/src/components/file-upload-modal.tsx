@@ -11,16 +11,15 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { CloudUpload, X } from "lucide-react";
 import { z } from "zod";
+import { useLanguage } from "@/contexts/LanguageContext";
 
-const formSchema = z.object({
-  title: z.string().min(1, "Tittel er påkrevd"),
-  category: z.string().min(1, "Kategori er påkrevd"),
-  description: z.string().optional(),
-  uploadedBy: z.string().min(1, "Navn er påkrevd"),
-  file: z.instanceof(File, { message: "Fil er påkrevd" })
-});
-
-type FormData = z.infer<typeof formSchema>;
+interface FormData {
+  title: string;
+  category: string;
+  description?: string;
+  uploadedBy: string;
+  file: File;
+}
 
 interface FileUploadModalProps {
   isOpen: boolean;
@@ -32,6 +31,16 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   const queryClient = useQueryClient();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const { language, t } = useLanguage();
+
+  // Create form schema with translations
+  const formSchema = z.object({
+    title: z.string().min(1, t.common.required),
+    category: z.string().min(1, t.common.required),
+    description: z.string().optional(),
+    uploadedBy: z.string().min(1, t.common.required),
+    file: z.instanceof(File, { message: t.common.required })
+  });
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -90,8 +99,8 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     },
     onSuccess: () => {
       toast({
-        title: "Dokument lastet opp!",
-        description: "Dokumentet er nå tilgjengelig for alle.",
+        title: t.documents.uploadSuccess,
+        description: t.documents.uploadSuccessDesc,
       });
       form.reset();
       setSelectedFile(null);
@@ -100,8 +109,8 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     },
     onError: (error: any) => {
       toast({
-        title: "Feil ved opplasting",
-        description: error.message || "Kunne ikke laste opp dokumentet. Prøv igjen senere.",
+        title: t.documents.uploadError,
+        description: error.message || t.documents.uploadErrorDesc,
         variant: "destructive"
       });
     }
@@ -164,9 +173,9 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Last opp dokument</DialogTitle>
+          <DialogTitle>{t.documents.uploadDocument}</DialogTitle>
           <DialogDescription>
-            Last opp dokumenter som møtereferat, budsjett eller andre viktige filer.
+            {t.documents.uploadDescription}
           </DialogDescription>
         </DialogHeader>
 
