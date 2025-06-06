@@ -184,6 +184,7 @@ export default function EventCreationModal({ isOpen, onClose }: EventCreationMod
                       <SelectItem value="Storbarnsfløyen">Storbarnsfløyen</SelectItem>
                       <SelectItem value="Møterom">Møterom</SelectItem>
                       <SelectItem value="Ute">Ute</SelectItem>
+                      <SelectItem value="Digitalt">Digitalt</SelectItem>
                       <SelectItem value="Annet">Annet</SelectItem>
                     </SelectContent>
                   </Select>
