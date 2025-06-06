@@ -170,7 +170,7 @@ export default function Files() {
                             variant="ghost" 
                             size="sm" 
                             className="text-primary hover:text-primary/90 ml-2"
-                            onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
+                            onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
                           >
                             <Download className="h-4 w-4" />
                           </Button>
@@ -265,7 +265,7 @@ export default function Files() {
                       <Button 
                         variant="outline" 
                         size="sm"
-                        onClick={() => window.open(`/api/documents/${doc.id}/download`, '_blank')}
+                        onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Last ned
