@@ -42,7 +42,7 @@ interface EventCreationModalProps {
 export default function EventCreationModal({ isOpen, onClose, event }: EventCreationModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
