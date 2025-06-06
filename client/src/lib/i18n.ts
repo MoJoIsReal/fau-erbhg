@@ -119,6 +119,23 @@ export interface Translations {
     title: string;
     subtitle: string;
     upload: string;
+    uploadDocument: string;
+    uploadDescription: string;
+    uploadSuccess: string;
+    uploadSuccessDesc: string;
+    uploadError: string;
+    uploadErrorDesc: string;
+    documentType: string;
+    selectType: string;
+    fileName: string;
+    fileNamePlaceholder: string;
+    description: string;
+    descriptionPlaceholder: string;
+    uploadedByLabel: string;
+    uploadedByPlaceholder: string;
+    dragDropText: string;
+    orClickToSelect: string;
+    maxFileSize: string;
     categories: {
       protocol: string;
       protocolDesc: string;
@@ -371,6 +388,23 @@ export const translations: Record<Language, Translations> = {
       title: "Dokumenter",
       subtitle: "Møtereferater, vedtekter og andre viktige dokumenter",
       upload: "Last opp dokument",
+      uploadDocument: "Last opp dokument",
+      uploadDescription: "Last opp dokumenter som møtereferat, budsjett eller andre viktige filer.",
+      uploadSuccess: "Dokument lastet opp!",
+      uploadSuccessDesc: "Dokumentet er nå tilgjengelig for alle.",
+      uploadError: "Feil ved opplasting",
+      uploadErrorDesc: "Kunne ikke laste opp dokumentet. Prøv igjen senere.",
+      documentType: "Dokumenttype",
+      selectType: "Velg type",
+      fileName: "Filnavn/Tittel",
+      fileNamePlaceholder: "Skriv inn tittel",
+      description: "Beskrivelse",
+      descriptionPlaceholder: "Kort beskrivelse av dokumentet...",
+      uploadedByLabel: "Ditt navn",
+      uploadedByPlaceholder: "For hvem laster opp",
+      dragDropText: "Dra og slipp filen her, eller",
+      orClickToSelect: "klikk for å velge",
+      maxFileSize: "Maks filstørrelse: 10MB",
       categories: {
         protocol: "Møtereferater",
         protocolDesc: "Referater fra møter",
@@ -618,6 +652,23 @@ export const translations: Record<Language, Translations> = {
       title: "Documents",
       subtitle: "Meeting minutes, bylaws and other important documents",
       upload: "Upload document",
+      uploadDocument: "Upload Document",
+      uploadDescription: "Upload documents such as meeting minutes, budget or other important files.",
+      uploadSuccess: "Document uploaded!",
+      uploadSuccessDesc: "The document is now available to everyone.",
+      uploadError: "Upload error",
+      uploadErrorDesc: "Could not upload the document. Please try again later.",
+      documentType: "Document type",
+      selectType: "Select type",
+      fileName: "Filename/Title",
+      fileNamePlaceholder: "Enter title",
+      description: "Description",
+      descriptionPlaceholder: "Brief description of the document...",
+      uploadedByLabel: "Your name",
+      uploadedByPlaceholder: "Who is uploading",
+      dragDropText: "Drag and drop file here, or",
+      orClickToSelect: "click to select",
+      maxFileSize: "Max file size: 10MB",
       categories: {
         protocol: "Meeting Minutes",
         protocolDesc: "Meeting records",
