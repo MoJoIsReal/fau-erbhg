@@ -16,6 +16,9 @@ export default function EventRegistrationsModal({ event, isOpen, onClose }: Even
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Påmeldinger - {event.title}</DialogTitle>
+          <DialogDescription>
+            Oversikt over alle påmeldte deltakere til arrangementet.
+          </DialogDescription>
         </DialogHeader>
         <EventRegistrationsView event={event} />
       </DialogContent>
