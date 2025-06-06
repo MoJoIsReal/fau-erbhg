@@ -86,6 +86,20 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       const { id } = req.query;
+      
+      // Check if event has registrations
+      const registrations = await sql`
+        SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ${id}
+      `;
+      
+      if (registrations[0].count > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete event with registrations',
+          message: 'This event has registrations and cannot be deleted. You can cancel it instead.',
+          hasRegistrations: true
+        });
+      }
+      
       const deletedEvent = await sql`
         DELETE FROM events WHERE id = ${id} RETURNING id
       `;
