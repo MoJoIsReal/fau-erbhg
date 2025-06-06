@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes";
 
 import { setupVite, serveStatic, log } from "./vite";
 import { reminderScheduler } from "./scheduler";
+import { createRateLimit, securityHeaders, sanitizeInput } from "./security";
 
 const app = express();
 
@@ -30,6 +31,24 @@ app.use((req, res, next) => {
     next();
   }
 });
+
+// Apply security middleware
+app.use(securityHeaders);
+app.use(sanitizeInput);
+
+// Rate limiting for authentication endpoints
+app.use('/api/login', createRateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  maxRequests: 5, // 5 login attempts per IP
+  message: 'Too many login attempts. Please try again in 15 minutes.'
+}));
+
+// Rate limiting for contact forms
+app.use('/api/documents', createRateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  maxRequests: 10, // 10 submissions per IP
+  message: 'Too many submissions. Please try again in 5 minutes.'
+}));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: false, limit: '10mb' }));
