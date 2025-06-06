@@ -8,7 +8,6 @@ import Home from "@/pages/home";
 import Events from "@/pages/events";
 import Contact from "@/pages/contact";
 import Files from "@/pages/files";
-import Settings from "@/pages/settings";
 
 function Router() {
   return (
@@ -18,7 +17,6 @@ function Router() {
         <Route path="/events" component={Events} />
         <Route path="/contact" component={Contact} />
         <Route path="/files" component={Files} />
-        <Route path="/settings" component={Settings} />
         <Route>
           <div className="min-h-screen w-full flex items-center justify-center bg-neutral-50">
             <div className="text-center">

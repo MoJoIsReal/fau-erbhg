@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   
   // Security headers
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
   if (req.method === 'OPTIONS') {
@@ -40,8 +40,6 @@ export default async function handler(req, res) {
     }
 
     const sql = neon(process.env.DATABASE_URL);
-
-
 
     if (req.method === 'GET') {
       const documents = await sql`
@@ -100,4 +98,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Info, Calendar, Mail, Folder, LogIn, LogOut, User, Settings } from "lucide-react";
+import { Menu, X, Info, Calendar, Mail, Folder, LogIn, LogOut, User } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -22,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const { user, isAuthenticated, logout, isLoggingOut } = useAuth();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
 
   // Fetch events to find next meeting
   const { data: events = [] } = useQuery<Event[]>({
@@ -94,7 +94,6 @@ export default function Layout({ children }: LayoutProps) {
                       <User className="h-4 w-4" />
                       <span>{user?.name}</span>
                     </div>
-
                     <Button
                       variant="outline"
                       size="sm"

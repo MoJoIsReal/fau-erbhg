@@ -61,34 +61,20 @@ export const documents = pgTable("documents", {
   cloudinaryPublicId: text("cloudinary_public_id"),
 });
 
-export const boardMembers = pgTable("board_members", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  role: text("role").notNull(),
-  email: text("email"),
-  phone: text("phone"),
-  description: text("description"),
-  displayOrder: integer("display_order").default(0),
-  isActive: boolean("is_active").default(true),
-});
-
 export const insertEventSchema = createInsertSchema(events).omit({ id: true, currentAttendees: true });
 export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, uploadedAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertBoardMemberSchema = createInsertSchema(boardMembers).omit({ id: true });
 
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type InsertEventRegistration = z.infer<typeof insertEventRegistrationSchema>;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type InsertBoardMember = z.infer<typeof insertBoardMemberSchema>;
 
 export type Event = typeof events.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type User = typeof users.$inferSelect;
-export type BoardMember = typeof boardMembers.$inferSelect;
