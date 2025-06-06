@@ -186,17 +186,17 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               name="category"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dokumenttype *</FormLabel>
+                  <FormLabel>{t.documents.documentType} *</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Velg type" />
+                        <SelectValue placeholder={t.documents.selectType} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="protokoll">Møtereferat</SelectItem>
-                      <SelectItem value="vedtekter">Vedtekter</SelectItem>
-                      <SelectItem value="budsjett">Årsplaner/Annet</SelectItem>
+                      <SelectItem value="protokoll">{t.documents.categories.protocol}</SelectItem>
+                      <SelectItem value="vedtekter">{t.documents.categories.regulations}</SelectItem>
+                      <SelectItem value="budsjett">{t.documents.categories.budget}</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -209,9 +209,9 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               name="title"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Filnavn/Tittel *</FormLabel>
+                  <FormLabel>{t.documents.fileName} *</FormLabel>
                   <FormControl>
-                    <Input placeholder="Skriv inn tittel" {...field} />
+                    <Input placeholder={t.documents.fileNamePlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -223,7 +223,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               name="file"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fil *</FormLabel>
+                  <FormLabel>{t.common.file} *</FormLabel>
                   <FormControl>
                     <div
                       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
