@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TimeInput24h } from "@/components/time-input-24h";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -26,7 +27,8 @@ const formSchema = insertEventSchema.extend({
     {
       message: "Vennligst oppgi en gyldig adresse (minimum 5 tegn, kun bokstaver, tall og standard tegn)"
     }
-  )
+  ),
+  vigiloSignup: z.boolean().default(false)
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -76,7 +78,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         location: event.location || "",
         type: event.type || "meeting",
         maxAttendees: event.maxAttendees || null,
-        customLocation: event.customLocation || ""
+        customLocation: event.customLocation || "",
+        vigiloSignup: event.vigiloSignup || false
       });
     } else {
       form.reset({
@@ -87,7 +90,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         location: "",
         type: "meeting",
         maxAttendees: null,
-        customLocation: ""
+        customLocation: "",
+        vigiloSignup: false
       });
     }
   }, [event, form]);
@@ -306,6 +310,32 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                     />
                   </FormControl>
                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="vigiloSignup"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      {language === 'no' ? 'Vigilo Påmelding' : 'Vigilo Signup'}
+                    </FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      {language === 'no' 
+                        ? 'Bruk Vigilo-plattformen for påmelding til dette arrangementet'
+                        : 'Use Vigilo platform for event registration'
+                      }
+                    </p>
+                  </div>
                 </FormItem>
               )}
             />
