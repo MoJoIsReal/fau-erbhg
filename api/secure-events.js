@@ -67,6 +67,9 @@ export default async function handler(req, res) {
       const { id } = req.query;
       const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup } = req.body;
 
+      console.log('PUT request body:', req.body);
+      console.log('vigiloSignup value:', vigiloSignup, typeof vigiloSignup);
+
       if (!title || !date || !time) {
         return res.status(400).json({ error: 'Title, date, and time are required' });
       }
