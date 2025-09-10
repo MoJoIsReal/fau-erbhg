@@ -50,6 +50,7 @@ export interface Translations {
     fauBoard: string;
     leader: string;
     member: string;
+    vara: string;
     fauDescription: string;
     upcomingEvents: string;
     noEvents: string;
