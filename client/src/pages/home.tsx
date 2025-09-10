@@ -110,9 +110,15 @@ export default function Home() {
                 <p><strong>{t.home.fauBoard}</strong></p>
                 <div className="ml-4 mt-2 space-y-1 text-sm">
                   <p><strong>{t.home.leader}</strong> Steffen Kvalheim Meidell</p>
-                  <p><strong>{t.home.member}</strong> Antea Skender-Hagesæter</p>
-                  <p><strong>{t.home.member}</strong> Guro Soltvedt Benevoli</p>
                   <p><strong>{t.home.member}</strong> Marie Haugen</p>
+                  <p><strong>{t.home.member}</strong> Guro Soltvedt Benevoli</p>
+                  <p><strong>{t.home.member}</strong> Bjørn Eirik Olsen</p>
+                  <p><strong>{t.home.member}</strong> Camilla Aksnes Teinaas</p>
+                  <p><strong>{t.home.member}</strong> Cecilie Bakkedal Langnes</p>
+                  <p><strong>{t.home.member}</strong> Silje Teinaas</p>
+                  <p><strong>{t.home.vara}</strong> Antea Skender-Hagesæter</p>
+                  <p><strong>{t.home.vara}</strong> Andreas Birkeland Arnøy</p>
+                  
                 </div>
               </div>
               
