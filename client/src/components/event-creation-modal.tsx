@@ -28,7 +28,8 @@ const formSchema = insertEventSchema.extend({
       message: "Vennligst oppgi en gyldig adresse (minimum 5 tegn, kun bokstaver, tall og standard tegn)"
     }
   ),
-  vigiloSignup: z.boolean().default(false)
+  vigiloSignup: z.boolean().default(false),
+  noSignup: z.boolean().default(false)
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -54,7 +55,9 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       location: event.location || "",
       type: event.type || "meeting",
       maxAttendees: event.maxAttendees || null,
-      customLocation: event.customLocation || ""
+      customLocation: event.customLocation || "",
+      vigiloSignup: event.vigiloSignup || false,
+      noSignup: event.noSignup || false
     } : {
       title: "",
       description: "",
@@ -63,7 +66,9 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       location: "",
       type: "meeting",
       maxAttendees: null,
-      customLocation: ""
+      customLocation: "",
+      vigiloSignup: false,
+      noSignup: false
     }
   });
 
@@ -79,7 +84,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         type: event.type || "meeting",
         maxAttendees: event.maxAttendees || null,
         customLocation: event.customLocation || "",
-        vigiloSignup: event.vigiloSignup || false
+        vigiloSignup: event.vigiloSignup || false,
+        noSignup: event.noSignup || false
       });
     } else {
       form.reset({
@@ -91,7 +97,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         type: "meeting",
         maxAttendees: null,
         customLocation: "",
-        vigiloSignup: false
+        vigiloSignup: false,
+        noSignup: false
       });
     }
   }, [event, form]);
@@ -333,6 +340,32 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                       {language === 'no' 
                         ? 'Bruk Vigilo-plattformen for påmelding til dette arrangementet'
                         : 'Use Vigilo platform for event registration'
+                      }
+                    </p>
+                  </div>
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="noSignup"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-4">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      {language === 'no' ? 'Ingen påmelding' : 'No signup'}
+                    </FormLabel>
+                    <p className="text-sm text-muted-foreground">
+                      {language === 'no' 
+                        ? 'Dette arrangementet krever ikke påmelding'
+                        : 'This event does not require registration'
                       }
                     </p>
                   </div>

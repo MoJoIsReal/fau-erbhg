@@ -24,6 +24,7 @@ export const events = pgTable("events", {
   type: text("type").notNull(), // "meeting", "event", "dugnad", etc.
   status: text("status").default("active").notNull(), // "active", "cancelled"
   vigiloSignup: boolean("vigilo_signup").default(false), // true if signup is through Vigilo platform
+  noSignup: boolean("no_signup").default(false), // true if event has no signup/registration
 });
 
 export const eventRegistrations = pgTable("event_registrations", {
