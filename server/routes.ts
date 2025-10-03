@@ -289,7 +289,7 @@ Crawl-delay: 1`;
     }
   });
 
-  app.put("/api/events/:id", async (req, res) => {
+  app.put("/api/events/:id", requireCouncilMember, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const validatedData = insertEventSchema.partial().parse(req.body);
