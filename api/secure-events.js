@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       const events = await sql`
         SELECT id, title, description, date, time, location, custom_location,
-               max_attendees, current_attendees, type, status, vigilo_signup
+               max_attendees, current_attendees, type, status, vigilo_signup, no_signup
         FROM events 
         WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
@@ -51,22 +51,23 @@ export default async function handler(req, res) {
         customLocation: event.custom_location,
         maxAttendees: event.max_attendees,
         currentAttendees: event.current_attendees,
-        vigiloSignup: event.vigilo_signup
+        vigiloSignup: event.vigilo_signup,
+        noSignup: event.no_signup
       }));
       
       return res.status(200).json(mappedEvents);
     }
 
     if (req.method === 'POST') {
-      const { title, description, date, time, location, custom_location, max_attendees, type, vigiloSignup } = req.body;
+      const { title, description, date, time, location, custom_location, max_attendees, type, vigiloSignup, noSignup } = req.body;
 
       if (!title || !date || !time) {
         return res.status(400).json({ error: 'Title, date, and time are required' });
       }
 
       const newEvent = await sql`
-        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, type, vigilo_signup)
-        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${custom_location}, ${max_attendees}, ${type || 'meeting'}, ${vigiloSignup || false})
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, type, vigilo_signup, no_signup)
+        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${custom_location}, ${max_attendees}, ${type || 'meeting'}, ${vigiloSignup || false}, ${noSignup || false})
         RETURNING *
       `;
 
@@ -76,7 +77,8 @@ export default async function handler(req, res) {
         customLocation: newEvent[0].custom_location,
         maxAttendees: newEvent[0].max_attendees,
         currentAttendees: newEvent[0].current_attendees,
-        vigiloSignup: newEvent[0].vigilo_signup
+        vigiloSignup: newEvent[0].vigilo_signup,
+        noSignup: newEvent[0].no_signup
       };
 
       return res.status(201).json(mappedEvent);
@@ -84,7 +86,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup } = req.body;
+      const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup, noSignup } = req.body;
 
 
 
@@ -102,7 +104,8 @@ export default async function handler(req, res) {
             custom_location = ${customLocation || null},
             max_attendees = ${maxAttendees || null},
             type = ${type || 'meeting'},
-            vigilo_signup = ${vigiloSignup || false}
+            vigilo_signup = ${vigiloSignup || false},
+            no_signup = ${noSignup || false}
         WHERE id = ${id}
         RETURNING *
       `;
@@ -117,7 +120,8 @@ export default async function handler(req, res) {
         customLocation: updatedEvent[0].custom_location,
         maxAttendees: updatedEvent[0].max_attendees,
         currentAttendees: updatedEvent[0].current_attendees,
-        vigiloSignup: updatedEvent[0].vigilo_signup
+        vigiloSignup: updatedEvent[0].vigilo_signup,
+        noSignup: updatedEvent[0].no_signup
       };
 
       return res.status(200).json(mappedEvent);
