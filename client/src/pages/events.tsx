@@ -294,17 +294,19 @@ export default function Events() {
                             <p className="text-neutral-700">{event.description}</p>
                           </div>
 
-                          <div className="flex items-center space-x-4 text-sm">
-                            <div className="flex items-center text-accent">
-                              <Users className="h-4 w-4 mr-1" />
-                              <span>{(event.currentAttendees || 0)} {t.events.attendees}</span>
-                            </div>
-                            {event.maxAttendees && (
-                              <div className="flex items-center text-neutral-500">
-                                <span>{t.events.maxAttendees}: {event.maxAttendees}</span>
+                          {!event.noSignup && (
+                            <div className="flex items-center space-x-4 text-sm">
+                              <div className="flex items-center text-accent">
+                                <Users className="h-4 w-4 mr-1" />
+                                <span>{(event.currentAttendees || 0)} {t.events.attendees}</span>
                               </div>
-                            )}
-                          </div>
+                              {event.maxAttendees && (
+                                <div className="flex items-center text-neutral-500">
+                                  <span>{t.events.maxAttendees}: {event.maxAttendees}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                         
                         <div className="flex flex-col space-y-3 mt-6 md:mt-0 md:ml-6">
@@ -312,6 +314,11 @@ export default function Events() {
                             <div className="flex items-center text-red-600 text-sm font-medium bg-red-50 px-3 py-2 rounded-lg">
                               <AlertTriangle className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Arrangementet er avlyst' : 'Event is cancelled'}</span>
+                            </div>
+                          ) : event.noSignup === true ? (
+                            <div className="flex items-center text-gray-600 text-sm font-medium bg-gray-50 px-3 py-2 rounded-lg">
+                              <Calendar className="h-4 w-4 mr-2" />
+                              <span>{language === 'no' ? 'Ingen påmelding nødvendig' : 'No signup required'}</span>
                             </div>
                           ) : event.vigiloSignup === true ? (
                             <div className="flex items-center text-blue-600 text-sm font-medium bg-blue-50 px-3 py-2 rounded-lg">
@@ -347,7 +354,7 @@ export default function Events() {
                           
                           {isAuthenticated && (
                             <>
-                              {!event.vigiloSignup && event.type !== "internal" && (
+                              {!event.vigiloSignup && event.type !== "internal" && !event.noSignup && (
                                 <Button 
                                   variant="outline"
                                   size="sm"
