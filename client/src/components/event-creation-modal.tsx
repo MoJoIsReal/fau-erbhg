@@ -28,8 +28,7 @@ const formSchema = insertEventSchema.extend({
       message: "Vennligst oppgi en gyldig adresse (minimum 5 tegn, kun bokstaver, tall og standard tegn)"
     }
   ),
-  vigiloSignup: z.boolean().default(false),
-  noRegistration: z.boolean().default(false)
+  vigiloSignup: z.boolean().default(false)
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -55,9 +54,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       location: event.location || "",
       type: event.type || "meeting",
       maxAttendees: event.maxAttendees || null,
-      customLocation: event.customLocation || "",
-      vigiloSignup: event.vigiloSignup || false,
-      noRegistration: event.noRegistration || false
+      customLocation: event.customLocation || ""
     } : {
       title: "",
       description: "",
@@ -66,9 +63,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       location: "",
       type: "meeting",
       maxAttendees: null,
-      customLocation: "",
-      vigiloSignup: false,
-      noRegistration: false
+      customLocation: ""
     }
   });
 
@@ -84,8 +79,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         type: event.type || "meeting",
         maxAttendees: event.maxAttendees || null,
         customLocation: event.customLocation || "",
-        vigiloSignup: event.vigiloSignup || false,
-        noRegistration: event.noRegistration || false
+        vigiloSignup: event.vigiloSignup || false
       });
     } else {
       form.reset({
@@ -97,8 +91,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         type: "meeting",
         maxAttendees: null,
         customLocation: "",
-        vigiloSignup: false,
-        noRegistration: false
+        vigiloSignup: false
       });
     }
   }, [event, form]);
