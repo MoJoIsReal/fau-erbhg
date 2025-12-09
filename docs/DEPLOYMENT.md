@@ -284,6 +284,24 @@ npm run build
 
 Fix any TypeScript errors before pushing.
 
+**Common Error: "vite: command not found"**
+
+**Cause:** Custom `installCommand` in `vercel.json` interfering with Vercel's dependency installation
+
+**Symptoms:**
+```
+sh: line 1: vite: command not found
+Error: Command "npm run build" exited with 127
+```
+
+**Fix:**
+Remove any custom `installCommand` from `vercel.json`. Vercel's default installation process properly handles devDependencies needed during the build phase. The `vercel.json` should NOT include:
+```json
+"installCommand": "npm install"  // ❌ Remove this line
+```
+
+Vercel will automatically install all dependencies including devDependencies when needed for the build.
+
 #### 3. CORS Errors
 
 **Cause:** Frontend domain not in allowed origins
