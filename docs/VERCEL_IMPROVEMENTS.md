@@ -10,7 +10,7 @@ This document outlines the improvements made to optimize the FAU Erdal Barnehage
 
 **Changes:**
 - Updated build command to use `npm run build` instead of just `vite build`
-- Added explicit install command
+- Removed custom install command to allow Vercel's smart dependency installation
 - Increased function memory to 1024 MB
 - Added comprehensive security headers for all routes
 - Configured caching headers for API and static assets
@@ -19,6 +19,10 @@ This document outlines the improvements made to optimize the FAU Erdal Barnehage
 - Improved security with headers like `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`
 - Better performance with optimized caching strategies
 - Longer function timeout for complex operations
+- Proper handling of devDependencies during build
+
+**Important Fix:**
+Initially added a custom `installCommand`, but this interfered with Vercel's default dependency installation process. Vercel's built-in install logic properly handles devDependencies (like `vite` and `esbuild`) needed during the build phase. Removing the custom command resolved build failures.
 
 **Files Modified:**
 - `/vercel.json`
