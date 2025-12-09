@@ -1,35 +1,21 @@
-import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
+import { getDb } from './_shared/database.js';
+import {
+  applySecurityHeaders,
+  handleCorsPreFlight,
+  handleError,
+  logRequest,
+  parseAuthToken
+} from './_shared/middleware.js';
 
 export default async function handler(req, res) {
-  // Security headers
-  const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? ['https://fau-erdal-barnehage.vercel.app']
-    : ['http://localhost:5000', 'http://localhost:3000'];
-  
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (process.env.NODE_ENV === 'development') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  const startTime = Date.now();
+
+  // Apply security headers and handle CORS
+  applySecurityHeaders(res, req.headers.origin);
+  if (handleCorsPreFlight(req, res)) return;
 
   try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'Database configuration missing' });
-    }
-
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = getDb();
 
     if (req.method === 'GET') {
       // Get all events including cancelled ones (public access)
@@ -50,23 +36,14 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       // JWT authentication check
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      const user = parseAuthToken(req);
+      if (!user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
-      const token = authHeader.substring(7);
-      const jwtSecret = process.env.SESSION_SECRET || 'fallback-dev-secret-change-in-production';
-      
-      try {
-        const decoded = jwt.verify(token, jwtSecret);
-        
-        // Check if user has permission to create events
-        if (decoded.role !== 'admin' && decoded.role !== 'member') {
-          return res.status(403).json({ error: 'Council member access required' });
-        }
-      } catch (jwtError) {
-        return res.status(401).json({ error: 'Invalid or expired token' });
+      // Check if user has permission to create events
+      if (user.role !== 'admin' && user.role !== 'member') {
+        return res.status(403).json({ error: 'Council member access required' });
       }
 
       // Create new event
@@ -82,13 +59,15 @@ export default async function handler(req, res) {
         RETURNING *
       `;
 
+      logRequest(req, startTime);
       return res.status(201).json(newEvent[0]);
     }
 
     return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (error) {
-    console.error('Events API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return handleError(res, error);
+  } finally {
+    logRequest(req, startTime);
   }
 }
