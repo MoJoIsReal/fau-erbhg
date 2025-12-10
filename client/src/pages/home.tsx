@@ -5,6 +5,13 @@ import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Event } from "@shared/schema";
 
+interface FauBoardMember {
+  id: number;
+  name: string;
+  role: string;
+  sortOrder: number;
+}
+
 export default function Home() {
   const { language, t } = useLanguage();
   
@@ -21,12 +28,17 @@ export default function Home() {
 
   // Filter and sort upcoming events (next 3) - exclude cancelled events
   const upcomingEvents = allEvents
-    .filter(event => 
-      new Date(event.date) >= new Date() && 
+    .filter(event =>
+      new Date(event.date) >= new Date() &&
       event.status === 'active'
     )
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
+
+  // Fetch FAU board members
+  const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
+    queryKey: ["/api/secure-settings?resource=board-members"],
+  });
 
   return (
     <div className="space-y-8">
@@ -109,16 +121,15 @@ export default function Home() {
               <div className="mt-4">
                 <p><strong>{t.home.fauBoard}</strong></p>
                 <div className="ml-4 mt-2 space-y-1 text-sm">
-                  <p><strong>{t.home.leader}</strong> Steffen Kvalheim Meidell</p>
-                  <p><strong>{t.home.member}</strong> Marie Haugen</p>
-                  <p><strong>{t.home.member}</strong> Guro Soltvedt Benevoli</p>
-                  <p><strong>{t.home.member}</strong> Bjørn Eirik Olsen</p>
-                  <p><strong>{t.home.member}</strong> Camilla Aksnes Teinaas</p>
-                  <p><strong>{t.home.member}</strong> Cecilie Bakkedal Langnes</p>
-                  <p><strong>{t.home.member}</strong> Silje Teinaas</p>
-                  <p><strong>{t.home.vara}</strong> Antea Skender-Hagesæter</p>
-                  <p><strong>{t.home.vara}</strong> Andreas Birkeland Arnøy</p>
-                  
+                  {boardMembers.map((member) => (
+                    <p key={member.id}>
+                      <strong>
+                        {member.role === "Leder" ? t.home.leader :
+                         member.role === "Vara" ? t.home.vara :
+                         t.home.member}
+                      </strong> {member.name}
+                    </p>
+                  ))}
                 </div>
               </div>
               
