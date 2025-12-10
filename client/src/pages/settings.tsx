@@ -33,7 +33,7 @@ export default function Settings() {
   // Create member
   const createMutation = useMutation({
     mutationFn: async (member: Partial<FauBoardMember>) => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token");
       const response = await fetch("/api/secure-settings?resource=board-members", {
         method: "POST",
         headers: {
@@ -51,7 +51,7 @@ export default function Settings() {
   // Update member
   const updateMutation = useMutation({
     mutationFn: async ({ id, member }: { id: number; member: Partial<FauBoardMember> }) => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token");
       const response = await fetch(`/api/secure-settings?resource=board-members&id=${id}`, {
         method: "PUT",
         headers: {
@@ -69,7 +69,7 @@ export default function Settings() {
   // Delete member
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem("auth_token");
       const response = await fetch(`/api/secure-settings?resource=board-members&id=${id}`, {
         method: "DELETE",
         headers: {
