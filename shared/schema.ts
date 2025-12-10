@@ -62,20 +62,43 @@ export const documents = pgTable("documents", {
   cloudinaryPublicId: text("cloudinary_public_id"),
 });
 
+export const siteSettings = pgTable("site_settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").notNull().unique(), // e.g., "contact_info", "about_text"
+  value: text("value").notNull(), // JSON string
+  updatedBy: text("updated_by").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const fauBoardMembers = pgTable("fau_board_members", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  role: text("role").notNull(), // "Leder", "Medlem", "Vara"
+  sortOrder: integer("sort_order").default(0), // For custom ordering
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const insertEventSchema = createInsertSchema(events).omit({ id: true, currentAttendees: true });
 export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, uploadedAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
+export const insertSiteSettingSchema = createInsertSchema(siteSettings).omit({ id: true, updatedAt: true });
+export const insertFauBoardMemberSchema = createInsertSchema(fauBoardMembers).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type InsertEventRegistration = z.infer<typeof insertEventRegistrationSchema>;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertSiteSetting = z.infer<typeof insertSiteSettingSchema>;
+export type InsertFauBoardMember = z.infer<typeof insertFauBoardMemberSchema>;
 
 export type Event = typeof events.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type SiteSetting = typeof siteSettings.$inferSelect;
+export type FauBoardMember = typeof fauBoardMembers.$inferSelect;
