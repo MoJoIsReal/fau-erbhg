@@ -2,6 +2,8 @@
  * Shared middleware utilities for Vercel serverless functions
  */
 
+import jwt from 'jsonwebtoken';
+
 /**
  * Apply security headers to API responses
  * @param {Object} res - Response object
@@ -121,7 +123,6 @@ export function parseAuthToken(req) {
 
   try {
     const token = authHeader.substring(7);
-    const jwt = require('jsonwebtoken');
     return jwt.verify(token, process.env.SESSION_SECRET);
   } catch (error) {
     console.error('Token validation error:', error.message);
