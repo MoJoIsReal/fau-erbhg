@@ -519,7 +519,7 @@ export default function Settings() {
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-lg font-semibold text-neutral-900">
-                        {post.title || language === "no" ? "(Uten tittel)" : "(No title)"}
+                        {post.title || (language === "no" ? "(Uten tittel)" : "(No title)")}
                       </h3>
                       <div className="flex gap-2">
                         <Button onClick={() => setIsEditingPost(index)} variant="outline" size="sm">
