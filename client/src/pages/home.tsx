@@ -12,6 +12,13 @@ interface FauBoardMember {
   sortOrder: number;
 }
 
+interface BlogPost {
+  id: number;
+  title: string;
+  content: string;
+  publishedDate: string;
+}
+
 export default function Home() {
   const { language, t } = useLanguage();
   
@@ -38,6 +45,11 @@ export default function Home() {
   // Fetch FAU board members
   const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
     queryKey: ["/api/secure-settings?resource=board-members"],
+  });
+
+  // Fetch blog posts (only published)
+  const { data: blogPosts = [] } = useQuery<BlogPost[]>({
+    queryKey: ["/api/secure-settings?resource=blog-posts"],
   });
 
   return (
@@ -73,6 +85,38 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Blog Posts / News Section */}
+      {blogPosts.length > 0 && (
+        <section>
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 mb-6">
+                {language === 'no' ? 'Nyheter' : 'News'}
+              </h3>
+              <div className="space-y-6">
+                {blogPosts.slice(0, 3).map((post) => (
+                  <div key={post.id} className="border-b border-neutral-200 last:border-0 pb-6 last:pb-0">
+                    <h4 className="font-semibold text-lg text-neutral-900 mb-2">
+                      {post.title}
+                    </h4>
+                    <p className="text-xs text-neutral-500 mb-3">
+                      {new Date(post.publishedDate).toLocaleDateString('no-NO', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </p>
+                    <p className="text-sm text-neutral-700 whitespace-pre-wrap">
+                      {post.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
 
       {/* About Section */}
       <section className="grid md:grid-cols-2 gap-8">
