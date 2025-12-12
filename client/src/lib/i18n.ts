@@ -484,7 +484,7 @@ export const translations: Record<Language, Translations> = {
       barnehageFakta: "📊 Barnehage Fakta - informasjon",
       fubLink: "FUB - Råd og veiledning for foreldre",
       hours: "",
-      nextMeeting: "Neste møte",
+      nextMeeting: "Neste Arrangement",
       parentMeeting: "FAU-møte",
       copyright: "© 2025 FAU Erdal Barnehage. Alle rettigheter reservert."
     },
@@ -728,7 +728,7 @@ export const translations: Record<Language, Translations> = {
       barnehageFakta: "📊 Barnehage Fakta - information",
       fubLink: "FUB - Advice and guidance for parents",
       hours: "",
-      nextMeeting: "Next meeting",
+      nextMeeting: "Next Event",
       parentMeeting: "FAU meeting",
       copyright: "© 2025 FAU Erdal Kindergarten. All rights reserved."
     },

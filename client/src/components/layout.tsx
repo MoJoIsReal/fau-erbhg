@@ -31,9 +31,8 @@ export default function Layout({ children }: LayoutProps) {
 
   // Find next meeting (including internal events)
   const nextMeeting = events
-    .filter(event => 
-      (event.type === 'meeting' || event.type === 'internal') && 
-      event.status === 'active' && 
+    .filter(event =>
+      event.status === 'active' &&
       new Date(event.date) >= new Date()
     )
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
