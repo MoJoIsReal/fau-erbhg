@@ -102,6 +102,25 @@ export default function Events() {
       });
       return;
     }
+
+    if (event.vigiloSignup) {
+      toast({
+        title: language === 'no' ? "Påmelding i Vigilo" : "Register in Vigilo",
+        description: language === 'no' ? "Dette arrangementet bruker Vigilo for påmelding." : "This event uses Vigilo for registration.",
+        variant: "default",
+      });
+      return;
+    }
+
+    if (event.noSignup) {
+      toast({
+        title: language === 'no' ? "Ingen påmelding nødvendig" : "No signup required",
+        description: language === 'no' ? "Dette arrangementet krever ikke påmelding." : "This event does not require registration.",
+        variant: "default",
+      });
+      return;
+    }
+
     setSelectedEvent(event);
     setIsRegistrationModalOpen(true);
   };
