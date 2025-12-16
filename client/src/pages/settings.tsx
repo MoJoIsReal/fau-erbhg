@@ -41,6 +41,16 @@ interface BlogPost {
   updatedAt?: string;
 }
 
+interface KindergartenInfo {
+  id: number;
+  contactEmail: string;
+  address: string;
+  openingHours: string;
+  numberOfChildren: number;
+  owner: string;
+  description: string;
+}
+
 export default function Settings() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
@@ -380,6 +390,64 @@ export default function Settings() {
     }
   };
 
+  // ===== KINDERGARTEN INFO MANAGEMENT =====
+  const [kindergartenInfo, setKindergartenInfo] = useState<Partial<KindergartenInfo> | null>(null);
+  const [isEditingKindergarten, setIsEditingKindergarten] = useState(false);
+
+  // Fetch kindergarten info
+  const { data: fetchedKindergartenInfo, isLoading: isLoadingKindergarten } = useQuery<KindergartenInfo>({
+    queryKey: ["/api/secure-settings?resource=kindergarten-info"],
+  });
+
+  useEffect(() => {
+    if (fetchedKindergartenInfo) {
+      setKindergartenInfo(fetchedKindergartenInfo);
+    }
+  }, [fetchedKindergartenInfo]);
+
+  // Update kindergarten info mutation
+  const updateKindergartenMutation = useMutation({
+    mutationFn: async (info: Partial<KindergartenInfo>) => {
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch("/api/secure-settings?resource=kindergarten-info", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(info),
+      });
+
+      if (!response.ok) throw new Error("Failed to update kindergarten info");
+      return response.json();
+    },
+  });
+
+  const updateKindergartenField = (field: keyof KindergartenInfo, value: string | number) => {
+    setKindergartenInfo(prev => prev ? { ...prev, [field]: value } : null);
+  };
+
+  const saveKindergartenInfo = async () => {
+    if (!kindergartenInfo) return;
+
+    try {
+      await updateKindergartenMutation.mutateAsync(kindergartenInfo);
+      await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=kindergarten-info"] });
+      setIsEditingKindergarten(false);
+
+      toast({
+        title: language === "no" ? "Lagret!" : "Saved!",
+        description: language === "no" ? "Barnehageinformasjon er lagret" : "Kindergarten info has been saved",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: language === "no" ? "Feil" : "Error",
+        description: language === "no" ? "Kunne ikke lagre informasjon" : "Could not save information",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
@@ -660,6 +728,138 @@ export default function Settings() {
               </p>
             )}
           </div>
+        </div>
+      </Card>
+
+      {/* Kindergarten Info Section */}
+      <Card className="p-6 mt-8">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-neutral-800 mb-2">
+            {language === "no" ? "Barnehageinformasjon" : "Kindergarten Information"}
+          </h2>
+          <p className="text-sm text-neutral-600 mb-4">
+            {language === "no"
+              ? "Administrer kontaktinformasjon og detaljer om barnehagen som vises på forsiden."
+              : "Manage contact information and kindergarten details displayed on the homepage."}
+          </p>
+
+          {kindergartenInfo && (
+            <div className="space-y-4">
+              {isEditingKindergarten ? (
+                // Edit mode
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="kindergarten-email">
+                      {language === "no" ? "Kontakt e-post" : "Contact email"} *
+                    </Label>
+                    <Input
+                      id="kindergarten-email"
+                      type="email"
+                      value={kindergartenInfo.contactEmail || ""}
+                      onChange={(e) => updateKindergartenField("contactEmail", e.target.value)}
+                      placeholder="barnehage@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="kindergarten-address">
+                      {language === "no" ? "Adresse" : "Address"} *
+                    </Label>
+                    <Input
+                      id="kindergarten-address"
+                      value={kindergartenInfo.address || ""}
+                      onChange={(e) => updateKindergartenField("address", e.target.value)}
+                      placeholder="Steinråsa 5, 5306 Erdal"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="kindergarten-hours">
+                      {language === "no" ? "Åpningstider" : "Opening hours"} *
+                    </Label>
+                    <Input
+                      id="kindergarten-hours"
+                      value={kindergartenInfo.openingHours || ""}
+                      onChange={(e) => updateKindergartenField("openingHours", e.target.value)}
+                      placeholder="07:00 - 16:30"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="kindergarten-children">
+                      {language === "no" ? "Antall barn" : "Number of children"} *
+                    </Label>
+                    <Input
+                      id="kindergarten-children"
+                      type="number"
+                      value={kindergartenInfo.numberOfChildren || ""}
+                      onChange={(e) => updateKindergartenField("numberOfChildren", parseInt(e.target.value))}
+                      placeholder="70"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="kindergarten-owner">
+                      {language === "no" ? "Eier" : "Owner"} *
+                    </Label>
+                    <Input
+                      id="kindergarten-owner"
+                      value={kindergartenInfo.owner || ""}
+                      onChange={(e) => updateKindergartenField("owner", e.target.value)}
+                      placeholder="Askøy kommune"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="kindergarten-description">
+                      {language === "no" ? "Beskrivelse" : "Description"} *
+                    </Label>
+                    <Textarea
+                      id="kindergarten-description"
+                      value={kindergartenInfo.description || ""}
+                      onChange={(e) => updateKindergartenField("description", e.target.value)}
+                      placeholder={language === "no"
+                        ? "Beskriv barnehagen..."
+                        : "Describe the kindergarten..."}
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-4">
+                    <Button onClick={saveKindergartenInfo} disabled={updateKindergartenMutation.isPending}>
+                      <Save className="h-4 w-4 mr-2" />
+                      {language === "no" ? "Lagre" : "Save"}
+                    </Button>
+                    <Button onClick={() => setIsEditingKindergarten(false)} variant="outline">
+                      {language === "no" ? "Avbryt" : "Cancel"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                // View mode
+                <div className="bg-neutral-50 p-4 rounded-lg">
+                  <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-semibold text-neutral-900">
+                      {language === "no" ? "Om Barnehagen" : "About Kindergarten"}
+                    </h3>
+                    <Button onClick={() => setIsEditingKindergarten(true)} variant="outline" size="sm">
+                      {language === "no" ? "Rediger" : "Edit"}
+                    </Button>
+                  </div>
+
+                  <div className="space-y-2 text-sm">
+                    <p><strong>{language === "no" ? "Kontakt:" : "Contact:"}</strong> {kindergartenInfo.contactEmail}</p>
+                    <p><strong>{language === "no" ? "Adresse:" : "Address:"}</strong> {kindergartenInfo.address}</p>
+                    <p><strong>{language === "no" ? "Åpningstider:" : "Opening hours:"}</strong> {kindergartenInfo.openingHours}</p>
+                    <p><strong>{language === "no" ? "Antall barn:" : "Number of children:"}</strong> {kindergartenInfo.numberOfChildren} {language === "no" ? "barn" : "children"}</p>
+                    <p><strong>{language === "no" ? "Eier:" : "Owner:"}</strong> {kindergartenInfo.owner}</p>
+                    <p className="mt-3"><strong>{language === "no" ? "Beskrivelse:" : "Description:"}</strong></p>
+                    <p className="text-neutral-700">{kindergartenInfo.description}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </Card>
     </div>
