@@ -194,6 +194,67 @@ async function handleBlogPosts(req, res, sql) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
+// Handle Kindergarten Info operations
+async function handleKindergartenInfo(req, res, sql) {
+  // GET - Public access to view kindergarten info
+  if (req.method === 'GET') {
+    const info = await sql`
+      SELECT id, contact_email as "contactEmail", address, opening_hours as "openingHours",
+             number_of_children as "numberOfChildren", owner, description, updated_at as "updatedAt"
+      FROM kindergarten_info
+      ORDER BY id DESC
+      LIMIT 1
+    `;
+
+    if (info.length === 0) {
+      return res.status(404).json({ error: 'Kindergarten info not found' });
+    }
+
+    return res.status(200).json(info[0]);
+  }
+
+  // All other methods require admin authentication
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  const now = new Date().toISOString();
+
+  // PUT - Update kindergarten info
+  if (req.method === 'PUT') {
+    const { contactEmail, address, openingHours, numberOfChildren, owner, description } = req.body;
+
+    if (!contactEmail || !address || !openingHours || !numberOfChildren || !owner || !description) {
+      return res.status(400).json({ error: 'All fields are required' });
+    }
+
+    // Update the first (and only) row
+    const result = await sql`
+      UPDATE kindergarten_info
+      SET contact_email = ${contactEmail},
+          address = ${address},
+          opening_hours = ${openingHours},
+          number_of_children = ${numberOfChildren},
+          owner = ${owner},
+          description = ${description},
+          updated_at = ${now}
+      WHERE id = (SELECT id FROM kindergarten_info ORDER BY id LIMIT 1)
+      RETURNING *
+    `;
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Kindergarten info not found' });
+    }
+
+    return res.status(200).json(result[0]);
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
 // Main handler
 export default async function handler(req, res) {
   applySecurityHeaders(res, req.headers.origin);
@@ -211,6 +272,11 @@ export default async function handler(req, res) {
     // Route to blog posts handler
     if (resource === 'blog-posts') {
       return await handleBlogPosts(req, res, sql);
+    }
+
+    // Route to kindergarten info handler
+    if (resource === 'kindergarten-info') {
+      return await handleKindergartenInfo(req, res, sql);
     }
 
     // Default: handle site settings (can be extended in future)

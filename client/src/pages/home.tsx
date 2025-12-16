@@ -22,6 +22,16 @@ interface BlogPost {
   showOnHomepage?: boolean;
 }
 
+interface KindergartenInfo {
+  id: number;
+  contactEmail: string;
+  address: string;
+  openingHours: string;
+  numberOfChildren: number;
+  owner: string;
+  description: string;
+}
+
 export default function Home() {
   const { language, t } = useLanguage();
 
@@ -57,6 +67,11 @@ export default function Home() {
 
   // Filter blog posts to show only those marked for homepage
   const blogPosts = allBlogPosts.filter(post => post.showOnHomepage !== false);
+
+  // Fetch kindergarten info
+  const { data: kindergartenInfo } = useQuery<KindergartenInfo>({
+    queryKey: ["/api/secure-settings?resource=kindergarten-info"],
+  });
 
   return (
     <div className="space-y-8">
@@ -147,19 +162,27 @@ export default function Home() {
               <h3 className="font-heading font-semibold text-xl text-neutral-900">{t.home.aboutKindergarten}</h3>
             </div>
             <div className="space-y-3 text-neutral-700">
-              <p><strong>{t.home.contact}</strong> <a 
-                href="mailto:erdal.barnehage@askoy.kommune.no"
-                className="text-blue-600 hover:text-blue-500 transition-colors"
-              >
-                erdal.barnehage@askoy.kommune.no
-              </a></p>
-              <p><strong>{t.home.municipality}</strong> Steinråsa 5, 5306 Erdal</p>
-              <p><strong>{t.home.openingHours}</strong> 07:00 - 16:30</p>
-              <p><strong>{t.home.numberOfChildren}</strong> 70 {language === 'no' ? 'barn' : 'children'}</p>
-              <p><strong>{t.home.owner}</strong> Askøy kommune</p>
-              <p className="mt-4">
-                {t.home.kindergartenDescription}
-              </p>
+              {kindergartenInfo ? (
+                <>
+                  <p><strong>{t.home.contact}</strong> <a
+                    href={`mailto:${kindergartenInfo.contactEmail}`}
+                    className="text-blue-600 hover:text-blue-500 transition-colors"
+                  >
+                    {kindergartenInfo.contactEmail}
+                  </a></p>
+                  <p><strong>{t.home.municipality}</strong> {kindergartenInfo.address}</p>
+                  <p><strong>{t.home.openingHours}</strong> {kindergartenInfo.openingHours}</p>
+                  <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {language === 'no' ? 'barn' : 'children'}</p>
+                  <p><strong>{t.home.owner}</strong> {kindergartenInfo.owner}</p>
+                  <p className="mt-4">
+                    {kindergartenInfo.description}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-500 italic">
+                  {language === 'no' ? 'Laster informasjon...' : 'Loading information...'}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
