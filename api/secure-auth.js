@@ -66,7 +66,7 @@ export default async function handler(req, res) {
           role: user.role
         },
         process.env.SESSION_SECRET,
-        { expiresIn: '24h' }
+        { expiresIn: '2h' }
       );
 
       return res.status(200).json({
