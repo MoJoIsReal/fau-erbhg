@@ -14,12 +14,10 @@ export function applySecurityHeaders(res, origin) {
     ? ['https://fau-erdal-barnehage.vercel.app']
     : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
 
-  // CORS handling
+  // CORS handling - only allow specific origins, even in development
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-  } else if (process.env.NODE_ENV === 'development') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
@@ -145,4 +143,80 @@ export function requireAuth(req, res) {
   }
 
   return user;
+}
+
+/**
+ * Sanitize text input to prevent XSS attacks
+ * @param {string} text - Input text to sanitize
+ * @param {number} maxLength - Maximum allowed length (default: 1000)
+ * @returns {string} - Sanitized text
+ */
+export function sanitizeText(text, maxLength = 1000) {
+  if (!text || typeof text !== 'string') return '';
+
+  return text
+    .replace(/[<>]/g, '') // Remove potential HTML tags
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handlers
+    .trim()
+    .substring(0, maxLength);
+}
+
+/**
+ * Sanitize HTML content (allows basic formatting but prevents XSS)
+ * @param {string} html - HTML content to sanitize
+ * @param {number} maxLength - Maximum allowed length (default: 10000)
+ * @returns {string} - Sanitized HTML
+ */
+export function sanitizeHtml(html, maxLength = 10000) {
+  if (!html || typeof html !== 'string') return '';
+
+  return html
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handlers
+    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '') // Remove iframes
+    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '') // Remove objects
+    .replace(/<embed\b[^<]*>/gi, '') // Remove embeds
+    .trim()
+    .substring(0, maxLength);
+}
+
+/**
+ * Sanitize email address
+ * @param {string} email - Email to validate and sanitize
+ * @returns {string|null} - Sanitized email or null if invalid
+ */
+export function sanitizeEmail(email) {
+  if (!email || typeof email !== 'string') return null;
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  const trimmedEmail = email.trim().toLowerCase();
+
+  return emailRegex.test(trimmedEmail) ? trimmedEmail : null;
+}
+
+/**
+ * Sanitize phone number
+ * @param {string} phone - Phone number to sanitize
+ * @returns {string} - Sanitized phone number
+ */
+export function sanitizePhone(phone) {
+  if (!phone || typeof phone !== 'string') return '';
+
+  // Remove all non-digit and non-+ characters, keep spaces, (), and -
+  return phone.replace(/[^\d+\s()-]/g, '').substring(0, 20);
+}
+
+/**
+ * Validate and sanitize numeric input
+ * @param {any} value - Value to validate
+ * @param {number} min - Minimum allowed value
+ * @param {number} max - Maximum allowed value
+ * @returns {number|null} - Sanitized number or null if invalid
+ */
+export function sanitizeNumber(value, min = 0, max = Number.MAX_SAFE_INTEGER) {
+  const num = Number(value);
+  if (isNaN(num) || num < min || num > max) return null;
+  return num;
 }
