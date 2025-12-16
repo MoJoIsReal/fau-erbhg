@@ -5,6 +5,7 @@ export interface Translations {
   navigation: {
     information: string;
     events: string;
+    news: string;
     contact: string;
     documents: string;
   };
@@ -258,7 +259,8 @@ export const translations: Record<Language, Translations> = {
   no: {
     navigation: {
       information: "Informasjon",
-      events: "Arrangementer", 
+      events: "Arrangementer",
+      news: "Nyheter",
       contact: "Kontakt",
       documents: "Dokumenter"
     },
@@ -503,7 +505,8 @@ export const translations: Record<Language, Translations> = {
     navigation: {
       information: "Information",
       events: "Events",
-      contact: "Contact", 
+      news: "News",
+      contact: "Contact",
       documents: "Documents"
     },
     header: {
