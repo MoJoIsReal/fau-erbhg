@@ -17,6 +17,7 @@ interface BlogPost {
   title: string;
   content: string;
   publishedDate: string;
+  author?: string;
 }
 
 export default function Home() {
@@ -106,6 +107,11 @@ export default function Home() {
                         month: 'long',
                         day: 'numeric'
                       })}
+                      {post.author && (
+                        <span className="ml-2">
+                          • {language === 'no' ? 'av' : 'by'} {post.author}
+                        </span>
+                      )}
                     </p>
                     <p className="text-sm text-neutral-700 whitespace-pre-wrap">
                       {post.content}

@@ -34,6 +34,7 @@ interface BlogPost {
   content: string;
   status: "published" | "archived";
   publishedDate: string;
+  author?: string;
   createdBy?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -510,6 +511,27 @@ export default function Settings() {
                       />
                     </div>
 
+                    <div>
+                      <Label htmlFor={`post-author-${index}`}>
+                        {language === "no" ? "Skrevet av" : "Written by"}
+                      </Label>
+                      <Select
+                        value={post.author || ""}
+                        onValueChange={(value) => updatePost(index, "author", value)}
+                      >
+                        <SelectTrigger id={`post-author-${index}`}>
+                          <SelectValue placeholder={language === "no" ? "Velg forfatter" : "Select author"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {boardMembers?.map((member) => (
+                            <SelectItem key={member.id} value={member.name}>
+                              {member.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
                     <div className="flex gap-2">
                       <Button onClick={() => savePost(index)} size="sm">
                         <Save className="h-4 w-4 mr-2" />
@@ -561,6 +583,11 @@ export default function Settings() {
                     <p className="text-sm text-neutral-600 mb-2">
                       {post.publishedDate &&
                         new Date(post.publishedDate).toLocaleDateString("no-NO")}
+                      {post.author && (
+                        <span className="ml-2">
+                          • {language === "no" ? "av" : "by"} {post.author}
+                        </span>
+                      )}
                       {post.status === "archived" && (
                         <span className="ml-2 text-xs font-semibold text-orange-600">
                           ({language === "no" ? "ARKIVERT" : "ARCHIVED"})
