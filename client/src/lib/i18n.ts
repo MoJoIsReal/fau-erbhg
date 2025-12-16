@@ -291,7 +291,7 @@ export const translations: Record<Language, Translations> = {
       boardTitle: "Vårt utvalg",
       boardDescription: "FAU består av foreldrerepresentanter som er valgt for å ivareta alle familiers interesser i barnehagen.",
       getInvolvedTitle: "Bli involvert",
-      getInvolvedDescription: "Det finnes mange måter å engasjere seg på i foreldrerådet:",
+      getInvolvedDescription: "Det finnes mange måter å engasjere seg på i FAU:",
       attendMeetings: "Delta på møter",
       attendMeetingsDesc: "Kom på våre månedlige møter og vær med på beslutninger",
       volunteerEvents: "Bidra på arrangementer", 
@@ -347,7 +347,7 @@ export const translations: Record<Language, Translations> = {
     },
     contact: {
       title: "Kontakt oss",
-      subtitle: "Ta kontakt med foreldrerådet for spørsmål, forslag eller tilbakemeldinger",
+      subtitle: "Ta kontakt med FAU for spørsmål, forslag eller tilbakemeldinger",
       name: "Navn",
       email: "E-post",
       phone: "Telefon",
