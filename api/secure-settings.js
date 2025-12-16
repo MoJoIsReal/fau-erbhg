@@ -200,7 +200,8 @@ async function handleKindergartenInfo(req, res, sql) {
   if (req.method === 'GET') {
     const info = await sql`
       SELECT id, contact_email as "contactEmail", address, opening_hours as "openingHours",
-             number_of_children as "numberOfChildren", owner, description, updated_at as "updatedAt"
+             number_of_children as "numberOfChildren", owner, description,
+             styrer_name as "styrerName", styrer_email as "styrerEmail", updated_at as "updatedAt"
       FROM kindergarten_info
       ORDER BY id DESC
       LIMIT 1
@@ -225,10 +226,10 @@ async function handleKindergartenInfo(req, res, sql) {
 
   // PUT - Update kindergarten info
   if (req.method === 'PUT') {
-    const { contactEmail, address, openingHours, numberOfChildren, owner, description } = req.body;
+    const { contactEmail, address, openingHours, numberOfChildren, owner, description, styrerName, styrerEmail } = req.body;
 
     if (!contactEmail || !address || !openingHours || !numberOfChildren || !owner || !description) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'All required fields must be filled' });
     }
 
     // Update the first (and only) row
@@ -240,6 +241,8 @@ async function handleKindergartenInfo(req, res, sql) {
           number_of_children = ${numberOfChildren},
           owner = ${owner},
           description = ${description},
+          styrer_name = ${styrerName || null},
+          styrer_email = ${styrerEmail || null},
           updated_at = ${now}
       WHERE id = (SELECT id FROM kindergarten_info ORDER BY id LIMIT 1)
       RETURNING *
