@@ -3,11 +3,40 @@ import { Users, Heart, Star, School, Handshake, Calendar, Clock, MapPin } from "
 import kindergartenImage from "@/assets/kindergarten-playground.png";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Link } from "wouter";
 import type { Event } from "@shared/schema";
+
+interface FauBoardMember {
+  id: number;
+  name: string;
+  role: string;
+  sortOrder: number;
+}
+
+interface BlogPost {
+  id: number;
+  title: string;
+  content: string;
+  publishedDate: string;
+  author?: string;
+  showOnHomepage?: boolean;
+}
+
+interface KindergartenInfo {
+  id: number;
+  contactEmail: string;
+  address: string;
+  openingHours: string;
+  numberOfChildren: number;
+  owner: string;
+  description: string;
+  styrerName?: string;
+  styrerEmail?: string;
+}
 
 export default function Home() {
   const { language, t } = useLanguage();
-  
+
   const features = [
     { icon: Heart, text: t.home.safety },
     { icon: Users, text: t.home.cooperation },
@@ -21,12 +50,30 @@ export default function Home() {
 
   // Filter and sort upcoming events (next 3) - exclude cancelled events
   const upcomingEvents = allEvents
-    .filter(event => 
-      new Date(event.date) >= new Date() && 
+    .filter(event =>
+      new Date(event.date) >= new Date() &&
       event.status === 'active'
     )
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
+
+  // Fetch FAU board members
+  const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
+    queryKey: ["/api/secure-settings?resource=board-members"],
+  });
+
+  // Fetch blog posts (only published)
+  const { data: allBlogPosts = [] } = useQuery<BlogPost[]>({
+    queryKey: ["/api/secure-settings?resource=blog-posts"],
+  });
+
+  // Filter blog posts to show only those marked for homepage
+  const blogPosts = allBlogPosts.filter(post => post.showOnHomepage !== false);
+
+  // Fetch kindergarten info
+  const { data: kindergartenInfo } = useQuery<KindergartenInfo>({
+    queryKey: ["/api/secure-settings?resource=kindergarten-info"],
+  });
 
   return (
     <div className="space-y-8">
@@ -62,6 +109,50 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Blog Posts / News Section */}
+      {blogPosts.length > 0 && (
+        <section>
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 mb-6">
+                {language === 'no' ? 'Nyheter' : 'News'}
+              </h3>
+              <div className="space-y-6">
+                {blogPosts.slice(0, 3).map((post) => (
+                  <div key={post.id} className="border-b border-neutral-200 last:border-0 pb-6 last:pb-0">
+                    <h4 className="font-semibold text-lg text-neutral-900 mb-2">
+                      {post.title}
+                    </h4>
+                    <p className="text-xs text-neutral-500 mb-3">
+                      {new Date(post.publishedDate).toLocaleDateString('no-NO', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                      {post.author && (
+                        <span className="ml-2">
+                          • {language === 'no' ? 'av' : 'by'} {post.author}
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-sm text-neutral-700 whitespace-pre-wrap mb-2">
+                      {post.content.length > 200
+                        ? `${post.content.substring(0, 200)}...`
+                        : post.content}
+                    </p>
+                    <Link href="/news">
+                      <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
+                        {language === 'no' ? 'Les mer →' : 'Read more →'}
+                      </span>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       {/* About Section */}
       <section className="grid md:grid-cols-2 gap-8">
         <Card>
@@ -73,19 +164,35 @@ export default function Home() {
               <h3 className="font-heading font-semibold text-xl text-neutral-900">{t.home.aboutKindergarten}</h3>
             </div>
             <div className="space-y-3 text-neutral-700">
-              <p><strong>{t.home.contact}</strong> <a 
-                href="mailto:erdal.barnehage@askoy.kommune.no"
-                className="text-blue-600 hover:text-blue-500 transition-colors"
-              >
-                erdal.barnehage@askoy.kommune.no
-              </a></p>
-              <p><strong>{t.home.municipality}</strong> Steinråsa 5, 5306 Erdal</p>
-              <p><strong>{t.home.openingHours}</strong> 07:00 - 16:30</p>
-              <p><strong>{t.home.numberOfChildren}</strong> 70 {language === 'no' ? 'barn' : 'children'}</p>
-              <p><strong>{t.home.owner}</strong> Askøy kommune</p>
-              <p className="mt-4">
-                {t.home.kindergartenDescription}
-              </p>
+              {kindergartenInfo ? (
+                <>
+                  <p><strong>{t.home.contact}</strong> <a
+                    href={`mailto:${kindergartenInfo.contactEmail}`}
+                    className="text-blue-600 hover:text-blue-500 transition-colors"
+                  >
+                    {kindergartenInfo.contactEmail}
+                  </a></p>
+                  <p><strong>{t.home.municipality}</strong> {kindergartenInfo.address}</p>
+                  <p><strong>{t.home.openingHours}</strong> {kindergartenInfo.openingHours}</p>
+                  <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {language === 'no' ? 'barn' : 'children'}</p>
+                  <p><strong>{t.home.owner}</strong> {kindergartenInfo.owner}</p>
+                  {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
+                    <p><strong>{language === 'no' ? 'Styrer:' : 'Director:'}</strong> <a
+                      href={`mailto:${kindergartenInfo.styrerEmail}`}
+                      className="text-blue-600 hover:text-blue-500 transition-colors"
+                    >
+                      {kindergartenInfo.styrerName}
+                    </a></p>
+                  )}
+                  <p className="mt-4">
+                    {kindergartenInfo.description}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-500 italic">
+                  {language === 'no' ? 'Laster informasjon...' : 'Loading information...'}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -109,16 +216,15 @@ export default function Home() {
               <div className="mt-4">
                 <p><strong>{t.home.fauBoard}</strong></p>
                 <div className="ml-4 mt-2 space-y-1 text-sm">
-                  <p><strong>{t.home.leader}</strong> Steffen Kvalheim Meidell</p>
-                  <p><strong>{t.home.member}</strong> Marie Haugen</p>
-                  <p><strong>{t.home.member}</strong> Guro Soltvedt Benevoli</p>
-                  <p><strong>{t.home.member}</strong> Bjørn Eirik Olsen</p>
-                  <p><strong>{t.home.member}</strong> Camilla Aksnes Teinaas</p>
-                  <p><strong>{t.home.member}</strong> Cecilie Bakkedal Langnes</p>
-                  <p><strong>{t.home.member}</strong> Silje Teinaas</p>
-                  <p><strong>{t.home.vara}</strong> Antea Skender-Hagesæter</p>
-                  <p><strong>{t.home.vara}</strong> Andreas Birkeland Arnøy</p>
-                  
+                  {boardMembers.map((member) => (
+                    <p key={member.id}>
+                      <strong>
+                        {member.role === "Leder" ? t.home.leader :
+                         member.role === "Vara" ? t.home.vara :
+                         t.home.member}
+                      </strong> {member.name}
+                    </p>
+                  ))}
                 </div>
               </div>
               

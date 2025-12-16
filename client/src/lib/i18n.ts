@@ -3,7 +3,8 @@ export type Language = 'no' | 'en';
 export interface Translations {
   // Navigation
   navigation: {
-    information: string;
+    home: string;
+    news: string;
     events: string;
     contact: string;
     documents: string;
@@ -252,13 +253,22 @@ export interface Translations {
     upload: string;
     uploading: string;
   };
+  // Settings
+  settings: {
+    roles: {
+      leder: string;
+      medlem: string;
+      vara: string;
+    };
+  };
 }
 
 export const translations: Record<Language, Translations> = {
   no: {
     navigation: {
-      information: "Informasjon",
-      events: "Arrangementer", 
+      home: "Hjem",
+      news: "Nyheter",
+      events: "Arrangementer",
       contact: "Kontakt",
       documents: "Dokumenter"
     },
@@ -281,7 +291,7 @@ export const translations: Record<Language, Translations> = {
       boardTitle: "Vårt utvalg",
       boardDescription: "FAU består av foreldrerepresentanter som er valgt for å ivareta alle familiers interesser i barnehagen.",
       getInvolvedTitle: "Bli involvert",
-      getInvolvedDescription: "Det finnes mange måter å engasjere seg på i foreldrerådet:",
+      getInvolvedDescription: "Det finnes mange måter å engasjere seg på i FAU:",
       attendMeetings: "Delta på møter",
       attendMeetingsDesc: "Kom på våre månedlige møter og vær med på beslutninger",
       volunteerEvents: "Bidra på arrangementer", 
@@ -337,7 +347,7 @@ export const translations: Record<Language, Translations> = {
     },
     contact: {
       title: "Kontakt oss",
-      subtitle: "Ta kontakt med foreldrerådet for spørsmål, forslag eller tilbakemeldinger",
+      subtitle: "Ta kontakt med FAU for spørsmål, forslag eller tilbakemeldinger",
       name: "Navn",
       email: "E-post",
       phone: "Telefon",
@@ -484,7 +494,7 @@ export const translations: Record<Language, Translations> = {
       barnehageFakta: "📊 Barnehage Fakta - informasjon",
       fubLink: "FUB - Råd og veiledning for foreldre",
       hours: "",
-      nextMeeting: "Neste møte",
+      nextMeeting: "Neste Arrangement",
       parentMeeting: "FAU-møte",
       copyright: "© 2025 FAU Erdal Barnehage. Alle rettigheter reservert."
     },
@@ -497,13 +507,21 @@ export const translations: Record<Language, Translations> = {
       cancel: "Avbryt",
       upload: "Last opp",
       uploading: "Laster opp..."
+    },
+    settings: {
+      roles: {
+        leder: "Leder",
+        medlem: "Medlem",
+        vara: "Vara"
+      }
     }
   },
   en: {
     navigation: {
-      information: "Information",
+      home: "Home",
+      news: "News",
       events: "Events",
-      contact: "Contact", 
+      contact: "Contact",
       documents: "Documents"
     },
     header: {
@@ -728,7 +746,7 @@ export const translations: Record<Language, Translations> = {
       barnehageFakta: "📊 Barnehage Fakta - information",
       fubLink: "FUB - Advice and guidance for parents",
       hours: "",
-      nextMeeting: "Next meeting",
+      nextMeeting: "Next Event",
       parentMeeting: "FAU meeting",
       copyright: "© 2025 FAU Erdal Kindergarten. All rights reserved."
     },
@@ -741,6 +759,13 @@ export const translations: Record<Language, Translations> = {
       cancel: "Cancel",
       upload: "Upload",
       uploading: "Uploading..."
+    },
+    settings: {
+      roles: {
+        leder: "Leader",
+        medlem: "Member",
+        vara: "Deputy"
+      }
     }
   }
 };

@@ -20,13 +20,14 @@ export default async function handler(req, res) {
     if (req.method === 'GET') {
       // Get all events including cancelled ones (public access)
       const events = await sql`
-        SELECT 
-          id, title, description, date, time, location, 
+        SELECT
+          id, title, description, date, time, location,
           custom_location as "customLocation",
-          max_attendees as "maxAttendees", 
-          current_attendees as "currentAttendees", 
-          type, status, vigilo_signup as "vigiloSignup"
-        FROM events 
+          max_attendees as "maxAttendees",
+          current_attendees as "currentAttendees",
+          type, status, vigilo_signup as "vigiloSignup",
+          no_signup as "noSignup"
+        FROM events
         WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
       `;
@@ -47,15 +48,15 @@ export default async function handler(req, res) {
       }
 
       // Create new event
-      const { title, description, date, time, location, customLocation, maxAttendees, type } = req.body;
+      const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup, noSignup } = req.body;
 
       if (!title || !description || !date || !time || !location || !type) {
         return res.status(400).json({ error: 'Required fields missing' });
       }
 
       const newEvent = await sql`
-        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, current_attendees, type, status)
-        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${customLocation || null}, ${maxAttendees || null}, 0, ${type}, 'active')
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, current_attendees, type, status, vigilo_signup, no_signup)
+        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${customLocation || null}, ${maxAttendees || null}, 0, ${type}, 'active', ${vigiloSignup || false}, ${noSignup || false})
         RETURNING *
       `;
 

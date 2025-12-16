@@ -6,8 +6,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
 import Home from "@/pages/home";
 import Events from "@/pages/events";
+import News from "@/pages/news";
 import Contact from "@/pages/contact";
 import Files from "@/pages/files";
+import Settings from "@/pages/settings";
+import Messages from "@/pages/messages";
 
 function Router() {
   return (
@@ -15,8 +18,11 @@ function Router() {
       <Switch>
         <Route path="/" component={Home} />
         <Route path="/events" component={Events} />
+        <Route path="/news" component={News} />
         <Route path="/contact" component={Contact} />
         <Route path="/files" component={Files} />
+        <Route path="/settings" component={Settings} />
+        <Route path="/messages" component={Messages} />
         <Route>
           <div className="min-h-screen w-full flex items-center justify-center bg-neutral-50">
             <div className="text-center">
