@@ -19,11 +19,12 @@ interface BlogPost {
   content: string;
   publishedDate: string;
   author?: string;
+  showOnHomepage?: boolean;
 }
 
 export default function Home() {
   const { language, t } = useLanguage();
-  
+
   const features = [
     { icon: Heart, text: t.home.safety },
     { icon: Users, text: t.home.cooperation },
@@ -50,9 +51,12 @@ export default function Home() {
   });
 
   // Fetch blog posts (only published)
-  const { data: blogPosts = [] } = useQuery<BlogPost[]>({
+  const { data: allBlogPosts = [] } = useQuery<BlogPost[]>({
     queryKey: ["/api/secure-settings?resource=blog-posts"],
   });
+
+  // Filter blog posts to show only those marked for homepage
+  const blogPosts = allBlogPosts.filter(post => post.showOnHomepage !== false);
 
   return (
     <div className="space-y-8">
