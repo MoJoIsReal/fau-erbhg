@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Save, Archive } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Archive, Home } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
 
@@ -35,6 +35,7 @@ interface BlogPost {
   status: "published" | "archived";
   publishedDate: string;
   author?: string;
+  showOnHomepage?: boolean;
   createdBy?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -322,6 +323,39 @@ export default function Settings() {
     }
   };
 
+  const toggleHomepage = async (index: number) => {
+    const post = posts[index];
+    if (!post.id) return;
+
+    try {
+      await updatePostMutation.mutateAsync({
+        id: post.id,
+        post: { ...post, showOnHomepage: !post.showOnHomepage },
+      });
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"] });
+      await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts"] });
+
+      toast({
+        title: language === "no" ? "Oppdatert!" : "Updated!",
+        description:
+          post.showOnHomepage
+            ? language === "no"
+              ? "Innlegget er fjernet fra forsiden"
+              : "Post removed from homepage"
+            : language === "no"
+            ? "Innlegget vises på forsiden"
+            : "Post will show on homepage",
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: language === "no" ? "Feil" : "Error",
+        description: language === "no" ? "Kunne ikke oppdatere innlegg" : "Could not update post",
+      });
+    }
+  };
+
   const deletePost = async (index: number) => {
     const post = posts[index];
     if (post.id) {
@@ -562,6 +596,22 @@ export default function Settings() {
                         <Button onClick={() => setIsEditingPost(index)} variant="outline" size="sm">
                           {language === "no" ? "Rediger" : "Edit"}
                         </Button>
+                        {post.id && post.status === "published" && (
+                          <Button
+                            onClick={() => toggleHomepage(index)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            <Home className="h-4 w-4 mr-2" />
+                            {post.showOnHomepage
+                              ? language === "no"
+                                ? "Fjern fra hjem"
+                                : "Remove from home"
+                              : language === "no"
+                              ? "Vis på hjem"
+                              : "Show on home"}
+                          </Button>
+                        )}
                         {post.id && (
                           <Button
                             onClick={() => archivePost(index)}

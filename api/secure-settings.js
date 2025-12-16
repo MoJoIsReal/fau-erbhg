@@ -100,14 +100,14 @@ async function handleBlogPosts(req, res, sql) {
     if (includeArchived === 'true') {
       // Admin view - show all posts
       posts = await sql`
-        SELECT id, title, content, status, published_date as "publishedDate", author, created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
+        SELECT id, title, content, status, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
         FROM blog_posts
         ORDER BY published_date DESC
       `;
     } else {
       // Public view - only show published posts
       posts = await sql`
-        SELECT id, title, content, published_date as "publishedDate", author
+        SELECT id, title, content, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage"
         FROM blog_posts
         WHERE status = 'published'
         ORDER BY published_date DESC
@@ -149,7 +149,7 @@ async function handleBlogPosts(req, res, sql) {
   // PUT - Update existing blog post
   if (req.method === 'PUT') {
     const { id } = req.query;
-    const { title, content, status, publishedDate, author } = req.body;
+    const { title, content, status, publishedDate, author, showOnHomepage } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
@@ -162,6 +162,7 @@ async function handleBlogPosts(req, res, sql) {
           status = ${status || 'published'},
           published_date = ${publishedDate || now},
           author = ${author || null},
+          show_on_homepage = ${showOnHomepage !== undefined ? showOnHomepage : true},
           updated_at = ${now}
       WHERE id = ${id}
       RETURNING *
