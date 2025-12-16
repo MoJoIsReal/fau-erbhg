@@ -30,6 +30,8 @@ interface KindergartenInfo {
   numberOfChildren: number;
   owner: string;
   description: string;
+  styrerName?: string;
+  styrerEmail?: string;
 }
 
 export default function Home() {
@@ -174,6 +176,14 @@ export default function Home() {
                   <p><strong>{t.home.openingHours}</strong> {kindergartenInfo.openingHours}</p>
                   <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {language === 'no' ? 'barn' : 'children'}</p>
                   <p><strong>{t.home.owner}</strong> {kindergartenInfo.owner}</p>
+                  {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
+                    <p><strong>{language === 'no' ? 'Styrer:' : 'Director:'}</strong> <a
+                      href={`mailto:${kindergartenInfo.styrerEmail}`}
+                      className="text-blue-600 hover:text-blue-500 transition-colors"
+                    >
+                      {kindergartenInfo.styrerName}
+                    </a></p>
+                  )}
                   <p className="mt-4">
                     {kindergartenInfo.description}
                   </p>
