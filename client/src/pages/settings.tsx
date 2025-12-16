@@ -11,7 +11,22 @@ import { Loader2, Plus, Trash2, Save, Archive } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
 
-const ROLES = ["Leder", "Medlem", "Vara"];
+// Role values stored in database (Norwegian)
+const ROLE_VALUES = ["Leder", "Medlem", "Vara"] as const;
+
+// Helper function to get translated role label
+function getRoleLabel(role: string, t: any): string {
+  switch (role) {
+    case "Leder":
+      return t.settings.roles.leder;
+    case "Medlem":
+      return t.settings.roles.medlem;
+    case "Vara":
+      return t.settings.roles.vara;
+    default:
+      return role;
+  }
+}
 
 interface BlogPost {
   id?: number;
@@ -25,7 +40,7 @@ interface BlogPost {
 }
 
 export default function Settings() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [members, setMembers] = useState<Partial<FauBoardMember>[]>([]);
@@ -388,9 +403,9 @@ export default function Settings() {
                       <SelectValue placeholder={language === "no" ? "Velg rolle" : "Select role"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {ROLES.map((role) => (
+                      {ROLE_VALUES.map((role) => (
                         <SelectItem key={role} value={role}>
-                          {role}
+                          {getRoleLabel(role, t)}
                         </SelectItem>
                       ))}
                     </SelectContent>
