@@ -258,6 +258,78 @@ async function handleKindergartenInfo(req, res, sql) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
+// Handle Contact Messages operations
+async function handleContactMessages(req, res, sql) {
+  // All methods require admin authentication
+  const user = requireAuth(req, res);
+  if (!user) return;
+
+  if (user.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  const now = new Date().toISOString();
+
+  // GET - Fetch all contact messages
+  if (req.method === 'GET') {
+    const messages = await sql`
+      SELECT id, name, email, phone, subject, message, status,
+             created_at as "createdAt", responded_at as "respondedAt", responded_by as "respondedBy"
+      FROM contact_messages
+      ORDER BY created_at DESC
+    `;
+
+    return res.status(200).json(messages);
+  }
+
+  // PUT - Update message status
+  if (req.method === 'PUT') {
+    const { id } = req.query;
+    const { status } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    if (!status || !['new', 'responded', 'archived'].includes(status)) {
+      return res.status(400).json({ error: 'Valid status is required (new, responded, archived)' });
+    }
+
+    const result = await sql`
+      UPDATE contact_messages
+      SET status = ${status},
+          responded_at = ${status === 'responded' ? now : null},
+          responded_by = ${status === 'responded' ? user.username : null}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    return res.status(200).json(result[0]);
+  }
+
+  // DELETE - Delete a contact message
+  if (req.method === 'DELETE') {
+    const { id } = req.query;
+
+    if (!id) {
+      return res.status(400).json({ error: 'ID is required' });
+    }
+
+    await sql`
+      DELETE FROM contact_messages
+      WHERE id = ${id}
+    `;
+
+    return res.status(200).json({ message: 'Contact message deleted successfully' });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
 // Main handler
 export default async function handler(req, res) {
   applySecurityHeaders(res, req.headers.origin);
@@ -280,6 +352,11 @@ export default async function handler(req, res) {
     // Route to kindergarten info handler
     if (resource === 'kindergarten-info') {
       return await handleKindergartenInfo(req, res, sql);
+    }
+
+    // Route to contact messages handler
+    if (resource === 'contact-messages') {
+      return await handleContactMessages(req, res, sql);
     }
 
     // Default: handle site settings (can be extended in future)
