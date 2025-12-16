@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Home, Calendar, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon } from "lucide-react";
+import { Menu, X, Home, Calendar, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -94,6 +94,16 @@ export default function Layout({ children }: LayoutProps) {
                       <User className="h-4 w-4" />
                       <span>{user?.name}</span>
                     </div>
+                    <Link href="/messages">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center space-x-2"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                      </Button>
+                    </Link>
                     <Link href="/settings">
                       <Button
                         variant="outline"
@@ -179,6 +189,26 @@ export default function Layout({ children }: LayoutProps) {
                         <User className="h-5 w-5 text-neutral-600" />
                         <span className="font-medium text-neutral-900">{user?.name}</span>
                       </div>
+                      <Link href="/messages">
+                        <Button
+                          variant="outline"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="w-full flex items-center space-x-2"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                        </Button>
+                      </Link>
+                      <Link href="/settings">
+                        <Button
+                          variant="outline"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="w-full flex items-center space-x-2"
+                        >
+                          <SettingsIcon className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                        </Button>
+                      </Link>
                       <Button
                         variant="outline"
                         onClick={() => logout()}
