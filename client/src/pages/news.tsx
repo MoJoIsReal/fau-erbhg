@@ -8,6 +8,7 @@ interface BlogPost {
   title: string;
   content: string;
   publishedDate: string;
+  author?: string;
 }
 
 export default function News() {
@@ -70,6 +71,11 @@ export default function News() {
                       day: "numeric",
                     })}
                   </time>
+                  {post.author && (
+                    <span className="ml-2">
+                      • {language === "no" ? "av" : "by"} {post.author}
+                    </span>
+                  )}
                 </div>
                 <div className="prose prose-neutral max-w-none">
                   <p className="text-neutral-700 whitespace-pre-wrap leading-relaxed">
