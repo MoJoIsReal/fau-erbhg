@@ -79,16 +79,68 @@ async function handleContactMessage(req, res) {
 
     // Validate required fields
     if (!subject || !message) {
-      return res.status(400).json({ 
-        message: 'Subject and message are required' 
+      return res.status(400).json({
+        message: 'Subject and message are required'
+      });
+    }
+
+    // Validate subject is one of allowed values
+    const allowedSubjects = ['anonymous', 'general', 'concern', 'feedback'];
+    if (!allowedSubjects.includes(subject)) {
+      return res.status(400).json({
+        message: 'Invalid subject type'
       });
     }
 
     // For anonymous submissions, we don't require name/email
     const isAnonymous = subject === 'anonymous';
-    if (!isAnonymous && (!name || !email)) {
-      return res.status(400).json({ 
-        message: 'Name and email are required for non-anonymous submissions' 
+
+    // Sanitize inputs
+    const sanitizeName = (text) => {
+      if (!text || typeof text !== 'string') return '';
+      return text
+        .replace(/[<>]/g, '')
+        .replace(/javascript:/gi, '')
+        .trim()
+        .substring(0, 100);
+    };
+
+    const sanitizeEmail = (emailInput) => {
+      if (!emailInput || typeof emailInput !== 'string') return '';
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      const trimmed = emailInput.trim().toLowerCase();
+      return emailRegex.test(trimmed) ? trimmed : '';
+    };
+
+    const sanitizePhone = (phoneInput) => {
+      if (!phoneInput || typeof phoneInput !== 'string') return '';
+      return phoneInput.replace(/[^\d+\s()-]/g, '').substring(0, 20);
+    };
+
+    const sanitizeMessage = (text) => {
+      if (!text || typeof text !== 'string') return '';
+      return text
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/javascript:/gi, '')
+        .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
+        .trim()
+        .substring(0, 5000);
+    };
+
+    const sanitizedName = isAnonymous ? '' : sanitizeName(name);
+    const sanitizedEmail = isAnonymous ? '' : sanitizeEmail(email);
+    const sanitizedPhone = sanitizePhone(phone);
+    const sanitizedMessage = sanitizeMessage(message);
+
+    if (!isAnonymous && (!sanitizedName || !sanitizedEmail)) {
+      return res.status(400).json({
+        message: 'Valid name and email are required for non-anonymous submissions'
+      });
+    }
+
+    if (!sanitizedMessage) {
+      return res.status(400).json({
+        message: 'Valid message is required'
       });
     }
 
@@ -101,7 +153,7 @@ async function handleContactMessage(req, res) {
     // Create contact message in database
     const contactMessages = await sql`
       INSERT INTO contact_messages (name, email, phone, subject, message, created_at)
-      VALUES (${isAnonymous ? '' : (name || '')}, ${isAnonymous ? '' : (email || '')}, ${phone || null}, ${subject}, ${message}, NOW())
+      VALUES (${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone}, ${subject}, ${sanitizedMessage}, NOW())
       RETURNING *
     `;
 
@@ -110,11 +162,11 @@ async function handleContactMessage(req, res) {
     // Send email notification
     try {
       await sendContactEmail({
-        name: isAnonymous ? 'Anonym' : (name || ''),
-        email: isAnonymous ? 'noreply@example.com' : (email || ''),
-        phone: phone || '',
+        name: isAnonymous ? 'Anonym' : sanitizedName,
+        email: isAnonymous ? 'noreply@example.com' : sanitizedEmail,
+        phone: sanitizedPhone,
         subject,
-        message,
+        message: sanitizedMessage,
         isAnonymous
       });
       console.log('Contact email sent successfully');
@@ -134,7 +186,12 @@ async function handleContactMessage(req, res) {
 
 async function sendContactEmail(params) {
   const { name, email, phone, subject, message, isAnonymous } = params;
-  
+
+  // Validate email configuration
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    throw new Error('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
+  }
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
