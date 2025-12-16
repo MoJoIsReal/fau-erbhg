@@ -3,6 +3,7 @@ import { Users, Heart, Star, School, Handshake, Calendar, Clock, MapPin } from "
 import kindergartenImage from "@/assets/kindergarten-playground.png";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Link } from "wouter";
 import type { Event } from "@shared/schema";
 
 interface FauBoardMember {
@@ -113,9 +114,16 @@ export default function Home() {
                         </span>
                       )}
                     </p>
-                    <p className="text-sm text-neutral-700 whitespace-pre-wrap">
-                      {post.content}
+                    <p className="text-sm text-neutral-700 whitespace-pre-wrap mb-2">
+                      {post.content.length > 200
+                        ? `${post.content.substring(0, 200)}...`
+                        : post.content}
                     </p>
+                    <Link href="/news">
+                      <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
+                        {language === 'no' ? 'Les mer →' : 'Read more →'}
+                      </span>
+                    </Link>
                   </div>
                 ))}
               </div>
