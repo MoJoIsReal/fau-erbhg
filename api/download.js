@@ -3,15 +3,13 @@ import { neon } from '@neondatabase/serverless';
 export default async function handler(req, res) {
   try {
     // Security headers
-    const allowedOrigins = process.env.NODE_ENV === 'production' 
+    const allowedOrigins = process.env.NODE_ENV === 'production'
       ? ['https://fau-erdal-barnehage.vercel.app']
-      : ['http://localhost:5000', 'http://localhost:3000'];
-    
+      : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
+
     const origin = req.headers.origin;
     if (origin && allowedOrigins.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-    } else if (process.env.NODE_ENV === 'development') {
-      res.setHeader('Access-Control-Allow-Origin', '*');
     }
     
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');

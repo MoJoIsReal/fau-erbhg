@@ -4,10 +4,21 @@ import bcrypt from 'bcryptjs';
 
 export default async function handler(req, res) {
   // Security headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? ['https://fau-erdal-barnehage.vercel.app']
+    : ['http://localhost:5000', 'http://localhost:3000'];
+
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -15,6 +26,10 @@ export default async function handler(req, res) {
   try {
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ error: 'Database configuration missing' });
+    }
+
+    if (!process.env.SESSION_SECRET) {
+      return res.status(500).json({ error: 'Server configuration error' });
     }
 
     const sql = neon(process.env.DATABASE_URL);
@@ -44,13 +59,13 @@ export default async function handler(req, res) {
       }
 
       const token = jwt.sign(
-        { 
-          userId: user.id, 
-          username: user.username, 
-          name: user.name, 
-          role: user.role 
+        {
+          userId: user.id,
+          username: user.username,
+          name: user.name,
+          role: user.role
         },
-        process.env.SESSION_SECRET || 'fallback-secret',
+        process.env.SESSION_SECRET,
         { expiresIn: '24h' }
       );
 
