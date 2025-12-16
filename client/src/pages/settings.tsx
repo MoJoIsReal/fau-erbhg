@@ -49,6 +49,8 @@ interface KindergartenInfo {
   numberOfChildren: number;
   owner: string;
   description: string;
+  styrerName?: string;
+  styrerEmail?: string;
 }
 
 export default function Settings() {
@@ -811,6 +813,31 @@ export default function Settings() {
                   </div>
 
                   <div>
+                    <Label htmlFor="kindergarten-styrer-name">
+                      {language === "no" ? "Styrer (navn)" : "Director (name)"}
+                    </Label>
+                    <Input
+                      id="kindergarten-styrer-name"
+                      value={kindergartenInfo.styrerName || ""}
+                      onChange={(e) => updateKindergartenField("styrerName", e.target.value)}
+                      placeholder={language === "no" ? "Navn på styrer" : "Director's name"}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="kindergarten-styrer-email">
+                      {language === "no" ? "Styrer (e-post)" : "Director (email)"}
+                    </Label>
+                    <Input
+                      id="kindergarten-styrer-email"
+                      type="email"
+                      value={kindergartenInfo.styrerEmail || ""}
+                      onChange={(e) => updateKindergartenField("styrerEmail", e.target.value)}
+                      placeholder={language === "no" ? "styrer@example.com" : "director@example.com"}
+                    />
+                  </div>
+
+                  <div>
                     <Label htmlFor="kindergarten-description">
                       {language === "no" ? "Beskrivelse" : "Description"} *
                     </Label>
@@ -853,6 +880,12 @@ export default function Settings() {
                     <p><strong>{language === "no" ? "Åpningstider:" : "Opening hours:"}</strong> {kindergartenInfo.openingHours}</p>
                     <p><strong>{language === "no" ? "Antall barn:" : "Number of children:"}</strong> {kindergartenInfo.numberOfChildren} {language === "no" ? "barn" : "children"}</p>
                     <p><strong>{language === "no" ? "Eier:" : "Owner:"}</strong> {kindergartenInfo.owner}</p>
+                    {kindergartenInfo.styrerName && (
+                      <p><strong>{language === "no" ? "Styrer:" : "Director:"}</strong> {kindergartenInfo.styrerName}</p>
+                    )}
+                    {kindergartenInfo.styrerEmail && (
+                      <p><strong>{language === "no" ? "Styrer e-post:" : "Director email:"}</strong> {kindergartenInfo.styrerEmail}</p>
+                    )}
                     <p className="mt-3"><strong>{language === "no" ? "Beskrivelse:" : "Description:"}</strong></p>
                     <p className="text-neutral-700">{kindergartenInfo.description}</p>
                   </div>
