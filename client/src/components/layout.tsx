@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Info, Calendar, Mail, Folder, LogIn, LogOut, User } from "lucide-react";
+import { Menu, X, Home, Calendar, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -22,7 +22,7 @@ export default function Layout({ children }: LayoutProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const { user, isAuthenticated, logout, isLoggingOut } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   // Fetch events to find next meeting
   const { data: events = [] } = useQuery<Event[]>({
@@ -31,15 +31,15 @@ export default function Layout({ children }: LayoutProps) {
 
   // Find next meeting (including internal events)
   const nextMeeting = events
-    .filter(event => 
-      (event.type === 'meeting' || event.type === 'internal') && 
-      event.status === 'active' && 
+    .filter(event =>
+      event.status === 'active' &&
       new Date(event.date) >= new Date()
     )
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
   const navigation = [
-    { name: t.navigation.information, href: "/", icon: Info },
+    { name: t.navigation.home, href: "/", icon: Home },
+    { name: t.navigation.news, href: "/news", icon: Newspaper },
     { name: t.navigation.events, href: "/events", icon: Calendar },
     { name: t.navigation.contact, href: "/contact", icon: Mail },
     { name: t.navigation.documents, href: "/files", icon: Folder },
@@ -50,7 +50,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center py-3 min-h-[4rem]">
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-3">
               <div className="w-10 h-10 flex items-center justify-center">
@@ -94,6 +94,26 @@ export default function Layout({ children }: LayoutProps) {
                       <User className="h-4 w-4" />
                       <span>{user?.name}</span>
                     </div>
+                    <Link href="/messages">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center space-x-2"
+                      >
+                        <MessageSquare className="h-4 w-4" />
+                        <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                      </Button>
+                    </Link>
+                    <Link href="/settings">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center space-x-2"
+                      >
+                        <SettingsIcon className="h-4 w-4" />
+                        <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                      </Button>
+                    </Link>
                     <Button
                       variant="outline"
                       size="sm"
@@ -169,6 +189,26 @@ export default function Layout({ children }: LayoutProps) {
                         <User className="h-5 w-5 text-neutral-600" />
                         <span className="font-medium text-neutral-900">{user?.name}</span>
                       </div>
+                      <Link href="/messages">
+                        <Button
+                          variant="outline"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="w-full flex items-center space-x-2"
+                        >
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                        </Button>
+                      </Link>
+                      <Link href="/settings">
+                        <Button
+                          variant="outline"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="w-full flex items-center space-x-2"
+                        >
+                          <SettingsIcon className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                        </Button>
+                      </Link>
                       <Button
                         variant="outline"
                         onClick={() => logout()}

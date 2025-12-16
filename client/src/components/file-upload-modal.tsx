@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,13 @@ import { useToast } from "@/hooks/use-toast";
 import { CloudUpload, X } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+interface FauBoardMember {
+  id: number;
+  name: string;
+  role: string;
+  sortOrder: number;
+}
 
 interface FormData {
   title: string;
@@ -32,6 +39,11 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const { language, t } = useLanguage();
+
+  // Fetch FAU board members for the dropdown
+  const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
+    queryKey: ["/api/secure-settings?resource=board-members"],
+  });
 
   // Create form schema with translations
   const formSchema = z.object({
@@ -296,9 +308,20 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t.documents.uploadedByLabel} *</FormLabel>
-                  <FormControl>
-                    <Input placeholder={t.documents.uploadedByPlaceholder} {...field} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder={t.documents.uploadedByPlaceholder} />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {boardMembers.map((member) => (
+                        <SelectItem key={member.id} value={member.name}>
+                          {member.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

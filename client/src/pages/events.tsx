@@ -102,6 +102,25 @@ export default function Events() {
       });
       return;
     }
+
+    if (event.vigiloSignup) {
+      toast({
+        title: language === 'no' ? "Påmelding i Vigilo" : "Register in Vigilo",
+        description: language === 'no' ? "Dette arrangementet bruker Vigilo for påmelding." : "This event uses Vigilo for registration.",
+        variant: "default",
+      });
+      return;
+    }
+
+    if (event.noSignup) {
+      toast({
+        title: language === 'no' ? "Ingen påmelding nødvendig" : "No signup required",
+        description: language === 'no' ? "Dette arrangementet krever ikke påmelding." : "This event does not require registration.",
+        variant: "default",
+      });
+      return;
+    }
+
     setSelectedEvent(event);
     setIsRegistrationModalOpen(true);
   };
@@ -294,7 +313,7 @@ export default function Events() {
                             <p className="text-neutral-700">{event.description}</p>
                           </div>
 
-                          {!event.noSignup && (
+                          {!event.noSignup && !event.vigiloSignup && (
                             <div className="flex items-center space-x-4 text-sm">
                               <div className="flex items-center text-accent">
                                 <Users className="h-4 w-4 mr-1" />
@@ -461,11 +480,13 @@ export default function Events() {
                               </div>
                               
                               <div className="flex items-center space-x-4 text-sm">
-                                <div className="flex items-center text-neutral-500">
-                                  <Users className="h-4 w-4 mr-1" />
-                                  <span>{(event.currentAttendees || 0)} {language === 'no' ? 'deltok' : 'attended'}</span>
-                                </div>
-                                {isAuthenticated && (event.currentAttendees || 0) > 0 && (
+                                {!event.noSignup && !event.vigiloSignup && (
+                                  <div className="flex items-center text-neutral-500">
+                                    <Users className="h-4 w-4 mr-1" />
+                                    <span>{(event.currentAttendees || 0)} {language === 'no' ? 'deltok' : 'attended'}</span>
+                                  </div>
+                                )}
+                                {isAuthenticated && !event.noSignup && !event.vigiloSignup && (event.currentAttendees || 0) > 0 && (
                                   <Button
                                     variant="outline"
                                     size="sm"
