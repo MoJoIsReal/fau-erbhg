@@ -3,9 +3,9 @@ export type Language = 'no' | 'en';
 export interface Translations {
   // Navigation
   navigation: {
-    information: string;
-    events: string;
+    home: string;
     news: string;
+    events: string;
     contact: string;
     documents: string;
   };
@@ -258,9 +258,9 @@ export interface Translations {
 export const translations: Record<Language, Translations> = {
   no: {
     navigation: {
-      information: "Informasjon",
-      events: "Arrangementer",
+      home: "Hjem",
       news: "Nyheter",
+      events: "Arrangementer",
       contact: "Kontakt",
       documents: "Dokumenter"
     },
@@ -503,9 +503,9 @@ export const translations: Record<Language, Translations> = {
   },
   en: {
     navigation: {
-      information: "Information",
-      events: "Events",
+      home: "Home",
       news: "News",
+      events: "Events",
       contact: "Contact",
       documents: "Documents"
     },
