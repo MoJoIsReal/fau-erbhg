@@ -253,6 +253,14 @@ export interface Translations {
     upload: string;
     uploading: string;
   };
+  // Settings
+  settings: {
+    roles: {
+      leder: string;
+      medlem: string;
+      vara: string;
+    };
+  };
 }
 
 export const translations: Record<Language, Translations> = {
@@ -499,6 +507,13 @@ export const translations: Record<Language, Translations> = {
       cancel: "Avbryt",
       upload: "Last opp",
       uploading: "Laster opp..."
+    },
+    settings: {
+      roles: {
+        leder: "Leder",
+        medlem: "Medlem",
+        vara: "Vara"
+      }
     }
   },
   en: {
@@ -744,6 +759,13 @@ export const translations: Record<Language, Translations> = {
       cancel: "Cancel",
       upload: "Upload",
       uploading: "Uploading..."
+    },
+    settings: {
+      roles: {
+        leder: "Leader",
+        medlem: "Member",
+        vara: "Deputy"
+      }
     }
   }
 };
