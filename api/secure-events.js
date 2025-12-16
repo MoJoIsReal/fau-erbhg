@@ -3,10 +3,21 @@ import jwt from 'jsonwebtoken';
 
 export default async function handler(req, res) {
   // Security headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? ['https://fau-erdal-barnehage.vercel.app']
+    : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
+
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -18,9 +29,13 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'No valid authorization token provided' });
     }
 
+    if (!process.env.SESSION_SECRET) {
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
     try {
       const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, process.env.SESSION_SECRET || 'fallback-secret');
+      const decoded = jwt.verify(token, process.env.SESSION_SECRET);
       if (!decoded) {
         return res.status(401).json({ error: 'Invalid token' });
       }

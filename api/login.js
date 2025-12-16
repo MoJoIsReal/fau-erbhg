@@ -11,8 +11,6 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
-  } else if (process.env.NODE_ENV === 'development') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
   }
   
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -66,15 +64,15 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Create JWT token
+    // Create JWT token (2 hour expiration for security)
     const token = jwt.sign(
-      { 
-        userId: user.id, 
-        username: user.username, 
-        role: user.role 
+      {
+        userId: user.id,
+        username: user.username,
+        role: user.role
       },
       process.env.SESSION_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: '2h' }
     );
 
     return res.status(200).json({

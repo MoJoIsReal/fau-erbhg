@@ -3,7 +3,11 @@ import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
-  requireAuth
+  requireAuth,
+  sanitizeText,
+  sanitizeHtml,
+  sanitizeEmail,
+  sanitizeNumber
 } from './_shared/middleware.js';
 
 // Handle FAU Board Members operations
@@ -32,13 +36,17 @@ async function handleBoardMembers(req, res, sql) {
   if (req.method === 'POST') {
     const { name, role, sortOrder } = req.body;
 
-    if (!name || !role) {
-      return res.status(400).json({ error: 'Name and role are required' });
+    const sanitizedName = sanitizeText(name, 100);
+    const sanitizedRole = sanitizeText(role, 100);
+    const sanitizedSortOrder = sanitizeNumber(sortOrder, 0, 1000) || 0;
+
+    if (!sanitizedName || !sanitizedRole) {
+      return res.status(400).json({ error: 'Valid name and role are required' });
     }
 
     const result = await sql`
       INSERT INTO fau_board_members (name, role, sort_order, created_at, updated_at)
-      VALUES (${name}, ${role}, ${sortOrder || 0}, ${now}, ${now})
+      VALUES (${sanitizedName}, ${sanitizedRole}, ${sanitizedSortOrder}, ${now}, ${now})
       RETURNING *
     `;
 
@@ -54,11 +62,19 @@ async function handleBoardMembers(req, res, sql) {
       return res.status(400).json({ error: 'ID is required' });
     }
 
+    const sanitizedName = sanitizeText(name, 100);
+    const sanitizedRole = sanitizeText(role, 100);
+    const sanitizedSortOrder = sanitizeNumber(sortOrder, 0, 1000) || 0;
+
+    if (!sanitizedName || !sanitizedRole) {
+      return res.status(400).json({ error: 'Valid name and role are required' });
+    }
+
     const result = await sql`
       UPDATE fau_board_members
-      SET name = ${name},
-          role = ${role},
-          sort_order = ${sortOrder || 0},
+      SET name = ${sanitizedName},
+          role = ${sanitizedRole},
+          sort_order = ${sanitizedSortOrder},
           updated_at = ${now}
       WHERE id = ${id}
       RETURNING *
@@ -131,15 +147,19 @@ async function handleBlogPosts(req, res, sql) {
   if (req.method === 'POST') {
     const { title, content, publishedDate, author } = req.body;
 
-    if (!title || !content) {
-      return res.status(400).json({ error: 'Title and content are required' });
+    const sanitizedTitle = sanitizeText(title, 200);
+    const sanitizedContent = sanitizeHtml(content, 50000);
+    const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
+
+    if (!sanitizedTitle || !sanitizedContent) {
+      return res.status(400).json({ error: 'Valid title and content are required' });
     }
 
     const pubDate = publishedDate || now;
 
     const result = await sql`
       INSERT INTO blog_posts (title, content, status, published_date, author, created_by, created_at, updated_at)
-      VALUES (${title}, ${content}, 'published', ${pubDate}, ${author || null}, ${user.username}, ${now}, ${now})
+      VALUES (${sanitizedTitle}, ${sanitizedContent}, 'published', ${pubDate}, ${sanitizedAuthor}, ${user.username}, ${now}, ${now})
       RETURNING *
     `;
 
@@ -155,13 +175,22 @@ async function handleBlogPosts(req, res, sql) {
       return res.status(400).json({ error: 'ID is required' });
     }
 
+    const sanitizedTitle = sanitizeText(title, 200);
+    const sanitizedContent = sanitizeHtml(content, 50000);
+    const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
+    const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
+
+    if (!sanitizedTitle || !sanitizedContent) {
+      return res.status(400).json({ error: 'Valid title and content are required' });
+    }
+
     const result = await sql`
       UPDATE blog_posts
-      SET title = ${title},
-          content = ${content},
-          status = ${status || 'published'},
+      SET title = ${sanitizedTitle},
+          content = ${sanitizedContent},
+          status = ${sanitizedStatus},
           published_date = ${publishedDate || now},
-          author = ${author || null},
+          author = ${sanitizedAuthor},
           show_on_homepage = ${showOnHomepage !== undefined ? showOnHomepage : true},
           updated_at = ${now}
       WHERE id = ${id}
@@ -228,21 +257,31 @@ async function handleKindergartenInfo(req, res, sql) {
   if (req.method === 'PUT') {
     const { contactEmail, address, openingHours, numberOfChildren, owner, description, styrerName, styrerEmail } = req.body;
 
-    if (!contactEmail || !address || !openingHours || !numberOfChildren || !owner || !description) {
-      return res.status(400).json({ error: 'All required fields must be filled' });
+    const sanitizedContactEmail = sanitizeEmail(contactEmail);
+    const sanitizedAddress = sanitizeText(address, 200);
+    const sanitizedOpeningHours = sanitizeText(openingHours, 200);
+    const sanitizedNumberOfChildren = sanitizeNumber(numberOfChildren, 0, 1000);
+    const sanitizedOwner = sanitizeText(owner, 200);
+    const sanitizedDescription = sanitizeText(description, 2000);
+    const sanitizedStyrerName = styrerName ? sanitizeText(styrerName, 100) : null;
+    const sanitizedStyrerEmail = styrerEmail ? sanitizeEmail(styrerEmail) : null;
+
+    if (!sanitizedContactEmail || !sanitizedAddress || !sanitizedOpeningHours ||
+        sanitizedNumberOfChildren === null || !sanitizedOwner || !sanitizedDescription) {
+      return res.status(400).json({ error: 'All required fields must be valid' });
     }
 
     // Update the first (and only) row
     const result = await sql`
       UPDATE kindergarten_info
-      SET contact_email = ${contactEmail},
-          address = ${address},
-          opening_hours = ${openingHours},
-          number_of_children = ${numberOfChildren},
-          owner = ${owner},
-          description = ${description},
-          styrer_name = ${styrerName || null},
-          styrer_email = ${styrerEmail || null},
+      SET contact_email = ${sanitizedContactEmail},
+          address = ${sanitizedAddress},
+          opening_hours = ${sanitizedOpeningHours},
+          number_of_children = ${sanitizedNumberOfChildren},
+          owner = ${sanitizedOwner},
+          description = ${sanitizedDescription},
+          styrer_name = ${sanitizedStyrerName},
+          styrer_email = ${sanitizedStyrerEmail},
           updated_at = ${now}
       WHERE id = (SELECT id FROM kindergarten_info ORDER BY id LIMIT 1)
       RETURNING *
