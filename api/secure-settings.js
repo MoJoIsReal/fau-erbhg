@@ -100,14 +100,14 @@ async function handleBlogPosts(req, res, sql) {
     if (includeArchived === 'true') {
       // Admin view - show all posts
       posts = await sql`
-        SELECT id, title, content, status, published_date as "publishedDate", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
+        SELECT id, title, content, status, published_date as "publishedDate", author, created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
         FROM blog_posts
         ORDER BY published_date DESC
       `;
     } else {
       // Public view - only show published posts
       posts = await sql`
-        SELECT id, title, content, published_date as "publishedDate"
+        SELECT id, title, content, published_date as "publishedDate", author
         FROM blog_posts
         WHERE status = 'published'
         ORDER BY published_date DESC
@@ -129,7 +129,7 @@ async function handleBlogPosts(req, res, sql) {
 
   // POST - Create new blog post
   if (req.method === 'POST') {
-    const { title, content, publishedDate } = req.body;
+    const { title, content, publishedDate, author } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and content are required' });
@@ -138,8 +138,8 @@ async function handleBlogPosts(req, res, sql) {
     const pubDate = publishedDate || now;
 
     const result = await sql`
-      INSERT INTO blog_posts (title, content, status, published_date, created_by, created_at, updated_at)
-      VALUES (${title}, ${content}, 'published', ${pubDate}, ${user.username}, ${now}, ${now})
+      INSERT INTO blog_posts (title, content, status, published_date, author, created_by, created_at, updated_at)
+      VALUES (${title}, ${content}, 'published', ${pubDate}, ${author || null}, ${user.username}, ${now}, ${now})
       RETURNING *
     `;
 
@@ -149,7 +149,7 @@ async function handleBlogPosts(req, res, sql) {
   // PUT - Update existing blog post
   if (req.method === 'PUT') {
     const { id } = req.query;
-    const { title, content, status, publishedDate } = req.body;
+    const { title, content, status, publishedDate, author } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
@@ -161,6 +161,7 @@ async function handleBlogPosts(req, res, sql) {
           content = ${content},
           status = ${status || 'published'},
           published_date = ${publishedDate || now},
+          author = ${author || null},
           updated_at = ${now}
       WHERE id = ${id}
       RETURNING *
