@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Info, Calendar, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon } from "lucide-react";
+import { Menu, X, Home, Calendar, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -38,9 +38,9 @@ export default function Layout({ children }: LayoutProps) {
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
   const navigation = [
-    { name: t.navigation.information, href: "/", icon: Info },
-    { name: t.navigation.events, href: "/events", icon: Calendar },
+    { name: t.navigation.home, href: "/", icon: Home },
     { name: t.navigation.news, href: "/news", icon: Newspaper },
+    { name: t.navigation.events, href: "/events", icon: Calendar },
     { name: t.navigation.contact, href: "/contact", icon: Mail },
     { name: t.navigation.documents, href: "/files", icon: Folder },
   ];
