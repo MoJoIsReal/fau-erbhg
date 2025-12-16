@@ -471,92 +471,8 @@ export default function Settings() {
         </p>
       </div>
 
-      <Card className="p-6">
-        <div className="mb-6">
-          <h2 className="text-xl font-semibold text-neutral-800 mb-2">
-            {language === "no" ? "FAU-styret" : "FAU Board"}
-          </h2>
-          <p className="text-sm text-neutral-600 mb-4">
-            {language === "no"
-              ? "Definer styremedlemmer og deres roller. Dette vises på forsiden."
-              : "Define board members and their roles. This is shown on the homepage."}
-          </p>
-
-          <div className="space-y-4">
-            {members.map((member, index) => (
-              <div key={member.id || `new-${index}`} className="flex gap-4 items-end">
-                <div className="flex-1">
-                  <Label htmlFor={`name-${index}`}>
-                    {language === "no" ? "Navn" : "Name"}
-                  </Label>
-                  <Input
-                    id={`name-${index}`}
-                    value={member.name || ""}
-                    onChange={(e) => updateMember(index, "name", e.target.value)}
-                    placeholder={language === "no" ? "Navn Navnesen" : "John Doe"}
-                  />
-                </div>
-                <div className="flex-1">
-                  <Label htmlFor={`role-${index}`}>
-                    {language === "no" ? "Rolle" : "Role"}
-                  </Label>
-                  <Select
-                    value={member.role || ""}
-                    onValueChange={(value) => updateMember(index, "role", value)}
-                  >
-                    <SelectTrigger id={`role-${index}`}>
-                      <SelectValue placeholder={language === "no" ? "Velg rolle" : "Select role"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_VALUES.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {getRoleLabel(role, t)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeMember(index)}
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={addMember}
-            className="mt-4"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            {language === "no" ? "Legg til medlem" : "Add member"}
-          </Button>
-        </div>
-
-        <div className="flex justify-end gap-4 pt-6 border-t">
-          <Button
-            onClick={handleSave}
-            disabled={createMutation.isPending || updateMutation.isPending}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {(createMutation.isPending || updateMutation.isPending) ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-2" />
-            )}
-            {language === "no" ? "Lagre endringer" : "Save changes"}
-          </Button>
-        </div>
-      </Card>
-
       {/* Blog Posts Section */}
-      <Card className="p-6 mt-8">
+      <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 mb-2">
             {language === "no" ? "Nyheter / Innlegg" : "News / Blog Posts"}
@@ -730,6 +646,91 @@ export default function Settings() {
               </p>
             )}
           </div>
+        </div>
+      </Card>
+
+      {/* FAU Board Section */}
+      <Card className="p-6 mt-8">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-neutral-800 mb-2">
+            {language === "no" ? "FAU-styret" : "FAU Board"}
+          </h2>
+          <p className="text-sm text-neutral-600 mb-4">
+            {language === "no"
+              ? "Definer styremedlemmer og deres roller. Dette vises på forsiden."
+              : "Define board members and their roles. This is shown on the homepage."}
+          </p>
+
+          <div className="space-y-4">
+            {members.map((member, index) => (
+              <div key={member.id || `new-${index}`} className="flex gap-4 items-end">
+                <div className="flex-1">
+                  <Label htmlFor={`name-${index}`}>
+                    {language === "no" ? "Navn" : "Name"}
+                  </Label>
+                  <Input
+                    id={`name-${index}`}
+                    value={member.name || ""}
+                    onChange={(e) => updateMember(index, "name", e.target.value)}
+                    placeholder={language === "no" ? "Navn Navnesen" : "John Doe"}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Label htmlFor={`role-${index}`}>
+                    {language === "no" ? "Rolle" : "Role"}
+                  </Label>
+                  <Select
+                    value={member.role || ""}
+                    onValueChange={(value) => updateMember(index, "role", value)}
+                  >
+                    <SelectTrigger id={`role-${index}`}>
+                      <SelectValue placeholder={language === "no" ? "Velg rolle" : "Select role"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLE_VALUES.map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {getRoleLabel(role, t)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => removeMember(index)}
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={addMember}
+            className="mt-4"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            {language === "no" ? "Legg til medlem" : "Add member"}
+          </Button>
+        </div>
+
+        <div className="flex justify-end gap-4 pt-6 border-t">
+          <Button
+            onClick={handleSave}
+            disabled={createMutation.isPending || updateMutation.isPending}
+            className="bg-primary hover:bg-primary/90"
+          >
+            {(createMutation.isPending || updateMutation.isPending) ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            {language === "no" ? "Lagre endringer" : "Save changes"}
+          </Button>
         </div>
       </Card>
 
