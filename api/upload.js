@@ -1,7 +1,6 @@
 import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
 import { v2 as cloudinary } from 'cloudinary';
-import { requireCsrf } from './_shared/middleware.js';
+import { requireCsrf, parseAuthToken } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -12,14 +11,15 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -28,23 +28,10 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // JWT authentication check
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // JWT authentication check (from cookies)
+  const decoded = parseAuthToken(req);
+  if (!decoded) {
     return res.status(401).json({ error: 'No valid authorization token provided' });
-  }
-
-  try {
-    const token = authHeader.substring(7);
-    if (!process.env.SESSION_SECRET) {
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
-    const decoded = jwt.verify(token, process.env.SESSION_SECRET);
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-  } catch (jwtError) {
-    return res.status(401).json({ error: 'Invalid token' });
   }
 
   // CSRF protection for file uploads
