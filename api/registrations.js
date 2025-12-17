@@ -1,57 +1,63 @@
-import { neon } from '@neondatabase/serverless';
+import { getDb } from './_shared/database.js';
 import nodemailer from 'nodemailer';
-import { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeNumber } from './_shared/middleware.js';
+import {
+  applySecurityHeaders,
+  handleCorsPreFlight,
+  handleError,
+  parseAuthToken,
+  requireCsrf,
+  sanitizeText,
+  sanitizeEmail,
+  sanitizePhone,
+  sanitizeNumber
+} from './_shared/middleware.js';
+import Sentry from './_shared/sentry.js';
 
 export default async function handler(req, res) {
-  // Security headers
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://fau-erdalbhg.vercel.app']
-    : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
-
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  // Apply security headers and handle CORS
+  applySecurityHeaders(res, req.headers.origin);
+  if (handleCorsPreFlight(req, res)) return;
 
   try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'Database configuration missing' });
-    }
-
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = getDb();
 
     if (req.method === 'GET') {
       const { eventId } = req.query;
-      
+
       if (!eventId || isNaN(parseInt(eventId))) {
         return res.status(400).json({ error: 'Valid event ID required' });
       }
 
       const eventIdNum = parseInt(eventId);
-      
-      // Get registrations for an event
-      const registrations = await sql`
-        SELECT id, name, email, phone, attendee_count, comments, language
-        FROM event_registrations 
-        WHERE event_id = ${eventIdNum}
-        ORDER BY id DESC
-      `;
 
-      return res.status(200).json(registrations);
+      // Check if authenticated (for admin view with full details)
+      const user = parseAuthToken(req);
+
+      if (user) {
+        // Authenticated - return full registration details
+        const registrations = await sql`
+          SELECT id, event_id as "eventId", name, email, phone,
+                 attendee_count as "attendeeCount", comments,
+                 registered_at as "registeredAt"
+          FROM event_registrations
+          WHERE event_id = ${eventIdNum}
+          ORDER BY registered_at DESC
+        `;
+        return res.status(200).json(registrations);
+      } else {
+        // Public access - return basic count only
+        const registrations = await sql`
+          SELECT id, name, email, phone, attendee_count, comments, language
+          FROM event_registrations
+          WHERE event_id = ${eventIdNum}
+          ORDER BY id DESC
+        `;
+        return res.status(200).json(registrations);
+      }
     }
 
     if (req.method === 'POST') {
-      // Create new registration
+      // Public access - Create new registration
       const { eventId, name, email, phone, attendeeCount, comments, language } = req.body;
 
       // Sanitize inputs
@@ -93,15 +99,15 @@ export default async function handler(req, res) {
       `;
 
       if (existingRegistrations.length > 0) {
-        return res.status(400).json({ 
-          error: 'This email is already registered for this event' 
+        return res.status(400).json({
+          error: 'This email is already registered for this event'
         });
       }
 
       // Check capacity
-      if (event.max_attendees && 
+      if (event.max_attendees &&
           (event.current_attendees + requestedAttendees) > event.max_attendees) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Event is at capacity',
           available: event.max_attendees - event.current_attendees
         });
@@ -120,12 +126,12 @@ export default async function handler(req, res) {
 
       // Update event attendee count
       await sql`
-        UPDATE events 
+        UPDATE events
         SET current_attendees = current_attendees + ${requestedAttendees}
         WHERE id = ${eventIdNum}
       `;
 
-      // Send confirmation email
+      // Send confirmation email (if configured)
       try {
         await sendEventConfirmationEmail({
           registration: newRegistration[0],
@@ -135,23 +141,62 @@ export default async function handler(req, res) {
         console.log('Event confirmation email sent successfully');
       } catch (emailError) {
         console.error('Failed to send event confirmation email:', emailError);
-        // Don't fail the request if email fails, just log it
+        // Don't fail the request if email fails, just log to Sentry
+        if (process.env.NODE_ENV === 'production') {
+          Sentry.captureException(emailError);
+        }
       }
 
       return res.status(201).json(newRegistration[0]);
     }
 
+    if (req.method === 'DELETE') {
+      // Authenticated access required for deletion
+      const user = parseAuthToken(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
+
+      const { id } = req.query;
+
+      const deletedReg = await sql`
+        DELETE FROM event_registrations WHERE id = ${id} RETURNING event_id, attendee_count
+      `;
+
+      if (deletedReg.length === 0) {
+        return res.status(404).json({ error: 'Registration not found' });
+      }
+
+      // Update event attendee count
+      const { event_id, attendee_count } = deletedReg[0];
+      await sql`
+        UPDATE events
+        SET current_attendees = GREATEST(0, current_attendees - ${attendee_count || 1})
+        WHERE id = ${event_id}
+      `;
+
+      return res.status(200).json({ success: true });
+    }
+
     return res.status(405).json({ error: 'Method not allowed' });
 
   } catch (error) {
-    console.error('Registrations API error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return handleError(res, error);
   }
 }
 
 async function sendEventConfirmationEmail(params) {
   const { registration, event, language } = params;
-  
+
+  // Validate email configuration
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
+    throw new Error('Email configuration not available');
+  }
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -161,8 +206,8 @@ async function sendEventConfirmationEmail(params) {
   });
 
   const isNorwegian = language === 'no';
-  
-  const subject = isNorwegian 
+
+  const subject = isNorwegian
     ? `Påmelding bekreftet: ${event.title}`
     : `Registration confirmed: ${event.title}`;
 
