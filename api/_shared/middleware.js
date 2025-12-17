@@ -3,6 +3,7 @@
  */
 
 import jwt from 'jsonwebtoken';
+import Sentry from './sentry.js';
 
 /**
  * Apply security headers to API responses
@@ -69,6 +70,11 @@ export function validateMethod(req, res, allowedMethods) {
  */
 export function handleError(res, error, statusCode = 500) {
   console.error('API Error:', error);
+
+  // Log error to Sentry in production
+  if (process.env.NODE_ENV === 'production' && statusCode >= 500) {
+    Sentry.captureException(error);
+  }
 
   // Don't expose internal error details in production
   const message = process.env.NODE_ENV === 'production'
