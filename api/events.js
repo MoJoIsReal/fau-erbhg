@@ -4,7 +4,10 @@ import {
   handleCorsPreFlight,
   handleError,
   logRequest,
-  parseAuthToken
+  parseAuthToken,
+  sanitizeText,
+  sanitizeHtml,
+  sanitizeNumber
 } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
@@ -50,13 +53,21 @@ export default async function handler(req, res) {
       // Create new event
       const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup, noSignup } = req.body;
 
-      if (!title || !description || !date || !time || !location || !type) {
-        return res.status(400).json({ error: 'Required fields missing' });
+      // Sanitize inputs
+      const sanitizedTitle = sanitizeText(title, 200);
+      const sanitizedDescription = sanitizeHtml(description, 5000);
+      const sanitizedLocation = sanitizeText(location, 200);
+      const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
+      const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
+      const sanitizedType = ['meeting', 'event', 'activity', 'other'].includes(type) ? type : 'other';
+
+      if (!sanitizedTitle || !sanitizedDescription || !date || !time || !sanitizedLocation || !type) {
+        return res.status(400).json({ error: 'Required fields missing or invalid' });
       }
 
       const newEvent = await sql`
         INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, current_attendees, type, status, vigilo_signup, no_signup)
-        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${customLocation || null}, ${maxAttendees || null}, 0, ${type}, 'active', ${vigiloSignup || false}, ${noSignup || false})
+        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, 0, ${sanitizedType}, 'active', ${vigiloSignup || false}, ${noSignup || false})
         RETURNING *
       `;
 

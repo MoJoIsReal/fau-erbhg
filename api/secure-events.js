@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import { sanitizeText, sanitizeHtml, sanitizeNumber } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -76,13 +77,21 @@ export default async function handler(req, res) {
     if (req.method === 'POST') {
       const { title, description, date, time, location, custom_location, max_attendees, type, vigiloSignup, noSignup } = req.body;
 
-      if (!title || !date || !time) {
-        return res.status(400).json({ error: 'Title, date, and time are required' });
+      // Sanitize inputs
+      const sanitizedTitle = sanitizeText(title, 200);
+      const sanitizedDescription = sanitizeHtml(description, 5000);
+      const sanitizedLocation = sanitizeText(location, 200);
+      const sanitizedCustomLocation = custom_location ? sanitizeText(custom_location, 200) : null;
+      const sanitizedMaxAttendees = max_attendees ? sanitizeNumber(max_attendees, 0, 1000) : null;
+      const sanitizedType = ['meeting', 'event', 'activity', 'other'].includes(type) ? type : 'meeting';
+
+      if (!sanitizedTitle || !date || !time) {
+        return res.status(400).json({ error: 'Valid title, date, and time are required' });
       }
 
       const newEvent = await sql`
         INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, type, vigilo_signup, no_signup)
-        VALUES (${title}, ${description}, ${date}, ${time}, ${location}, ${custom_location}, ${max_attendees}, ${type || 'meeting'}, ${vigiloSignup || false}, ${noSignup || false})
+        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedType}, ${vigiloSignup || false}, ${noSignup || false})
         RETURNING *
       `;
 
@@ -103,22 +112,28 @@ export default async function handler(req, res) {
       const { id } = req.query;
       const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup, noSignup } = req.body;
 
+      // Sanitize inputs
+      const sanitizedTitle = sanitizeText(title, 200);
+      const sanitizedDescription = sanitizeHtml(description, 5000);
+      const sanitizedLocation = sanitizeText(location, 200);
+      const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
+      const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
+      const sanitizedType = ['meeting', 'event', 'activity', 'other'].includes(type) ? type : 'meeting';
 
-
-      if (!title || !date || !time) {
-        return res.status(400).json({ error: 'Title, date, and time are required' });
+      if (!sanitizedTitle || !date || !time) {
+        return res.status(400).json({ error: 'Valid title, date, and time are required' });
       }
 
       const updatedEvent = await sql`
-        UPDATE events 
-        SET title = ${title},
-            description = ${description},
+        UPDATE events
+        SET title = ${sanitizedTitle},
+            description = ${sanitizedDescription},
             date = ${date},
             time = ${time},
-            location = ${location},
-            custom_location = ${customLocation || null},
-            max_attendees = ${maxAttendees || null},
-            type = ${type || 'meeting'},
+            location = ${sanitizedLocation},
+            custom_location = ${sanitizedCustomLocation},
+            max_attendees = ${sanitizedMaxAttendees},
+            type = ${sanitizedType},
             vigilo_signup = ${vigiloSignup || false},
             no_signup = ${noSignup || false}
         WHERE id = ${id}
