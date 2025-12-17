@@ -7,7 +7,13 @@ import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Save, Archive, Home } from "lucide-react";
+import { Loader2, Plus, Trash2, Save, Archive, Home, MoreVertical } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
 import { getCookie } from "@/lib/queryClient";
@@ -583,10 +589,12 @@ export default function Settings() {
                   // View mode
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-neutral-900">
+                      <h3 className="text-lg font-semibold text-neutral-900 flex-1 pr-2">
                         {post.title || (language === "no" ? "(Uten tittel)" : "(No title)")}
                       </h3>
-                      <div className="flex gap-2">
+
+                      {/* Desktop: Show buttons inline */}
+                      <div className="hidden sm:flex gap-2 flex-shrink-0">
                         <Button onClick={() => setIsEditingPost(index)} variant="outline" size="sm">
                           {language === "no" ? "Rediger" : "Edit"}
                         </Button>
@@ -622,6 +630,46 @@ export default function Settings() {
                               : "Archive"}
                           </Button>
                         )}
+                      </div>
+
+                      {/* Mobile: Show dropdown menu */}
+                      <div className="sm:hidden flex-shrink-0">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem onClick={() => setIsEditingPost(index)}>
+                              {language === "no" ? "Rediger" : "Edit"}
+                            </DropdownMenuItem>
+                            {post.id && post.status === "published" && (
+                              <DropdownMenuItem onClick={() => toggleHomepage(index)}>
+                                <Home className="h-4 w-4 mr-2" />
+                                {post.showOnHomepage
+                                  ? language === "no"
+                                    ? "Fjern fra hjem"
+                                    : "Remove from home"
+                                  : language === "no"
+                                  ? "Vis på hjem"
+                                  : "Show on home"}
+                              </DropdownMenuItem>
+                            )}
+                            {post.id && (
+                              <DropdownMenuItem onClick={() => archivePost(index)}>
+                                <Archive className="h-4 w-4 mr-2" />
+                                {post.status === "archived"
+                                  ? language === "no"
+                                    ? "Publiser"
+                                    : "Publish"
+                                  : language === "no"
+                                  ? "Arkiver"
+                                  : "Archive"}
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     <p className="text-sm text-neutral-600 mb-2">
