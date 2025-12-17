@@ -5,8 +5,8 @@ import { setCookie, generateCsrfToken } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
-  const allowedOrigins = process.env.NODE_ENV === 'production' 
-    ? ['https://fau-erdal-barnehage.vercel.app']
+  const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? ['https://fau-erdalbhg.vercel.app']
     : ['http://localhost:5000', 'http://localhost:3000'];
   
   const origin = req.headers.origin;
