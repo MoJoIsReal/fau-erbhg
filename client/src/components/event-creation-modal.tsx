@@ -120,7 +120,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       
       if (event) {
         // Editing mode - use PUT request
-        return apiRequest("PUT", `/api/secure-events?id=${event.id}`, eventData);
+        return apiRequest("PUT", `/api/events?id=${event.id}`, eventData);
       } else {
         // Creation mode - use POST request
         return apiRequest("POST", "/api/events", eventData);

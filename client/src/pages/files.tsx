@@ -48,8 +48,8 @@ export default function Files() {
   });
 
   const deleteDocumentMutation = useMutation({
-    mutationFn: (documentId: number) => 
-      apiRequest("DELETE", `/api/secure-documents?id=${documentId}`),
+    mutationFn: (documentId: number) =>
+      apiRequest("DELETE", `/api/documents?id=${documentId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       toast({
