@@ -1,6 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { setCookie, generateCsrfToken } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -11,8 +12,9 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
-  
+
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -75,14 +77,33 @@ export default async function handler(req, res) {
       { expiresIn: '2h' }
     );
 
+    // Generate CSRF token
+    const csrfToken = generateCsrfToken();
+
+    // Set JWT in HttpOnly cookie (secure, not accessible to JavaScript)
+    setCookie(res, 'jwt', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7200 // 2 hours in seconds
+    });
+
+    // Set CSRF token in regular cookie (accessible to JavaScript for sending in headers)
+    setCookie(res, 'csrf-token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7200 // 2 hours in seconds
+    });
+
     return res.status(200).json({
-      token,
       user: {
         id: user.id,
         username: user.username,
         name: user.name,
         role: user.role
-      }
+      },
+      csrfToken // Return CSRF token in response for immediate use
     });
 
   } catch (error) {

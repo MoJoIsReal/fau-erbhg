@@ -7,24 +7,37 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Get cookie value by name
+function getCookie(name: string): string | null {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) {
+    return parts.pop()?.split(';').shift() || null;
+  }
+  return null;
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const token = localStorage.getItem('auth_token');
   const headers: Record<string, string> = {};
-  
+
   if (data) {
     headers["Content-Type"] = "application/json";
   }
-  
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+
+  // Add CSRF token for state-changing requests
+  if (method !== 'GET' && method !== 'HEAD') {
+    const csrfToken = getCookie('csrf-token');
+    if (csrfToken) {
+      headers["X-CSRF-Token"] = csrfToken;
+    }
   }
 
   // Handle development vs production URLs
-  const finalUrl = import.meta.env.DEV && url.startsWith('/api/') 
+  const finalUrl = import.meta.env.DEV && url.startsWith('/api/')
     ? `http://localhost:5000${url}`
     : url;
 
@@ -45,16 +58,11 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const token = localStorage.getItem('auth_token');
     const headers: Record<string, string> = {};
-    
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
 
     // Handle development vs production URLs
     const baseUrl = queryKey[0] as string;
-    const url = import.meta.env.DEV && baseUrl.startsWith('/api/') 
+    const url = import.meta.env.DEV && baseUrl.startsWith('/api/')
       ? `http://localhost:5000${baseUrl}`
       : baseUrl;
 
