@@ -12,6 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CloudUpload, X } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getCookie } from "@/lib/queryClient";
 
 interface FauBoardMember {
   id: number;
@@ -66,9 +67,9 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const token = localStorage.getItem('auth_token');
-      if (!token) {
-        throw new Error('No authentication token found');
+      const csrfToken = getCookie('csrf-token');
+      if (!csrfToken) {
+        throw new Error('No CSRF token found - please log in again');
       }
 
       // Convert file to base64
@@ -89,16 +90,17 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       };
 
       // Use upload endpoint specifically
-      const apiUrl = import.meta.env.DEV 
-        ? "http://localhost:5000/api/upload" 
+      const apiUrl = import.meta.env.DEV
+        ? "http://localhost:5000/api/upload"
         : "/api/upload";
-        
+
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken,
           "Content-Type": "application/json"
         },
+        credentials: "include",
         body: JSON.stringify(payload)
       });
 

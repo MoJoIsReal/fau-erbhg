@@ -3,6 +3,8 @@
  */
 
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import Sentry from './sentry.js';
 
 /**
  * Apply security headers to API responses
@@ -70,6 +72,11 @@ export function validateMethod(req, res, allowedMethods) {
 export function handleError(res, error, statusCode = 500) {
   console.error('API Error:', error);
 
+  // Log error to Sentry in production
+  if (process.env.NODE_ENV === 'production' && statusCode >= 500) {
+    Sentry.captureException(error);
+  }
+
   // Don't expose internal error details in production
   const message = process.env.NODE_ENV === 'production'
     ? 'Internal server error'
@@ -108,19 +115,117 @@ export function logRequest(req, startTime) {
 }
 
 /**
- * Parse and validate JWT token from request
+ * Parse cookies from request
+ * @param {Object} req - Request object
+ * @returns {Object} - Parsed cookies object
+ */
+export function parseCookies(req) {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return {};
+
+  return cookieHeader.split(';').reduce((cookies, cookie) => {
+    const [name, ...rest] = cookie.split('=');
+    const value = rest.join('=').trim();
+    if (name) {
+      cookies[name.trim()] = decodeURIComponent(value);
+    }
+    return cookies;
+  }, {});
+}
+
+/**
+ * Set cookie in response
+ * @param {Object} res - Response object
+ * @param {string} name - Cookie name
+ * @param {string} value - Cookie value
+ * @param {Object} options - Cookie options
+ */
+export function setCookie(res, name, value, options = {}) {
+  const {
+    httpOnly = false,
+    secure = process.env.NODE_ENV === 'production',
+    sameSite = 'Strict',
+    maxAge = 7200, // 2 hours in seconds
+    path = '/'
+  } = options;
+
+  let cookieString = `${name}=${encodeURIComponent(value)}; Path=${path}; Max-Age=${maxAge}; SameSite=${sameSite}`;
+
+  if (httpOnly) {
+    cookieString += '; HttpOnly';
+  }
+
+  if (secure) {
+    cookieString += '; Secure';
+  }
+
+  const existingCookies = res.getHeader('Set-Cookie') || [];
+  const cookiesArray = Array.isArray(existingCookies) ? existingCookies : [existingCookies];
+  res.setHeader('Set-Cookie', [...cookiesArray, cookieString]);
+}
+
+/**
+ * Generate CSRF token
+ * @returns {string} - CSRF token
+ */
+export function generateCsrfToken() {
+  return crypto.randomBytes(32).toString('hex');
+}
+
+/**
+ * Validate CSRF token from request
+ * @param {Object} req - Request object
+ * @returns {boolean} - True if CSRF token is valid, false otherwise
+ */
+export function validateCsrfToken(req) {
+  const cookies = parseCookies(req);
+  const csrfTokenFromCookie = cookies['csrf-token'];
+  const csrfTokenFromHeader = req.headers['x-csrf-token'];
+
+  if (!csrfTokenFromCookie || !csrfTokenFromHeader) {
+    return false;
+  }
+
+  return csrfTokenFromCookie === csrfTokenFromHeader;
+}
+
+/**
+ * Require CSRF validation for state-changing requests
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object
+ * @returns {boolean} - True if valid, false otherwise (also sends 403 response)
+ */
+export function requireCsrf(req, res) {
+  if (!validateCsrfToken(req)) {
+    res.status(403).json({ error: 'Invalid CSRF token' });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Parse and validate JWT token from request (cookies or Authorization header)
  * @param {Object} req - Request object
  * @returns {Object|null} - Decoded token payload or null
  */
 export function parseAuthToken(req) {
-  const authHeader = req.headers.authorization;
+  // First try to get token from HttpOnly cookie
+  const cookies = parseCookies(req);
+  let token = cookies.jwt;
 
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Fall back to Authorization header for backward compatibility
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+
+  if (!token) {
     return null;
   }
 
   try {
-    const token = authHeader.substring(7);
     return jwt.verify(token, process.env.SESSION_SECRET);
   } catch (error) {
     console.error('Token validation error:', error.message);
