@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import { parseAuthToken } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -10,6 +11,7 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -17,7 +19,7 @@ export default async function handler(req, res) {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-  
+
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
@@ -27,20 +29,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // Use parseAuthToken which reads from cookies (with Bearer token fallback)
+    const decoded = parseAuthToken(req);
+
+    if (!decoded) {
       return res.status(401).json({ error: 'No token provided' });
     }
-
-    const token = authHeader.split(' ')[1];
-    
-    if (!process.env.SESSION_SECRET) {
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
-
-    // Verify JWT token
-    const decoded = jwt.verify(token, process.env.SESSION_SECRET);
     
     if (!process.env.DATABASE_URL) {
       return res.status(500).json({ error: 'Database configuration missing' });
