@@ -48,7 +48,7 @@ export default function Events() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("DELETE", `/api/secure-events?id=${id}`),
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/events?id=${id}`),
     onSuccess: () => {
       toast({
         title: language === 'no' ? "Arrangement slettet" : "Event deleted",
@@ -76,7 +76,7 @@ export default function Events() {
   });
 
   const cancelMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("PATCH", `/api/secure-events?id=${id}&action=cancel`),
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/events?id=${id}&action=cancel`),
     onSuccess: () => {
       toast({
         title: language === 'no' ? "Arrangement avlyst" : "Event cancelled",
