@@ -13,7 +13,7 @@ import Sentry from './sentry.js';
  */
 export function applySecurityHeaders(res, origin) {
   const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://fau-erdal-barnehage.vercel.app']
+    ? ['https://fau-erdalbhg.vercel.app']
     : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
 
   // CORS handling - only allow specific origins, even in development
