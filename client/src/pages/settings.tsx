@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Save, Archive, Home } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
+import { getCookie } from "@/lib/queryClient";
 
 // Role values stored in database (Norwegian)
 const ROLE_VALUES = ["Leder", "Medlem", "Vara"] as const;
@@ -74,13 +75,14 @@ export default function Settings() {
   // Create member
   const createMutation = useMutation({
     mutationFn: async (member: Partial<FauBoardMember>) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch("/api/secure-settings?resource=board-members", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
         body: JSON.stringify(member),
       });
 
@@ -92,13 +94,14 @@ export default function Settings() {
   // Update member
   const updateMutation = useMutation({
     mutationFn: async ({ id, member }: { id: number; member: Partial<FauBoardMember> }) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch(`/api/secure-settings?resource=board-members&id=${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
         body: JSON.stringify(member),
       });
 
@@ -110,12 +113,13 @@ export default function Settings() {
   // Delete member
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch(`/api/secure-settings?resource=board-members&id=${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Failed to delete member");
@@ -203,13 +207,14 @@ export default function Settings() {
   // Create blog post mutation
   const createPostMutation = useMutation({
     mutationFn: async (post: Partial<BlogPost>) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch("/api/secure-settings?resource=blog-posts", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
         body: JSON.stringify(post),
       });
 
@@ -221,13 +226,14 @@ export default function Settings() {
   // Update blog post mutation
   const updatePostMutation = useMutation({
     mutationFn: async ({ id, post }: { id: number; post: Partial<BlogPost> }) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch(`/api/secure-settings?resource=blog-posts&id=${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
         body: JSON.stringify(post),
       });
 
@@ -239,12 +245,13 @@ export default function Settings() {
   // Delete blog post mutation
   const deletePostMutation = useMutation({
     mutationFn: async (id: number) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch(`/api/secure-settings?resource=blog-posts&id=${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Failed to delete post");
@@ -410,13 +417,14 @@ export default function Settings() {
   // Update kindergarten info mutation
   const updateKindergartenMutation = useMutation({
     mutationFn: async (info: Partial<KindergartenInfo>) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch("/api/secure-settings?resource=kindergarten-info", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
         body: JSON.stringify(info),
       });
 

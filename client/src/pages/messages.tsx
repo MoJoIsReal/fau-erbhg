@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Mail, Clock, User, Phone, Trash2, Check, Archive, Loader2 } from "lucide-react";
+import { getCookie } from "@/lib/queryClient";
 
 interface ContactMessage {
   id: number;
@@ -34,13 +35,14 @@ export default function Messages() {
   // Update message status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: number; status: string }) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch(`/api/secure-settings?resource=contact-messages&id=${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
         body: JSON.stringify({ status }),
       });
 
@@ -66,12 +68,13 @@ export default function Messages() {
   // Delete message mutation
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const token = localStorage.getItem("auth_token");
+      const csrfToken = getCookie("csrf-token");
       const response = await fetch(`/api/secure-settings?resource=contact-messages&id=${id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `Bearer ${token}`,
+          "X-CSRF-Token": csrfToken || "",
         },
+        credentials: "include",
       });
 
       if (!response.ok) throw new Error("Failed to delete message");
