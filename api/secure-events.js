@@ -1,6 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
-import { sanitizeText, sanitizeHtml, sanitizeNumber, requireCsrf } from './_shared/middleware.js';
+import { sanitizeText, sanitizeHtml, sanitizeNumber, requireCsrf, parseAuthToken } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -11,10 +10,11 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -23,25 +23,11 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // Check JWT authentication for non-GET requests
+  // Check JWT authentication for non-GET requests (from cookies)
   if (req.method !== 'GET') {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    const decoded = parseAuthToken(req);
+    if (!decoded) {
       return res.status(401).json({ error: 'No valid authorization token provided' });
-    }
-
-    if (!process.env.SESSION_SECRET) {
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
-
-    try {
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, process.env.SESSION_SECRET);
-      if (!decoded) {
-        return res.status(401).json({ error: 'Invalid token' });
-      }
-    } catch (jwtError) {
-      return res.status(401).json({ error: 'Invalid token' });
     }
   }
 

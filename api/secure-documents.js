@@ -1,6 +1,5 @@
 import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
-import { requireCsrf } from './_shared/middleware.js';
+import { requireCsrf, parseAuthToken } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   console.log('Secure documents API called:', req.method, req.url);
@@ -13,10 +12,11 @@ export default async function handler(req, res) {
   const origin = req.headers.origin;
   if (origin && allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
@@ -25,25 +25,10 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // JWT authentication check
-  const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // JWT authentication check (from cookies)
+  const decoded = parseAuthToken(req);
+  if (!decoded) {
     return res.status(401).json({ error: 'No valid authorization token provided' });
-  }
-
-  try {
-    const token = authHeader.substring(7);
-    if (!process.env.SESSION_SECRET) {
-      console.error('SESSION_SECRET environment variable is not set');
-      return res.status(500).json({ error: 'Server configuration error' });
-    }
-    const decoded = jwt.verify(token, process.env.SESSION_SECRET);
-    if (!decoded) {
-      return res.status(401).json({ error: 'Invalid token' });
-    }
-  } catch (jwtError) {
-    console.error('JWT verification error:', jwtError.message);
-    return res.status(401).json({ error: 'Invalid token' });
   }
 
   try {
