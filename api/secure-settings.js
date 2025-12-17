@@ -4,6 +4,7 @@ import {
   handleCorsPreFlight,
   handleError,
   requireAuth,
+  requireCsrf,
   sanitizeText,
   sanitizeHtml,
   sanitizeEmail,
@@ -29,6 +30,9 @@ async function handleBoardMembers(req, res, sql) {
   if (user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
   }
+
+  // CSRF protection for state-changing requests
+  if (!requireCsrf(req, res)) return;
 
   const now = new Date().toISOString();
 
@@ -141,6 +145,9 @@ async function handleBlogPosts(req, res, sql) {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
+  // CSRF protection for state-changing requests
+  if (!requireCsrf(req, res)) return;
+
   const now = new Date().toISOString();
 
   // POST - Create new blog post
@@ -251,6 +258,9 @@ async function handleKindergartenInfo(req, res, sql) {
     return res.status(403).json({ error: 'Admin access required' });
   }
 
+  // CSRF protection for state-changing requests
+  if (!requireCsrf(req, res)) return;
+
   const now = new Date().toISOString();
 
   // PUT - Update kindergarten info
@@ -320,6 +330,9 @@ async function handleContactMessages(req, res, sql) {
 
     return res.status(200).json(messages);
   }
+
+  // CSRF protection for state-changing requests
+  if (!requireCsrf(req, res)) return;
 
   // PUT - Update message status
   if (req.method === 'PUT') {

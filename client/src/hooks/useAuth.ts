@@ -18,8 +18,9 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // For JWT-based auth, logout is client-side only
-      localStorage.removeItem('auth_token');
+      // Clear HttpOnly cookie and CSRF token by setting them to expired
+      document.cookie = 'jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+      document.cookie = 'csrf-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
       return Promise.resolve();
     },
     onSuccess: () => {

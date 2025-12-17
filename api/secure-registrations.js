@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import { requireCsrf } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -63,6 +64,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE' && id) {
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
+
       const deletedReg = await sql`
         DELETE FROM event_registrations WHERE id = ${id} RETURNING event_id, attendee_count
       `;
