@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import nodemailer from 'nodemailer';
+import { sanitizeText, sanitizeEmail, sanitizePhone, sanitizeNumber } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -53,20 +54,28 @@ export default async function handler(req, res) {
       // Create new registration
       const { eventId, name, email, phone, attendeeCount, comments, language } = req.body;
 
-      if (!eventId || !name || !email) {
-        return res.status(400).json({ error: 'Event ID, name and email are required' });
+      // Sanitize inputs
+      const sanitizedName = sanitizeText(name, 100);
+      const sanitizedEmail = sanitizeEmail(email);
+      const sanitizedPhone = sanitizePhone(phone);
+      const sanitizedComments = comments ? sanitizeText(comments, 1000) : null;
+      const sanitizedAttendeeCount = sanitizeNumber(attendeeCount, 1, 100) || 1;
+      const sanitizedLanguage = ['no', 'en'].includes(language) ? language : 'no';
+
+      if (!eventId || !sanitizedName || !sanitizedEmail) {
+        return res.status(400).json({ error: 'Event ID, valid name and email are required' });
       }
 
       const eventIdNum = parseInt(eventId);
-      
+
       if (isNaN(eventIdNum)) {
         return res.status(400).json({ error: 'Valid event ID required' });
       }
 
       // Check if event exists and is active
       const events = await sql`
-        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees 
-        FROM events 
+        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees
+        FROM events
         WHERE id = ${eventIdNum} AND status = 'active'
       `;
 
@@ -75,12 +84,12 @@ export default async function handler(req, res) {
       }
 
       const event = events[0];
-      const requestedAttendees = attendeeCount || 1;
+      const requestedAttendees = sanitizedAttendeeCount;
 
       // Check if email already registered for this event
       const existingRegistrations = await sql`
-        SELECT id FROM event_registrations 
-        WHERE event_id = ${eventIdNum} AND email = ${email}
+        SELECT id FROM event_registrations
+        WHERE event_id = ${eventIdNum} AND email = ${sanitizedEmail}
       `;
 
       if (existingRegistrations.length > 0) {
@@ -103,8 +112,8 @@ export default async function handler(req, res) {
         INSERT INTO event_registrations (
           event_id, name, email, phone, attendee_count, comments, language
         ) VALUES (
-          ${eventIdNum}, ${name}, ${email}, ${phone || null}, 
-          ${requestedAttendees}, ${comments || null}, ${language || 'no'}
+          ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}
         )
         RETURNING *
       `;
@@ -121,7 +130,7 @@ export default async function handler(req, res) {
         await sendEventConfirmationEmail({
           registration: newRegistration[0],
           event: event,
-          language: language || 'no'
+          language: sanitizedLanguage
         });
         console.log('Event confirmation email sent successfully');
       } catch (emailError) {
