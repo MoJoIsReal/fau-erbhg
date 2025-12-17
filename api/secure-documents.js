@@ -1,5 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
+import { requireCsrf } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   console.log('Secure documents API called:', req.method, req.url);
@@ -64,6 +65,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
+
       const { id } = req.query;
       console.log('DELETE request - ID received:', id, 'Type:', typeof id);
       

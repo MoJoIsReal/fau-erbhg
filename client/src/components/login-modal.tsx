@@ -26,10 +26,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       return response.json();
     },
     onSuccess: (data) => {
-      // Store JWT token in localStorage
-      if (data.token) {
-        localStorage.setItem('auth_token', data.token);
-      }
+      // JWT token is now stored in HttpOnly cookie automatically
+      // CSRF token is also stored in cookie automatically
       toast({
         title: t.modals.login.success,
         description: t.modals.login.successDesc,

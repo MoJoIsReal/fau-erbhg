@@ -1,6 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
 import { v2 as cloudinary } from 'cloudinary';
+import { requireCsrf } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -45,6 +46,9 @@ export default async function handler(req, res) {
   } catch (jwtError) {
     return res.status(401).json({ error: 'Invalid token' });
   }
+
+  // CSRF protection for file uploads
+  if (!requireCsrf(req, res)) return;
 
   try {
     if (!process.env.DATABASE_URL) {

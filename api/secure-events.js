@@ -1,6 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import jwt from 'jsonwebtoken';
-import { sanitizeText, sanitizeHtml, sanitizeNumber } from './_shared/middleware.js';
+import { sanitizeText, sanitizeHtml, sanitizeNumber, requireCsrf } from './_shared/middleware.js';
 
 export default async function handler(req, res) {
   // Security headers
@@ -75,6 +75,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
+
       const { title, description, date, time, location, custom_location, max_attendees, type, vigiloSignup, noSignup } = req.body;
 
       // Sanitize inputs
@@ -109,6 +112,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
+
       const { id } = req.query;
       const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup, noSignup } = req.body;
 
@@ -158,6 +164,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
+
       const { id, action } = req.query;
 
       if (action === 'cancel') {
@@ -179,8 +188,11 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
+
       const { id } = req.query;
-      
+
       // Check if event has registrations
       const registrations = await sql`
         SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ${id}

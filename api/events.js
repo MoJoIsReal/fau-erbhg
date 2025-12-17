@@ -5,6 +5,7 @@ import {
   handleError,
   logRequest,
   parseAuthToken,
+  requireCsrf,
   sanitizeText,
   sanitizeHtml,
   sanitizeNumber
@@ -44,6 +45,9 @@ export default async function handler(req, res) {
       if (!user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
+
+      // CSRF protection for state-changing requests
+      if (!requireCsrf(req, res)) return;
 
       // Check if user has permission to create events
       if (user.role !== 'admin' && user.role !== 'member') {
