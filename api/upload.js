@@ -1,28 +1,18 @@
-import { neon } from '@neondatabase/serverless';
-import { v2 as cloudinary } from 'cloudinary';
-import { requireCsrf, parseAuthToken } from './_shared/middleware.js';
+import { getDb } from './_shared/database.js';
+import { configureCloudinary } from './_shared/cloudinary.js';
+import {
+  applySecurityHeaders,
+  handleCorsPreFlight,
+  handleError,
+  parseAuthToken,
+  requireCsrf,
+  sanitizeText
+} from './_shared/middleware.js';
 
 export default async function handler(req, res) {
-  // Security headers
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://fau-erdalbhg.vercel.app']
-    : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
-
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  // Apply security headers and handle CORS
+  applySecurityHeaders(res, req.headers.origin);
+  if (handleCorsPreFlight(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -31,25 +21,14 @@ export default async function handler(req, res) {
   // JWT authentication check (from cookies)
   const decoded = parseAuthToken(req);
   if (!decoded) {
-    return res.status(401).json({ error: 'No valid authorization token provided' });
+    return res.status(401).json({ error: 'Authentication required' });
   }
 
   // CSRF protection for file uploads
   if (!requireCsrf(req, res)) return;
 
   try {
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'Database configuration missing' });
-    }
-
-    // Configure Cloudinary
-    cloudinary.config({
-      cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-      api_key: process.env.CLOUDINARY_API_KEY,
-      api_secret: process.env.CLOUDINARY_API_SECRET,
-    });
-
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = getDb();
     const { fileData, filename, title, category, description, uploadedBy } = req.body;
 
     if (!fileData || !filename || !title) {
@@ -113,22 +92,18 @@ export default async function handler(req, res) {
     }
 
     // Sanitize text inputs to prevent XSS
-    const sanitizeText = (text) => {
-      if (!text) return '';
-      return text
-        .replace(/[<>]/g, '') // Remove potential HTML tags
-        .substring(0, 1000); // Limit length
-    };
-
-    const sanitizedTitle = sanitizeText(title);
-    const sanitizedDescription = sanitizeText(description);
-    const sanitizedCategory = category ? sanitizeText(category) : 'annet';
-    const sanitizedUploadedBy = uploadedBy ? sanitizeText(uploadedBy) : 'Unknown';
+    const sanitizedTitle = sanitizeText(title, 1000);
+    const sanitizedDescription = sanitizeText(description, 5000);
+    const sanitizedCategory = category ? sanitizeText(category, 100) : 'annet';
+    const sanitizedUploadedBy = uploadedBy ? sanitizeText(uploadedBy, 200) : 'Unknown';
 
     // Validate sanitized inputs
     if (!sanitizedTitle || sanitizedTitle.length < 1) {
       return res.status(400).json({ error: 'Valid title is required' });
     }
+
+    // Configure Cloudinary (cached configuration)
+    const cloudinary = configureCloudinary();
 
     // Upload to Cloudinary with additional security options
     const uploadResult = await cloudinary.uploader.upload(fileData, {
@@ -164,9 +139,6 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Upload API error:', error);
-    return res.status(500).json({ 
-      error: 'Upload failed'
-    });
+    return handleError(res, error);
   }
 }
