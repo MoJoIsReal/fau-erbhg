@@ -40,10 +40,32 @@ export async function initializeDatabase() {
         "phone" text,
         "num_adults" integer DEFAULT 1 NOT NULL,
         "num_children" integer DEFAULT 0 NOT NULL,
+        "attendee_count" integer DEFAULT 1 NOT NULL,
         "dietary_restrictions" text,
         "comments" text,
+        "language" text DEFAULT 'no',
         "registered_at" text DEFAULT now() NOT NULL
       );
+    `);
+
+    // Add missing columns if they don't exist (for existing databases)
+    await db.execute(sql`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'event_registrations' AND column_name = 'attendee_count'
+        ) THEN
+          ALTER TABLE event_registrations ADD COLUMN attendee_count integer DEFAULT 1 NOT NULL;
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'event_registrations' AND column_name = 'language'
+        ) THEN
+          ALTER TABLE event_registrations ADD COLUMN language text DEFAULT 'no';
+        END IF;
+      END $$;
     `);
 
     await db.execute(sql`
