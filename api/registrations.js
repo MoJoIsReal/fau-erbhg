@@ -72,15 +72,40 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Event ID, valid name and email are required' });
       }
 
-      // Block fake/disposable email domains
-      const fakeEmailDomains = ['nei.com', 'test.com', 'example.com', 'fake.com', 'temp.com', 'trash.com'];
+      // Check email domain against database blacklist
       const emailDomain = sanitizedEmail.split('@')[1]?.toLowerCase();
 
-      if (fakeEmailDomains.includes(emailDomain)) {
-        const errorMessage = sanitizedLanguage === 'no'
-          ? 'Vennligst bruk en gyldig e-postadresse. Vi trenger en ekte e-post for å sende deg bekreftelse og oppdateringer om arrangementet.'
-          : 'Please use a valid email address. We need a real email to send you confirmation and event updates.';
-        return res.status(400).json({ error: errorMessage });
+      if (emailDomain) {
+        const blacklistedDomains = await sql`
+          SELECT domain, category, action, suggested_fix, description
+          FROM email_domain_blacklist
+          WHERE domain = ${emailDomain}
+        `;
+
+        if (blacklistedDomains.length > 0) {
+          const entry = blacklistedDomains[0];
+
+          if (entry.action === 'block') {
+            // Hard block for categories A, B, C, D
+            const errorMessage = sanitizedLanguage === 'no'
+              ? 'Vennligst bruk en gyldig e-postadresse. Vi trenger en ekte e-post for å sende deg bekreftelse og oppdateringer om arrangementet.'
+              : 'Please use a valid email address. We need a real email to send you confirmation and event updates.';
+            return res.status(400).json({
+              error: errorMessage,
+              category: entry.category
+            });
+          } else if (entry.action === 'suggest' && entry.suggested_fix) {
+            // Suggest correction for category F (typos)
+            const errorMessage = sanitizedLanguage === 'no'
+              ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"? Vennligst sjekk e-postadressen din.`
+              : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"? Please check your email address.`;
+            return res.status(400).json({
+              error: errorMessage,
+              suggestion: `${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}`,
+              category: entry.category
+            });
+          }
+        }
       }
 
       const eventIdNum = parseInt(eventId);

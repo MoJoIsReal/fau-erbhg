@@ -96,6 +96,18 @@ export async function initializeDatabase() {
       );
     `);
 
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS "email_domain_blacklist" (
+        "id" serial PRIMARY KEY NOT NULL,
+        "domain" text NOT NULL UNIQUE,
+        "category" text NOT NULL,
+        "action" text NOT NULL,
+        "suggested_fix" text,
+        "description" text,
+        "created_at" timestamp DEFAULT now() NOT NULL
+      );
+    `);
+
     // Add foreign key constraint
     await db.execute(sql`
       DO $$ BEGIN
