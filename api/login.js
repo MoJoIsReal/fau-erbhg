@@ -1,29 +1,18 @@
-import { neon } from '@neondatabase/serverless';
+import { getDb } from './_shared/database.js';
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { setCookie, generateCsrfToken } from './_shared/middleware.js';
+import {
+  applySecurityHeaders,
+  handleCorsPreFlight,
+  handleError,
+  setCookie,
+  generateCsrfToken
+} from './_shared/middleware.js';
 
 export default async function handler(req, res) {
-  // Security headers
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://fau-erdalbhg.vercel.app']
-    : ['http://localhost:5000', 'http://localhost:3000'];
-  
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  // Apply security headers and handle CORS
+  applySecurityHeaders(res, req.headers.origin);
+  if (handleCorsPreFlight(req, res)) return;
 
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -36,15 +25,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Username and password required' });
     }
 
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'Database configuration missing' });
-    }
-
     if (!process.env.SESSION_SECRET) {
       return res.status(500).json({ error: 'Server configuration error' });
     }
 
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = getDb();
     
     // Get user by username (email)
     const users = await sql`
@@ -107,7 +92,6 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return handleError(res, error);
   }
 }
