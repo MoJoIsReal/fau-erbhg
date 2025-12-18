@@ -1,28 +1,15 @@
-import { neon } from '@neondatabase/serverless';
-import jwt from 'jsonwebtoken';
-import { parseAuthToken } from './_shared/middleware.js';
+import { getDb } from './_shared/database.js';
+import {
+  applySecurityHeaders,
+  handleCorsPreFlight,
+  handleError,
+  parseAuthToken
+} from './_shared/middleware.js';
 
 export default async function handler(req, res) {
-  // Security headers
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://fau-erdalbhg.vercel.app']
-    : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
-
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
-
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  // Apply security headers and handle CORS
+  applySecurityHeaders(res, req.headers.origin);
+  if (handleCorsPreFlight(req, res)) return;
 
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -35,12 +22,8 @@ export default async function handler(req, res) {
     if (!decoded) {
       return res.status(401).json({ error: 'No token provided' });
     }
-    
-    if (!process.env.DATABASE_URL) {
-      return res.status(500).json({ error: 'Database configuration missing' });
-    }
 
-    const sql = neon(process.env.DATABASE_URL);
+    const sql = getDb();
     
     // Get user data
     const users = await sql`
@@ -62,10 +45,9 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('User auth error:', error);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Invalid token' });
     }
-    return res.status(500).json({ error: 'Internal server error' });
+    return handleError(res, error);
   }
 }
