@@ -14,8 +14,17 @@ import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { z } from "zod";
 
+const fakeEmailDomains = ['nei.com', 'test.com', 'example.com', 'fake.com', 'temp.com', 'trash.com'];
+
 const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
-  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(10, "Maksimalt 10 deltakere")
+  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(10, "Maksimalt 10 deltakere"),
+  email: z.string().email("Ugyldig e-postadresse").refine(
+    (email) => {
+      const domain = email.split('@')[1]?.toLowerCase();
+      return !fakeEmailDomains.includes(domain);
+    },
+    { message: "Vennligst bruk en gyldig e-postadresse" }
+  )
 });
 
 type FormData = z.infer<typeof formSchema>;
