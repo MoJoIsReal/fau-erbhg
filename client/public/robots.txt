@@ -1,0 +1,9 @@
+# robots.txt for FAU Erdal Barnehage
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: https://www.erdal-bhg.no/sitemap.xml
+
+# Crawl delay (be nice to servers)
+Crawl-delay: 1
