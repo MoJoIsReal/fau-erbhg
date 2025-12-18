@@ -72,6 +72,17 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Event ID, valid name and email are required' });
       }
 
+      // Block fake/disposable email domains
+      const fakeEmailDomains = ['nei.com', 'test.com', 'example.com', 'fake.com', 'temp.com', 'trash.com'];
+      const emailDomain = sanitizedEmail.split('@')[1]?.toLowerCase();
+
+      if (fakeEmailDomains.includes(emailDomain)) {
+        const errorMessage = sanitizedLanguage === 'no'
+          ? 'Vennligst bruk en gyldig e-postadresse. Vi trenger en ekte e-post for å sende deg bekreftelse og oppdateringer om arrangementet.'
+          : 'Please use a valid email address. We need a real email to send you confirmation and event updates.';
+        return res.status(400).json({ error: errorMessage });
+      }
+
       const eventIdNum = parseInt(eventId);
 
       if (isNaN(eventIdNum)) {
