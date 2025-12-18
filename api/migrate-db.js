@@ -47,13 +47,21 @@ export default async function handler(req, res) {
         ) THEN
           ALTER TABLE event_registrations ADD COLUMN language text DEFAULT 'no';
         END IF;
+
+        -- Add registered_at column if it doesn't exist
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'event_registrations' AND column_name = 'registered_at'
+        ) THEN
+          ALTER TABLE event_registrations ADD COLUMN registered_at timestamp DEFAULT now() NOT NULL;
+        END IF;
       END $$;
     `;
 
     return res.status(200).json({
       success: true,
       message: 'Database migration completed successfully',
-      details: 'Added attendee_count and language columns to event_registrations table'
+      details: 'Added attendee_count, language, and registered_at columns to event_registrations table'
     });
 
   } catch (error) {
