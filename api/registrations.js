@@ -88,8 +88,8 @@ export default async function handler(req, res) {
           if (entry.action === 'block') {
             // Hard block for categories A, B, C, D
             const errorMessage = sanitizedLanguage === 'no'
-              ? 'Vennligst bruk en gyldig e-postadresse. Vi trenger en ekte e-post for å sende deg bekreftelse og oppdateringer om arrangementet.'
-              : 'Please use a valid email address. We need a real email to send you confirmation and event updates.';
+              ? 'Ugyldig e-postadresse. Bruk en ekte e-post.'
+              : 'Invalid email address. Please use a real email.';
             return res.status(400).json({
               error: errorMessage,
               category: entry.category
@@ -97,8 +97,8 @@ export default async function handler(req, res) {
           } else if (entry.action === 'suggest' && entry.suggested_fix) {
             // Suggest correction for category F (typos)
             const errorMessage = sanitizedLanguage === 'no'
-              ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"? Vennligst sjekk e-postadressen din.`
-              : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"? Please check your email address.`;
+              ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`
+              : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`;
             return res.status(400).json({
               error: errorMessage,
               suggestion: `${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}`,
