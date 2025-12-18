@@ -14,17 +14,9 @@ import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { z } from "zod";
 
-const fakeEmailDomains = ['nei.com', 'test.com', 'example.com', 'fake.com', 'temp.com', 'trash.com'];
-
 const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
-  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(10, "Maksimalt 10 deltakere"),
-  email: z.string().email("Ugyldig e-postadresse").refine(
-    (email) => {
-      const domain = email.split('@')[1]?.toLowerCase();
-      return !fakeEmailDomains.includes(domain);
-    },
-    { message: "Vennligst bruk en gyldig e-postadresse" }
-  )
+  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(10, "Maksimalt 10 deltakere")
+  // Email validation removed from frontend - handled by backend database blacklist
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -67,26 +59,53 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
     onError: (error: any) => {
-      let errorMessage = error.message || t.modals.eventRegistration.errorDesc;
-      
-      // Handle specific error messages
-      if (error.message === "This email is already registered for this event") {
-        errorMessage = language === 'no' 
+      // Parse error message - remove JSON parts if present
+      let rawMessage = error.message || t.modals.eventRegistration.errorDesc;
+
+      // Extract clean error message (remove category JSON if present)
+      const errorMessage = rawMessage.split('","category"')[0].replace(/^400:\s*{"error":"?/, '').replace(/"$/, '');
+
+      // Check if it's an email validation error
+      const isEmailError = errorMessage.includes('e-postadresse') ||
+                          errorMessage.includes('email address') ||
+                          errorMessage.includes('Mente du') ||
+                          errorMessage.includes('Did you mean');
+
+      if (isEmailError) {
+        // Show inline error on email field
+        form.setError('email', {
+          type: 'manual',
+          message: errorMessage
+        });
+        return; // Don't show toast
+      }
+
+      // Handle other specific errors with toast
+      let toastMessage = errorMessage;
+
+      if (errorMessage.includes("already registered")) {
+        toastMessage = language === 'no'
           ? "Denne e-postadressen er allerede registrert for dette arrangementet"
           : "This email is already registered for this event";
-      } else if (error.message === "Cannot register for cancelled event") {
-        errorMessage = language === 'no'
+        // Also set inline error for email
+        form.setError('email', {
+          type: 'manual',
+          message: toastMessage
+        });
+        return;
+      } else if (errorMessage.includes("cancelled")) {
+        toastMessage = language === 'no'
           ? "Du kan ikke melde deg på et avlyst arrangement"
           : "Cannot register for cancelled event";
-      } else if (error.message === "Event is full") {
-        errorMessage = language === 'no'
+      } else if (errorMessage.includes("full") || errorMessage.includes("capacity")) {
+        toastMessage = language === 'no'
           ? "Arrangementet er fullt"
           : "Event is full";
       }
-      
+
       toast({
         title: t.modals.eventRegistration.error,
-        description: errorMessage,
+        description: toastMessage,
         variant: "destructive"
       });
     }
