@@ -18,10 +18,8 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      // Clear HttpOnly cookie and CSRF token by setting them to expired
-      document.cookie = 'jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-      document.cookie = 'csrf-token=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-      return Promise.resolve();
+      // Call logout API to clear HttpOnly cookies properly
+      await apiRequest('POST', '/api/logout');
     },
     onSuccess: () => {
       queryClient.setQueryData(['/api/user'], null);
