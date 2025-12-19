@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertContactMessageSchema } from "@shared/schema";
+import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
 import { Send, UserRoundCheck, User, GraduationCap, MapPin, Phone, Mail, Clock, Calendar } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -31,7 +32,7 @@ export default function Contact() {
   const contactInfo = [
     {
       title: t.contact.fauContact,
-      email: "fauerdalbarnehage@gmail.com",
+      email: FAU_EMAIL,
       description: t.contact.fauContactDesc,
       icon: UserRoundCheck,
       color: "bg-primary/20 text-primary"
@@ -39,7 +40,7 @@ export default function Contact() {
     {
       title: t.contact.kindergartenContact,
       email: "erdal.barnehage@askoy.kommune.no",
-      address: "Steinråsa 5, 5306 Erdal",
+      address: KINDERGARTEN_ADDRESS,
       description: t.contact.kindergartenContactDesc,
       icon: GraduationCap,
       color: "bg-secondary/20 text-secondary"
@@ -158,7 +159,7 @@ export default function Contact() {
                         <FormItem>
                           <FormLabel>{t.contact.phone}</FormLabel>
                           <FormControl>
-                            <Input type="tel" placeholder="+47 xxx xx xxx" {...field} />
+                            <Input type="tel" placeholder={PHONE_PLACEHOLDER} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

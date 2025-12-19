@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertEventRegistrationSchema } from "@shared/schema";
+import { PHONE_PLACEHOLDER } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { z } from "zod";
@@ -181,7 +182,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                 <FormItem>
                   <FormLabel>Telefon</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder="+47 xxx xx xxx" {...field} value={field.value || ""} />
+                    <Input type="tel" placeholder={PHONE_PLACEHOLDER} {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
