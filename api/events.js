@@ -59,7 +59,7 @@ export default async function handler(req, res) {
       const sanitizedLocation = sanitizeText(location, 200);
       const sanitizedCustomLocation = custom_location ? sanitizeText(custom_location, 200) : null;
       const sanitizedMaxAttendees = max_attendees ? sanitizeNumber(max_attendees, 0, 1000) : null;
-      const sanitizedType = ['meeting', 'event', 'activity', 'dugnad', 'internal', 'other'].includes(type) ? type : 'meeting';
+      const sanitizedType = ['meeting', 'event', 'activity', 'other'].includes(type) ? type : 'meeting';
 
       if (!sanitizedTitle || !date || !time) {
         return res.status(400).json({ error: 'Valid title, date, and time are required' });
@@ -94,7 +94,7 @@ export default async function handler(req, res) {
       const sanitizedLocation = sanitizeText(location, 200);
       const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
       const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
-      const sanitizedType = ['meeting', 'event', 'activity', 'dugnad', 'internal', 'other'].includes(type) ? type : 'meeting';
+      const sanitizedType = ['meeting', 'event', 'activity', 'other'].includes(type) ? type : 'meeting';
 
       if (!sanitizedTitle || !date || !time) {
         return res.status(400).json({ error: 'Valid title, date, and time are required' });
