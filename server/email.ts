@@ -1,5 +1,44 @@
 import nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import type { Event, EventRegistration } from '@shared/schema';
+import { FAU_EMAIL, KINDERGARTEN_ADDRESS } from '@shared/constants';
+import * as Sentry from '@sentry/node';
+
+// Create email transporter (shared across all email functions)
+function createEmailTransporter(): Transporter | null {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+    console.log('Email credentials not configured, skipping email send');
+    return null;
+  }
+
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+}
+
+// Format location text with address for emails
+function formatLocationForEmail(location: string, customLocation?: string): string {
+  // Use custom location if "Annet" is selected and customLocation exists
+  if (location === 'Annet' && customLocation) {
+    return customLocation;
+  }
+
+  // Add addresses for standard locations
+  const locationMap: Record<string, string> = {
+    'Småbarnsfløyen': `Småbarnsfløyen: ${KINDERGARTEN_ADDRESS}`,
+    'Storbarnsfløyen': `Storbarnsfløyen: ${KINDERGARTEN_ADDRESS}`,
+    'Møterom': `Møterom: ${KINDERGARTEN_ADDRESS}`,
+    'Ute': `Ute: ${KINDERGARTEN_ADDRESS}`,
+    'Barnehagen': `Barnehagen: ${KINDERGARTEN_ADDRESS}`,
+    'Grupperom': `Grupperom: ${KINDERGARTEN_ADDRESS}`,
+  };
+
+  return locationMap[location] || location;
+}
 
 interface EmailParams {
   name: string;
@@ -29,19 +68,10 @@ interface EventReminderParams {
 }
 
 export async function sendContactEmail(params: EmailParams): Promise<boolean> {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.log('Email credentials not configured, skipping email send');
-    return false;
-  }
+  const transporter = createEmailTransporter();
+  if (!transporter) return false;
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
 
     const subjectMap: Record<string, string> = {
       general: 'Generell Henvendelse',
@@ -74,17 +104,19 @@ export async function sendContactEmail(params: EmailParams): Promise<boolean> {
 
     const mailOptions = {
       from: process.env.GMAIL_USER,
-      to: 'fauerdalbarnehage@gmail.com',
+      to: FAU_EMAIL,
       subject: `FAU Kontakt: ${subjectText}`,
       text: emailContent,
       replyTo: params.isAnonymous ? undefined : params.email,
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Contact email sent successfully');
     return true;
   } catch (error) {
-    console.error('Failed to send contact email:', error);
+    Sentry.captureException(error, {
+      tags: { email_type: 'contact' },
+      extra: { subject: params.subject, isAnonymous: params.isAnonymous }
+    });
     return false;
   }
 }
@@ -113,19 +145,10 @@ const emailTemplates = {
 };
 
 export async function sendEventConfirmationEmail(params: EventConfirmationParams): Promise<boolean> {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.log('Email credentials not configured, skipping email send');
-    return false;
-  }
+  const transporter = createEmailTransporter();
+  if (!transporter) return false;
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
 
     const { registration, event, language = 'no' } = params;
     const template = emailTemplates[language];
@@ -147,31 +170,7 @@ export async function sendEventConfirmationEmail(params: EventConfirmationParams
     emailContent += `${template.date} ${eventDate}\n`;
     emailContent += `${template.time} ${event.time}\n`;
     if (event.location) {
-      let locationText = event.location;
-      
-      // Use custom location if "Annet" is selected and customLocation exists
-      if (event.location === 'Annet' && event.customLocation) {
-        locationText = event.customLocation;
-      } else {
-        // Add addresses for standard locations
-        switch (event.location) {
-          case 'Småbarnsfløyen':
-            locationText = 'Småbarnsfløyen: Steinråsa 5, 5306 Erdal';
-            break;
-          case 'Storbarnsfløyen':
-            locationText = 'Storbarnsfløyen: Steinråsa 5, 5306 Erdal';
-            break;
-          case 'Møterom':
-            locationText = 'Møterom: Steinråsa 5, 5306 Erdal';
-            break;
-          case 'Ute':
-            locationText = 'Ute: Steinråsa 5, 5306 Erdal';
-            break;
-          default:
-            locationText = event.location;
-        }
-      }
-      
+      const locationText = formatLocationForEmail(event.location, event.customLocation);
       emailContent += `${template.location} ${locationText}\n`;
     }
     if (event.description) {
@@ -187,32 +186,25 @@ export async function sendEventConfirmationEmail(params: EventConfirmationParams
       to: registration.email,
       subject: template.subject(event.title),
       text: emailContent,
-      replyTo: 'fauerdalbarnehage@gmail.com',
+      replyTo: FAU_EMAIL,
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Event confirmation email sent successfully');
     return true;
   } catch (error) {
-    console.error('Failed to send event confirmation email:', error);
+    Sentry.captureException(error, {
+      tags: { email_type: 'event_confirmation' },
+      extra: { eventId: event.id, eventTitle: event.title }
+    });
     return false;
   }
 }
 
 export async function sendEventCancellationEmail(params: EventCancellationParams): Promise<boolean> {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.log('Email credentials not configured, skipping email send');
-    return false;
-  }
+  const transporter = createEmailTransporter();
+  if (!transporter) return false;
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
 
     const { registration, event, language = 'no' } = params;
     const template = emailTemplates[language];
@@ -239,40 +231,16 @@ export async function sendEventCancellationEmail(params: EventCancellationParams
     emailContent += `${event.title}\n`;
     emailContent += `${template.date} ${eventDate}\n`;
     emailContent += `${template.time} ${event.time}\n`;
-    
-    let locationText = event.location;
-    
-    // Use custom location if "Annet" is selected and customLocation exists
-    if (event.location === 'Annet' && event.customLocation) {
-      locationText = event.customLocation;
-    } else {
-      // Add addresses for standard locations
-      switch (event.location) {
-        case 'Småbarnsfløyen':
-          locationText = 'Småbarnsfløyen: Steinråsa 5, 5306 Erdal';
-          break;
-        case 'Storbarnsfløyen':
-          locationText = 'Storbarnsfløyen: Steinråsa 5, 5306 Erdal';
-          break;
-        case 'Møterom':
-          locationText = 'Møterom: Steinråsa 5, 5306 Erdal';
-          break;
-        case 'Ute':
-          locationText = 'Ute: Steinråsa 5, 5306 Erdal';
-          break;
-        default:
-          locationText = event.location;
-      }
-    }
-    
+
+    const locationText = formatLocationForEmail(event.location, event.customLocation);
     emailContent += `${template.location} ${locationText}\n\n`;
     
     if (language === 'no') {
       emailContent += `Vi beklager eventuelle ulemper dette måtte medføre.\n\n`;
-      emailContent += `For spørsmål, vennligst kontakt oss på fauerdalbarnehage@gmail.com\n\n`;
+      emailContent += `For spørsmål, vennligst kontakt oss på ${FAU_EMAIL}\n\n`;
     } else {
       emailContent += `We apologize for any inconvenience this may cause.\n\n`;
-      emailContent += `For questions, please contact us at fauerdalbarnehage@gmail.com\n\n`;
+      emailContent += `For questions, please contact us at ${FAU_EMAIL}\n\n`;
     }
     
     emailContent += template.signature;
@@ -282,32 +250,25 @@ export async function sendEventCancellationEmail(params: EventCancellationParams
       to: registration.email,
       subject,
       text: emailContent,
-      replyTo: 'fauerdalbarnehage@gmail.com',
+      replyTo: FAU_EMAIL,
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Event cancellation email sent successfully');
     return true;
   } catch (error) {
-    console.error('Failed to send event cancellation email:', error);
+    Sentry.captureException(error, {
+      tags: { email_type: 'event_cancellation' },
+      extra: { eventId: event.id, eventTitle: event.title }
+    });
     return false;
   }
 }
 
 export async function sendEventReminderEmail(params: EventReminderParams): Promise<boolean> {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    console.log('Email credentials not configured, skipping email send');
-    return false;
-  }
+  const transporter = createEmailTransporter();
+  if (!transporter) return false;
 
   try {
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
 
     const { registration, event, language = 'no' } = params;
     
@@ -330,60 +291,24 @@ export async function sendEventReminderEmail(params: EventReminderParams): Promi
       emailContent += `Arrangement: ${event.title}\n`;
       emailContent += `Dato: ${eventDate}\n`;
       emailContent += `Tid: ${event.time}\n`;
-      
-      let locationText = event.location;
-      if (event.customLocation && event.customLocation.trim()) {
-        locationText = event.customLocation;
-      } else {
-        switch (event.location) {
-          case 'Barnehagen':
-            locationText = 'Barnehagen: Steinråsa 5, 5306 Erdal';
-            break;
-          case 'Grupperom':
-            locationText = 'Grupperom: Steinråsa 5, 5306 Erdal';
-            break;
-          case 'Ute':
-            locationText = 'Ute: Steinråsa 5, 5306 Erdal';
-            break;
-          default:
-            locationText = event.location;
-        }
-      }
-      
+
+      const locationText = formatLocationForEmail(event.location, event.customLocation);
       emailContent += `Sted: ${locationText}\n\n`;
       emailContent += `Vi gleder oss til å se deg!\n\n`;
       emailContent += `Hvis du ikke kan delta, vennligst gi oss beskjed så snart som mulig.\n\n`;
-      emailContent += `Med vennlig hilsen,\nFAU Erdal Barnehage\nfauerdalbarnehage@gmail.com`;
+      emailContent += `Med vennlig hilsen,\nFAU Erdal Barnehage\n${FAU_EMAIL}`;
     } else {
       emailContent += `Hello ${registration.name},\n\n`;
       emailContent += `This is a reminder that you are registered for the following event tomorrow:\n\n`;
       emailContent += `Event: ${event.title}\n`;
       emailContent += `Date: ${eventDate}\n`;
       emailContent += `Time: ${event.time}\n`;
-      
-      let locationText = event.location;
-      if (event.customLocation && event.customLocation.trim()) {
-        locationText = event.customLocation;
-      } else {
-        switch (event.location) {
-          case 'Barnehagen':
-            locationText = 'Kindergarten: Steinråsa 5, 5306 Erdal';
-            break;
-          case 'Grupperom':
-            locationText = 'Group room: Steinråsa 5, 5306 Erdal';
-            break;
-          case 'Ute':
-            locationText = 'Outside: Steinråsa 5, 5306 Erdal';
-            break;
-          default:
-            locationText = event.location;
-        }
-      }
-      
+
+      const locationText = formatLocationForEmail(event.location, event.customLocation);
       emailContent += `Location: ${locationText}\n\n`;
       emailContent += `We look forward to seeing you!\n\n`;
       emailContent += `If you cannot attend, please let us know as soon as possible.\n\n`;
-      emailContent += `Best regards,\nFAU Erdal Kindergarten\nfauerdalbarnehage@gmail.com`;
+      emailContent += `Best regards,\nFAU Erdal Kindergarten\n${FAU_EMAIL}`;
     }
 
     const mailOptions = {
@@ -391,14 +316,16 @@ export async function sendEventReminderEmail(params: EventReminderParams): Promi
       to: registration.email,
       subject,
       text: emailContent,
-      replyTo: 'fauerdalbarnehage@gmail.com',
+      replyTo: FAU_EMAIL,
     };
 
     await transporter.sendMail(mailOptions);
-    console.log('Event reminder email sent successfully');
     return true;
   } catch (error) {
-    console.error('Failed to send event reminder email:', error);
+    Sentry.captureException(error, {
+      tags: { email_type: 'event_reminder' },
+      extra: { eventId: event.id, eventTitle: event.title }
+    });
     return false;
   }
 }

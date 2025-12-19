@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -167,28 +167,33 @@ export default function Events() {
     }
   };
 
-  // Sort events chronologically
-  const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  // Filter out cancelled events that have passed their date
-  const visibleEvents = sortedEvents.filter(event => {
-    const eventDate = new Date(event.date);
-    // If event is cancelled and date has passed, hide it completely
-    if (event.status === 'cancelled' && eventDate < today) {
-      return false;
-    }
-    return true;
-  });
-  
-  const currentEvents = visibleEvents.filter(event => new Date(event.date) >= today);
-  const pastEvents = visibleEvents.filter(event => {
-    const eventDate = new Date(event.date);
-    // Only show past events that are not cancelled
-    return eventDate < today && event.status !== 'cancelled';
-  }).reverse();
+  // Memoize expensive filtering and sorting operations
+  const { currentEvents, pastEvents } = useMemo(() => {
+    // Sort events chronologically
+    const sortedEvents = [...events].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Filter out cancelled events that have passed their date
+    const visibleEvents = sortedEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      // If event is cancelled and date has passed, hide it completely
+      if (event.status === 'cancelled' && eventDate < today) {
+        return false;
+      }
+      return true;
+    });
+
+    const current = visibleEvents.filter(event => new Date(event.date) >= today);
+    const past = visibleEvents.filter(event => {
+      const eventDate = new Date(event.date);
+      // Only show past events that are not cancelled
+      return eventDate < today && event.status !== 'cancelled';
+    }).reverse();
+
+    return { currentEvents: current, pastEvents: past };
+  }, [events]); // Recompute only when events array changes
 
   if (isLoading) {
     return (
@@ -216,14 +221,16 @@ export default function Events() {
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-3">
           {/* View Toggle */}
-          <div className="flex rounded-lg border border-neutral-200 p-1">
+          <div className="flex rounded-lg border border-neutral-200 p-1" role="group" aria-label={language === 'no' ? 'Visningsvalg' : 'View options'}>
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('list')}
               className="flex items-center space-x-2"
+              aria-label={language === 'no' ? 'Listevisning' : 'List view'}
+              aria-pressed={viewMode === 'list'}
             >
-              <List className="h-4 w-4" />
+              <List className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{language === 'no' ? 'Liste' : 'List'}</span>
             </Button>
             <Button
@@ -231,8 +238,10 @@ export default function Events() {
               size="sm"
               onClick={() => setViewMode('calendar')}
               className="flex items-center space-x-2"
+              aria-label={language === 'no' ? 'Kalendervisning' : 'Calendar view'}
+              aria-pressed={viewMode === 'calendar'}
             >
-              <Grid className="h-4 w-4" />
+              <Grid className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{language === 'no' ? 'Kalender' : 'Calendar'}</span>
             </Button>
           </div>
