@@ -1,11 +1,11 @@
 // FAU Erdal Barnehage location configuration
-export const KINDERGARTEN_ADDRESS = "Steinråsa 5, 5306 Erdal, Norway";
+import { KINDERGARTEN_ADDRESS_NORWAY } from "@shared/constants";
 
 export const LOCATION_ADDRESSES = {
-  "Småbarnsfløyen": KINDERGARTEN_ADDRESS,
-  "Storbarnsfløyen": KINDERGARTEN_ADDRESS,
-  "Møterom": KINDERGARTEN_ADDRESS,
-  "Ute": KINDERGARTEN_ADDRESS,
+  "Småbarnsfløyen": KINDERGARTEN_ADDRESS_NORWAY,
+  "Storbarnsfløyen": KINDERGARTEN_ADDRESS_NORWAY,
+  "Møterom": KINDERGARTEN_ADDRESS_NORWAY,
+  "Ute": KINDERGARTEN_ADDRESS_NORWAY,
 } as const;
 
 // Address validation using basic format checking
@@ -36,5 +36,5 @@ export function getLocationAddress(location: string, customLocation?: string): s
     return customLocation;
   }
   
-  return LOCATION_ADDRESSES[location as keyof typeof LOCATION_ADDRESSES] || KINDERGARTEN_ADDRESS;
+  return LOCATION_ADDRESSES[location as keyof typeof LOCATION_ADDRESSES] || KINDERGARTEN_ADDRESS_NORWAY;
 }
