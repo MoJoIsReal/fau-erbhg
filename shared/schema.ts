@@ -29,13 +29,14 @@ export const events = pgTable("events", {
 
 export const eventRegistrations = pgTable("event_registrations", {
   id: serial("id").primaryKey(),
-  eventId: integer("event_id").notNull(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: 'cascade' }),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
   attendeeCount: integer("attendee_count").default(1),
   comments: text("comments"),
   language: text("language").default("no"),
+  registeredAt: timestamp("registered_at").defaultNow().notNull(),
 });
 
 export const contactMessages = pgTable("contact_messages", {
@@ -80,7 +81,7 @@ export const fauBoardMembers = pgTable("fau_board_members", {
 });
 
 export const insertEventSchema = createInsertSchema(events).omit({ id: true, currentAttendees: true });
-export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true });
+export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true, registeredAt: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, uploadedAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });

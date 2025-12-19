@@ -1,4 +1,7 @@
-import { QueryClient, QueryFunction } from "@tanstack/react-query";
+/**
+ * API request utilities for making authenticated requests to the backend
+ * Note: QueryClient is created in main.tsx, not here
+ */
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -51,45 +54,3 @@ export async function apiRequest(
   await throwIfResNotOk(res);
   return res;
 }
-
-type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
-  ({ on401: unauthorizedBehavior }) =>
-  async ({ queryKey }) => {
-    const headers: Record<string, string> = {};
-
-    // Handle development vs production URLs
-    const baseUrl = queryKey[0] as string;
-    const url = import.meta.env.DEV && baseUrl.startsWith('/api/')
-      ? `http://localhost:5000${baseUrl}`
-      : baseUrl;
-
-    const res = await fetch(url, {
-      headers,
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
-    }
-
-    await throwIfResNotOk(res);
-    return await res.json();
-  };
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      queryFn: getQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
-});
