@@ -1,5 +1,6 @@
 import { storage } from './storage';
 import { sendEventReminderEmail } from './email';
+import * as Sentry from '@sentry/node';
 
 class ReminderScheduler {
   private intervalId: NodeJS.Timeout | null = null;
@@ -13,14 +14,22 @@ class ReminderScheduler {
 
     // Also check immediately when starting
     this.checkForReminders();
-    console.log('Event reminder scheduler started');
+    Sentry.addBreadcrumb({
+      category: 'scheduler',
+      message: 'Event reminder scheduler started',
+      level: 'info'
+    });
   }
 
   stop() {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('Event reminder scheduler stopped');
+      Sentry.addBreadcrumb({
+        category: 'scheduler',
+        message: 'Event reminder scheduler stopped',
+        level: 'info'
+      });
     }
   }
 
@@ -57,7 +66,10 @@ class ReminderScheduler {
         }
       }
     } catch (error) {
-      console.error('Error checking for event reminders:', error);
+      Sentry.captureException(error, {
+        tags: { scheduler: 'reminder_check' },
+        extra: { context: 'Checking for event reminders' }
+      });
     }
   }
 
@@ -78,10 +90,19 @@ class ReminderScheduler {
         // Add small delay between emails to avoid overwhelming the email service
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      
-      console.log(`Sent reminder emails for event: ${event.title} (${registrations.length} recipients)`);
+
+
+      Sentry.addBreadcrumb({
+        category: 'scheduler',
+        message: `Sent reminder emails for event: ${event.title}`,
+        level: 'info',
+        data: { recipientCount: registrations.length }
+      });
     } catch (error) {
-      console.error(`Error sending reminders for event ${event.title}:`, error);
+      Sentry.captureException(error, {
+        tags: { scheduler: 'send_reminders' },
+        extra: { eventTitle: event.title, eventId: event.id }
+      });
     }
   }
 }
