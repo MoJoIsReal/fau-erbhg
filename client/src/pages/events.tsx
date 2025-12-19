@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, lazy, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,9 +26,11 @@ import type { Event } from "@shared/schema";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import EventCreationModal from "@/components/event-creation-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
-import CalendarView from "@/components/calendar-view";
 import LocationMapLink from "@/components/location-map-link";
 import AttendeeTooltip from "@/components/attendee-tooltip";
+
+// Lazy load calendar component (only loaded when user switches to calendar view)
+const CalendarView = lazy(() => import("@/components/calendar-view"));
 
 export default function Events() {
   const { language, t } = useLanguage();
@@ -260,10 +262,19 @@ export default function Events() {
 
       {/* Content based on view mode */}
       {viewMode === 'calendar' ? (
-        <CalendarView 
-          events={events} 
-          onEventClick={handleCalendarEventClick}
-        />
+        <Suspense fallback={
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-neutral-600">{language === 'no' ? 'Laster kalender...' : 'Loading calendar...'}</p>
+            </div>
+          </div>
+        }>
+          <CalendarView
+            events={events}
+            onEventClick={handleCalendarEventClick}
+          />
+        </Suspense>
       ) : (
         <div className="space-y-6">
           {events.length === 0 ? (
