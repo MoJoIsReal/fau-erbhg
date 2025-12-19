@@ -30,24 +30,23 @@ export default async function handler(req, res) {
     }
 
     const sql = getDb();
-    
+
     // Get user by username (email)
     const users = await sql`
-      SELECT id, username, name, role, password 
-      FROM users 
+      SELECT id, username, name, role, password
+      FROM users
       WHERE username = ${username}
     `;
 
-    if (users.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
     const user = users[0];
-    
-    // Verify password
-    const isValid = await bcryptjs.compare(password, user.password);
-    
-    if (!isValid) {
+
+    // Always run bcrypt comparison to prevent timing attacks
+    // Use a dummy hash if user doesn't exist to maintain constant time
+    const passwordHash = user?.password || '$2a$10$XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX';
+    const isValid = await bcryptjs.compare(password, passwordHash);
+
+    // Check both user existence and password validity
+    if (!user || !isValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
