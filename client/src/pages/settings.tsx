@@ -17,6 +17,9 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
 import { getCookie } from "@/lib/queryClient";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 
 // Role values stored in database (Norwegian)
 const ROLE_VALUES = ["Leder", "Medlem", "Vara"] as const;
@@ -529,8 +532,19 @@ export default function Settings() {
                         value={post.content || ""}
                         onChange={(e) => updatePost(index, "content", e.target.value)}
                         placeholder={language === "no" ? "Skriv innlegget her..." : "Write your post here..."}
-                        rows={6}
+                        rows={10}
                       />
+                      <p className="text-xs text-neutral-500 mt-2">
+                        {language === "no" ? (
+                          <>
+                            <strong>Formatering:</strong> **fet**, *kursiv*, [lenke](https://eksempel.no), • punktliste
+                          </>
+                        ) : (
+                          <>
+                            <strong>Formatting:</strong> **bold**, *italic*, [link](https://example.com), • bullet list
+                          </>
+                        )}
+                      </p>
                     </div>
 
                     <div>
@@ -686,9 +700,24 @@ export default function Settings() {
                         </span>
                       )}
                     </p>
-                    <p className="text-sm text-neutral-700 whitespace-pre-wrap line-clamp-3">
-                      {post.content}
-                    </p>
+                    <div className="prose prose-sm prose-neutral max-w-none line-clamp-3">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                        components={{
+                          a: ({ node, ...props }) => (
+                            <a
+                              {...props}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            />
+                          ),
+                        }}
+                      >
+                        {post.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
                 )}
               </Card>
