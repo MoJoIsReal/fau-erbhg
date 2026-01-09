@@ -5,6 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
 import type { Event } from "@shared/schema";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeSanitize from "rehype-sanitize";
 
 interface FauBoardMember {
   id: number;
@@ -135,11 +138,26 @@ export default function Home() {
                         </span>
                       )}
                     </p>
-                    <p className="text-sm text-neutral-700 whitespace-pre-wrap mb-2">
-                      {post.content.length > 200
-                        ? `${post.content.substring(0, 200)}...`
-                        : post.content}
-                    </p>
+                    <div className="prose prose-sm prose-neutral max-w-none mb-2">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeSanitize]}
+                        components={{
+                          a: ({ node, ...props }) => (
+                            <a
+                              {...props}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 underline"
+                            />
+                          ),
+                        }}
+                      >
+                        {post.content.length > 200
+                          ? `${post.content.substring(0, 200)}...`
+                          : post.content}
+                      </ReactMarkdown>
+                    </div>
                     <Link href="/news">
                       <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
                         {language === 'no' ? 'Les mer →' : 'Read more →'}
