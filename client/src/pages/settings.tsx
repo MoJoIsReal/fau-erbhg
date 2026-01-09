@@ -17,10 +17,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
 import { getCookie } from "@/lib/queryClient";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import rehypeSanitize from "rehype-sanitize";
+import RichTextEditor from "@/components/RichTextEditor";
 
 // Role values stored in database (Norwegian)
 const ROLE_VALUES = ["Leder", "Medlem", "Vara"] as const;
@@ -528,24 +525,11 @@ export default function Settings() {
                       <Label htmlFor={`post-content-${index}`}>
                         {language === "no" ? "Innhold" : "Content"}
                       </Label>
-                      <Textarea
-                        id={`post-content-${index}`}
-                        value={post.content || ""}
-                        onChange={(e) => updatePost(index, "content", e.target.value)}
+                      <RichTextEditor
+                        content={post.content || ""}
+                        onChange={(content) => updatePost(index, "content", content)}
                         placeholder={language === "no" ? "Skriv innlegget her..." : "Write your post here..."}
-                        rows={10}
                       />
-                      <p className="text-xs text-neutral-500 mt-2">
-                        {language === "no" ? (
-                          <>
-                            <strong>Formatering:</strong> **fet**, *kursiv*, [lenke](https://eksempel.no), • punktliste. Trykk Enter for ny linje.
-                          </>
-                        ) : (
-                          <>
-                            <strong>Formatting:</strong> **bold**, *italic*, [link](https://example.com), • bullet list. Press Enter for new line.
-                          </>
-                        )}
-                      </p>
                     </div>
 
                     <div>
@@ -701,24 +685,10 @@ export default function Settings() {
                         </span>
                       )}
                     </p>
-                    <div className="prose prose-sm prose-neutral max-w-none line-clamp-3">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkBreaks]}
-                        rehypePlugins={[rehypeSanitize]}
-                        components={{
-                          a: ({ node, ...props }) => (
-                            <a
-                              {...props}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:text-blue-800 underline"
-                            />
-                          ),
-                        }}
-                      >
-                        {post.content}
-                      </ReactMarkdown>
-                    </div>
+                    <div
+                      className="prose prose-sm prose-neutral max-w-none line-clamp-3 text-neutral-700"
+                      dangerouslySetInnerHTML={{ __html: post.content || '' }}
+                    />
                   </div>
                 )}
               </Card>

@@ -2,10 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkBreaks from "remark-breaks";
-import rehypeSanitize from "rehype-sanitize";
 
 interface BlogPost {
   id: number;
@@ -81,24 +77,10 @@ export default function News() {
                     </span>
                   )}
                 </div>
-                <div className="prose prose-neutral max-w-none text-neutral-700">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    rehypePlugins={[rehypeSanitize]}
-                    components={{
-                      a: ({ node, ...props }) => (
-                        <a
-                          {...props}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 underline"
-                        />
-                      ),
-                    }}
-                  >
-                    {post.content}
-                  </ReactMarkdown>
-                </div>
+                <div
+                  className="prose prose-neutral max-w-none text-neutral-700"
+                  dangerouslySetInnerHTML={{ __html: post.content }}
+                />
               </CardContent>
             </Card>
           ))}
