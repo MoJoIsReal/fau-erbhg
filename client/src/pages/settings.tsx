@@ -19,6 +19,7 @@ import { FauBoardMember } from "@shared/schema";
 import { getCookie } from "@/lib/queryClient";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeSanitize from "rehype-sanitize";
 
 // Role values stored in database (Norwegian)
@@ -537,11 +538,11 @@ export default function Settings() {
                       <p className="text-xs text-neutral-500 mt-2">
                         {language === "no" ? (
                           <>
-                            <strong>Formatering:</strong> **fet**, *kursiv*, [lenke](https://eksempel.no), • punktliste
+                            <strong>Formatering:</strong> **fet**, *kursiv*, [lenke](https://eksempel.no), • punktliste. Trykk Enter for ny linje.
                           </>
                         ) : (
                           <>
-                            <strong>Formatting:</strong> **bold**, *italic*, [link](https://example.com), • bullet list
+                            <strong>Formatting:</strong> **bold**, *italic*, [link](https://example.com), • bullet list. Press Enter for new line.
                           </>
                         )}
                       </p>
@@ -702,7 +703,7 @@ export default function Settings() {
                     </p>
                     <div className="prose prose-sm prose-neutral max-w-none line-clamp-3">
                       <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
                         rehypePlugins={[rehypeSanitize]}
                         components={{
                           a: ({ node, ...props }) => (

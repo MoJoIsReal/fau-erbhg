@@ -7,6 +7,7 @@ import { Link } from "wouter";
 import type { Event } from "@shared/schema";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeSanitize from "rehype-sanitize";
 
 interface FauBoardMember {
@@ -140,7 +141,7 @@ export default function Home() {
                     </p>
                     <div className="prose prose-sm prose-neutral max-w-none mb-2">
                       <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
                         rehypePlugins={[rehypeSanitize]}
                         components={{
                           a: ({ node, ...props }) => (

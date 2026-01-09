@@ -4,6 +4,7 @@ import { Calendar, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import rehypeSanitize from "rehype-sanitize";
 
 interface BlogPost {
@@ -82,7 +83,7 @@ export default function News() {
                 </div>
                 <div className="prose prose-neutral max-w-none text-neutral-700">
                   <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
                     rehypePlugins={[rehypeSanitize]}
                     components={{
                       a: ({ node, ...props }) => (
