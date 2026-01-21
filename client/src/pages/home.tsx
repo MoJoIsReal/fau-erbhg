@@ -259,9 +259,10 @@ export default function Home() {
                       </div>
                       <h4 className="font-medium text-neutral-900">{event.title}</h4>
                     </div>
-                    <p className="text-sm text-neutral-600 mb-3">
-                      {event.description}
-                    </p>
+                    <div
+                      className="prose prose-sm prose-neutral max-w-none text-sm text-neutral-600 mb-3"
+                      dangerouslySetInnerHTML={{ __html: event.description }}
+                    />
                     <div className="space-y-1 text-xs text-accent">
                       <div className="flex items-center">
                         <Clock className="h-3 w-3 mr-1" />
