@@ -5,7 +5,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,6 +15,7 @@ import { insertEventSchema, type Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { validateAddress } from "@/lib/location-utils";
 import { z } from "zod";
+import RichTextEditor from "@/components/RichTextEditor";
 
 const formSchema = insertEventSchema.extend({
   maxAttendees: z.number().min(1).optional().nullable(),
@@ -186,11 +186,10 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 <FormItem>
                   <FormLabel>{t.modals.eventCreation.descriptionLabel}</FormLabel>
                   <FormControl>
-                    <Textarea 
+                    <RichTextEditor
+                      content={field.value || ""}
+                      onChange={field.onChange}
                       placeholder={t.modals.eventCreation.descriptionPlaceholder}
-                      rows={3}
-                      {...field}
-                      value={field.value || ""}
                     />
                   </FormControl>
                   <FormMessage />

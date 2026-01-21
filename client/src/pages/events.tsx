@@ -330,7 +330,10 @@ export default function Events() {
                                 />
                               </div>
                             )}
-                            <p className="text-neutral-700">{event.description}</p>
+                            <div
+                              className="prose prose-sm prose-neutral max-w-none text-neutral-700"
+                              dangerouslySetInnerHTML={{ __html: event.description }}
+                            />
                           </div>
 
                           {!event.noSignup && !event.vigiloSignup && (
@@ -496,7 +499,10 @@ export default function Events() {
                                     </div>
                                   </div>
                                 </div>
-                                <p className="text-neutral-600 text-sm">{event.description}</p>
+                                <div
+                                  className="prose prose-sm prose-neutral max-w-none text-neutral-600 text-sm"
+                                  dangerouslySetInnerHTML={{ __html: event.description }}
+                                />
                               </div>
                               
                               <div className="flex items-center space-x-4 text-sm">
