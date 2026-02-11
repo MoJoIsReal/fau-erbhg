@@ -2,33 +2,86 @@ import type { Event, EventRegistration } from '@shared/schema';
 import { formatDate } from './i18n';
 
 export function exportAttendeesToExcel(event: Event, registrations: EventRegistration[], language: 'no' | 'en') {
-  // Create CSV content that Excel can open
-  const headers = language === 'no' 
-    ? ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']
-    : ['Name', 'Email', 'Phone', 'Attendee Count', 'Comments'];
-  
-  const csvContent = [
-    // Event information header
-    [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
-    [language === 'no' ? 'Dato:' : 'Date:', formatDate(event.date, language)],
-    [language === 'no' ? 'Tid:' : 'Time:', event.time],
-    [language === 'no' ? 'Sted:' : 'Location:', event.location],
-    [''], // Empty row
-    [language === 'no' ? 'Påmeldingsliste:' : 'Registration List:'],
-    headers,
-    ...registrations.map(reg => [
-      reg.name,
-      reg.email,
-      reg.phone || '',
-      reg.attendeeCount?.toString() || '1',
-      reg.comments || ''
-    ]),
-    [''], // Empty row
-    [language === 'no' ? 'Totalt antall deltakere:' : 'Total attendees:', 
-     registrations.reduce((sum, reg) => sum + (reg.attendeeCount || 1), 0).toString()],
-    [language === 'no' ? 'Antall påmeldinger:' : 'Number of registrations:', 
-     registrations.length.toString()]
-  ];
+  const isFotoEvent = event.type === 'foto';
+
+  let csvContent: string[][];
+
+  if (isFotoEvent) {
+    // Foto event: list sorted by time slot with parent, child, and contact info
+    const headers = language === 'no'
+      ? ['Tidspunkt', 'Fornavn barn', 'Foresatt', 'E-post', 'Telefon']
+      : ['Time slot', 'Child first name', 'Parent/Guardian', 'Email', 'Phone'];
+
+    // Build flat list of all children with their time slots
+    const [hours, minutes] = event.time.split(':').map(Number);
+    let totalChildrenBefore = 0;
+    const rows: string[][] = [];
+
+    for (const reg of registrations) {
+      let childrenNames: string[] = [];
+      try {
+        if (reg.childrenNames) childrenNames = JSON.parse(reg.childrenNames);
+      } catch {}
+
+      const childCount = reg.attendeeCount || 1;
+      for (let i = 0; i < childCount; i++) {
+        const slotMinutes = (totalChildrenBefore + i) * 10;
+        const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
+        const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
+        rows.push([
+          slotTime,
+          childrenNames[i] || `Barn ${i + 1}`,
+          reg.name,
+          reg.email,
+          reg.phone || '',
+        ]);
+      }
+      totalChildrenBefore += childCount;
+    }
+
+    csvContent = [
+      [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
+      [language === 'no' ? 'Dato:' : 'Date:', formatDate(event.date, language)],
+      [language === 'no' ? 'Starttid:' : 'Start time:', event.time],
+      [language === 'no' ? 'Sted:' : 'Location:', event.location],
+      [''],
+      [language === 'no' ? 'Fotograferingsliste:' : 'Photography schedule:'],
+      headers,
+      ...rows,
+      [''],
+      [language === 'no' ? 'Totalt antall barn:' : 'Total children:',
+       totalChildrenBefore.toString()],
+      [language === 'no' ? 'Antall foresatte:' : 'Number of parents:',
+       registrations.length.toString()],
+    ];
+  } else {
+    // Standard event export
+    const headers = language === 'no'
+      ? ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']
+      : ['Name', 'Email', 'Phone', 'Attendee Count', 'Comments'];
+
+    csvContent = [
+      [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
+      [language === 'no' ? 'Dato:' : 'Date:', formatDate(event.date, language)],
+      [language === 'no' ? 'Tid:' : 'Time:', event.time],
+      [language === 'no' ? 'Sted:' : 'Location:', event.location],
+      [''],
+      [language === 'no' ? 'Påmeldingsliste:' : 'Registration List:'],
+      headers,
+      ...registrations.map(reg => [
+        reg.name,
+        reg.email,
+        reg.phone || '',
+        reg.attendeeCount?.toString() || '1',
+        reg.comments || ''
+      ]),
+      [''],
+      [language === 'no' ? 'Totalt antall deltakere:' : 'Total attendees:',
+       registrations.reduce((sum, reg) => sum + (reg.attendeeCount || 1), 0).toString()],
+      [language === 'no' ? 'Antall påmeldinger:' : 'Number of registrations:',
+       registrations.length.toString()]
+    ];
+  }
 
   // Convert to CSV format
   const csv = csvContent
