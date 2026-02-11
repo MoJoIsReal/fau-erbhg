@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -16,7 +16,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { z } from "zod";
 
 const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
-  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(10, "Maksimalt 10 deltakere")
+  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(10, "Maksimalt 10 deltakere"),
+  childrenNames: z.string().optional().nullable(),
   // Email validation removed from frontend - handled by backend database blacklist
 });
 
@@ -32,7 +33,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { language, t } = useLanguage();
-  
+  const isFotoEvent = event?.type === "foto";
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -40,9 +42,36 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       email: "",
       phone: "",
       attendeeCount: 1,
-      comments: ""
+      comments: "",
+      childrenNames: null,
     }
   });
+
+  const attendeeCount = useWatch({
+    control: form.control,
+    name: "attendeeCount",
+  });
+
+  // For foto events, parse childrenNames as JSON array
+  const childrenNamesRaw = useWatch({
+    control: form.control,
+    name: "childrenNames",
+  });
+
+  const getChildrenNamesArray = (): string[] => {
+    try {
+      if (childrenNamesRaw) return JSON.parse(childrenNamesRaw);
+    } catch {}
+    return [];
+  };
+
+  const setChildName = (index: number, value: string) => {
+    const names = getChildrenNamesArray();
+    // Ensure array is large enough
+    while (names.length <= index) names.push("");
+    names[index] = value;
+    form.setValue("childrenNames", JSON.stringify(names));
+  };
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
@@ -113,6 +142,30 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   });
 
   const onSubmit = (data: FormData) => {
+    // Validate children names for foto events
+    if (isFotoEvent) {
+      const names = getChildrenNamesArray();
+      const count = data.attendeeCount || 1;
+      const missingNames = [];
+      for (let i = 0; i < count; i++) {
+        if (!names[i] || names[i].trim() === "") {
+          missingNames.push(i + 1);
+        }
+      }
+      if (missingNames.length > 0) {
+        toast({
+          title: language === 'no' ? "Manglende navn" : "Missing names",
+          description: language === 'no'
+            ? `Vennligst oppgi navn på alle barn`
+            : `Please provide names for all children`,
+          variant: "destructive"
+        });
+        return;
+      }
+      // Trim the array to only the needed children
+      const trimmedNames = names.slice(0, count).map(n => n.trim());
+      data.childrenNames = JSON.stringify(trimmedNames);
+    }
     mutation.mutate(data);
   };
 
@@ -127,19 +180,29 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Påmelding til arrangement</DialogTitle>
+          <DialogTitle>
+            {isFotoEvent
+              ? (language === 'no' ? 'Påmelding til fotografering' : 'Register for photo session')
+              : 'Påmelding til arrangement'
+            }
+          </DialogTitle>
           <DialogDescription>
-            Fyll ut skjemaet nedenfor for å melde deg på arrangementet.
+            {isFotoEvent
+              ? (language === 'no'
+                ? 'Oppgi antall barn som skal fotograferes og navn på hvert barn.'
+                : 'Enter the number of children to be photographed and their names.')
+              : 'Fyll ut skjemaet nedenfor for å melde deg på arrangementet.'
+            }
           </DialogDescription>
         </DialogHeader>
 
         <div className="mb-4 p-4 bg-neutral-50 rounded-lg">
           <h4 className="font-medium text-neutral-900">{event.title}</h4>
           <p className="text-sm text-neutral-600">
-            {new Date(event.date).toLocaleDateString('no-NO', { 
-              day: 'numeric', 
-              month: 'long', 
-              year: 'numeric' 
+            {new Date(event.date).toLocaleDateString('no-NO', {
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric'
             })} kl. {event.time}
           </p>
           <p className="text-sm text-neutral-600">{event.location}</p>
@@ -152,9 +215,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fullt navn *</FormLabel>
+                  <FormLabel>{isFotoEvent ? (language === 'no' ? 'Navn foresatt *' : 'Parent/guardian name *') : 'Fullt navn *'}</FormLabel>
                   <FormControl>
-                    <Input placeholder="Ditt navn" {...field} />
+                    <Input placeholder={isFotoEvent ? (language === 'no' ? 'Navn på foresatt' : 'Parent/guardian name') : 'Ditt navn'} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -194,7 +257,12 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               name="attendeeCount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Antall deltakere</FormLabel>
+                  <FormLabel>
+                    {isFotoEvent
+                      ? (language === 'no' ? 'Antall barn' : 'Number of children')
+                      : 'Antall deltakere'
+                    }
+                  </FormLabel>
                   <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
                     <FormControl>
                       <SelectTrigger>
@@ -204,7 +272,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                     <SelectContent>
                       {[1, 2, 3, 4, 5].map(num => (
                         <SelectItem key={num} value={num.toString()}>
-                          {num} {num === 1 ? "person" : "personer"}
+                          {isFotoEvent
+                            ? `${num} ${num === 1 ? (language === 'no' ? 'barn' : 'child') : (language === 'no' ? 'barn' : 'children')}`
+                            : `${num} ${num === 1 ? "person" : "personer"}`
+                          }
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -214,6 +285,24 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               )}
             />
 
+            {/* Dynamic child name fields for foto events */}
+            {isFotoEvent && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium text-neutral-700">
+                  {language === 'no' ? 'Navn på barn' : 'Children\'s names'}
+                </p>
+                {Array.from({ length: attendeeCount || 1 }, (_, i) => (
+                  <div key={i}>
+                    <Input
+                      placeholder={language === 'no' ? `Barn ${i + 1} - fullt navn` : `Child ${i + 1} - full name`}
+                      value={getChildrenNamesArray()[i] || ""}
+                      onChange={(e) => setChildName(i, e.target.value)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+
             <FormField
               control={form.control}
               name="comments"
@@ -221,8 +310,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                 <FormItem>
                   <FormLabel>Kommentarer</FormLabel>
                   <FormControl>
-                    <Textarea 
-                      rows={3} 
+                    <Textarea
+                      rows={3}
                       placeholder="Eventuelle allergier, spørsmål eller kommentarer..."
                       {...field}
                       value={field.value || ""}
@@ -245,8 +334,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
                 Avbryt
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="flex-1 bg-primary hover:bg-primary/90"
                 disabled={mutation.isPending}
               >

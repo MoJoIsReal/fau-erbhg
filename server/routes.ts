@@ -383,47 +383,66 @@ Crawl-delay: 1`;
         ...req.body,
         eventId
       });
-      
+
       // Check if event exists and has space
       const event = await storage.getEvent(eventId);
       if (!event) {
         return res.status(404).json({ message: "Event not found" });
       }
-      
+
       // Check if event is cancelled
       if (event.status === "cancelled") {
         return res.status(400).json({ message: "Cannot register for cancelled event" });
       }
-      
+
       // Check for duplicate email registration
       const existingRegistrations = await storage.getEventRegistrations(eventId);
-      const emailExists = existingRegistrations.some(reg => 
+      const emailExists = existingRegistrations.some(reg =>
         reg.email.toLowerCase() === validatedData.email.toLowerCase()
       );
-      
+
       if (emailExists) {
-        return res.status(400).json({ 
-          message: "This email is already registered for this event" 
+        return res.status(400).json({
+          message: "This email is already registered for this event"
         });
       }
-      
-      if (event.maxAttendees && event.currentAttendees && 
+
+      if (event.maxAttendees && event.currentAttendees &&
           (event.currentAttendees + (validatedData.attendeeCount || 1)) > event.maxAttendees) {
         return res.status(400).json({ message: "Event is full" });
       }
 
       const registration = await storage.createEventRegistration(validatedData);
-      
+
+      // For foto events, calculate time slots
+      let photoSlots: string[] | undefined;
+      if (event.type === "foto" && validatedData.childrenNames) {
+        let totalChildrenBefore = 0;
+        for (const reg of existingRegistrations) {
+          totalChildrenBefore += reg.attendeeCount || 1;
+        }
+
+        const [hours, minutes] = event.time.split(':').map(Number);
+        const childCount = validatedData.attendeeCount || 1;
+        photoSlots = [];
+
+        for (let i = 0; i < childCount; i++) {
+          const slotMinutes = (totalChildrenBefore + i) * 10;
+          const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
+          const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
+          photoSlots.push(slotTime);
+        }
+      }
+
       // Send confirmation email
       try {
         const language = (req.body.language as 'no' | 'en') || 'no';
-        await sendEventConfirmationEmail({ registration, event, language });
+        await sendEventConfirmationEmail({ registration, event, language, photoSlots });
         console.log('Event confirmation email sent successfully');
       } catch (error) {
         console.error('Failed to send confirmation email:', error);
-        // Continue with registration even if email fails
       }
-      
+
       res.status(201).json(registration);
     } catch (error) {
       res.status(400).json({ message: "Invalid registration data", error: error instanceof Error ? error.message : "Unknown error" });
@@ -449,14 +468,14 @@ Crawl-delay: 1`;
 
   app.post("/api/registrations", async (req, res) => {
     try {
-      const { eventId, name, email, phone, attendeeCount, comments, language } = req.body;
+      const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames } = req.body;
 
       if (!eventId || !name || !email) {
         return res.status(400).json({ error: 'Event ID, name and email are required' });
       }
 
       const eventIdNum = parseInt(eventId);
-      
+
       if (isNaN(eventIdNum)) {
         return res.status(400).json({ error: 'Valid event ID required' });
       }
@@ -468,56 +487,80 @@ Crawl-delay: 1`;
         phone: phone || null,
         attendeeCount: attendeeCount || 1,
         comments: comments || null,
-        language: language || 'no'
+        language: language || 'no',
+        childrenNames: childrenNames || null,
       });
-      
+
       // Check if event exists and has space
       const event = await storage.getEvent(eventIdNum);
       if (!event) {
         return res.status(404).json({ error: "Event not found or not active" });
       }
-      
+
       // Check if event is cancelled
       if (event.status === "cancelled") {
         return res.status(400).json({ error: "Cannot register for cancelled event" });
       }
-      
+
       // Check for duplicate email registration
       const existingRegistrations = await storage.getEventRegistrations(eventIdNum);
-      const emailExists = existingRegistrations.some(reg => 
+      const emailExists = existingRegistrations.some(reg =>
         reg.email.toLowerCase() === validatedData.email.toLowerCase()
       );
-      
+
       if (emailExists) {
-        return res.status(400).json({ 
-          error: "This email is already registered for this event" 
+        return res.status(400).json({
+          error: "This email is already registered for this event"
         });
       }
-      
+
       const requestedAttendees = validatedData.attendeeCount || 1;
-      
+
       // Check capacity
-      if (event.maxAttendees && 
+      if (event.maxAttendees &&
           (event.currentAttendees + requestedAttendees) > event.maxAttendees) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           error: 'Event is at capacity',
           available: event.maxAttendees - event.currentAttendees
         });
       }
 
       const registration = await storage.createEventRegistration(validatedData);
-      
+
+      // For foto events, calculate time slots based on existing registrations
+      let photoSlots: string[] | undefined;
+      if (event.type === "foto" && childrenNames) {
+        // Count total children already registered (from previous registrations)
+        let totalChildrenBefore = 0;
+        for (const reg of existingRegistrations) {
+          totalChildrenBefore += reg.attendeeCount || 1;
+        }
+
+        // Calculate slot times (10 min per child, starting from event time)
+        const [hours, minutes] = event.time.split(':').map(Number);
+        const childCount = requestedAttendees;
+        photoSlots = [];
+
+        for (let i = 0; i < childCount; i++) {
+          const slotMinutes = (totalChildrenBefore + i) * 10;
+          const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
+          const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
+          photoSlots.push(slotTime);
+        }
+      }
+
       // Send confirmation email
       try {
-        await sendEventConfirmationEmail({ 
-          registration, 
+        await sendEventConfirmationEmail({
+          registration,
           event,
-          language: validatedData.language as 'no' | 'en'
+          language: validatedData.language as 'no' | 'en',
+          photoSlots,
         });
       } catch (emailError) {
         console.error('Failed to send confirmation email:', emailError);
       }
-      
+
       res.status(201).json(registration);
     } catch (error) {
       res.status(500).json({ error: "Internal server error" });
