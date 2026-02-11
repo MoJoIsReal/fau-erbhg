@@ -36,6 +36,7 @@ export const eventRegistrations = pgTable("event_registrations", {
   attendeeCount: integer("attendee_count").default(1),
   comments: text("comments"),
   language: text("language").default("no"),
+  childrenNames: text("children_names"), // JSON array of child names for "foto" events
 });
 
 export const contactMessages = pgTable("contact_messages", {

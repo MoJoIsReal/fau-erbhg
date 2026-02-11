@@ -53,6 +53,7 @@ interface EventConfirmationParams {
   registration: EventRegistration;
   event: Event;
   language?: 'no' | 'en';
+  photoSlots?: string[];
 }
 
 interface EventCancellationParams {
@@ -150,9 +151,9 @@ export async function sendEventConfirmationEmail(params: EventConfirmationParams
 
   try {
 
-    const { registration, event, language = 'no' } = params;
+    const { registration, event, language = 'no', photoSlots } = params;
     const template = emailTemplates[language];
-    
+
     // Format event date and time
     const locale = language === 'no' ? 'no-NO' : 'en-US';
     const eventDate = new Date(event.date).toLocaleDateString(locale, {
@@ -161,10 +162,59 @@ export async function sendEventConfirmationEmail(params: EventConfirmationParams
       month: 'long',
       day: 'numeric'
     });
-    
+
+    // Special email template for foto events
+    if (event.type === 'foto' && photoSlots && registration.childrenNames) {
+      let childrenNames: string[] = [];
+      try {
+        childrenNames = JSON.parse(registration.childrenNames);
+      } catch {}
+
+      const shortDate = new Date(event.date).toLocaleDateString(locale, {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+
+      let emailContent = '';
+      if (language === 'no') {
+        emailContent += `Hei ${registration.name}\n\n`;
+        emailContent += `Ditt barn er nå påmeldt fotografering ${shortDate}\n\n`;
+        for (let i = 0; i < childrenNames.length; i++) {
+          emailContent += `${childrenNames[i]} har fått tidspunkt ${photoSlots[i] || 'TBD'}\n`;
+        }
+        emailContent += `\nDersom dere av en eller annen grunn ikke kan stille, vennligst meld i fra til FAU snarest mulig ved å svare på denne eposten.\n\n`;
+        emailContent += `Mvh\nFAU Erdal Barnehage`;
+      } else {
+        emailContent += `Hi ${registration.name}\n\n`;
+        emailContent += `Your child is now registered for photography on ${shortDate}\n\n`;
+        for (let i = 0; i < childrenNames.length; i++) {
+          emailContent += `${childrenNames[i]} has been assigned time slot ${photoSlots[i] || 'TBD'}\n`;
+        }
+        emailContent += `\nIf for any reason you cannot attend, please notify FAU as soon as possible by replying to this email.\n\n`;
+        emailContent += `Best regards\nFAU Erdal Barnehage`;
+      }
+
+      const subject = language === 'no'
+        ? `Bekreftelse: Fotografering ${shortDate}`
+        : `Confirmation: Photography ${shortDate}`;
+
+      const mailOptions = {
+        from: process.env.GMAIL_USER,
+        to: registration.email,
+        subject,
+        text: emailContent,
+        replyTo: FAU_EMAIL,
+      };
+
+      await transporter.sendMail(mailOptions);
+      return true;
+    }
+
+    // Standard confirmation email for non-foto events
     let emailContent = `${template.greeting(registration.name)}\n\n`;
     emailContent += `${template.thankYou(event.title)}\n\n`;
-    
+
     // Event info
     emailContent += `${event.title}\n`;
     emailContent += `${template.date} ${eventDate}\n`;
@@ -177,7 +227,7 @@ export async function sendEventConfirmationEmail(params: EventConfirmationParams
       emailContent += `\n${event.description}\n`;
     }
     emailContent += `\n`;
-    
+
     emailContent += `${template.cancellation}\n\n`;
     emailContent += template.signature;
 
