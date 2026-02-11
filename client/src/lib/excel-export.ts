@@ -83,12 +83,12 @@ export function exportAttendeesToExcel(event: Event, registrations: EventRegistr
     ];
   }
 
-  // Convert to CSV format
+  // Convert to CSV format (use semicolon separator for Nordic/European Excel)
   const csv = csvContent
     .map(row => row.map(cell => {
       const cellStr = cell?.toString() || '';
       return '"' + cellStr.replace(/"/g, '""') + '"';
-    }).join(','))
+    }).join(';'))
     .join('\n');
 
   // Add BOM for proper UTF-8 encoding in Excel
