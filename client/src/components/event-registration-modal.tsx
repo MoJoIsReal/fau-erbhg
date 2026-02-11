@@ -156,8 +156,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         toast({
           title: language === 'no' ? "Manglende navn" : "Missing names",
           description: language === 'no'
-            ? `Vennligst oppgi navn på alle barn`
-            : `Please provide names for all children`,
+            ? `Vennligst oppgi fornavn på alle barn`
+            : `Please provide first names for all children`,
           variant: "destructive"
         });
         return;
@@ -189,8 +189,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
           <DialogDescription>
             {isFotoEvent
               ? (language === 'no'
-                ? 'Oppgi antall barn som skal fotograferes og navn på hvert barn.'
-                : 'Enter the number of children to be photographed and their names.')
+                ? 'Oppgi antall barn som skal fotograferes og fornavn på hvert barn.'
+                : 'Enter the number of children to be photographed and the first name of each child.')
               : 'Fyll ut skjemaet nedenfor for å melde deg på arrangementet.'
             }
           </DialogDescription>
@@ -289,12 +289,12 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             {isFotoEvent && (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-neutral-700">
-                  {language === 'no' ? 'Navn på barn' : 'Children\'s names'}
+                  {language === 'no' ? 'Fornavn på barn' : 'Children\'s first names'}
                 </p>
                 {Array.from({ length: attendeeCount || 1 }, (_, i) => (
                   <div key={i}>
                     <Input
-                      placeholder={language === 'no' ? `Barn ${i + 1} - fullt navn` : `Child ${i + 1} - full name`}
+                      placeholder={language === 'no' ? `Barn ${i + 1} - fornavn` : `Child ${i + 1} - first name`}
                       value={getChildrenNamesArray()[i] || ""}
                       onChange={(e) => setChildName(i, e.target.value)}
                     />
