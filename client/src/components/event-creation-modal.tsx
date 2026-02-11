@@ -284,7 +284,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t.modals.eventCreation.typeLabel}</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Velg type arrangement" />
