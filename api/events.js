@@ -51,15 +51,18 @@ export default async function handler(req, res) {
         return res.status(403).json({ error: 'Council member access required' });
       }
 
-      const { title, description, date, time, location, custom_location, max_attendees, type, vigiloSignup, noSignup } = req.body;
+      const { title, description, date, time, location, custom_location, customLocation: customLocationCamel, max_attendees, maxAttendees: maxAttendeesCamel, type, vigiloSignup, noSignup } = req.body;
 
-      // Sanitize inputs
+      // Sanitize inputs (accept both camelCase and snake_case)
       const sanitizedTitle = sanitizeText(title, 200);
       const sanitizedDescription = sanitizeHtml(description, 5000);
       const sanitizedLocation = sanitizeText(location, 200);
-      const sanitizedCustomLocation = custom_location ? sanitizeText(custom_location, 200) : null;
-      const sanitizedMaxAttendees = max_attendees ? sanitizeNumber(max_attendees, 0, 1000) : null;
-      const sanitizedType = ['meeting', 'event', 'activity', 'other'].includes(type) ? type : 'meeting';
+      const rawCustomLocation = customLocationCamel || custom_location;
+      const sanitizedCustomLocation = rawCustomLocation ? sanitizeText(rawCustomLocation, 200) : null;
+      const rawMaxAttendees = maxAttendeesCamel || max_attendees;
+      const sanitizedMaxAttendees = rawMaxAttendees ? sanitizeNumber(rawMaxAttendees, 0, 1000) : null;
+      const validTypes = ['meeting', 'event', 'activity', 'dugnad', 'foto', 'internal', 'annet', 'other'];
+      const sanitizedType = validTypes.includes(type) ? type : 'meeting';
 
       if (!sanitizedTitle || !date || !time) {
         return res.status(400).json({ error: 'Valid title, date, and time are required' });
@@ -94,7 +97,8 @@ export default async function handler(req, res) {
       const sanitizedLocation = sanitizeText(location, 200);
       const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
       const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
-      const sanitizedType = ['meeting', 'event', 'activity', 'other'].includes(type) ? type : 'meeting';
+      const validTypes = ['meeting', 'event', 'activity', 'dugnad', 'foto', 'internal', 'annet', 'other'];
+      const sanitizedType = validTypes.includes(type) ? type : 'meeting';
 
       if (!sanitizedTitle || !date || !time) {
         return res.status(400).json({ error: 'Valid title, date, and time are required' });
