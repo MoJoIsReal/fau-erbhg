@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Users, Mail, Phone, MessageSquare, Calendar, Download, Trash2 } from "lucide-react";
+import { Users, Mail, Phone, MessageSquare, Calendar, Camera, Clock, Download, Trash2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { exportAttendeesToExcel } from "@/lib/excel-export";
@@ -104,6 +104,26 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
   }
 
   const totalAttendees = registrations.reduce((sum, reg) => sum + (reg.attendeeCount || 1), 0);
+  const isFotoEvent = event.type === 'foto';
+
+  // Calculate photo slots for display (matching server logic)
+  const getPhotoSlots = (registrationIndex: number): string[] => {
+    if (!isFotoEvent) return [];
+    const [hours, minutes] = event.time.split(':').map(Number);
+    // Count children from registrations before this one
+    let totalChildrenBefore = 0;
+    for (let i = 0; i < registrationIndex; i++) {
+      totalChildrenBefore += registrations[i].attendeeCount || 1;
+    }
+    const childCount = registrations[registrationIndex].attendeeCount || 1;
+    const slots: string[] = [];
+    for (let i = 0; i < childCount; i++) {
+      const slotMinutes = (totalChildrenBefore + i) * 10;
+      const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
+      slots.push(`${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`);
+    }
+    return slots;
+  };
 
   return (
     <div className="space-y-6">
@@ -171,13 +191,22 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
             </div>
           ) : (
             <div className="space-y-4">
-              {registrations.map((registration, index) => (
+              {registrations.map((registration, index) => {
+                const childrenNames: string[] = registration.childrenNames
+                  ? (() => { try { return JSON.parse(registration.childrenNames); } catch { return []; } })()
+                  : [];
+                const photoSlots = getPhotoSlots(index);
+
+                return (
                 <div key={registration.id} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <h4 className="font-medium text-neutral-900">{registration.name}</h4>
                       <Badge variant="outline" className="mt-1">
-                        {registration.attendeeCount || 1} {language === 'no' ? 'personer' : 'people'}
+                        {isFotoEvent
+                          ? `${registration.attendeeCount || 1} ${language === 'no' ? 'barn' : 'children'}`
+                          : `${registration.attendeeCount || 1} ${language === 'no' ? 'personer' : 'people'}`
+                        }
                       </Badge>
                     </div>
                     <div className="flex items-center space-x-2">
@@ -193,7 +222,30 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                       </Button>
                     </div>
                   </div>
-                  
+
+                  {/* Photo event: show children names and their time slots */}
+                  {isFotoEvent && childrenNames.length > 0 && (
+                    <div className="mb-3 p-3 bg-purple-50 rounded-lg">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <Camera className="h-4 w-4 text-purple-600" />
+                        <span className="text-sm font-medium text-purple-700">
+                          {language === 'no' ? 'Barn og tidspunkt' : 'Children and time slots'}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {childrenNames.map((childName: string, i: number) => (
+                          <div key={i} className="flex items-center space-x-2 text-sm">
+                            <Clock className="h-3 w-3 text-purple-500" />
+                            <span className="text-neutral-900">{childName}</span>
+                            <span className="text-purple-600 font-medium">
+                              {photoSlots[i] || '-'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2 text-sm">
@@ -211,7 +263,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                         </div>
                       )}
                     </div>
-                    
+
                     {registration.comments && (
                       <div className="space-y-2">
                         <div className="flex items-start space-x-2 text-sm">
@@ -227,7 +279,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

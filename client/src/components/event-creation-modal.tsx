@@ -294,6 +294,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                       <SelectItem value="meeting">{t.modals.eventCreation.types.meeting}</SelectItem>
                       <SelectItem value="event">{t.modals.eventCreation.types.event}</SelectItem>
                       <SelectItem value="dugnad">{t.modals.eventCreation.types.dugnad}</SelectItem>
+                      <SelectItem value="foto">{t.modals.eventCreation.types.foto}</SelectItem>
                       <SelectItem value="internal">{t.modals.eventCreation.types.internal}</SelectItem>
                       <SelectItem value="annet">{t.modals.eventCreation.types.annet}</SelectItem>
                     </SelectContent>

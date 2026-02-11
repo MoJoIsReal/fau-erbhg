@@ -38,7 +38,8 @@ export default async function handler(req, res) {
         const registrations = await sql`
           SELECT id, event_id as "eventId", name, email, phone,
                  attendee_count as "attendeeCount", comments,
-                 registered_at as "registeredAt"
+                 registered_at as "registeredAt",
+                 children_names as "childrenNames"
           FROM event_registrations
           WHERE event_id = ${eventIdNum}
           ORDER BY registered_at DESC
@@ -47,7 +48,7 @@ export default async function handler(req, res) {
       } else {
         // Public access - return basic count only
         const registrations = await sql`
-          SELECT id, name, email, phone, attendee_count, comments, language
+          SELECT id, name, email, phone, attendee_count, comments, language, children_names
           FROM event_registrations
           WHERE event_id = ${eventIdNum}
           ORDER BY id DESC
@@ -58,7 +59,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'POST') {
       // Public access - Create new registration
-      const { eventId, name, email, phone, attendeeCount, comments, language } = req.body;
+      const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames } = req.body;
 
       // Sanitize inputs
       const sanitizedName = sanitizeText(name, 100);
@@ -116,7 +117,7 @@ export default async function handler(req, res) {
 
       // Check if event exists and is active
       const events = await sql`
-        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees
+        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees, type
         FROM events
         WHERE id = ${eventIdNum} AND status = 'active'
       `;
@@ -149,13 +150,15 @@ export default async function handler(req, res) {
         });
       }
 
+      const sanitizedChildrenNames = childrenNames || null;
+
       // Create registration
       const newRegistration = await sql`
         INSERT INTO event_registrations (
-          event_id, name, email, phone, attendee_count, comments, language
+          event_id, name, email, phone, attendee_count, comments, language, children_names
         ) VALUES (
           ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}
+          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}, ${sanitizedChildrenNames}
         )
         RETURNING *
       `;
@@ -167,12 +170,36 @@ export default async function handler(req, res) {
         WHERE id = ${eventIdNum}
       `;
 
+      // For foto events, calculate time slots
+      let photoSlots = undefined;
+      if (event.type === 'foto' && sanitizedChildrenNames) {
+        // Get all existing registrations to count total children before this one
+        const allRegistrations = await sql`
+          SELECT attendee_count FROM event_registrations
+          WHERE event_id = ${eventIdNum} AND id != ${newRegistration[0].id}
+        `;
+        let totalChildrenBefore = 0;
+        for (const reg of allRegistrations) {
+          totalChildrenBefore += reg.attendee_count || 1;
+        }
+
+        const [hours, minutes] = event.time.split(':').map(Number);
+        photoSlots = [];
+        for (let i = 0; i < requestedAttendees; i++) {
+          const slotMinutes = (totalChildrenBefore + i) * 10;
+          const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
+          const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
+          photoSlots.push(slotTime);
+        }
+      }
+
       // Send confirmation email (if configured)
       try {
         await sendEventConfirmationEmail({
           registration: newRegistration[0],
           event: event,
-          language: sanitizedLanguage
+          language: sanitizedLanguage,
+          photoSlots: photoSlots
         });
         console.log('Event confirmation email sent successfully');
       } catch (emailError) {
@@ -225,7 +252,7 @@ export default async function handler(req, res) {
 }
 
 async function sendEventConfirmationEmail(params) {
-  const { registration, event, language } = params;
+  const { registration, event, language, photoSlots } = params;
 
   // Validate email configuration
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
@@ -242,6 +269,54 @@ async function sendEventConfirmationEmail(params) {
   });
 
   const isNorwegian = language === 'no';
+  const locale = isNorwegian ? 'no-NO' : 'en-US';
+
+  // Special email for foto events
+  if (event.type === 'foto' && photoSlots && registration.children_names) {
+    let childrenNames = [];
+    try {
+      childrenNames = JSON.parse(registration.children_names);
+    } catch {}
+
+    const shortDate = new Date(event.date).toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    let fotoContent = '';
+    if (isNorwegian) {
+      fotoContent += `Hei ${registration.name}\n\n`;
+      fotoContent += `Ditt barn er nå påmeldt fotografering ${shortDate}\n\n`;
+      for (let i = 0; i < childrenNames.length; i++) {
+        fotoContent += `${childrenNames[i]} har fått tidspunkt ${photoSlots[i] || 'TBD'}\n`;
+      }
+      fotoContent += `\nDersom dere av en eller annen grunn ikke kan stille, vennligst meld i fra til FAU snarest mulig ved å svare på denne eposten.\n\n`;
+      fotoContent += `Mvh\nFAU Erdal Barnehage`;
+    } else {
+      fotoContent += `Hi ${registration.name}\n\n`;
+      fotoContent += `Your child is now registered for photography on ${shortDate}\n\n`;
+      for (let i = 0; i < childrenNames.length; i++) {
+        fotoContent += `${childrenNames[i]} has been assigned time slot ${photoSlots[i] || 'TBD'}\n`;
+      }
+      fotoContent += `\nIf for any reason you cannot attend, please notify FAU as soon as possible by replying to this email.\n\n`;
+      fotoContent += `Best regards\nFAU Erdal Barnehage`;
+    }
+
+    const fotoSubject = isNorwegian
+      ? `Bekreftelse: Fotografering ${shortDate}`
+      : `Confirmation: Photography ${shortDate}`;
+
+    const fotoMailOptions = {
+      from: process.env.GMAIL_USER,
+      to: registration.email,
+      subject: fotoSubject,
+      text: fotoContent,
+    };
+
+    await transporter.sendMail(fotoMailOptions);
+    return;
+  }
 
   const subject = isNorwegian
     ? `Påmelding bekreftet: ${event.title}`

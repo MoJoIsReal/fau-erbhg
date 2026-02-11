@@ -202,6 +202,7 @@ export interface Translations {
         dugnad: string;
         internal: string;
         annet: string;
+        foto: string;
       };
       locations: {
         erdal: string;
@@ -458,7 +459,8 @@ export const translations: Record<Language, Translations> = {
           event: "Arrangement",
           dugnad: "Dugnad",
           internal: "Internt",
-          annet: "Annet"
+          annet: "Annet",
+          foto: "Foto"
         },
         locations: {
           erdal: "Erdal Barnehage",
@@ -710,7 +712,8 @@ export const translations: Record<Language, Translations> = {
           event: "Event",
           dugnad: "Volunteer work",
           internal: "Internal",
-          annet: "Other"
+          annet: "Other",
+          foto: "Photo"
         },
         locations: {
           erdal: "Erdal Kindergarten",

@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Calendar, 
-  Clock, 
-  Users, 
-  UserPlus, 
-  Heart, 
+import {
+  Calendar,
+  Camera,
+  Clock,
+  Users,
+  UserPlus,
+  Heart,
   Plus,
   List,
   Grid,
@@ -147,6 +148,8 @@ export default function Events() {
         return Heart;
       case "dugnad":
         return Users;
+      case "foto":
+        return Camera;
       case "internal":
         return Calendar;
       default:
@@ -162,6 +165,8 @@ export default function Events() {
         return "bg-secondary/20 text-secondary";
       case "dugnad":
         return "bg-accent/20 text-accent";
+      case "foto":
+        return "bg-purple-100 text-purple-700";
       case "internal":
         return "bg-gray-100 text-gray-700";
       default:
@@ -373,12 +378,24 @@ export default function Events() {
                               <span>{language === 'no' ? 'Internt arrangement' : 'Internal event'}</span>
                             </div>
                           ) : event.type === "dugnad" ? (
-                            <Button 
+                            <Button
                               onClick={() => handleRegisterClick(event)}
                               className="bg-primary hover:bg-primary/90 text-white"
                             >
                               <Heart className="h-4 w-4 mr-2" />
                               {language === 'no' ? 'Meld deg som frivillig' : 'Volunteer'}
+                            </Button>
+                          ) : event.type === "foto" ? (
+                            <Button
+                              onClick={() => handleRegisterClick(event)}
+                              className="bg-purple-600 hover:bg-purple-700 text-white"
+                              disabled={event.maxAttendees && event.currentAttendees ? event.currentAttendees >= event.maxAttendees : false}
+                            >
+                              <Camera className="h-4 w-4 mr-2" />
+                              {event.maxAttendees && (event.currentAttendees || 0) >= event.maxAttendees
+                                ? t.events.full
+                                : (language === 'no' ? 'Meld på til fotografering' : 'Register for photo')
+                              }
                             </Button>
                           ) : (
                             <Button 
