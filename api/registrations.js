@@ -186,7 +186,7 @@ export default async function handler(req, res) {
         const [hours, minutes] = event.time.split(':').map(Number);
         photoSlots = [];
         for (let i = 0; i < requestedAttendees; i++) {
-          const slotMinutes = (totalChildrenBefore + i) * 10;
+          const slotMinutes = (totalChildrenBefore + i) * 5;
           const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
           const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
           photoSlots.push(slotTime);
@@ -284,22 +284,27 @@ async function sendEventConfirmationEmail(params) {
       year: 'numeric',
     });
 
+    const barnWord = childrenNames.length === 1 ? 'Ditt barn' : 'Dine barn';
+    const childWord = childrenNames.length === 1 ? 'Your child' : 'Your children';
+
     let fotoContent = '';
     if (isNorwegian) {
       fotoContent += `Hei ${registration.name}\n\n`;
-      fotoContent += `Ditt barn er nå påmeldt fotografering ${shortDate}\n\n`;
+      fotoContent += `${barnWord} er nå påmeldt fotografering ${shortDate}\n\n`;
       for (let i = 0; i < childrenNames.length; i++) {
         fotoContent += `${childrenNames[i]} har fått tidspunkt ${photoSlots[i] || 'TBD'}\n`;
       }
-      fotoContent += `\nDersom dere av en eller annen grunn ikke kan stille, vennligst meld i fra til FAU snarest mulig ved å svare på denne eposten.\n\n`;
+      fotoContent += `\nDet er viktig å holde tidsplanen, så vi ber dere møte opp minst 10 minutter før deres tildelte tid.\n\n`;
+      fotoContent += `Dersom dere av en eller annen grunn ikke kan stille, vennligst meld i fra til FAU snarest mulig ved å svare på denne eposten.\n\n`;
       fotoContent += `Mvh\nFAU Erdal Barnehage`;
     } else {
       fotoContent += `Hi ${registration.name}\n\n`;
-      fotoContent += `Your child is now registered for photography on ${shortDate}\n\n`;
+      fotoContent += `${childWord} is now registered for photography on ${shortDate}\n\n`;
       for (let i = 0; i < childrenNames.length; i++) {
         fotoContent += `${childrenNames[i]} has been assigned time slot ${photoSlots[i] || 'TBD'}\n`;
       }
-      fotoContent += `\nIf for any reason you cannot attend, please notify FAU as soon as possible by replying to this email.\n\n`;
+      fotoContent += `\nIt is important to stay on schedule, so please arrive at least 10 minutes before your allotted time.\n\n`;
+      fotoContent += `If for any reason you cannot attend, please notify FAU as soon as possible by replying to this email.\n\n`;
       fotoContent += `Best regards\nFAU Erdal Barnehage`;
     }
 

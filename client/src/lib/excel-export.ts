@@ -25,7 +25,7 @@ export function exportAttendeesToExcel(event: Event, registrations: EventRegistr
 
       const childCount = reg.attendeeCount || 1;
       for (let i = 0; i < childCount; i++) {
-        const slotMinutes = (totalChildrenBefore + i) * 10;
+        const slotMinutes = (totalChildrenBefore + i) * 5;
         const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
         const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
         rows.push([

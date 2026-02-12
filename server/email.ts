@@ -176,22 +176,27 @@ export async function sendEventConfirmationEmail(params: EventConfirmationParams
         year: 'numeric',
       });
 
+      const barnWord = childrenNames.length === 1 ? 'Ditt barn' : 'Dine barn';
+      const childWord = childrenNames.length === 1 ? 'Your child' : 'Your children';
+
       let emailContent = '';
       if (language === 'no') {
         emailContent += `Hei ${registration.name}\n\n`;
-        emailContent += `Ditt barn er nå påmeldt fotografering ${shortDate}\n\n`;
+        emailContent += `${barnWord} er nå påmeldt fotografering ${shortDate}\n\n`;
         for (let i = 0; i < childrenNames.length; i++) {
           emailContent += `${childrenNames[i]} har fått tidspunkt ${photoSlots[i] || 'TBD'}\n`;
         }
-        emailContent += `\nDersom dere av en eller annen grunn ikke kan stille, vennligst meld i fra til FAU snarest mulig ved å svare på denne eposten.\n\n`;
+        emailContent += `\nDet er viktig å holde tidsplanen, så vi ber dere møte opp minst 10 minutter før deres tildelte tid.\n\n`;
+        emailContent += `Dersom dere av en eller annen grunn ikke kan stille, vennligst meld i fra til FAU snarest mulig ved å svare på denne eposten.\n\n`;
         emailContent += `Mvh\nFAU Erdal Barnehage`;
       } else {
         emailContent += `Hi ${registration.name}\n\n`;
-        emailContent += `Your child is now registered for photography on ${shortDate}\n\n`;
+        emailContent += `${childWord} is now registered for photography on ${shortDate}\n\n`;
         for (let i = 0; i < childrenNames.length; i++) {
           emailContent += `${childrenNames[i]} has been assigned time slot ${photoSlots[i] || 'TBD'}\n`;
         }
-        emailContent += `\nIf for any reason you cannot attend, please notify FAU as soon as possible by replying to this email.\n\n`;
+        emailContent += `\nIt is important to stay on schedule, so please arrive at least 10 minutes before your allotted time.\n\n`;
+        emailContent += `If for any reason you cannot attend, please notify FAU as soon as possible by replying to this email.\n\n`;
         emailContent += `Best regards\nFAU Erdal Barnehage`;
       }
 

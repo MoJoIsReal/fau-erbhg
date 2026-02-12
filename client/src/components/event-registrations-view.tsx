@@ -118,7 +118,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     const childCount = registrations[registrationIndex].attendeeCount || 1;
     const slots: string[] = [];
     for (let i = 0; i < childCount; i++) {
-      const slotMinutes = (totalChildrenBefore + i) * 10;
+      const slotMinutes = (totalChildrenBefore + i) * 5;
       const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
       slots.push(`${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`);
     }
