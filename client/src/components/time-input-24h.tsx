@@ -46,13 +46,10 @@ export function TimeInput24h({ value, onChange, onBlur, disabled, name }: TimeIn
 
   return (
     <Input
-      type="text"
+      type="time"
       value={displayValue}
       onChange={handleChange}
       onBlur={handleBlur}
-      placeholder="HH:MM (24-timers format)"
-      pattern="^([01]?[0-9]|2[0-3]):([0-5][0-9])$"
-      title="Skriv inn tid i 24-timers format (f.eks. 14:30)"
       disabled={disabled}
       name={name}
     />
