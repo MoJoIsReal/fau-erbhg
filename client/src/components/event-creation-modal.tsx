@@ -153,7 +153,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-[560px] max-h-[90dvh] overflow-y-auto w-[calc(100vw-2rem)] sm:w-full top-4 translate-y-0 sm:top-[50%] sm:translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle>
             {event ? (t.modals.eventEdit?.title || "Rediger arrangement") : t.modals.eventCreation.title}
@@ -197,7 +197,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
               )}
             />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
                 name="date"
@@ -376,12 +376,12 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
               )}
             />
 
-            <div className="flex justify-end space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={onClose}>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3 pt-4">
+              <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onClose}>
                 {t.modals.eventCreation.cancel}
               </Button>
-              <Button type="submit" disabled={mutation.isPending}>
-                {mutation.isPending 
+              <Button type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
+                {mutation.isPending
                   ? (event ? "Oppdaterer..." : t.modals.eventCreation.creating)
                   : (event ? "Oppdater arrangement" : t.modals.eventCreation.create)
                 }
