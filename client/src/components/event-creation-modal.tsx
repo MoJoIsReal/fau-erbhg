@@ -153,7 +153,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90dvh] overflow-y-auto w-[calc(100vw-2rem)] sm:w-full">
+      <DialogContent className="sm:max-w-[560px] max-h-[90dvh] overflow-y-auto w-[calc(100vw-2rem)] sm:w-full top-4 translate-y-0 sm:top-[50%] sm:translate-y-[-50%]">
         <DialogHeader>
           <DialogTitle>
             {event ? (t.modals.eventEdit?.title || "Rediger arrangement") : t.modals.eventCreation.title}
