@@ -64,7 +64,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm prose-neutral max-w-none focus:outline-none min-h-[150px] sm:min-h-[250px] p-4',
+        class: 'prose prose-sm prose-neutral max-w-none focus:outline-none min-h-[150px] max-h-[200px] sm:max-h-none sm:min-h-[250px] overflow-y-auto p-4',
       },
     },
   });
