@@ -64,7 +64,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm prose-neutral max-w-none focus:outline-none min-h-[300px] p-4',
+        class: 'prose prose-sm prose-neutral max-w-none focus:outline-none min-h-[150px] sm:min-h-[250px] p-4',
       },
     },
   });
@@ -153,7 +153,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
   return (
     <div className="border border-neutral-300 rounded-lg overflow-hidden">
       {/* Toolbar */}
-      <div className="flex flex-wrap gap-1 p-2 border-b border-neutral-200 bg-neutral-50">
+      <div className="flex gap-1 p-2 border-b border-neutral-200 bg-neutral-50 overflow-x-auto sm:flex-wrap" style={{ scrollbarWidth: 'none' }}>
         {/* Text formatting */}
         <Button
           type="button"
