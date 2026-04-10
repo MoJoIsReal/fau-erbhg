@@ -1,7 +1,7 @@
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -178,15 +178,17 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
+      <DialogContent className="flex flex-col gap-0 p-0 top-0 left-0 translate-x-0 translate-y-0 w-full max-w-none h-dvh max-h-dvh rounded-none sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:h-auto sm:max-h-[90dvh] sm:rounded-lg">
+
+        {/* Sticky header */}
+        <div className="flex-shrink-0 px-4 pt-4 pb-3 pr-12 border-b border-border sm:px-6 sm:pt-6 sm:pb-4">
+          <DialogTitle className="text-base font-semibold sm:text-lg">
             {isFotoEvent
               ? (language === 'no' ? 'Påmelding til fotografering' : 'Register for photo session')
               : 'Påmelding til arrangement'
             }
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription className="text-sm text-muted-foreground mt-1">
             {isFotoEvent
               ? (language === 'no'
                 ? 'Oppgi antall barn som skal fotograferes og fornavn på hvert barn.'
@@ -194,22 +196,26 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               : 'Fyll ut skjemaet nedenfor for å melde deg på arrangementet.'
             }
           </DialogDescription>
-        </DialogHeader>
-
-        <div className="mb-4 p-4 bg-neutral-50 rounded-lg">
-          <h4 className="font-medium text-neutral-900">{event.title}</h4>
-          <p className="text-sm text-neutral-600">
-            {new Date(event.date).toLocaleDateString('no-NO', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric'
-            })} kl. {event.time}
-          </p>
-          <p className="text-sm text-neutral-600">{event.location}</p>
         </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {/* Scrollable form body */}
+        <div className="flex-1 overflow-y-auto overscroll-contain">
+          <div className="px-4 pt-3 pb-2 sm:px-6">
+            <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+              <h4 className="font-medium text-neutral-900">{event.title}</h4>
+              <p className="text-sm text-neutral-600">
+                {new Date(event.date).toLocaleDateString('no-NO', {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric'
+                })} kl. {event.time}
+              </p>
+              <p className="text-sm text-neutral-600">{event.location}</p>
+            </div>
+          </div>
+
+          <Form {...form}>
+            <form id="reg-form" onSubmit={form.handleSubmit(onSubmit)} className="px-4 pb-4 space-y-4 sm:px-6">
             <FormField
               control={form.control}
               name="name"
@@ -330,20 +336,27 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               </div>
             )}
 
-            <div className="flex space-x-3 pt-4">
-              <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-                Avbryt
-              </Button>
-              <Button
-                type="submit"
-                className="flex-1 bg-primary hover:bg-primary/90"
-                disabled={mutation.isPending}
-              >
-                {mutation.isPending ? "Melder på..." : "Meld deg på"}
-              </Button>
-            </div>
-          </form>
-        </Form>
+            </form>
+          </Form>
+        </div>
+
+        {/* Sticky footer */}
+        <div className="flex-shrink-0 px-4 pt-3 pb-4 border-t border-border sm:px-6 sm:pt-4 sm:pb-6">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleClose}>
+              Avbryt
+            </Button>
+            <Button
+              form="reg-form"
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Melder på..." : "Meld deg på"}
+            </Button>
+          </div>
+        </div>
+
       </DialogContent>
     </Dialog>
   );

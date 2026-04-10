@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { type Event } from "@shared/schema";
 import LoginModal from "./login-modal";
 import LanguageToggle from "./language-toggle";
+import DarkModeToggle from "./dark-mode-toggle";
 
 // Navigation will be translated dynamically
 
@@ -85,9 +86,10 @@ export default function Layout({ children }: LayoutProps) {
                 })}
               </nav>
 
-              {/* Language Toggle & Auth Controls */}
+              {/* Language Toggle, Dark Mode & Auth Controls */}
               <div className="flex items-center space-x-4 ml-8 border-l border-neutral-200 pl-8">
                 <LanguageToggle />
+                <DarkModeToggle />
                 {isAuthenticated ? (
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center space-x-2 text-sm text-neutral-600">
@@ -185,8 +187,9 @@ export default function Layout({ children }: LayoutProps) {
 
                 {/* Mobile Language Toggle & Auth Controls */}
                 <div className="border-t border-neutral-200 pt-6 mt-6 space-y-4">
-                  <div className="flex justify-center">
+                  <div className="flex justify-center gap-2">
                     <LanguageToggle />
+                    <DarkModeToggle />
                   </div>
                   {isAuthenticated ? (
                     <div className="space-y-4">
@@ -245,7 +248,7 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full animate-in fade-in-0 duration-200">
         {children}
       </main>
 

@@ -113,8 +113,6 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         customLocation: data.location === "Annet" ? data.customLocation : null
       };
 
-      console.log('Event data being sent to API:', eventData);
-
       if (event) {
         return apiRequest("PUT", `/api/events?id=${event.id}`, eventData);
       } else {
@@ -142,7 +140,6 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
   });
 
   const onSubmit = (data: FormData) => {
-    console.log('Form data being submitted:', data);
     mutation.mutate(data);
   };
 
