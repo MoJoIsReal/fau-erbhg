@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { FileText, Gavel, Calendar, Upload, Download, Plus, Edit, FileSpreadsheet, FileIcon, Trash2 } from "lucide-react";
 import FileUploadModal from "@/components/file-upload-modal";
 import { useAuth } from "@/hooks/useAuth";
@@ -272,71 +273,63 @@ export default function Files() {
         onClose={() => setIsUploadModalOpen(false)}
       />
 
-      {/* Category Detail Modal (if needed) */}
-      {selectedCategory && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-heading font-semibold text-xl text-neutral-900">
-                  {categories.find(c => c.id === selectedCategory)?.name}
-                </h3>
-                <Button variant="ghost" onClick={() => setSelectedCategory(null)}>
-                  ✕
-                </Button>
-              </div>
-              
-              <div className="max-h-96 overflow-y-auto space-y-3">
-                {getDocumentsByCategory(selectedCategory).map((doc) => {
-                  const FileIcon = getFileIcon(doc.mimeType || "");
-                  return (
-                    <div key={doc.id} className="flex items-center justify-between p-4 border border-neutral-200 rounded-lg">
-                      <div className="flex items-center flex-1">
-                        <FileIcon className="h-5 w-5 text-red-500 mr-3" />
-                        <div className="flex-1">
-                          <p className="font-medium text-neutral-900">{doc.title}</p>
-                          <p className="text-sm text-neutral-600">
-                            {formatDate(doc.uploadedAt)} • {formatFileSize(doc.fileSize)}
-                          </p>
-                          <p className="text-sm text-neutral-500">
-                            {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
-                          </p>
-                          {doc.description && (
-                            <p className="text-sm text-neutral-500 mt-2 bg-neutral-50 p-2 rounded border-l-2 border-neutral-200">
-                              {doc.description}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
-                        >
-                          <Download className="h-4 w-4 mr-2" />
-                          Last ned
-                        </Button>
-                        {isAuthenticated && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            className="text-red-500 hover:text-red-600 border-red-200 hover:border-red-300 hover:bg-red-50"
-                            onClick={() => deleteDocumentMutation.mutate(doc.id)}
-                            disabled={deleteDocumentMutation.isPending}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
+      {/* Category Detail Modal */}
+      <Dialog open={!!selectedCategory} onOpenChange={(open) => { if (!open) setSelectedCategory(null); }}>
+        <DialogContent className="flex flex-col gap-0 p-0 top-0 left-0 translate-x-0 translate-y-0 w-full max-w-none h-dvh max-h-dvh rounded-none sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-2xl sm:h-auto sm:max-h-[90dvh] sm:rounded-lg">
+          <div className="flex-shrink-0 px-4 pt-4 pb-3 pr-12 border-b border-border sm:px-6 sm:pt-6 sm:pb-4">
+            <DialogTitle className="text-base font-semibold sm:text-lg">
+              {categories.find(c => c.id === selectedCategory)?.name}
+            </DialogTitle>
+          </div>
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-6 space-y-3">
+            {selectedCategory && getDocumentsByCategory(selectedCategory).map((doc) => {
+              const DocIcon = getFileIcon(doc.mimeType || "");
+              return (
+                <div key={doc.id} className="flex items-start justify-between p-4 border border-neutral-200 rounded-lg gap-3">
+                  <div className="flex items-start flex-1 min-w-0">
+                    <DocIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-neutral-900 truncate">{doc.title}</p>
+                      <p className="text-sm text-neutral-600">
+                        {formatDate(doc.uploadedAt)} • {formatFileSize(doc.fileSize)}
+                      </p>
+                      <p className="text-sm text-neutral-500">
+                        {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
+                      </p>
+                      {doc.description && (
+                        <p className="text-sm text-neutral-500 mt-2 bg-neutral-50 p-2 rounded border-l-2 border-neutral-200">
+                          {doc.description}
+                        </p>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
+                    >
+                      <Download className="h-4 w-4 sm:mr-2" />
+                      <span className="hidden sm:inline">{language === 'no' ? 'Last ned' : 'Download'}</span>
+                    </Button>
+                    {isAuthenticated && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10"
+                        onClick={() => deleteDocumentMutation.mutate(doc.id)}
+                        disabled={deleteDocumentMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

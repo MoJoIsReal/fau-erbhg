@@ -13,7 +13,7 @@ import path from "path";
 const upload = multer({
   storage: multer.memoryStorage(), // Use memory storage for serverless
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit for better performance
+    fileSize: 10 * 1024 * 1024, // 10MB limit
     files: 1 // Only allow one file at a time
   },
   fileFilter: (req, file, cb) => {
@@ -133,7 +133,7 @@ Crawl-delay: 1`;
           role: user.role
         },
         jwtSecret,
-        { expiresIn: '24h' }
+        { expiresIn: '2h' }
       );
 
       res.json({ 
@@ -173,26 +173,6 @@ Crawl-delay: 1`;
     }
   });
 
-  app.get('/api/auth/user', (req, res) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: 'Ikke innlogget' });
-      }
-
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, jwtSecret) as any;
-      
-      res.json({
-        userId: decoded.userId,
-        username: decoded.username,
-        name: decoded.name,
-        role: decoded.role
-      });
-    } catch (error) {
-      res.status(401).json({ message: 'Ikke innlogget' });
-    }
-  });
   // Events routes
   app.get("/api/events", async (req, res) => {
     try {
@@ -200,44 +180,6 @@ Crawl-delay: 1`;
       res.json(events);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch events" });
-    }
-  });
-
-  // Temporary route to add past event sample
-  app.post("/api/add-sample-past-event", async (req, res) => {
-    try {
-      const pastEvent = await storage.createEvent({
-        title: "Juleavslutning 2024",
-        description: "Tradisjonell juleavslutning med pepperkakebaking, julesanger og besøk av julenissen. Alle familier invitert til hyggestund.",
-        date: "2024-12-15",
-        time: "15:00",
-        location: "Småbarnsfløyen",
-        customLocation: null,
-        maxAttendees: 25,
-        type: "arrangement",
-        status: "active"
-      });
-
-      // Add sample registrations
-      const registrations = [
-        { name: "Emma Hansen", email: "emma.hansen@example.com", phone: "+4792345678", attendeeCount: 3, comments: null },
-        { name: "Lars Andersen", email: "lars.andersen@example.com", phone: "+4791234567", attendeeCount: 2, comments: null },
-        { name: "Sofie Johansen", email: "sofie.johansen@example.com", phone: "+4793456789", attendeeCount: 4, comments: null },
-        { name: "Martin Olsen", email: "martin.olsen@example.com", phone: "+4794567890", attendeeCount: 2, comments: null },
-        { name: "Ingrid Nilsen", email: "ingrid.nilsen@example.com", phone: "+4795678901", attendeeCount: 3, comments: null },
-        { name: "Thomas Berg", email: "thomas.berg@example.com", phone: "+4796789012", attendeeCount: 4, comments: null }
-      ];
-
-      for (const reg of registrations) {
-        await storage.createEventRegistration({
-          ...reg,
-          eventId: pastEvent.id
-        });
-      }
-
-      res.json({ message: "Past event sample created", event: pastEvent });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create sample", error: error instanceof Error ? error.message : "Unknown error" });
     }
   });
 
@@ -530,11 +472,10 @@ Crawl-delay: 1`;
       // For foto events, calculate time slots based on existing registrations
       let photoSlots: string[] | undefined;
       if (event.type === "foto" && childrenNames) {
-        // Count total children already registered (from previous registrations)
-        let totalChildrenBefore = 0;
-        for (const reg of existingRegistrations) {
-          totalChildrenBefore += reg.attendeeCount || 1;
-        }
+        // Count total children already registered (reuses already-fetched array)
+        const totalChildrenBefore = existingRegistrations.reduce(
+          (sum, reg) => sum + (reg.attendeeCount || 1), 0
+        );
 
         // Calculate slot times (10 min per child, starting from event time)
         const [hours, minutes] = event.time.split(':').map(Number);
@@ -567,7 +508,7 @@ Crawl-delay: 1`;
     }
   });
 
-  app.delete("/api/registrations/:id", async (req, res) => {
+  app.delete("/api/registrations/:id", requireCouncilMember, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       const deleted = await storage.deleteEventRegistration(id);
@@ -676,7 +617,7 @@ Crawl-delay: 1`;
     }
   });
 
-  app.delete("/api/documents/:id", async (req, res) => {
+  app.delete("/api/documents/:id", requireCouncilMember, async (req, res) => {
     try {
       const id = parseInt(req.params.id);
       
