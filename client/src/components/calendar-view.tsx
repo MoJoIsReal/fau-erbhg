@@ -143,8 +143,10 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
         </div>
 
         {/* Calendar Grid */}
-        <div className="grid grid-cols-7 border-l border-t">
-          {renderCalendarGrid()}
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-7 border-l border-t min-w-[280px]">
+            {renderCalendarGrid()}
+          </div>
         </div>
 
         {/* Legend */}
