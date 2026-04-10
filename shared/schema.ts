@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -37,7 +37,10 @@ export const eventRegistrations = pgTable("event_registrations", {
   comments: text("comments"),
   language: text("language").default("no"),
   childrenNames: text("children_names"), // JSON array of child names for "foto" events
-});
+}, (table) => ({
+  eventIdIdx: index("event_registrations_event_id_idx").on(table.eventId),
+  emailIdx: index("event_registrations_email_idx").on(table.email),
+}));
 
 export const contactMessages = pgTable("contact_messages", {
   id: serial("id").primaryKey(),
@@ -61,7 +64,9 @@ export const documents = pgTable("documents", {
   mimeType: text("mime_type"),
   cloudinaryUrl: text("cloudinary_url"),
   cloudinaryPublicId: text("cloudinary_public_id"),
-});
+}, (table) => ({
+  categoryIdx: index("documents_category_idx").on(table.category),
+}));
 
 export const siteSettings = pgTable("site_settings", {
   id: serial("id").primaryKey(),
@@ -69,6 +74,14 @@ export const siteSettings = pgTable("site_settings", {
   value: text("value").notNull(), // JSON string
   updatedBy: text("updated_by").notNull(),
   updatedAt: text("updated_at").notNull(),
+});
+
+// Table exists in production DB for blocking spam registrations
+export const emailDomainBlacklist = pgTable("email_domain_blacklist", {
+  id: serial("id").primaryKey(),
+  domain: text("domain").notNull().unique(),
+  reason: text("reason"),
+  createdAt: text("created_at").notNull(),
 });
 
 export const fauBoardMembers = pgTable("fau_board_members", {
@@ -87,6 +100,7 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({ id: tru
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertSiteSettingSchema = createInsertSchema(siteSettings).omit({ id: true, updatedAt: true });
 export const insertFauBoardMemberSchema = createInsertSchema(fauBoardMembers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertEmailDomainBlacklistSchema = createInsertSchema(emailDomainBlacklist).omit({ id: true });
 
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type InsertEventRegistration = z.infer<typeof insertEventRegistrationSchema>;
@@ -103,3 +117,4 @@ export type Document = typeof documents.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;
 export type FauBoardMember = typeof fauBoardMembers.$inferSelect;
+export type EmailDomainBlacklist = typeof emailDomainBlacklist.$inferSelect;
