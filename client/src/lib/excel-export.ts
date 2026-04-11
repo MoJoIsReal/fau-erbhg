@@ -1,5 +1,6 @@
 import type { Event, EventRegistration } from '@shared/schema';
 import { formatDate } from './i18n';
+import { resolvePhotoSlotsForRegistration } from '@shared/photo-slots';
 
 export function exportAttendeesToExcel(event: Event, registrations: EventRegistration[], language: 'no' | 'en') {
   const isFotoEvent = event.type === 'foto';
@@ -12,12 +13,19 @@ export function exportAttendeesToExcel(event: Event, registrations: EventRegistr
       ? ['Tidspunkt', 'Fornavn barn', 'Foresatt', 'E-post', 'Telefon']
       : ['Time slot', 'Child first name', 'Parent/Guardian', 'Email', 'Phone'];
 
-    // Build flat list of all children with their time slots
-    const [hours, minutes] = event.time.split(':').map(Number);
-    let totalChildrenBefore = 0;
-    const rows: string[][] = [];
+    // Build flat list of all children with their resolved time slots, then sort by slot.
+    const slotLookup = registrations.map((reg) => ({
+      reg,
+      slots: resolvePhotoSlotsForRegistration(
+        { time: event.time },
+        { id: reg.id, attendeeCount: reg.attendeeCount, childrenNames: reg.childrenNames, photoSlots: reg.photoSlots },
+        registrations.map((r) => ({ id: r.id, attendeeCount: r.attendeeCount, childrenNames: r.childrenNames, photoSlots: r.photoSlots })),
+      ),
+    }));
 
-    for (const reg of registrations) {
+    let totalChildren = 0;
+    const unsortedRows: { slot: string; row: string[] }[] = [];
+    for (const { reg, slots } of slotLookup) {
       let childrenNames: string[] = [];
       try {
         if (reg.childrenNames) childrenNames = JSON.parse(reg.childrenNames);
@@ -25,19 +33,21 @@ export function exportAttendeesToExcel(event: Event, registrations: EventRegistr
 
       const childCount = reg.attendeeCount || 1;
       for (let i = 0; i < childCount; i++) {
-        const slotMinutes = (totalChildrenBefore + i) * 10;
-        const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
-        const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
-        rows.push([
-          slotTime,
-          childrenNames[i] || `Barn ${i + 1}`,
-          reg.name,
-          reg.email,
-          reg.phone || '',
-        ]);
+        unsortedRows.push({
+          slot: slots[i] || '',
+          row: [
+            slots[i] || '',
+            childrenNames[i] || `Barn ${i + 1}`,
+            reg.name,
+            reg.email,
+            reg.phone || '',
+          ],
+        });
       }
-      totalChildrenBefore += childCount;
+      totalChildren += childCount;
     }
+    const rows = unsortedRows.sort((a, b) => a.slot.localeCompare(b.slot)).map((r) => r.row);
+    const totalChildrenBefore = totalChildren;
 
     csvContent = [
       [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
