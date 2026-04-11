@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertEventSchema, insertEventRegistrationSchema, insertContactMessageSchema, insertDocumentSchema } from "@shared/schema";
+import { assignPhotoSlots } from "@shared/photo-slots";
 import { uploadFile, deleteFile } from "./cloudinary";
 import { authenticateUser, requireCouncilMember } from "./auth";
 import { sendContactEmail, sendEventConfirmationEmail, sendEventCancellationEmail } from "./email";
@@ -349,32 +350,22 @@ Crawl-delay: 1`;
         });
       }
 
-      if (event.maxAttendees && event.currentAttendees &&
+      // Foto events are not capacity-limited; everyone gets a slot.
+      if (event.type !== "foto" && event.maxAttendees && event.currentAttendees &&
           (event.currentAttendees + (validatedData.attendeeCount || 1)) > event.maxAttendees) {
         return res.status(400).json({ message: "Event is full" });
       }
 
-      const registration = await storage.createEventRegistration(validatedData);
-
-      // For foto events, calculate time slots
+      // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
       let photoSlots: string[] | undefined;
+      let registrationData = validatedData;
       if (event.type === "foto" && validatedData.childrenNames) {
-        let totalChildrenBefore = 0;
-        for (const reg of existingRegistrations) {
-          totalChildrenBefore += reg.attendeeCount || 1;
-        }
-
-        const [hours, minutes] = event.time.split(':').map(Number);
         const childCount = validatedData.attendeeCount || 1;
-        photoSlots = [];
-
-        for (let i = 0; i < childCount; i++) {
-          const slotMinutes = (totalChildrenBefore + i) * 10;
-          const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
-          const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
-          photoSlots.push(slotTime);
-        }
+        photoSlots = assignPhotoSlots(event, existingRegistrations, childCount);
+        registrationData = { ...validatedData, photoSlots: JSON.stringify(photoSlots) };
       }
+
+      const registration = await storage.createEventRegistration(registrationData);
 
       // Send confirmation email
       try {
@@ -458,37 +449,24 @@ Crawl-delay: 1`;
 
       const requestedAttendees = validatedData.attendeeCount || 1;
 
-      // Check capacity
-      if (event.maxAttendees &&
-          (event.currentAttendees + requestedAttendees) > event.maxAttendees) {
+      // Foto events are not capacity-limited; everyone gets a slot.
+      if (event.type !== "foto" && event.maxAttendees &&
+          ((event.currentAttendees ?? 0) + requestedAttendees) > event.maxAttendees) {
         return res.status(400).json({
           error: 'Event is at capacity',
-          available: event.maxAttendees - event.currentAttendees
+          available: event.maxAttendees - (event.currentAttendees ?? 0)
         });
       }
 
-      const registration = await storage.createEventRegistration(validatedData);
-
-      // For foto events, calculate time slots based on existing registrations
+      // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
       let photoSlots: string[] | undefined;
+      let registrationData = validatedData;
       if (event.type === "foto" && childrenNames) {
-        // Count total children already registered (reuses already-fetched array)
-        const totalChildrenBefore = existingRegistrations.reduce(
-          (sum, reg) => sum + (reg.attendeeCount || 1), 0
-        );
-
-        // Calculate slot times (10 min per child, starting from event time)
-        const [hours, minutes] = event.time.split(':').map(Number);
-        const childCount = requestedAttendees;
-        photoSlots = [];
-
-        for (let i = 0; i < childCount; i++) {
-          const slotMinutes = (totalChildrenBefore + i) * 10;
-          const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
-          const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
-          photoSlots.push(slotTime);
-        }
+        photoSlots = assignPhotoSlots(event, existingRegistrations, requestedAttendees);
+        registrationData = { ...validatedData, photoSlots: JSON.stringify(photoSlots) };
       }
+
+      const registration = await storage.createEventRegistration(registrationData);
 
       // Send confirmation email
       try {

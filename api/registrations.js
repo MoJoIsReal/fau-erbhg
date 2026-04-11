@@ -11,6 +11,7 @@ import {
   sanitizePhone,
   sanitizeNumber
 } from './_shared/middleware.js';
+import { assignPhotoSlots } from './_shared/photo-slots.js';
 import Sentry from './_shared/sentry.js';
 
 export default async function handler(req, res) {
@@ -39,7 +40,8 @@ export default async function handler(req, res) {
           SELECT id, event_id as "eventId", name, email, phone,
                  attendee_count as "attendeeCount", comments,
                  registered_at as "registeredAt",
-                 children_names as "childrenNames"
+                 children_names as "childrenNames",
+                 photo_slots as "photoSlots"
           FROM event_registrations
           WHERE event_id = ${eventIdNum}
           ORDER BY registered_at DESC
@@ -48,7 +50,9 @@ export default async function handler(req, res) {
       } else {
         // Public access - return basic count only
         const registrations = await sql`
-          SELECT id, name, email, phone, attendee_count, comments, language, children_names
+          SELECT id, name, email, phone, attendee_count as "attendeeCount",
+                 comments, language, children_names as "childrenNames",
+                 photo_slots as "photoSlots"
           FROM event_registrations
           WHERE event_id = ${eventIdNum}
           ORDER BY id DESC
@@ -141,8 +145,8 @@ export default async function handler(req, res) {
         });
       }
 
-      // Check capacity
-      if (event.max_attendees &&
+      // Foto events are not capacity-limited; everyone gets a slot.
+      if (event.type !== 'foto' && event.max_attendees &&
           (event.current_attendees + requestedAttendees) > event.max_attendees) {
         return res.status(400).json({
           error: 'Event is at capacity',
@@ -152,13 +156,29 @@ export default async function handler(req, res) {
 
       const sanitizedChildrenNames = childrenNames || null;
 
+      // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
+      let photoSlots = undefined;
+      let photoSlotsJson = null;
+      if (event.type === 'foto' && sanitizedChildrenNames) {
+        const existingForSlots = await sql`
+          SELECT id, attendee_count as "attendeeCount",
+                 children_names as "childrenNames",
+                 photo_slots as "photoSlots"
+          FROM event_registrations
+          WHERE event_id = ${eventIdNum}
+        `;
+        photoSlots = assignPhotoSlots(event, existingForSlots, requestedAttendees);
+        photoSlotsJson = JSON.stringify(photoSlots);
+      }
+
       // Create registration
       const newRegistration = await sql`
         INSERT INTO event_registrations (
-          event_id, name, email, phone, attendee_count, comments, language, children_names
+          event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
         ) VALUES (
           ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}, ${sanitizedChildrenNames}
+          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
+          ${sanitizedChildrenNames}, ${photoSlotsJson}
         )
         RETURNING *
       `;
@@ -169,29 +189,6 @@ export default async function handler(req, res) {
         SET current_attendees = current_attendees + ${requestedAttendees}
         WHERE id = ${eventIdNum}
       `;
-
-      // For foto events, calculate time slots
-      let photoSlots = undefined;
-      if (event.type === 'foto' && sanitizedChildrenNames) {
-        // Get all existing registrations to count total children before this one
-        const allRegistrations = await sql`
-          SELECT attendee_count FROM event_registrations
-          WHERE event_id = ${eventIdNum} AND id != ${newRegistration[0].id}
-        `;
-        let totalChildrenBefore = 0;
-        for (const reg of allRegistrations) {
-          totalChildrenBefore += reg.attendee_count || 1;
-        }
-
-        const [hours, minutes] = event.time.split(':').map(Number);
-        photoSlots = [];
-        for (let i = 0; i < requestedAttendees; i++) {
-          const slotMinutes = (totalChildrenBefore + i) * 10;
-          const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
-          const slotTime = `${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`;
-          photoSlots.push(slotTime);
-        }
-      }
 
       // Send confirmation email (if configured)
       try {
