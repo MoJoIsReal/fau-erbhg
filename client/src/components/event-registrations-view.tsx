@@ -9,6 +9,7 @@ import { exportAttendeesToExcel } from "@/lib/excel-export";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Event, EventRegistration } from "@shared/schema";
+import { resolvePhotoSlotsForRegistration } from "@shared/photo-slots";
 
 interface EventRegistrationsViewProps {
   event: Event;
@@ -106,23 +107,25 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
   const totalAttendees = registrations.reduce((sum, reg) => sum + (reg.attendeeCount || 1), 0);
   const isFotoEvent = event.type === 'foto';
 
-  // Calculate photo slots for display (matching server logic)
+  // Resolve photo slots for a registration — prefers stored slots, falls back to legacy replay.
   const getPhotoSlots = (registrationIndex: number): string[] => {
     if (!isFotoEvent) return [];
-    const [hours, minutes] = event.time.split(':').map(Number);
-    // Count children from registrations before this one
-    let totalChildrenBefore = 0;
-    for (let i = 0; i < registrationIndex; i++) {
-      totalChildrenBefore += registrations[i].attendeeCount || 1;
-    }
-    const childCount = registrations[registrationIndex].attendeeCount || 1;
-    const slots: string[] = [];
-    for (let i = 0; i < childCount; i++) {
-      const slotMinutes = (totalChildrenBefore + i) * 10;
-      const slotDate = new Date(2000, 0, 1, hours, minutes + slotMinutes);
-      slots.push(`${slotDate.getHours().toString().padStart(2, '0')}:${slotDate.getMinutes().toString().padStart(2, '0')}`);
-    }
-    return slots;
+    const reg = registrations[registrationIndex];
+    return resolvePhotoSlotsForRegistration(
+      { time: event.time },
+      {
+        id: reg.id,
+        attendeeCount: reg.attendeeCount,
+        childrenNames: reg.childrenNames,
+        photoSlots: reg.photoSlots,
+      },
+      registrations.map(r => ({
+        id: r.id,
+        attendeeCount: r.attendeeCount,
+        childrenNames: r.childrenNames,
+        photoSlots: r.photoSlots,
+      })),
+    );
   };
 
   return (

@@ -65,6 +65,13 @@ export async function initializeDatabase() {
         ) THEN
           ALTER TABLE event_registrations ADD COLUMN language text DEFAULT 'no';
         END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'event_registrations' AND column_name = 'photo_slots'
+        ) THEN
+          ALTER TABLE event_registrations ADD COLUMN photo_slots text;
+        END IF;
       END $$;
     `);
 

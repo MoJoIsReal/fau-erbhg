@@ -37,6 +37,7 @@ export const eventRegistrations = pgTable("event_registrations", {
   comments: text("comments"),
   language: text("language").default("no"),
   childrenNames: text("children_names"), // JSON array of child names for "foto" events
+  photoSlots: text("photo_slots"), // JSON array of assigned "HH:MM" slots for "foto" events
 }, (table) => ({
   eventIdIdx: index("event_registrations_event_id_idx").on(table.eventId),
   emailIdx: index("event_registrations_email_idx").on(table.email),
