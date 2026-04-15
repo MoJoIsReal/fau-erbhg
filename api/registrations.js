@@ -81,35 +81,40 @@ export default async function handler(req, res) {
       const emailDomain = sanitizedEmail.split('@')[1]?.toLowerCase();
 
       if (emailDomain) {
-        const blacklistedDomains = await sql`
-          SELECT domain, category, action, suggested_fix, description
-          FROM email_domain_blacklist
-          WHERE domain = ${emailDomain}
-        `;
+        try {
+          const blacklistedDomains = await sql`
+            SELECT domain, category, action, suggested_fix, description
+            FROM email_domain_blacklist
+            WHERE domain = ${emailDomain}
+          `;
 
-        if (blacklistedDomains.length > 0) {
-          const entry = blacklistedDomains[0];
+          if (blacklistedDomains.length > 0) {
+            const entry = blacklistedDomains[0];
 
-          if (entry.action === 'block') {
-            // Hard block for categories A, B, C, D
-            const errorMessage = sanitizedLanguage === 'no'
-              ? 'Ugyldig e-postadresse. Bruk en ekte e-post.'
-              : 'Invalid email address. Please use a real email.';
-            return res.status(400).json({
-              error: errorMessage,
-              category: entry.category
-            });
-          } else if (entry.action === 'suggest' && entry.suggested_fix) {
-            // Suggest correction for category F (typos)
-            const errorMessage = sanitizedLanguage === 'no'
-              ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`
-              : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`;
-            return res.status(400).json({
-              error: errorMessage,
-              suggestion: `${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}`,
-              category: entry.category
-            });
+            if (entry.action === 'block') {
+              // Hard block for categories A, B, C, D
+              const errorMessage = sanitizedLanguage === 'no'
+                ? 'Ugyldig e-postadresse. Bruk en ekte e-post.'
+                : 'Invalid email address. Please use a real email.';
+              return res.status(400).json({
+                error: errorMessage,
+                category: entry.category
+              });
+            } else if (entry.action === 'suggest' && entry.suggested_fix) {
+              // Suggest correction for category F (typos)
+              const errorMessage = sanitizedLanguage === 'no'
+                ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`
+                : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`;
+              return res.status(400).json({
+                error: errorMessage,
+                suggestion: `${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}`,
+                category: entry.category
+              });
+            }
           }
+        } catch (blacklistError) {
+          // Table may not exist yet or have different schema — skip check, don't block registration
+          console.warn('Email blacklist check failed, skipping:', blacklistError.message);
         }
       }
 
