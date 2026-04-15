@@ -81,7 +81,10 @@ export const siteSettings = pgTable("site_settings", {
 export const emailDomainBlacklist = pgTable("email_domain_blacklist", {
   id: serial("id").primaryKey(),
   domain: text("domain").notNull().unique(),
-  reason: text("reason"),
+  category: text("category").notNull(), // A=disposable, B=spam, C=fake, D=invalid, F=typo
+  action: text("action").notNull(), // "block" or "suggest"
+  suggestedFix: text("suggested_fix"), // Corrected domain for typos (category F)
+  description: text("description"),
   createdAt: text("created_at").notNull(),
 });
 

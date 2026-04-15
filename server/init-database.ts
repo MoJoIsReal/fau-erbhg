@@ -72,6 +72,13 @@ export async function initializeDatabase() {
         ) THEN
           ALTER TABLE event_registrations ADD COLUMN photo_slots text;
         END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'event_registrations' AND column_name = 'children_names'
+        ) THEN
+          ALTER TABLE event_registrations ADD COLUMN children_names text;
+        END IF;
       END $$;
     `);
 
