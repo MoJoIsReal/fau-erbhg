@@ -14,6 +14,19 @@ import {
 import { assignPhotoSlots } from './_shared/photo-slots.js';
 import Sentry from './_shared/sentry.js';
 
+// Ensure foto-related columns exist (runs once per cold start)
+let columnsVerified = false;
+async function ensureRegistrationColumns(sql) {
+  if (columnsVerified) return;
+  try {
+    await sql`ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS children_names text`;
+    await sql`ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS photo_slots text`;
+    columnsVerified = true;
+  } catch (e) {
+    console.warn('Column migration check failed:', e.message);
+  }
+}
+
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
   applySecurityHeaders(res, req.headers.origin);
@@ -161,6 +174,9 @@ export default async function handler(req, res) {
 
       const sanitizedChildrenNames = childrenNames || null;
 
+      // Ensure foto-related columns exist before using them
+      await ensureRegistrationColumns(sql);
+
       // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
       let photoSlots = undefined;
       let photoSlotsJson = null;
@@ -177,16 +193,31 @@ export default async function handler(req, res) {
       }
 
       // Create registration
-      const newRegistration = await sql`
-        INSERT INTO event_registrations (
-          event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
-        ) VALUES (
-          ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
-          ${sanitizedChildrenNames}, ${photoSlotsJson}
-        )
-        RETURNING *
-      `;
+      let newRegistration;
+      if (sanitizedChildrenNames !== null || photoSlotsJson !== null) {
+        // Foto event: include children_names and photo_slots columns
+        newRegistration = await sql`
+          INSERT INTO event_registrations (
+            event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
+          ) VALUES (
+            ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+            ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
+            ${sanitizedChildrenNames}, ${photoSlotsJson}
+          )
+          RETURNING *
+        `;
+      } else {
+        // Standard event: omit foto-specific columns for compatibility
+        newRegistration = await sql`
+          INSERT INTO event_registrations (
+            event_id, name, email, phone, attendee_count, comments, language
+          ) VALUES (
+            ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+            ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}
+          )
+          RETURNING *
+        `;
+      }
 
       // Update event attendee count
       await sql`
