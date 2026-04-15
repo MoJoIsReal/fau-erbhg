@@ -482,6 +482,10 @@ Crawl-delay: 1`;
 
       res.status(201).json(registration);
     } catch (error) {
+      console.error('Registration error:', error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid registration data" });
+      }
       res.status(500).json({ error: "Internal server error" });
     }
   });
