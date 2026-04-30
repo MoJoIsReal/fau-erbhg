@@ -8,6 +8,7 @@ export interface Translations {
     events: string;
     contact: string;
     documents: string;
+    yearlyCalendar: string;
   };
   // Header
   header: {
@@ -262,6 +263,87 @@ export interface Translations {
       vara: string;
     };
   };
+  // Yearly calendar (Årskalender)
+  yearlyCalendar: {
+    title: string;
+    subtitle: string;
+    schoolYearLabel: string;
+    addEntry: string;
+    noEntries: string;
+    week: string;
+    weekHeader: string;
+    monday: string;
+    tuesday: string;
+    wednesday: string;
+    thursday: string;
+    friday: string;
+    notes: string;
+    tagline: string;
+    entryTypes: {
+      weekEvent: string;
+      dayEvent: string;
+      food: string;
+      note: string;
+    };
+    months: {
+      january: string;
+      february: string;
+      march: string;
+      april: string;
+      may: string;
+      june: string;
+      july: string;
+      august: string;
+      september: string;
+      october: string;
+      november: string;
+      december: string;
+    };
+    modal: {
+      addTitle: string;
+      editTitle: string;
+      type: string;
+      title: string;
+      description: string;
+      weekNumber: string;
+      date: string;
+      color: string;
+      save: string;
+      saving: string;
+      delete: string;
+      cancel: string;
+      deleteConfirm: string;
+      success: string;
+      error: string;
+    };
+    colors: {
+      red: string;
+      yellow: string;
+      green: string;
+      orange: string;
+      blue: string;
+      pink: string;
+      purple: string;
+      none: string;
+    };
+    staff: {
+      manageTitle: string;
+      manageDescription: string;
+      addStaff: string;
+      username: string;
+      name: string;
+      password: string;
+      passwordHint: string;
+      create: string;
+      creating: string;
+      existingStaff: string;
+      noStaff: string;
+      delete: string;
+      deleteConfirm: string;
+      successCreate: string;
+      errorCreate: string;
+    };
+  };
 }
 
 export const translations: Record<Language, Translations> = {
@@ -271,7 +353,8 @@ export const translations: Record<Language, Translations> = {
       news: "Nyheter",
       events: "Arrangementer",
       contact: "Kontakt",
-      documents: "Dokumenter"
+      documents: "Dokumenter",
+      yearlyCalendar: "Årskalender"
     },
     header: {
       title: "FAU Erdal Barnehage",
@@ -516,6 +599,86 @@ export const translations: Record<Language, Translations> = {
         medlem: "Medlem",
         vara: "Vara"
       }
+    },
+    yearlyCalendar: {
+      title: "Årskalender",
+      subtitle: "Hva skjer i barnehagen måned for måned",
+      schoolYearLabel: "Barnehageår",
+      addEntry: "Legg til",
+      noEntries: "Ingenting registrert ennå.",
+      week: "Uke",
+      weekHeader: "Uke",
+      monday: "Mandag",
+      tuesday: "Tirsdag",
+      wednesday: "Onsdag",
+      thursday: "Torsdag",
+      friday: "Fredag",
+      notes: "Notater",
+      tagline: "Kunsten å være sammen i lekens magiske verden",
+      entryTypes: {
+        weekEvent: "Hele uken",
+        dayEvent: "Dag",
+        food: "Ukens varmmat",
+        note: "Notat"
+      },
+      months: {
+        january: "Januar",
+        february: "Februar",
+        march: "Mars",
+        april: "April",
+        may: "Mai",
+        june: "Juni",
+        july: "Juli",
+        august: "August",
+        september: "September",
+        october: "Oktober",
+        november: "November",
+        december: "Desember"
+      },
+      modal: {
+        addTitle: "Ny oppføring",
+        editTitle: "Rediger oppføring",
+        type: "Type",
+        title: "Tittel",
+        description: "Beskrivelse",
+        weekNumber: "Ukenummer",
+        date: "Dato",
+        color: "Farge",
+        save: "Lagre",
+        saving: "Lagrer...",
+        delete: "Slett",
+        cancel: "Avbryt",
+        deleteConfirm: "Er du sikker på at du vil slette denne oppføringen?",
+        success: "Oppføring lagret",
+        error: "Kunne ikke lagre oppføringen"
+      },
+      colors: {
+        red: "Rød",
+        yellow: "Gul",
+        green: "Grønn",
+        orange: "Oransje",
+        blue: "Blå",
+        pink: "Rosa",
+        purple: "Lilla",
+        none: "Ingen"
+      },
+      staff: {
+        manageTitle: "Brukere for barnehage-ansatte",
+        manageDescription: "Disse brukerne kan kun redigere Årskalenderen, ikke andre admin-funksjoner.",
+        addStaff: "Opprett ansatt-bruker",
+        username: "Brukernavn (e-post)",
+        name: "Navn",
+        password: "Passord",
+        passwordHint: "Minst 8 tegn",
+        create: "Opprett",
+        creating: "Oppretter...",
+        existingStaff: "Eksisterende ansatt-brukere",
+        noStaff: "Ingen ansatt-brukere ennå.",
+        delete: "Slett",
+        deleteConfirm: "Slette denne brukeren?",
+        successCreate: "Bruker opprettet",
+        errorCreate: "Kunne ikke opprette bruker"
+      }
     }
   },
   en: {
@@ -524,7 +687,8 @@ export const translations: Record<Language, Translations> = {
       news: "News",
       events: "Events",
       contact: "Contact",
-      documents: "Documents"
+      documents: "Documents",
+      yearlyCalendar: "Yearly calendar"
     },
     header: {
       title: "FAU Erdal Kindergarten",
@@ -768,6 +932,86 @@ export const translations: Record<Language, Translations> = {
         leder: "Leader",
         medlem: "Member",
         vara: "Deputy"
+      }
+    },
+    yearlyCalendar: {
+      title: "Yearly calendar",
+      subtitle: "What's happening at the kindergarten, month by month",
+      schoolYearLabel: "Kindergarten year",
+      addEntry: "Add entry",
+      noEntries: "Nothing scheduled yet.",
+      week: "Week",
+      weekHeader: "Week",
+      monday: "Monday",
+      tuesday: "Tuesday",
+      wednesday: "Wednesday",
+      thursday: "Thursday",
+      friday: "Friday",
+      notes: "Notes",
+      tagline: "The art of being together in the magical world of play",
+      entryTypes: {
+        weekEvent: "All week",
+        dayEvent: "Day",
+        food: "Hot meal of the week",
+        note: "Note"
+      },
+      months: {
+        january: "January",
+        february: "February",
+        march: "March",
+        april: "April",
+        may: "May",
+        june: "June",
+        july: "July",
+        august: "August",
+        september: "September",
+        october: "October",
+        november: "November",
+        december: "December"
+      },
+      modal: {
+        addTitle: "New entry",
+        editTitle: "Edit entry",
+        type: "Type",
+        title: "Title",
+        description: "Description",
+        weekNumber: "Week number",
+        date: "Date",
+        color: "Color",
+        save: "Save",
+        saving: "Saving...",
+        delete: "Delete",
+        cancel: "Cancel",
+        deleteConfirm: "Are you sure you want to delete this entry?",
+        success: "Entry saved",
+        error: "Could not save the entry"
+      },
+      colors: {
+        red: "Red",
+        yellow: "Yellow",
+        green: "Green",
+        orange: "Orange",
+        blue: "Blue",
+        pink: "Pink",
+        purple: "Purple",
+        none: "None"
+      },
+      staff: {
+        manageTitle: "Kindergarten staff users",
+        manageDescription: "These users can only edit the Yearly Calendar, not other admin features.",
+        addStaff: "Create staff user",
+        username: "Username (email)",
+        name: "Name",
+        password: "Password",
+        passwordHint: "At least 8 characters",
+        create: "Create",
+        creating: "Creating...",
+        existingStaff: "Existing staff users",
+        noStaff: "No staff users yet.",
+        delete: "Delete",
+        deleteConfirm: "Delete this user?",
+        successCreate: "User created",
+        errorCreate: "Could not create user"
       }
     }
   }

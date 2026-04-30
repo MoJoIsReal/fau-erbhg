@@ -7,7 +7,7 @@ export const users = pgTable("users", {
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  role: text("role").notNull().default("member"), // "admin", "member"
+  role: text("role").notNull().default("member"), // "admin", "member", "staff"
   createdAt: text("created_at").notNull(),
 });
 
@@ -97,6 +97,35 @@ export const fauBoardMembers = pgTable("fau_board_members", {
   updatedAt: text("updated_at").notNull(),
 });
 
+// Yearly calendar (Årskalender) - one row per (year, month)
+export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
+  id: serial("id").primaryKey(),
+  // Kindergarten year start (e.g. 2026 means barnehageår 2026/2027)
+  schoolYear: integer("school_year").notNull(),
+  // Calendar year for this row (so August 2026 has year=2026, January 2027 has year=2027)
+  year: integer("year").notNull(),
+  month: integer("month").notNull(), // 1-12
+  // Entry kind:
+  //   "week_event" → spans whole week (uses weekNumber, optionally weekdayStart..weekdayEnd)
+  //   "day_event"  → specific day (uses date)
+  //   "food"       → ukens varmmat for a given week
+  //   "note"       → freeform note attached to a week
+  entryType: text("entry_type").notNull(),
+  weekNumber: integer("week_number"), // ISO week number, used for week_event/food/note
+  weekdayStart: integer("weekday_start"), // 1=Mon..5=Fri (week_event range start, optional)
+  weekdayEnd: integer("weekday_end"), // 1=Mon..5=Fri (week_event range end, optional)
+  date: text("date"), // ISO date "YYYY-MM-DD" used for day_event
+  title: text("title").notNull(),
+  description: text("description"),
+  color: text("color"), // optional CSS color hint, e.g. "red", "yellow", "green"
+  createdBy: text("created_by"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (table) => ({
+  schoolYearIdx: index("yearly_calendar_school_year_idx").on(table.schoolYear),
+  yearMonthIdx: index("yearly_calendar_year_month_idx").on(table.year, table.month),
+}));
+
 export const insertEventSchema = createInsertSchema(events).omit({ id: true, currentAttendees: true });
 export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
@@ -105,6 +134,7 @@ export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertSiteSettingSchema = createInsertSchema(siteSettings).omit({ id: true, updatedAt: true });
 export const insertFauBoardMemberSchema = createInsertSchema(fauBoardMembers).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertEmailDomainBlacklistSchema = createInsertSchema(emailDomainBlacklist).omit({ id: true });
+export const insertYearlyCalendarEntrySchema = createInsertSchema(yearlyCalendarEntries).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type InsertEventRegistration = z.infer<typeof insertEventRegistrationSchema>;
@@ -113,6 +143,7 @@ export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertSiteSetting = z.infer<typeof insertSiteSettingSchema>;
 export type InsertFauBoardMember = z.infer<typeof insertFauBoardMemberSchema>;
+export type InsertYearlyCalendarEntry = z.infer<typeof insertYearlyCalendarEntrySchema>;
 
 export type Event = typeof events.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
@@ -122,3 +153,4 @@ export type User = typeof users.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;
 export type FauBoardMember = typeof fauBoardMembers.$inferSelect;
 export type EmailDomainBlacklist = typeof emailDomainBlacklist.$inferSelect;
+export type YearlyCalendarEntry = typeof yearlyCalendarEntries.$inferSelect;

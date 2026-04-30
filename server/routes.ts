@@ -1,10 +1,25 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertEventSchema, insertEventRegistrationSchema, insertContactMessageSchema, insertDocumentSchema } from "@shared/schema";
+import { db } from "./db";
+import { users as usersTable } from "@shared/schema";
+import { and, eq } from "drizzle-orm";
+import {
+  insertEventSchema,
+  insertEventRegistrationSchema,
+  insertContactMessageSchema,
+  insertDocumentSchema,
+  insertYearlyCalendarEntrySchema,
+  insertUserSchema,
+} from "@shared/schema";
 import { assignPhotoSlots } from "@shared/photo-slots";
 import { uploadFile, deleteFile } from "./cloudinary";
-import { authenticateUser, requireCouncilMember } from "./auth";
+import {
+  authenticateUser,
+  requireCouncilMember,
+  requireYearlyCalendarEditor,
+  hashPassword,
+} from "./auth";
 import { sendContactEmail, sendEventConfirmationEmail, sendEventCancellationEmail } from "./email";
 import jwt from "jsonwebtoken";
 import multer from "multer";
@@ -686,6 +701,167 @@ Crawl-delay: 1`;
     } catch (error) {
       console.error('Registration deletion error:', error);
       res.status(500).json({ error: 'Internal server error' });
+    }
+  });
+
+  // Yearly calendar (Årskalender) routes
+  app.get("/api/yearly-calendar", async (req, res) => {
+    try {
+      const schoolYear = parseInt(req.query.schoolYear as string);
+      if (isNaN(schoolYear)) {
+        return res.status(400).json({ message: "Valid schoolYear query parameter required" });
+      }
+      const entries = await storage.getYearlyCalendarEntries(schoolYear);
+      res.json(entries);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch yearly calendar entries" });
+    }
+  });
+
+  app.post("/api/yearly-calendar", requireYearlyCalendarEditor, async (req: any, res) => {
+    try {
+      const userName = req.session?.user?.name || req.user?.name || "ukjent";
+      const validated = insertYearlyCalendarEntrySchema.parse({
+        ...req.body,
+        createdBy: userName,
+      });
+      const entry = await storage.createYearlyCalendarEntry(validated);
+      res.status(201).json(entry);
+    } catch (error) {
+      res.status(400).json({
+        message: "Invalid yearly calendar entry data",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.put("/api/yearly-calendar/:id", requireYearlyCalendarEditor, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validated = insertYearlyCalendarEntrySchema.partial().parse(req.body);
+      const entry = await storage.updateYearlyCalendarEntry(id, validated);
+      if (!entry) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      res.json(entry);
+    } catch (error) {
+      res.status(400).json({
+        message: "Invalid yearly calendar entry data",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.delete("/api/yearly-calendar/:id", requireYearlyCalendarEditor, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteYearlyCalendarEntry(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Entry not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete yearly calendar entry" });
+    }
+  });
+
+  // Admin-only staff user management. Mounted on /api/secure-settings to mirror
+  // the Vercel serverless dispatcher (api/secure-settings.js?resource=staff-users).
+  // The Hobby plan caps total functions at 12, so we cannot ship a separate file.
+  const requireAdminFromAuthHeader = (req: any, res: any): { ok: true; user: any } | { ok: false } => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ message: "Authentication required" });
+      return { ok: false };
+    }
+    try {
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, jwtSecret) as any;
+      if (decoded.role !== "admin") {
+        res.status(403).json({ message: "Admin access required" });
+        return { ok: false };
+      }
+      return { ok: true, user: decoded };
+    } catch (error: any) {
+      res.status(401).json({ message: "Invalid or expired token" });
+      return { ok: false };
+    }
+  };
+
+  app.get("/api/secure-settings", async (req, res, next) => {
+    if (req.query.resource !== "staff-users") return next();
+    const auth = requireAdminFromAuthHeader(req, res);
+    if (!auth.ok) return;
+    try {
+      const allUsers = await db.select().from(usersTable).where(eq(usersTable.role, "staff"));
+      res.json(
+        allUsers.map((u) => ({
+          id: u.id,
+          username: u.username,
+          name: u.name,
+          role: u.role,
+          createdAt: u.createdAt,
+        }))
+      );
+    } catch (error) {
+      res.status(500).json({ message: "Failed to list staff users" });
+    }
+  });
+
+  app.post("/api/secure-settings", async (req, res, next) => {
+    if (req.query.resource !== "staff-users") return next();
+    const auth = requireAdminFromAuthHeader(req, res);
+    if (!auth.ok) return;
+    try {
+      const { username, password, name } = req.body;
+      if (!username || !password || !name) {
+        return res.status(400).json({ message: "username, password and name are required" });
+      }
+      if (typeof password !== "string" || password.length < 8) {
+        return res.status(400).json({ message: "Password must be at least 8 characters" });
+      }
+
+      const existing = await storage.getUserByUsername(username);
+      if (existing) {
+        return res.status(400).json({ message: "Brukernavnet er allerede i bruk" });
+      }
+
+      const hashed = await hashPassword(password);
+      const validated = insertUserSchema.parse({
+        username,
+        password: hashed,
+        name,
+        role: "staff",
+        createdAt: new Date().toISOString(),
+      });
+      const user = await storage.createUser(validated);
+      res.status(201).json({ id: user.id, username: user.username, name: user.name, role: user.role });
+    } catch (error) {
+      res.status(400).json({
+        message: "Failed to create staff user",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.delete("/api/secure-settings", async (req, res, next) => {
+    if (req.query.resource !== "staff-users") return next();
+    const auth = requireAdminFromAuthHeader(req, res);
+    if (!auth.ok) return;
+    try {
+      const id = parseInt(req.query.id as string);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Valid id required" });
+      }
+      const result = await db
+        .delete(usersTable)
+        .where(and(eq(usersTable.id, id), eq(usersTable.role, "staff")));
+      if ((result.rowCount ?? 0) === 0) {
+        return res.status(404).json({ message: "Staff user not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete staff user" });
     }
   });
 

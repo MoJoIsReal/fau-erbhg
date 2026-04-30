@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Home, Calendar, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import { Menu, X, Home, Calendar, CalendarDays, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -42,6 +42,7 @@ export default function Layout({ children }: LayoutProps) {
     { name: t.navigation.home, href: "/", icon: Home },
     { name: t.navigation.news, href: "/news", icon: Newspaper },
     { name: t.navigation.events, href: "/events", icon: Calendar },
+    { name: t.navigation.yearlyCalendar, href: "/arskalender", icon: CalendarDays },
     { name: t.navigation.contact, href: "/contact", icon: Mail },
     { name: t.navigation.documents, href: "/files", icon: Folder },
   ];
