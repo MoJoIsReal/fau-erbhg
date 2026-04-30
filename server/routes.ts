@@ -765,19 +765,34 @@ Crawl-delay: 1`;
     }
   });
 
-  // Admin-only: list barnehage-staff users
-  app.get("/api/admin/staff-users", async (req, res) => {
+  // Admin-only staff user management. Mounted on /api/secure-settings to mirror
+  // the Vercel serverless dispatcher (api/secure-settings.js?resource=staff-users).
+  // The Hobby plan caps total functions at 12, so we cannot ship a separate file.
+  const requireAdminFromAuthHeader = (req: any, res: any): { ok: true; user: any } | { ok: false } => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      res.status(401).json({ message: "Authentication required" });
+      return { ok: false };
+    }
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
       const token = authHeader.substring(7);
       const decoded = jwt.verify(token, jwtSecret) as any;
       if (decoded.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
+        res.status(403).json({ message: "Admin access required" });
+        return { ok: false };
       }
+      return { ok: true, user: decoded };
+    } catch (error: any) {
+      res.status(401).json({ message: "Invalid or expired token" });
+      return { ok: false };
+    }
+  };
 
+  app.get("/api/secure-settings", async (req, res, next) => {
+    if (req.query.resource !== "staff-users") return next();
+    const auth = requireAdminFromAuthHeader(req, res);
+    if (!auth.ok) return;
+    try {
       const allUsers = await db.select().from(usersTable).where(eq(usersTable.role, "staff"));
       res.json(
         allUsers.map((u) => ({
@@ -788,62 +803,16 @@ Crawl-delay: 1`;
           createdAt: u.createdAt,
         }))
       );
-    } catch (error: any) {
-      if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
-        return res.status(401).json({ message: "Invalid or expired token" });
-      }
+    } catch (error) {
       res.status(500).json({ message: "Failed to list staff users" });
     }
   });
 
-  // Admin-only: delete a staff user (accepts both ?id=N query and /:id path for parity
-  // with Vercel filesystem routing in api/admin/staff-users.js)
-  const deleteStaffUser = async (req: any, res: any, id: number) => {
+  app.post("/api/secure-settings", async (req, res, next) => {
+    if (req.query.resource !== "staff-users") return next();
+    const auth = requireAdminFromAuthHeader(req, res);
+    if (!auth.ok) return;
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, jwtSecret) as any;
-      if (decoded.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Valid id required" });
-      }
-      const result = await db.delete(usersTable).where(and(eq(usersTable.id, id), eq(usersTable.role, "staff")));
-      if ((result.rowCount ?? 0) === 0) {
-        return res.status(404).json({ message: "Staff user not found" });
-      }
-      res.status(204).send();
-    } catch (error: any) {
-      if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
-        return res.status(401).json({ message: "Invalid or expired token" });
-      }
-      res.status(500).json({ message: "Failed to delete staff user" });
-    }
-  };
-  app.delete("/api/admin/staff-users/:id", (req, res) =>
-    deleteStaffUser(req, res, parseInt(req.params.id))
-  );
-  app.delete("/api/admin/staff-users", (req, res) =>
-    deleteStaffUser(req, res, parseInt(req.query.id as string))
-  );
-
-  // Admin-only: create a barnehage-staff user (limited to yearly calendar editing)
-  app.post("/api/admin/staff-users", async (req, res) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({ message: "Authentication required" });
-      }
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, jwtSecret) as any;
-      if (decoded.role !== "admin") {
-        return res.status(403).json({ message: "Admin access required" });
-      }
-
       const { username, password, name } = req.body;
       if (!username || !password || !name) {
         return res.status(400).json({ message: "username, password and name are required" });
@@ -867,14 +836,32 @@ Crawl-delay: 1`;
       });
       const user = await storage.createUser(validated);
       res.status(201).json({ id: user.id, username: user.username, name: user.name, role: user.role });
-    } catch (error: any) {
-      if (error.name === "JsonWebTokenError" || error.name === "TokenExpiredError") {
-        return res.status(401).json({ message: "Invalid or expired token" });
-      }
+    } catch (error) {
       res.status(400).json({
         message: "Failed to create staff user",
         error: error instanceof Error ? error.message : "Unknown error",
       });
+    }
+  });
+
+  app.delete("/api/secure-settings", async (req, res, next) => {
+    if (req.query.resource !== "staff-users") return next();
+    const auth = requireAdminFromAuthHeader(req, res);
+    if (!auth.ok) return;
+    try {
+      const id = parseInt(req.query.id as string);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Valid id required" });
+      }
+      const result = await db
+        .delete(usersTable)
+        .where(and(eq(usersTable.id, id), eq(usersTable.role, "staff")));
+      if ((result.rowCount ?? 0) === 0) {
+        return res.status(404).json({ message: "Staff user not found" });
+      }
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete staff user" });
     }
   });
 
