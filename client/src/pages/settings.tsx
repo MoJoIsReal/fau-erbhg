@@ -18,6 +18,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
 import { getCookie } from "@/lib/queryClient";
 import RichTextEditor from "@/components/RichTextEditor";
+import StaffUsersSection from "@/components/staff-users-section";
+import { useAuth } from "@/hooks/useAuth";
 
 // Role values stored in database (Norwegian)
 const ROLE_VALUES = ["Leder", "Medlem", "Vara"] as const;
@@ -65,6 +67,7 @@ export default function Settings() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [members, setMembers] = useState<Partial<FauBoardMember>[]>([]);
 
   // Fetch FAU board members
@@ -952,6 +955,8 @@ export default function Settings() {
           )}
         </div>
       </Card>
+
+      {user?.role === "admin" && <StaffUsersSection />}
     </div>
   );
 }
