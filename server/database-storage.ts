@@ -1,22 +1,25 @@
 import { db } from "./db";
-import { 
-  users, 
-  events, 
-  eventRegistrations, 
-  contactMessages, 
+import {
+  users,
+  events,
+  eventRegistrations,
+  contactMessages,
   documents,
+  yearlyCalendarEntries,
   type User,
   type Event,
   type EventRegistration,
   type ContactMessage,
   type Document,
+  type YearlyCalendarEntry,
   type InsertUser,
   type InsertEvent,
   type InsertEventRegistration,
   type InsertContactMessage,
-  type InsertDocument
+  type InsertDocument,
+  type InsertYearlyCalendarEntry
 } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, asc } from "drizzle-orm";
 import type { IStorage } from "./storage";
 
 export class DatabaseStorage implements IStorage {
@@ -150,6 +153,46 @@ export class DatabaseStorage implements IStorage {
 
   async deleteDocument(id: number): Promise<boolean> {
     const result = await db.delete(documents).where(eq(documents.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Yearly calendar methods
+  async getYearlyCalendarEntries(schoolYear: number): Promise<YearlyCalendarEntry[]> {
+    return await db
+      .select()
+      .from(yearlyCalendarEntries)
+      .where(eq(yearlyCalendarEntries.schoolYear, schoolYear))
+      .orderBy(asc(yearlyCalendarEntries.year), asc(yearlyCalendarEntries.month), asc(yearlyCalendarEntries.weekNumber));
+  }
+
+  async getYearlyCalendarEntry(id: number): Promise<YearlyCalendarEntry | undefined> {
+    const [entry] = await db.select().from(yearlyCalendarEntries).where(eq(yearlyCalendarEntries.id, id));
+    return entry || undefined;
+  }
+
+  async createYearlyCalendarEntry(entry: InsertYearlyCalendarEntry): Promise<YearlyCalendarEntry> {
+    const now = new Date().toISOString();
+    const [newEntry] = await db
+      .insert(yearlyCalendarEntries)
+      .values({ ...entry, createdAt: now, updatedAt: now })
+      .returning();
+    return newEntry;
+  }
+
+  async updateYearlyCalendarEntry(
+    id: number,
+    entry: Partial<InsertYearlyCalendarEntry>
+  ): Promise<YearlyCalendarEntry | undefined> {
+    const [updated] = await db
+      .update(yearlyCalendarEntries)
+      .set({ ...entry, updatedAt: new Date().toISOString() })
+      .where(eq(yearlyCalendarEntries.id, id))
+      .returning();
+    return updated || undefined;
+  }
+
+  async deleteYearlyCalendarEntry(id: number): Promise<boolean> {
+    const result = await db.delete(yearlyCalendarEntries).where(eq(yearlyCalendarEntries.id, id));
     return (result.rowCount ?? 0) > 0;
   }
 }
