@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
 
@@ -23,6 +25,34 @@ const ENTRY_COLOR_CLASSES: Record<string, string> = {
   pink: "bg-pink-400 text-white",
   purple: "bg-purple-500 text-white",
 };
+
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+// Pick a readable text color (black or white) for a given hex background.
+function readableTextOn(hex: string): string {
+  let c = hex.replace("#", "");
+  if (c.length === 3) c = c.split("").map((ch) => ch + ch).join("");
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#1f2937" : "#ffffff";
+}
+
+type ColorStyle = { className: string; style?: React.CSSProperties };
+
+function colorStyle(entry: YearlyCalendarEntry): ColorStyle {
+  if (entry.color && HEX_RE.test(entry.color)) {
+    return {
+      className: "shadow-sm",
+      style: { backgroundColor: entry.color, color: readableTextOn(entry.color) },
+    };
+  }
+  if (entry.color && ENTRY_COLOR_CLASSES[entry.color]) {
+    return { className: ENTRY_COLOR_CLASSES[entry.color] };
+  }
+  return { className: defaultColorForType(entry.entryType) };
+}
 
 function defaultColorForType(type: YearlyCalendarEntry["entryType"]): string {
   switch (type) {
@@ -82,9 +112,16 @@ function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+type DragPayload = {
+  id: number;
+  entryType: YearlyCalendarEntry["entryType"];
+};
+
 export default function YearlyCalendarPage() {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const canEdit = !!user && (user.role === "admin" || user.role === "member" || user.role === "staff");
 
   const now = new Date();
@@ -99,6 +136,7 @@ export default function YearlyCalendarPage() {
     month: 8,
     entryType: "week_event",
   });
+  const [dragOver, setDragOver] = useState<string | null>(null);
 
   const { data: entries = [] } = useQuery<YearlyCalendarEntry[]>({
     queryKey: ["/api/yearly-calendar", schoolYear],
@@ -106,6 +144,36 @@ export default function YearlyCalendarPage() {
       const res = await fetch(`/api/yearly-calendar?schoolYear=${schoolYear}`, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to load yearly calendar");
       return res.json();
+    },
+  });
+
+  const moveMutation = useMutation({
+    mutationFn: async ({ entry, patch }: { entry: YearlyCalendarEntry; patch: Partial<YearlyCalendarEntry> }) => {
+      const body = { ...entry, ...patch };
+      const res = await apiRequest("PUT", `/api/yearly-calendar?id=${entry.id}`, body);
+      return res.json();
+    },
+    onMutate: async ({ entry, patch }) => {
+      const key = ["/api/yearly-calendar", schoolYear];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<YearlyCalendarEntry[]>(key);
+      queryClient.setQueryData<YearlyCalendarEntry[]>(key, (old) =>
+        (old ?? []).map((e) => (e.id === entry.id ? { ...e, ...patch } : e))
+      );
+      return { previous };
+    },
+    onError: (err: any, _vars, ctx) => {
+      if (ctx?.previous) {
+        queryClient.setQueryData(["/api/yearly-calendar", schoolYear], ctx.previous);
+      }
+      toast({
+        title: t.yearlyCalendar.modal.error,
+        description: err?.message ?? "",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/yearly-calendar", schoolYear] });
     },
   });
 
@@ -127,8 +195,9 @@ export default function YearlyCalendarPage() {
     t.yearlyCalendar.friday,
   ];
 
-  const schoolYearOptions: number[] = [];
-  for (let y = defaultSchoolYear - 2; y <= defaultSchoolYear + 3; y++) schoolYearOptions.push(y);
+  // Only show the current and next school year. Once August rolls over,
+  // the "old" year automatically drops off the list.
+  const schoolYearOptions = [defaultSchoolYear, defaultSchoolYear + 1];
 
   const openCreate = (defaults: Partial<EntryDraft>) => {
     setEditingEntry(null);
@@ -139,6 +208,77 @@ export default function YearlyCalendarPage() {
     setEditingEntry(entry);
     setModalOpen(true);
   };
+
+  const handleDragStart = (e: React.DragEvent, entry: YearlyCalendarEntry) => {
+    if (!canEdit) return;
+    const payload: DragPayload = { id: entry.id, entryType: entry.entryType };
+    e.dataTransfer.setData("application/json", JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const readPayload = (e: React.DragEvent): DragPayload | null => {
+    try {
+      const raw = e.dataTransfer.getData("application/json");
+      if (!raw) return null;
+      return JSON.parse(raw) as DragPayload;
+    } catch {
+      return null;
+    }
+  };
+
+  const handleDropOnDay = (
+    e: React.DragEvent,
+    target: { year: number; month: number; weekNumber: number; date: string }
+  ) => {
+    e.preventDefault();
+    setDragOver(null);
+    const payload = readPayload(e);
+    if (!payload) return;
+    const entry = entries.find((x) => x.id === payload.id);
+    if (!entry || entry.entryType !== "day_event") return;
+    if (entry.date === target.date) return;
+    moveMutation.mutate({
+      entry,
+      patch: {
+        year: target.year,
+        month: target.month,
+        weekNumber: target.weekNumber,
+        date: target.date,
+      },
+    });
+  };
+
+  const handleDropOnWeek = (
+    e: React.DragEvent,
+    target: { year: number; month: number; weekNumber: number }
+  ) => {
+    e.preventDefault();
+    setDragOver(null);
+    const payload = readPayload(e);
+    if (!payload) return;
+    const entry = entries.find((x) => x.id === payload.id);
+    if (!entry) return;
+    if (entry.entryType !== "week_event" && entry.entryType !== "food" && entry.entryType !== "note") return;
+    if (entry.weekNumber === target.weekNumber && entry.month === target.month && entry.year === target.year) {
+      return;
+    }
+    moveMutation.mutate({
+      entry,
+      patch: {
+        year: target.year,
+        month: target.month,
+        weekNumber: target.weekNumber,
+      },
+    });
+  };
+
+  const allowDayDrop = (e: React.DragEvent, key: string) => {
+    if (!canEdit) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOver !== key) setDragOver(key);
+  };
+  const allowWeekDrop = allowDayDrop;
 
   return (
     <div className="space-y-8">
@@ -203,12 +343,17 @@ export default function YearlyCalendarPage() {
                     {noteEntries.map((entry) => (
                       <li
                         key={entry.id}
+                        draggable={canEdit}
+                        onDragStart={(e) => handleDragStart(e, entry)}
                         className={`bg-white rounded-md px-3 py-2 shadow-sm ${
-                          canEdit ? "cursor-pointer hover:bg-yellow-50" : ""
+                          canEdit ? "cursor-grab active:cursor-grabbing hover:bg-yellow-50" : ""
                         }`}
                         onClick={canEdit ? () => openEdit(entry) : undefined}
                       >
-                        <div className="font-medium">{entry.title}</div>
+                        <div className="font-medium flex items-center gap-1">
+                          {canEdit && <GripVertical className="h-3 w-3 text-neutral-400" aria-hidden />}
+                          {entry.title}
+                        </div>
                         {entry.description && (
                           <div className="text-neutral-600 text-xs">{entry.description}</div>
                         )}
@@ -244,9 +389,18 @@ export default function YearlyCalendarPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {weeks.map((week) => (
+                      {weeks.map((week) => {
+                        const weekKey = `wk-${year}-${month}-${week.weekNumber}`;
+                        return (
                         <tr key={week.weekNumber} className="border-t border-white/10 align-top">
-                          <td className="px-3 py-3 text-yellow-300 font-bold text-lg">
+                          <td
+                            className={`px-3 py-3 text-yellow-300 font-bold text-lg ${
+                              dragOver === weekKey ? "bg-yellow-500/20" : ""
+                            }`}
+                            onDragOver={(e) => allowWeekDrop(e, weekKey)}
+                            onDragLeave={() => setDragOver((k) => (k === weekKey ? null : k))}
+                            onDrop={(e) => handleDropOnWeek(e, { year, month, weekNumber: week.weekNumber })}
+                          >
                             {canEdit ? (
                               <button
                                 type="button"
@@ -271,23 +425,40 @@ export default function YearlyCalendarPage() {
                             const dayEntries = monthEntries.filter(
                               (e) => e.entryType === "day_event" && e.date === dateStr
                             );
+                            const dayKey = `dy-${dateStr}`;
                             return (
                               <td
                                 key={dateStr}
-                                className={`px-2 py-3 align-top min-w-[110px] ${d.inMonth ? "" : "opacity-30"}`}
+                                className={`px-2 py-3 align-top min-w-[110px] ${d.inMonth ? "" : "opacity-30"} ${
+                                  dragOver === dayKey ? "bg-yellow-500/20" : ""
+                                }`}
+                                onDragOver={(e) => {
+                                  if (d.inMonth) allowDayDrop(e, dayKey);
+                                }}
+                                onDragLeave={() => setDragOver((k) => (k === dayKey ? null : k))}
+                                onDrop={(e) =>
+                                  d.inMonth &&
+                                  handleDropOnDay(e, {
+                                    year,
+                                    month,
+                                    weekNumber: week.weekNumber,
+                                    date: dateStr,
+                                  })
+                                }
                               >
                                 <div className="text-yellow-100 text-xs mb-1">{d.date.getDate()}</div>
                                 <div className="space-y-1">
                                   {dayEntries.map((entry) => {
-                                    const colorClass = entry.color
-                                      ? ENTRY_COLOR_CLASSES[entry.color] ?? defaultColorForType(entry.entryType)
-                                      : defaultColorForType(entry.entryType);
+                                    const cs = colorStyle(entry);
                                     return (
                                       <div
                                         key={entry.id}
-                                        className={`text-xs rounded px-2 py-1 shadow-sm ${colorClass} ${
-                                          canEdit ? "cursor-pointer" : ""
+                                        draggable={canEdit}
+                                        onDragStart={(e) => handleDragStart(e, entry)}
+                                        className={`text-xs rounded px-2 py-1 shadow-sm ${cs.className} ${
+                                          canEdit ? "cursor-grab active:cursor-grabbing" : ""
                                         }`}
+                                        style={cs.style}
                                         onClick={canEdit ? () => openEdit(entry) : undefined}
                                         title={entry.description ?? entry.title}
                                       >
@@ -320,7 +491,8 @@ export default function YearlyCalendarPage() {
                             );
                           })}
                         </tr>
-                      ))}
+                        );
+                      })}
                       <tr className="border-t border-white/10">
                         <td colSpan={6} className="px-3 py-3 space-y-2">
                           {weeks.map((week) => {
@@ -329,22 +501,31 @@ export default function YearlyCalendarPage() {
                                 e.weekNumber === week.weekNumber &&
                                 (e.entryType === "week_event" || e.entryType === "food")
                             );
-                            if (weekEntries.length === 0) return null;
+                            const weekRowKey = `wkrow-${year}-${month}-${week.weekNumber}`;
                             return (
-                              <div key={`we-${week.weekNumber}`} className="flex flex-wrap items-center gap-2">
+                              <div
+                                key={`we-${week.weekNumber}`}
+                                onDragOver={(e) => allowWeekDrop(e, weekRowKey)}
+                                onDragLeave={() => setDragOver((k) => (k === weekRowKey ? null : k))}
+                                onDrop={(e) => handleDropOnWeek(e, { year, month, weekNumber: week.weekNumber })}
+                                className={`flex flex-wrap items-center gap-2 rounded px-1 py-0.5 ${
+                                  dragOver === weekRowKey ? "bg-yellow-500/20 outline outline-2 outline-yellow-400" : ""
+                                }`}
+                              >
                                 <span className="text-xs uppercase text-yellow-100 font-bold">
                                   {t.yearlyCalendar.week} {week.weekNumber}:
                                 </span>
                                 {weekEntries.map((entry) => {
-                                  const colorClass = entry.color
-                                    ? ENTRY_COLOR_CLASSES[entry.color] ?? defaultColorForType(entry.entryType)
-                                    : defaultColorForType(entry.entryType);
+                                  const cs = colorStyle(entry);
                                   return (
                                     <span
                                       key={entry.id}
-                                      className={`text-xs rounded-full px-3 py-1 font-medium shadow ${colorClass} ${
-                                        canEdit ? "cursor-pointer" : ""
+                                      draggable={canEdit}
+                                      onDragStart={(e) => handleDragStart(e, entry)}
+                                      className={`text-xs rounded-full px-3 py-1 font-medium shadow ${cs.className} ${
+                                        canEdit ? "cursor-grab active:cursor-grabbing" : ""
                                       }`}
+                                      style={cs.style}
                                       onClick={canEdit ? () => openEdit(entry) : undefined}
                                       title={entry.description ?? entry.title}
                                     >
@@ -356,6 +537,9 @@ export default function YearlyCalendarPage() {
                                     </span>
                                   );
                                 })}
+                                {weekEntries.length === 0 && (
+                                  <span className="text-xs text-white/40 italic">—</span>
+                                )}
                               </div>
                             );
                           })}

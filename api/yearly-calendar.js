@@ -10,7 +10,16 @@ import {
 } from './_shared/middleware.js';
 
 const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note'];
-const VALID_COLORS = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
+const VALID_COLOR_NAMES = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+function sanitizeColor(value) {
+  if (!value || typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (VALID_COLOR_NAMES.includes(trimmed)) return trimmed;
+  if (HEX_RE.test(trimmed)) return trimmed.toLowerCase();
+  return null;
+}
 
 function mapEntry(row) {
   return {
@@ -36,7 +45,7 @@ function sanitizeEntryPayload(body) {
   const entryType = VALID_ENTRY_TYPES.includes(body.entryType) ? body.entryType : null;
   const title = sanitizeText(body.title, 200);
   const description = body.description ? sanitizeText(body.description, 1000) : null;
-  const color = body.color && VALID_COLORS.includes(body.color) ? body.color : null;
+  const color = sanitizeColor(body.color);
   const schoolYear = sanitizeNumber(body.schoolYear, 2020, 2100);
   const year = sanitizeNumber(body.year, 2020, 2100);
   const month = sanitizeNumber(body.month, 1, 12);
