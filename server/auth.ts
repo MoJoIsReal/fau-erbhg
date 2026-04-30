@@ -83,12 +83,27 @@ export function requireCouncilMember(req: any, res: any, next: any) {
   if (!isAuthenticated(req)) {
     return res.status(401).json({ message: 'Authentication required' });
   }
-  
+
   // Get role from either session or JWT token
   const userRole = req.session?.user?.role || req.user?.role;
   if (userRole !== 'admin' && userRole !== 'member') {
     return res.status(403).json({ message: 'Council member access required' });
   }
-  
+
+  next();
+}
+
+// Allows admins, council members and "staff" (kindergarten employees) to edit
+// yearly calendar entries. Staff users have no other admin access.
+export function requireYearlyCalendarEditor(req: any, res: any, next: any) {
+  if (!isAuthenticated(req)) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  const userRole = req.session?.user?.role || req.user?.role;
+  if (userRole !== 'admin' && userRole !== 'member' && userRole !== 'staff') {
+    return res.status(403).json({ message: 'Yearly calendar editor access required' });
+  }
+
   next();
 }

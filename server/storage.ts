@@ -1,7 +1,9 @@
-import { 
+import {
   type User, type Event, type EventRegistration, type ContactMessage, type Document,
-  type InsertUser, type InsertEvent, type InsertEventRegistration, 
-  type InsertContactMessage, type InsertDocument
+  type YearlyCalendarEntry,
+  type InsertUser, type InsertEvent, type InsertEventRegistration,
+  type InsertContactMessage, type InsertDocument,
+  type InsertYearlyCalendarEntry
 } from "@shared/schema";
 
 export interface IStorage {
@@ -33,6 +35,13 @@ export interface IStorage {
   getDocumentsByCategory(category: string): Promise<Document[]>;
   createDocument(document: InsertDocument): Promise<Document>;
   deleteDocument(id: number): Promise<boolean>;
+
+  // Yearly calendar methods
+  getYearlyCalendarEntries(schoolYear: number): Promise<YearlyCalendarEntry[]>;
+  getYearlyCalendarEntry(id: number): Promise<YearlyCalendarEntry | undefined>;
+  createYearlyCalendarEntry(entry: InsertYearlyCalendarEntry): Promise<YearlyCalendarEntry>;
+  updateYearlyCalendarEntry(id: number, entry: Partial<InsertYearlyCalendarEntry>): Promise<YearlyCalendarEntry | undefined>;
+  deleteYearlyCalendarEntry(id: number): Promise<boolean>;
 }
 
 import { DatabaseStorage } from "./database-storage";

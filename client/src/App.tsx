@@ -14,6 +14,7 @@ const Contact = lazy(() => import("@/pages/contact"));
 const Files = lazy(() => import("@/pages/files"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Messages = lazy(() => import("@/pages/messages"));
+const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 
 // Loading fallback component
 function PageLoader() {
@@ -39,6 +40,7 @@ function Router() {
           <Route path="/files" component={Files} />
           <Route path="/settings" component={Settings} />
           <Route path="/messages" component={Messages} />
+          <Route path="/arskalender" component={YearlyCalendar} />
           <Route>
             <div className="min-h-screen w-full flex items-center justify-center bg-neutral-50">
               <div className="text-center">
