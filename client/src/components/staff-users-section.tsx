@@ -26,18 +26,20 @@ export default function StaffUsersSection() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
 
+  const STAFF_KEY = "/api/secure-settings?resource=staff-users";
+
   const { data: staff = [], isLoading } = useQuery<StaffUser[]>({
-    queryKey: ["/api/admin/staff-users"],
+    queryKey: [STAFF_KEY],
   });
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/staff-users", { username, name, password });
+      const res = await apiRequest("POST", STAFF_KEY, { username, name, password });
       return res.json();
     },
     onSuccess: () => {
       toast({ title: t.yearlyCalendar.staff.successCreate });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/staff-users"] });
+      queryClient.invalidateQueries({ queryKey: [STAFF_KEY] });
       setUsername("");
       setName("");
       setPassword("");
@@ -53,13 +55,13 @@ export default function StaffUsersSection() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `/api/admin/staff-users?id=${id}`);
+      const res = await apiRequest("DELETE", `${STAFF_KEY}&id=${id}`);
       if (res.status !== 204 && !res.ok) {
         throw new Error(await res.text());
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/staff-users"] });
+      queryClient.invalidateQueries({ queryKey: [STAFF_KEY] });
     },
   });
 
