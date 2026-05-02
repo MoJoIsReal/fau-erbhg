@@ -40,6 +40,18 @@ interface Props {
 const COLORS = ["red", "yellow", "green", "orange", "blue", "pink", "purple"] as const;
 const TYPES: EntryDraft["entryType"][] = ["week_event", "day_event", "food", "note"];
 
+const PRESET_HEX: Record<(typeof COLORS)[number], string> = {
+  red: "#ef4444",
+  yellow: "#fde047",
+  green: "#22c55e",
+  orange: "#fb923c",
+  blue: "#60a5fa",
+  pink: "#f472b6",
+  purple: "#a855f7",
+};
+
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
 export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, initial, existing }: Props) {
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -223,17 +235,52 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
           <div>
             <Label>{t.yearlyCalendar.modal.color}</Label>
-            <Select value={color || "none"} onValueChange={(v) => setColor(v === "none" ? "" : v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">{t.yearlyCalendar.colors.none}</SelectItem>
-                {COLORS.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <button
+                type="button"
+                onClick={() => setColor("")}
+                className={`h-7 w-7 rounded-full border-2 bg-white text-neutral-500 text-xs flex items-center justify-center ${
+                  !color ? "border-neutral-900 ring-2 ring-neutral-300" : "border-neutral-300"
+                }`}
+                title={t.yearlyCalendar.colors.none}
+                aria-label={t.yearlyCalendar.colors.none}
+              >
+                ✕
+              </button>
+              {COLORS.map((c) => {
+                const selected = color === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    style={{ backgroundColor: PRESET_HEX[c] }}
+                    className={`h-7 w-7 rounded-full border-2 ${
+                      selected ? "border-neutral-900 ring-2 ring-neutral-300" : "border-white shadow"
+                    }`}
+                    title={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
+                    aria-label={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
+                  />
+                );
+              })}
+              <input
+                type="color"
+                value={HEX_RE.test(color) ? color : "#ff6b35"}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-7 w-8 rounded cursor-pointer border border-neutral-300 p-0"
+                aria-label={t.yearlyCalendar.modal.color}
+              />
+              <Input
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                placeholder="#rrggbb"
+                maxLength={7}
+                className="w-28 font-mono text-xs"
+              />
+            </div>
+            {color && !HEX_RE.test(color) && !COLORS.includes(color as any) && (
+              <p className="text-xs text-red-500 mt-1">#rrggbb</p>
+            )}
           </div>
         </div>
 
