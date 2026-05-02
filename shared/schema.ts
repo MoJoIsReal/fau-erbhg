@@ -111,7 +111,8 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   //   "food"       → ukens varmmat for a given week
   //   "note"       → freeform note attached to a week
   entryType: text("entry_type").notNull(),
-  weekNumber: integer("week_number"), // ISO week number, used for week_event/food/note
+  weekNumber: integer("week_number"), // ISO week number, used for week_event/food/note (start week if span)
+  weekNumberEnd: integer("week_number_end"), // optional end week for multi-week week_event/note spans
   weekdayStart: integer("weekday_start"), // 1=Mon..5=Fri (week_event range start, optional)
   weekdayEnd: integer("weekday_end"), // 1=Mon..5=Fri (week_event range end, optional)
   date: text("date"), // ISO date "YYYY-MM-DD" used for day_event

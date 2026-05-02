@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical } from "lucide-react";
+import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   DndContext,
   type DragEndEvent,
@@ -77,6 +77,37 @@ function colorStyle(entry: YearlyCalendarEntry): ColorStyle {
     return { className: ENTRY_COLOR_CLASSES[entry.color] };
   }
   return { className: defaultColorForType(entry.entryType) };
+}
+
+// Effective end week for an entry. If weekNumberEnd is null/missing, the
+// entry only spans its own week.
+function entryEndWeek(entry: YearlyCalendarEntry): number {
+  return entry.weekNumberEnd && entry.weekNumberEnd > (entry.weekNumber ?? 0)
+    ? entry.weekNumberEnd
+    : (entry.weekNumber ?? 0);
+}
+
+function isMultiWeek(entry: YearlyCalendarEntry): boolean {
+  return entryEndWeek(entry) > (entry.weekNumber ?? 0);
+}
+
+// Returns where a given week sits within an entry's span:
+//   "single"   – entry only spans this single week
+//   "start"    – first week of a multi-week entry
+//   "middle"   – inner week of a multi-week entry
+//   "end"      – last week of a multi-week entry
+//   null       – entry does not cover this week
+function spanPosition(
+  entry: YearlyCalendarEntry,
+  weekNumber: number
+): "single" | "start" | "middle" | "end" | null {
+  const start = entry.weekNumber ?? 0;
+  const end = entryEndWeek(entry);
+  if (weekNumber < start || weekNumber > end) return null;
+  if (start === end) return "single";
+  if (weekNumber === start) return "start";
+  if (weekNumber === end) return "end";
+  return "middle";
 }
 
 // Visual sort order: food first (so "ukens varmmat" is always on top of the
@@ -337,12 +368,16 @@ export default function YearlyCalendarPage() {
     if (target.kind === "week") {
       if (entry.entryType !== "week_event" && entry.entryType !== "food" && entry.entryType !== "note") return;
       if (entry.weekNumber === target.weekNumber && entry.month === target.month && entry.year === target.year) return;
+      // Preserve span length when moving a multi-week entry: shift start to
+      // the drop target and shift end by the same delta.
+      const span = isMultiWeek(entry) ? entryEndWeek(entry) - (entry.weekNumber ?? 0) : 0;
       moveMutation.mutate({
         entry,
         patch: {
           year: target.year,
           month: target.month,
           weekNumber: target.weekNumber,
+          weekNumberEnd: span > 0 ? target.weekNumber + span : null,
         },
       });
       return;
@@ -389,7 +424,11 @@ export default function YearlyCalendarPage() {
           {months.map(({ year, month }) => {
             const monthEntries = entries.filter((e) => e.year === year && e.month === month);
             const weeks = weeksOfMonth(year, month);
-            const noteEntries = sortByTypeAndColor(monthEntries.filter((e) => e.entryType === "note"));
+            // Single-week notes stay in the sidebar; multi-week notes are
+            // rendered as a chevron-banner across the week badges instead.
+            const noteEntries = sortByTypeAndColor(
+              monthEntries.filter((e) => e.entryType === "note" && !isMultiWeek(e))
+            );
 
             return (
               <section
@@ -450,11 +489,14 @@ export default function YearlyCalendarPage() {
                   <div className="lg:hidden p-3 space-y-3">
                     {weeks.map((week) => {
                       const weekLevelEntries = sortByTypeAndColor(
-                        monthEntries.filter(
-                          (e) =>
-                            e.weekNumber === week.weekNumber &&
-                            (e.entryType === "week_event" || e.entryType === "food")
-                        )
+                        monthEntries.filter((e) => {
+                          if (spanPosition(e, week.weekNumber) === null) return false;
+                          if (e.entryType === "week_event" || e.entryType === "food") return true;
+                          // Spanning notes are rendered as week badges (with chevrons);
+                          // single-week notes stay in the sidebar.
+                          if (e.entryType === "note" && isMultiWeek(e)) return true;
+                          return false;
+                        })
                       );
                       const mFirst = week.days[0].date;
                       const mLast = week.days[4].date;
@@ -485,6 +527,9 @@ export default function YearlyCalendarPage() {
                             <div className="flex flex-wrap gap-2">
                               {weekLevelEntries.map((entry) => {
                                 const cs = colorStyle(entry);
+                                const pos = spanPosition(entry, week.weekNumber)!;
+                                const showLeftChevron = pos === "middle" || pos === "end";
+                                const showRightChevron = pos === "start" || pos === "middle";
                                 return (
                                   <DraggableEntry
                                     key={entry.id}
@@ -495,10 +540,16 @@ export default function YearlyCalendarPage() {
                                     className={`text-xs rounded-full px-3 py-1 font-medium shadow inline-flex items-center ${cs.className}`}
                                     style={cs.style}
                                   >
+                                    {showLeftChevron && (
+                                      <ChevronLeft className="inline h-3 w-3 mr-1" aria-hidden />
+                                    )}
                                     {entry.entryType === "food" && (
                                       <Utensils className="inline h-3 w-3 mr-1" aria-hidden />
                                     )}
                                     {entry.title}
+                                    {showRightChevron && (
+                                      <ChevronRight className="inline h-3 w-3 ml-1" aria-hidden />
+                                    )}
                                   </DraggableEntry>
                                 );
                               })}
@@ -696,11 +747,12 @@ export default function YearlyCalendarPage() {
                           <td colSpan={6} className="px-3 py-3 space-y-2">
                             {weeks.map((week) => {
                               const weekEntries = sortByTypeAndColor(
-                                monthEntries.filter(
-                                  (e) =>
-                                    e.weekNumber === week.weekNumber &&
-                                    (e.entryType === "week_event" || e.entryType === "food")
-                                )
+                                monthEntries.filter((e) => {
+                                  if (spanPosition(e, week.weekNumber) === null) return false;
+                                  if (e.entryType === "week_event" || e.entryType === "food") return true;
+                                  if (e.entryType === "note" && isMultiWeek(e)) return true;
+                                  return false;
+                                })
                               );
                               const rowId = `wkrow-${year}-${month}-${week.weekNumber}`;
                               return (
@@ -716,6 +768,9 @@ export default function YearlyCalendarPage() {
                                   </span>
                                   {weekEntries.map((entry) => {
                                     const cs = colorStyle(entry);
+                                    const pos = spanPosition(entry, week.weekNumber)!;
+                                    const showLeftChevron = pos === "middle" || pos === "end";
+                                    const showRightChevron = pos === "start" || pos === "middle";
                                     return (
                                       <DraggableEntry
                                         key={entry.id}
@@ -726,11 +781,19 @@ export default function YearlyCalendarPage() {
                                         className={`text-xs rounded-full px-3 py-1 font-medium shadow inline-flex items-center ${cs.className}`}
                                         style={cs.style}
                                       >
+                                        {showLeftChevron && (
+                                          <ChevronLeft className="inline h-3 w-3 mr-1" aria-hidden />
+                                        )}
                                         {entry.entryType === "food" && (
                                           <Utensils className="inline h-3 w-3 mr-1" aria-hidden />
                                         )}
                                         {entry.title}
-                                        {canEdit && <Pencil className="inline h-3 w-3 ml-1 opacity-70" />}
+                                        {showRightChevron && (
+                                          <ChevronRight className="inline h-3 w-3 ml-1" aria-hidden />
+                                        )}
+                                        {canEdit && !showRightChevron && (
+                                          <Pencil className="inline h-3 w-3 ml-1 opacity-70" />
+                                        )}
                                       </DraggableEntry>
                                     );
                                   })}
