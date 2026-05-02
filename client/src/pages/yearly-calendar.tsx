@@ -79,6 +79,21 @@ function colorStyle(entry: YearlyCalendarEntry): ColorStyle {
   return { className: defaultColorForType(entry.entryType) };
 }
 
+// Visual sort order: food first (so "ukens varmmat" is always on top of the
+// week badges), then group entries with the same color together. Falls back
+// to id for stable ordering.
+function sortByTypeAndColor(entries: YearlyCalendarEntry[]): YearlyCalendarEntry[] {
+  return [...entries].sort((a, b) => {
+    const aFood = a.entryType === "food" ? 0 : 1;
+    const bFood = b.entryType === "food" ? 0 : 1;
+    if (aFood !== bFood) return aFood - bFood;
+    const aColor = a.color ?? "";
+    const bColor = b.color ?? "";
+    if (aColor !== bColor) return aColor.localeCompare(bColor);
+    return a.id - b.id;
+  });
+}
+
 function isoWeek(date: Date): number {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -374,7 +389,7 @@ export default function YearlyCalendarPage() {
           {months.map(({ year, month }) => {
             const monthEntries = entries.filter((e) => e.year === year && e.month === month);
             const weeks = weeksOfMonth(year, month);
-            const noteEntries = monthEntries.filter((e) => e.entryType === "note");
+            const noteEntries = sortByTypeAndColor(monthEntries.filter((e) => e.entryType === "note"));
 
             return (
               <section
@@ -434,10 +449,12 @@ export default function YearlyCalendarPage() {
                   {/* Mobile layout: stacked week cards */}
                   <div className="lg:hidden p-3 space-y-3">
                     {weeks.map((week) => {
-                      const weekLevelEntries = monthEntries.filter(
-                        (e) =>
-                          e.weekNumber === week.weekNumber &&
-                          (e.entryType === "week_event" || e.entryType === "food")
+                      const weekLevelEntries = sortByTypeAndColor(
+                        monthEntries.filter(
+                          (e) =>
+                            e.weekNumber === week.weekNumber &&
+                            (e.entryType === "week_event" || e.entryType === "food")
+                        )
                       );
                       const mFirst = week.days[0].date;
                       const mLast = week.days[4].date;
@@ -507,8 +524,10 @@ export default function YearlyCalendarPage() {
                           <ul className="divide-y divide-white/5 bg-[#2C5F41]/40">
                             {week.days.map((d) => {
                               const dateStr = toIsoDate(d.date);
-                              const dayEntries = monthEntries.filter(
-                                (e) => e.entryType === "day_event" && e.date === dateStr
+                              const dayEntries = sortByTypeAndColor(
+                                monthEntries.filter(
+                                  (e) => e.entryType === "day_event" && e.date === dateStr
+                                )
                               );
                               const dayShort = weekdayLabels[week.days.indexOf(d)].slice(0, 3);
                               return (
@@ -614,8 +633,10 @@ export default function YearlyCalendarPage() {
                               </DroppableCell>
                               {week.days.map((d) => {
                                 const dateStr = toIsoDate(d.date);
-                                const dayEntries = monthEntries.filter(
-                                  (e) => e.entryType === "day_event" && e.date === dateStr
+                                const dayEntries = sortByTypeAndColor(
+                                  monthEntries.filter(
+                                    (e) => e.entryType === "day_event" && e.date === dateStr
+                                  )
                                 );
                                 const dayId = `day-${dateStr}`;
                                 return (
@@ -674,10 +695,12 @@ export default function YearlyCalendarPage() {
                         <tr className="border-t border-white/10">
                           <td colSpan={6} className="px-3 py-3 space-y-2">
                             {weeks.map((week) => {
-                              const weekEntries = monthEntries.filter(
-                                (e) =>
-                                  e.weekNumber === week.weekNumber &&
-                                  (e.entryType === "week_event" || e.entryType === "food")
+                              const weekEntries = sortByTypeAndColor(
+                                monthEntries.filter(
+                                  (e) =>
+                                    e.weekNumber === week.weekNumber &&
+                                    (e.entryType === "week_event" || e.entryType === "food")
+                                )
                               );
                               const rowId = `wkrow-${year}-${month}-${week.weekNumber}`;
                               return (
