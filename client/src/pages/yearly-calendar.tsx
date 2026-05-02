@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
 import {
@@ -426,8 +426,10 @@ export default function YearlyCalendarPage() {
             const weeks = weeksOfMonth(year, month);
             // Single-week notes stay in the sidebar; multi-week notes are
             // rendered as a chevron-banner across the week badges instead.
+            // Notes with a weekNumber render as week banners; only "general"
+            // notes without a week assignment stay in the sidebar.
             const noteEntries = sortByTypeAndColor(
-              monthEntries.filter((e) => e.entryType === "note" && !isMultiWeek(e))
+              monthEntries.filter((e) => e.entryType === "note" && e.weekNumber == null)
             );
 
             return (
@@ -442,33 +444,37 @@ export default function YearlyCalendarPage() {
                   <p className="text-yellow-100 italic text-sm">{t.yearlyCalendar.tagline}</p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-0">
-                  {/* Notes sidebar */}
-                  <div className="bg-rose-50 text-neutral-900 p-5 border-b-2 lg:border-b-0 lg:border-r-2 border-[#4A8C5F]/30 lg:min-h-full">
-                    <div className="font-heading font-bold text-[#2C5F41] mb-2 flex items-center gap-2">
-                      <Sticker className="h-5 w-5" /> {t.yearlyCalendar.notes}
+                {(() => {
+                  const showSidebar = noteEntries.length > 0 || canEdit;
+                  return (
+                <div className={`grid grid-cols-1 gap-0 ${showSidebar ? "lg:grid-cols-[200px_1fr]" : ""}`}>
+                  {/* Notes sidebar — only general notes (no week assignment) */}
+                  {showSidebar && (
+                  <div className="bg-rose-50 text-neutral-900 p-3 border-b-2 lg:border-b-0 lg:border-r-2 border-[#4A8C5F]/30 lg:min-h-full">
+                    <div className="font-heading font-bold text-[#2C5F41] mb-2 text-sm flex items-center gap-2">
+                      <Sticker className="h-4 w-4" /> {t.yearlyCalendar.notes}
                     </div>
-                    <ul className="space-y-2 text-sm">
+                    <ul className="space-y-1.5 text-xs">
                       {noteEntries.map((entry) => (
                         <li key={entry.id}>
                           <DraggableEntry
                             entry={entry}
                             canEdit={canEdit}
                             onClick={canEdit ? () => openEdit(entry) : undefined}
-                            className="bg-white rounded-md px-3 py-2 shadow-sm hover:bg-yellow-50"
+                            className="bg-white rounded-md px-2 py-1.5 shadow-sm hover:bg-yellow-50"
                           >
-                            <div className="font-medium flex items-center gap-1">
-                              {canEdit && <GripVertical className="h-3 w-3 text-neutral-400" aria-hidden />}
-                              {entry.title}
+                            <div className="font-medium flex items-center gap-1 leading-snug">
+                              {canEdit && <GripVertical className="h-3 w-3 text-neutral-400 shrink-0" aria-hidden />}
+                              <span className="break-words">{entry.title}</span>
                             </div>
                             {entry.description && (
-                              <div className="text-neutral-600 text-xs">{entry.description}</div>
+                              <div className="text-neutral-600 text-[11px] leading-snug">{entry.description}</div>
                             )}
                           </DraggableEntry>
                         </li>
                       ))}
                       {noteEntries.length === 0 && (
-                        <li className="text-neutral-500 italic text-sm">—</li>
+                        <li className="text-neutral-500 italic">—</li>
                       )}
                     </ul>
                     {canEdit && (
@@ -476,14 +482,15 @@ export default function YearlyCalendarPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="mt-3 w-full border-[#2C5F41] text-[#2C5F41]"
+                        className="mt-2 w-full border-[#2C5F41] text-[#2C5F41] h-7 text-xs"
                         onClick={() => openCreate({ year, month, entryType: "note" })}
                       >
-                        <Plus className="h-4 w-4 mr-1" />
+                        <Plus className="h-3 w-3 mr-1" />
                         {t.yearlyCalendar.addEntry}
                       </Button>
                     )}
                   </div>
+                  )}
 
                   {/* Mobile layout: stacked week cards */}
                   <div className="lg:hidden p-3 space-y-3">
@@ -492,9 +499,9 @@ export default function YearlyCalendarPage() {
                         monthEntries.filter((e) => {
                           if (spanPosition(e, week.weekNumber) === null) return false;
                           if (e.entryType === "week_event" || e.entryType === "food") return true;
-                          // Spanning notes are rendered as week badges (with chevrons);
-                          // single-week notes stay in the sidebar.
-                          if (e.entryType === "note" && isMultiWeek(e)) return true;
+                          // Notes attached to a week render as a week banner;
+                          // weekless notes go to the sidebar instead.
+                          if (e.entryType === "note" && e.weekNumber != null) return true;
                           return false;
                         })
                       );
@@ -655,13 +662,23 @@ export default function YearlyCalendarPage() {
                       <tbody>
                         {weeks.map((week) => {
                           const weekCellId = `wkcell-${year}-${month}-${week.weekNumber}`;
+                          const weekRowId = `wkrow-${year}-${month}-${week.weekNumber}`;
+                          const weekEntries = sortByTypeAndColor(
+                            monthEntries.filter((e) => {
+                              if (spanPosition(e, week.weekNumber) === null) return false;
+                              if (e.entryType === "week_event" || e.entryType === "food") return true;
+                              if (e.entryType === "note" && e.weekNumber != null) return true;
+                              return false;
+                            })
+                          );
                           return (
-                            <tr key={week.weekNumber} className="border-t border-white/10 align-top">
+                          <Fragment key={week.weekNumber}>
+                            <tr className="border-t-2 border-white/15 align-top">
                               <DroppableCell
                                 id={weekCellId}
                                 data={{ kind: "week", year, month, weekNumber: week.weekNumber }}
                                 disabled={!canEdit}
-                                className="px-3 py-3 text-yellow-300 font-bold text-lg"
+                                className="px-3 py-2 text-yellow-300 font-bold text-lg"
                               >
                                 {canEdit ? (
                                   <button
@@ -696,7 +713,7 @@ export default function YearlyCalendarPage() {
                                     id={dayId}
                                     data={{ kind: "day", year, month, weekNumber: week.weekNumber, date: dateStr }}
                                     disabled={!canEdit || !d.inMonth}
-                                    className={`px-2 py-3 align-top min-w-[110px] ${d.inMonth ? "" : "opacity-30"}`}
+                                    className={`px-2 py-2 align-top min-w-[88px] ${d.inMonth ? "" : "opacity-30"}`}
                                   >
                                     <div className="text-yellow-100 text-xs mb-1">{d.date.getDate()}</div>
                                     <div className="space-y-1">
@@ -719,7 +736,7 @@ export default function YearlyCalendarPage() {
                                           </DraggableEntry>
                                         );
                                       })}
-                                      {canEdit && d.inMonth && (
+                                      {canEdit && d.inMonth && dayEntries.length === 0 && (
                                         <button
                                           type="button"
                                           className="text-[10px] text-white/60 hover:text-white"
@@ -741,31 +758,16 @@ export default function YearlyCalendarPage() {
                                 );
                               })}
                             </tr>
-                          );
-                        })}
-                        <tr className="border-t border-white/10">
-                          <td colSpan={6} className="px-3 py-3 space-y-2">
-                            {weeks.map((week) => {
-                              const weekEntries = sortByTypeAndColor(
-                                monthEntries.filter((e) => {
-                                  if (spanPosition(e, week.weekNumber) === null) return false;
-                                  if (e.entryType === "week_event" || e.entryType === "food") return true;
-                                  if (e.entryType === "note" && isMultiWeek(e)) return true;
-                                  return false;
-                                })
-                              );
-                              const rowId = `wkrow-${year}-${month}-${week.weekNumber}`;
-                              return (
+                            {/* Week-banner sub-row: badges for week_event / food / spanning notes */}
+                            <tr className="bg-[#234936]/60">
+                              <td></td>
+                              <td colSpan={5} className="px-2 pt-0 pb-2">
                                 <DroppableRow
-                                  key={`we-${week.weekNumber}`}
-                                  id={rowId}
+                                  id={weekRowId}
                                   data={{ kind: "week", year, month, weekNumber: week.weekNumber }}
                                   disabled={!canEdit}
-                                  className="flex flex-wrap items-center gap-2 rounded px-1 py-0.5"
+                                  className="flex flex-wrap items-center gap-1.5 rounded px-1 py-0.5 min-h-[28px]"
                                 >
-                                  <span className="text-xs uppercase text-yellow-100 font-bold">
-                                    {t.yearlyCalendar.week} {week.weekNumber}:
-                                  </span>
                                   {weekEntries.map((entry) => {
                                     const cs = colorStyle(entry);
                                     const pos = spanPosition(entry, week.weekNumber)!;
@@ -778,7 +780,7 @@ export default function YearlyCalendarPage() {
                                         canEdit={canEdit}
                                         onClick={canEdit ? () => openEdit(entry) : undefined}
                                         title={entry.description ?? entry.title}
-                                        className={`text-xs rounded-full px-3 py-1 font-medium shadow inline-flex items-center ${cs.className}`}
+                                        className={`text-xs rounded-full px-2.5 py-0.5 font-medium shadow inline-flex items-center ${cs.className}`}
                                         style={cs.style}
                                       >
                                         {showLeftChevron && (
@@ -791,27 +793,26 @@ export default function YearlyCalendarPage() {
                                         {showRightChevron && (
                                           <ChevronRight className="inline h-3 w-3 ml-1" aria-hidden />
                                         )}
-                                        {canEdit && !showRightChevron && (
-                                          <Pencil className="inline h-3 w-3 ml-1 opacity-70" />
-                                        )}
                                       </DraggableEntry>
                                     );
                                   })}
                                   {weekEntries.length === 0 && (
-                                    <span className="text-xs text-white/40 italic">—</span>
+                                    <span className="text-[11px] text-white/30 italic">
+                                      {canEdit ? `+ ${t.yearlyCalendar.addEntry}` : "—"}
+                                    </span>
                                   )}
                                 </DroppableRow>
-                              );
-                            })}
-                            {monthEntries.filter((e) => e.entryType === "week_event" || e.entryType === "food").length === 0 && (
-                              <div className="text-xs text-white/50 italic">{t.yearlyCalendar.noEntries}</div>
-                            )}
-                          </td>
-                        </tr>
+                              </td>
+                            </tr>
+                          </Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                 </div>
+                  );
+                })()}
               </section>
             );
           })}
