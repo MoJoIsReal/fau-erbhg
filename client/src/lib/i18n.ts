@@ -306,6 +306,7 @@ export interface Translations {
       title: string;
       description: string;
       weekNumber: string;
+      weekNumberEnd: string;
       date: string;
       color: string;
       save: string;
@@ -641,7 +642,8 @@ export const translations: Record<Language, Translations> = {
         type: "Type",
         title: "Tittel",
         description: "Beskrivelse",
-        weekNumber: "Ukenummer",
+        weekNumber: "Fra uke",
+        weekNumberEnd: "Til uke (valgfri)",
         date: "Dato",
         color: "Farge",
         save: "Lagre",
@@ -975,7 +977,8 @@ export const translations: Record<Language, Translations> = {
         type: "Type",
         title: "Title",
         description: "Description",
-        weekNumber: "Week number",
+        weekNumber: "From week",
+        weekNumberEnd: "To week (optional)",
         date: "Date",
         color: "Color",
         save: "Save",

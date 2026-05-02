@@ -23,6 +23,7 @@ export type EntryDraft = {
   month: number;
   entryType: "week_event" | "day_event" | "food" | "note";
   weekNumber?: number | null;
+  weekNumberEnd?: number | null;
   date?: string | null;
   title?: string;
   description?: string | null;
@@ -63,6 +64,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(1);
   const [weekNumber, setWeekNumber] = useState<string>("");
+  const [weekNumberEnd, setWeekNumberEnd] = useState<string>("");
   const [date, setDate] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
@@ -75,6 +77,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setYear(seed.year ?? new Date().getFullYear());
     setMonth(seed.month ?? 1);
     setWeekNumber(seed.weekNumber != null ? String(seed.weekNumber) : "");
+    setWeekNumberEnd(seed.weekNumberEnd != null ? String(seed.weekNumberEnd) : "");
     setDate(seed.date ?? "");
     setTitle(seed.title ?? "");
     setDescription(seed.description ?? "");
@@ -83,6 +86,9 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Multi-week spans are only meaningful for week_event and note. Food is
+      // always a single week, day_event uses date instead.
+      const supportsSpan = entryType === "week_event" || entryType === "note";
       const body: any = {
         schoolYear,
         year,
@@ -92,6 +98,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         description: description || null,
         color: color || null,
         weekNumber: weekNumber ? parseInt(weekNumber) : null,
+        weekNumberEnd: supportsSpan && weekNumberEnd ? parseInt(weekNumberEnd) : null,
         date: entryType === "day_event" ? (date || null) : null,
       };
       if (isEditing) {
@@ -204,15 +211,30 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
           </div>
 
           {entryType !== "day_event" && (
-            <div>
-              <Label>{t.yearlyCalendar.modal.weekNumber}</Label>
-              <Input
-                type="number"
-                min={1}
-                max={53}
-                value={weekNumber}
-                onChange={(e) => setWeekNumber(e.target.value)}
-              />
+            <div className={entryType === "week_event" || entryType === "note" ? "grid grid-cols-2 gap-3" : ""}>
+              <div>
+                <Label>{t.yearlyCalendar.modal.weekNumber}</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={53}
+                  value={weekNumber}
+                  onChange={(e) => setWeekNumber(e.target.value)}
+                />
+              </div>
+              {(entryType === "week_event" || entryType === "note") && (
+                <div>
+                  <Label>{t.yearlyCalendar.modal.weekNumberEnd}</Label>
+                  <Input
+                    type="number"
+                    min={weekNumber ? parseInt(weekNumber) + 1 : 2}
+                    max={53}
+                    value={weekNumberEnd}
+                    onChange={(e) => setWeekNumberEnd(e.target.value)}
+                    placeholder="—"
+                  />
+                </div>
+              )}
             </div>
           )}
 

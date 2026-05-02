@@ -29,6 +29,7 @@ function mapEntry(row) {
     month: row.month,
     entryType: row.entry_type,
     weekNumber: row.week_number,
+    weekNumberEnd: row.week_number_end,
     weekdayStart: row.weekday_start,
     weekdayEnd: row.weekday_end,
     date: row.date,
@@ -50,6 +51,11 @@ function sanitizeEntryPayload(body) {
   const year = sanitizeNumber(body.year, 2020, 2100);
   const month = sanitizeNumber(body.month, 1, 12);
   const weekNumber = body.weekNumber != null ? sanitizeNumber(body.weekNumber, 1, 53) : null;
+  const weekNumberEndRaw = body.weekNumberEnd != null ? sanitizeNumber(body.weekNumberEnd, 1, 53) : null;
+  // Only keep end if greater than start (otherwise it's a single-week entry)
+  const weekNumberEnd = weekNumberEndRaw != null && weekNumber != null && weekNumberEndRaw > weekNumber
+    ? weekNumberEndRaw
+    : null;
   const weekdayStart = body.weekdayStart != null ? sanitizeNumber(body.weekdayStart, 1, 7) : null;
   const weekdayEnd = body.weekdayEnd != null ? sanitizeNumber(body.weekdayEnd, 1, 7) : null;
   const date = body.date && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : null;
@@ -63,6 +69,7 @@ function sanitizeEntryPayload(body) {
     year,
     month,
     weekNumber,
+    weekNumberEnd,
     weekdayStart,
     weekdayEnd,
     date,
@@ -83,7 +90,7 @@ export default async function handler(req, res) {
       }
 
       const rows = await sql`
-        SELECT id, school_year, year, month, entry_type, week_number,
+        SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
                weekday_start, weekday_end, date, title, description, color,
                created_by, created_at, updated_at
         FROM yearly_calendar_entries
@@ -113,11 +120,11 @@ export default async function handler(req, res) {
       const now = new Date().toISOString();
       const created = await sql`
         INSERT INTO yearly_calendar_entries (
-          school_year, year, month, entry_type, week_number,
+          school_year, year, month, entry_type, week_number, week_number_end,
           weekday_start, weekday_end, date, title, description, color,
           created_by, created_at, updated_at
         ) VALUES (
-          ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber},
+          ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber}, ${payload.weekNumberEnd},
           ${payload.weekdayStart}, ${payload.weekdayEnd}, ${payload.date}, ${payload.title}, ${payload.description}, ${payload.color},
           ${user.name || user.username || 'ukjent'}, ${now}, ${now}
         )
@@ -143,6 +150,7 @@ export default async function handler(req, res) {
             month = ${payload.month},
             entry_type = ${payload.entryType},
             week_number = ${payload.weekNumber},
+            week_number_end = ${payload.weekNumberEnd},
             weekday_start = ${payload.weekdayStart},
             weekday_end = ${payload.weekdayEnd},
             date = ${payload.date},
