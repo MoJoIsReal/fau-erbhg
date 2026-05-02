@@ -169,6 +169,142 @@ function toIsoDate(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
+type MonthTheme = {
+  // CSS gradient classes for the month header (Tailwind)
+  gradient: string;
+  // Decorative emoji for the title icon
+  titleIcon: string;
+  // Larger decorative emoji placed in the corners
+  cornerLeft: string;
+  cornerRight: string;
+  // Background floaters in the section body (low opacity, scattered)
+  floaters: string[];
+  // Optional accent ring color around the section card
+  ring: string;
+};
+
+function monthTheme(month: number): MonthTheme {
+  switch (month) {
+    case 8: // August – sommer/butterflies
+      return {
+        gradient: "from-[#4A8C5F] via-[#5fa370] to-[#FFD27A]",
+        titleIcon: "🦋",
+        cornerLeft: "🦋",
+        cornerRight: "☀️",
+        floaters: ["🦋", "🌿"],
+        ring: "border-[#FFD27A]/40",
+      };
+    case 9: // September – tidlig høst
+      return {
+        gradient: "from-[#4A8C5F] via-[#6f9b54] to-[#E18B3B]",
+        titleIcon: "🍂",
+        cornerLeft: "🍁",
+        cornerRight: "🦋",
+        floaters: ["🍂", "🍁", "🌰"],
+        ring: "border-[#E18B3B]/40",
+      };
+    case 10: // Oktober – høst
+      return {
+        gradient: "from-[#5d6f24] via-[#8a5b1c] to-[#D9572C]",
+        titleIcon: "🍁",
+        cornerLeft: "🍁",
+        cornerRight: "🍂",
+        floaters: ["🍁", "🍂", "🎃"],
+        ring: "border-[#D9572C]/40",
+      };
+    case 11: // November – sen høst
+      return {
+        gradient: "from-[#4A5C3F] via-[#6b5436] to-[#a04e2a]",
+        titleIcon: "🍃",
+        cornerLeft: "🍂",
+        cornerRight: "❄️",
+        floaters: ["🍂", "🌧️", "🕯️"],
+        ring: "border-[#a04e2a]/40",
+      };
+    case 12: // Desember – jul
+      return {
+        gradient: "from-[#1f4f3a] via-[#2C5F41] to-[#7A2424]",
+        titleIcon: "⭐",
+        cornerLeft: "⭐",
+        cornerRight: "🎄",
+        floaters: ["⭐", "🎄", "❄️", "🎁"],
+        ring: "border-[#FFD27A]/50",
+      };
+    case 1: // Januar – vinter
+      return {
+        gradient: "from-[#3b6f8f] via-[#5a8aab] to-[#b9d6e4]",
+        titleIcon: "❄️",
+        cornerLeft: "⛄",
+        cornerRight: "❄️",
+        floaters: ["❄️", "⛄", "✨"],
+        ring: "border-[#b9d6e4]/50",
+      };
+    case 2: // Februar – vinter/snø
+      return {
+        gradient: "from-[#3b6f8f] via-[#6691ab] to-[#dfecf3]",
+        titleIcon: "⛄",
+        cornerLeft: "⛄",
+        cornerRight: "❄️",
+        floaters: ["❄️", "⛄", "⭐"],
+        ring: "border-[#dfecf3]/50",
+      };
+    case 3: // Mars – tidlig vår
+      return {
+        gradient: "from-[#4A8C5F] via-[#7eb37d] to-[#d4e3c0]",
+        titleIcon: "🌱",
+        cornerLeft: "🌷",
+        cornerRight: "🐣",
+        floaters: ["🌱", "🌷", "🐦"],
+        ring: "border-[#d4e3c0]/50",
+      };
+    case 4: // April – vår
+      return {
+        gradient: "from-[#4A8C5F] via-[#8bc18a] to-[#f5b8b8]",
+        titleIcon: "🌸",
+        cornerLeft: "🌷",
+        cornerRight: "🐰",
+        floaters: ["🌸", "🌷", "🐝", "🐜"],
+        ring: "border-[#f5b8b8]/50",
+      };
+    case 5: // Mai – sen vår
+      return {
+        gradient: "from-[#4A8C5F] via-[#8bc18a] to-[#FFB347]",
+        titleIcon: "🌷",
+        cornerLeft: "🇳🇴",
+        cornerRight: "🌷",
+        floaters: ["🌷", "🌼", "🐝", "🦋"],
+        ring: "border-[#FFB347]/50",
+      };
+    case 6: // Juni – tidlig sommer
+      return {
+        gradient: "from-[#4A8C5F] via-[#9CCB6E] to-[#FFD45E]",
+        titleIcon: "☀️",
+        cornerLeft: "☀️",
+        cornerRight: "🌻",
+        floaters: ["☀️", "🐞", "🍓", "🐜"],
+        ring: "border-[#FFD45E]/50",
+      };
+    case 7: // Juli – sommer
+      return {
+        gradient: "from-[#4A8C5F] via-[#FFB347] to-[#FFD45E]",
+        titleIcon: "🌞",
+        cornerLeft: "🌻",
+        cornerRight: "🍓",
+        floaters: ["🌞", "🏖️", "🍦", "⛵"],
+        ring: "border-[#FFD45E]/60",
+      };
+    default:
+      return {
+        gradient: "from-[#4A8C5F] to-[#2C5F41]",
+        titleIcon: "",
+        cornerLeft: "",
+        cornerRight: "",
+        floaters: [],
+        ring: "border-[#4A8C5F]/40",
+      };
+  }
+}
+
 type DropTarget =
   | { kind: "day"; year: number; month: number; weekNumber: number; date: string }
   | { kind: "week"; year: number; month: number; weekNumber: number };
@@ -430,19 +566,70 @@ export default function YearlyCalendarPage() {
               monthEntries.filter((e) => e.entryType === "note" && !isMultiWeek(e))
             );
 
+            const theme = monthTheme(month);
             return (
               <section
                 key={`${year}-${month}`}
-                className="rounded-3xl bg-[#2C5F41]/95 dark:bg-neutral-900 text-white shadow-xl overflow-hidden border-4 border-[#4A8C5F]/40"
+                className={`rounded-3xl bg-[#2C5F41]/95 dark:bg-neutral-900 text-white shadow-xl overflow-hidden border-4 ${theme.ring}`}
               >
-                <div className="relative px-6 py-4 bg-gradient-to-br from-[#4A8C5F] to-[#2C5F41]">
-                  <h2 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-wide uppercase text-[#FF6B35] drop-shadow-sm">
+                <div className={`relative px-6 py-5 bg-gradient-to-br ${theme.gradient} overflow-hidden`}>
+                  <span
+                    className="absolute -top-2 right-3 text-5xl opacity-40 select-none pointer-events-none"
+                    aria-hidden
+                  >
+                    {theme.cornerRight}
+                  </span>
+                  <span
+                    className="absolute -bottom-3 right-16 text-3xl opacity-25 select-none pointer-events-none"
+                    aria-hidden
+                  >
+                    {theme.cornerLeft}
+                  </span>
+                  <span
+                    className="absolute -left-2 -bottom-2 text-4xl opacity-25 select-none pointer-events-none"
+                    aria-hidden
+                  >
+                    {theme.cornerLeft}
+                  </span>
+                  <h2 className="relative font-heading text-2xl sm:text-3xl font-extrabold tracking-wide uppercase text-[#FF6B35] drop-shadow-md flex items-center gap-2">
+                    <span aria-hidden className="text-3xl sm:text-4xl">{theme.titleIcon}</span>
                     {monthName(month)} {year}
                   </h2>
-                  <p className="text-yellow-100 italic text-sm">{t.yearlyCalendar.tagline}</p>
+                  <p className="relative text-yellow-100 italic text-sm mt-1 drop-shadow">
+                    {t.yearlyCalendar.tagline}
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-0">
+                <div className="relative">
+                  {/* Decorative seasonal floaters – purely visual, do not interact */}
+                  {theme.floaters.length > 0 && (
+                    <div className="pointer-events-none absolute inset-0 overflow-hidden select-none" aria-hidden>
+                      {theme.floaters.map((emoji, idx) => {
+                        const positions = [
+                          { top: "8%", left: "12%", size: "text-2xl", rot: "-rotate-12" },
+                          { top: "30%", right: "6%", size: "text-3xl", rot: "rotate-6" },
+                          { bottom: "12%", left: "8%", size: "text-2xl", rot: "rotate-12" },
+                          { bottom: "20%", right: "12%", size: "text-2xl", rot: "-rotate-6" },
+                        ];
+                        const p = positions[idx % positions.length];
+                        return (
+                          <span
+                            key={idx}
+                            className={`absolute ${p.size} ${p.rot} opacity-15`}
+                            style={{
+                              top: p.top,
+                              left: p.left,
+                              right: p.right,
+                              bottom: p.bottom,
+                            }}
+                          >
+                            {emoji}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                <div className="relative grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-0">
                   {/* Notes sidebar */}
                   <div className="bg-rose-50 text-neutral-900 p-5 border-b-2 lg:border-b-0 lg:border-r-2 border-[#4A8C5F]/30 lg:min-h-full">
                     <div className="font-heading font-bold text-[#2C5F41] mb-2 flex items-center gap-2">
@@ -811,6 +998,7 @@ export default function YearlyCalendarPage() {
                       </tbody>
                     </table>
                   </div>
+                </div>
                 </div>
               </section>
             );
