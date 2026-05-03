@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Printer } from "lucide-react";
 import {
   DndContext,
   type DragEndEvent,
@@ -478,6 +478,39 @@ export default function YearlyCalendarPage() {
     setModalOpen(true);
   };
 
+  // Print all months (uses the browser's native print dialog → also lets the
+  // user choose "Save as PDF").
+  const printAll = () => {
+    document.body.classList.remove("yearly-print-single");
+    document.querySelectorAll(".yearly-print-target").forEach((el) =>
+      el.classList.remove("yearly-print-target")
+    );
+    window.print();
+  };
+
+  // Print a single month by tagging the target section + body, calling
+  // window.print, then cleaning up.
+  const printMonth = (year: number, month: number) => {
+    const sectionId = `month-${year}-${month}`;
+    const target = document.getElementById(sectionId);
+    if (!target) {
+      window.print();
+      return;
+    }
+    document.querySelectorAll(".yearly-print-target").forEach((el) =>
+      el.classList.remove("yearly-print-target")
+    );
+    target.classList.add("yearly-print-target");
+    document.body.classList.add("yearly-print-single");
+    const cleanup = () => {
+      document.body.classList.remove("yearly-print-single");
+      target.classList.remove("yearly-print-target");
+      window.removeEventListener("afterprint", cleanup);
+    };
+    window.addEventListener("afterprint", cleanup);
+    window.print();
+  };
+
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over) return;
@@ -547,12 +580,21 @@ export default function YearlyCalendarPage() {
             {canEdit && (
               <Button
                 onClick={() => openCreate({ year: months[0].year, month: months[0].month, entryType: "week_event" })}
-                className="bg-white text-[#FF6B35] hover:bg-yellow-100"
+                className="bg-white text-[#FF6B35] hover:bg-yellow-100 print:hidden"
               >
                 <Plus className="h-4 w-4 mr-1" />
                 {t.yearlyCalendar.addEntry}
               </Button>
             )}
+
+            <Button
+              onClick={printAll}
+              variant="outline"
+              className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
+            >
+              <Printer className="h-4 w-4 mr-1" />
+              {t.yearlyCalendar.printAll}
+            </Button>
           </div>
         </div>
 
@@ -572,7 +614,8 @@ export default function YearlyCalendarPage() {
             return (
               <section
                 key={`${year}-${month}`}
-                className={`rounded-3xl bg-[#2C5F41]/95 dark:bg-neutral-900 text-white shadow-xl overflow-hidden border-4 ${theme.ring}`}
+                id={`month-${year}-${month}`}
+                className={`yearly-month-section rounded-3xl bg-[#2C5F41]/95 dark:bg-neutral-900 text-white shadow-xl overflow-hidden border-4 ${theme.ring}`}
               >
                 <div className={`relative px-6 py-5 bg-gradient-to-br ${theme.gradient} overflow-hidden`}>
                   <span
@@ -593,13 +636,29 @@ export default function YearlyCalendarPage() {
                   >
                     {theme.cornerLeft}
                   </span>
-                  <h2 className="relative font-heading text-2xl sm:text-3xl font-extrabold tracking-wide uppercase text-[#FF6B35] drop-shadow-md flex items-center gap-2">
-                    <span aria-hidden className="text-3xl sm:text-4xl">{theme.titleIcon}</span>
-                    {monthName(month)} {year}
-                  </h2>
-                  <p className="relative text-yellow-100 italic text-sm mt-1 drop-shadow">
-                    {t.yearlyCalendar.tagline}
-                  </p>
+                  <div className="relative flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h2 className="font-heading text-2xl sm:text-3xl font-extrabold tracking-wide uppercase text-[#FF6B35] drop-shadow-md flex items-center gap-2">
+                        <span aria-hidden className="text-3xl sm:text-4xl">{theme.titleIcon}</span>
+                        {monthName(month)} {year}
+                      </h2>
+                      <p className="text-yellow-100 italic text-sm mt-1 drop-shadow">
+                        {t.yearlyCalendar.tagline}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => printMonth(year, month)}
+                      variant="outline"
+                      size="sm"
+                      className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white shrink-0 print:hidden"
+                      title={t.yearlyCalendar.printMonth}
+                      aria-label={t.yearlyCalendar.printMonth}
+                    >
+                      <Printer className="h-4 w-4" />
+                      <span className="hidden sm:inline ml-1">{t.yearlyCalendar.printMonth}</span>
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="relative">
@@ -665,7 +724,7 @@ export default function YearlyCalendarPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="mt-3 w-full border-[#2C5F41] text-[#2C5F41]"
+                        className="mt-3 w-full border-[#2C5F41] text-[#2C5F41] print:hidden"
                         onClick={() => openCreate({ year, month, entryType: "note" })}
                       >
                         <Plus className="h-4 w-4 mr-1" />
@@ -745,7 +804,7 @@ export default function YearlyCalendarPage() {
                               {canEdit && (
                                 <button
                                   type="button"
-                                  className="text-[11px] text-white/70 hover:text-white border border-white/30 rounded-full px-2 py-0.5"
+                                  className="text-[11px] text-white/70 hover:text-white border border-white/30 rounded-full px-2 py-0.5 print:hidden"
                                   onClick={() =>
                                     openCreate({
                                       year,
@@ -805,7 +864,7 @@ export default function YearlyCalendarPage() {
                                       {canEdit && d.inMonth && dayEntries.length === 0 && (
                                         <button
                                           type="button"
-                                          className="text-[11px] text-white/60 hover:text-white"
+                                          className="text-[11px] text-white/60 hover:text-white print:hidden"
                                           onClick={() =>
                                             openCreate({
                                               year,
@@ -919,7 +978,7 @@ export default function YearlyCalendarPage() {
                               {canEdit && (
                                 <button
                                   type="button"
-                                  className="text-[11px] text-white/70 hover:text-white border border-white/30 rounded-full px-2 py-0.5"
+                                  className="text-[11px] text-white/70 hover:text-white border border-white/30 rounded-full px-2 py-0.5 print:hidden"
                                   onClick={() =>
                                     openCreate({
                                       year,
@@ -980,7 +1039,7 @@ export default function YearlyCalendarPage() {
                                     {canEdit && d.inMonth && dayEntries.length === 0 && (
                                       <button
                                         type="button"
-                                        className="text-[10px] text-white/50 hover:text-white"
+                                        className="text-[10px] text-white/50 hover:text-white print:hidden"
                                         onClick={() =>
                                           openCreate({
                                             year,
