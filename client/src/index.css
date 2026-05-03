@@ -231,3 +231,79 @@
   pointer-events: none;
   height: 0;
 }
+
+/* ============================================
+   PRINT STYLES — Årskalender (and general)
+   ============================================ */
+@media print {
+  /* Force colors to render in print (otherwise Chrome strips backgrounds) */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Hide chrome (header nav, footer, toasts, modals, etc.) */
+  header,
+  footer,
+  [role="dialog"],
+  [data-radix-toast-viewport],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset page padding so the calendar fills A4 */
+  body,
+  main {
+    background: white !important;
+    color: black;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  /* A4 landscape per page works best for the per-week cards */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  /* Each month section starts on a fresh page; avoid breaking weeks */
+  .yearly-month-section {
+    page-break-before: auto;
+    page-break-after: always;
+    break-after: page;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border-width: 2px !important;
+  }
+  .yearly-month-section:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* Keep each week-card together on a page if possible */
+  .yearly-week-card {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Hide editor-only affordances (+ Legg til buttons, drag handles, hero, sidebar nav etc.) */
+  .yearly-print-hide {
+    display: none !important;
+  }
+
+  /* When printing a single month, hide every other month section */
+  body.yearly-print-single .yearly-month-section:not(.yearly-print-target) {
+    display: none !important;
+  }
+  body.yearly-print-single .yearly-print-target {
+    page-break-after: auto;
+    break-after: auto;
+  }
+
+  /* Print-friendly type sizing for the calendar */
+  .yearly-month-section h2 {
+    font-size: 22pt !important;
+  }
+}
+
