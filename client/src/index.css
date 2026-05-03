@@ -242,11 +242,12 @@
     print-color-adjust: exact !important;
   }
 
-  /* Hide chrome (header nav, footer, toasts, modals, etc.) */
+  /* Hide chrome (header nav, footer, toasts, modals, hero, etc.) */
   header,
   footer,
   [role="dialog"],
   [data-radix-toast-viewport],
+  .yearly-hero,
   .no-print {
     display: none !important;
   }
@@ -264,27 +265,74 @@
   /* A4 landscape per page works best for the per-week cards */
   @page {
     size: A4 landscape;
-    margin: 10mm;
+    margin: 8mm;
   }
 
-  /* Each month section starts on a fresh page; avoid breaking weeks */
+  /* Force the desktop (5-col grid) layout in print regardless of viewport
+     — important when triggering print from a phone, where the @media (lg)
+     breakpoint would otherwise pick the vertical "mobile" layout that
+     stacks each weekday on its own line and explodes one month over
+     several pages. */
+  .yearly-mobile-layout {
+    display: none !important;
+  }
+  .yearly-desktop-layout {
+    display: block !important;
+    padding: 0 !important;
+    gap: 4mm !important;
+  }
+
+  /* Each month section starts on a fresh page; keep it together when it
+     fits, otherwise the browser will break between week cards (since the
+     week cards have break-inside: avoid). */
   .yearly-month-section {
     page-break-before: auto;
     page-break-after: always;
     break-after: page;
     margin: 0 !important;
     box-shadow: none !important;
-    border-width: 2px !important;
+    border-width: 1px !important;
+    border-radius: 4mm !important;
   }
   .yearly-month-section:last-child {
     page-break-after: auto;
     break-after: auto;
   }
-
-  /* Keep each week-card together on a page if possible */
-  .yearly-week-card {
+  /* Try hard to fit the whole month on a single page */
+  .yearly-month-section,
+  .yearly-month-section > div {
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+
+  /* Compact the month header so more vertical space is left for content */
+  .yearly-month-section > div:first-child {
+    padding: 4mm 6mm !important;
+  }
+  .yearly-month-section h2 {
+    font-size: 18pt !important;
+    line-height: 1.05 !important;
+  }
+  .yearly-month-section h2 + p,
+  .yearly-month-section .text-yellow-100.italic {
+    font-size: 9pt !important;
+    margin-top: 1mm !important;
+  }
+
+  /* Tighter week cards so a typical 4–5-week month fits one page */
+  .yearly-desktop-layout > div {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin: 0 !important;
+    border-radius: 3mm !important;
+  }
+  .yearly-desktop-layout > div > * {
+    padding-top: 1.5mm !important;
+    padding-bottom: 1.5mm !important;
+  }
+  .yearly-desktop-layout .grid-cols-5 > * {
+    min-height: 0 !important;
+    padding: 1.5mm !important;
   }
 
   /* Hide editor-only affordances (+ Legg til buttons, drag handles, hero, sidebar nav etc.) */
@@ -299,11 +347,6 @@
   body.yearly-print-single .yearly-print-target {
     page-break-after: auto;
     break-after: auto;
-  }
-
-  /* Print-friendly type sizing for the calendar */
-  .yearly-month-section h2 {
-    font-size: 22pt !important;
   }
 }
 
