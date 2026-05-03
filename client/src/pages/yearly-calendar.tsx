@@ -830,181 +830,178 @@ export default function YearlyCalendarPage() {
                     })}
                   </div>
 
-                  {/* Desktop layout: Mon–Fri table */}
-                  <div className="hidden lg:block">
-                    <table className="w-full table-fixed border-collapse text-sm">
-                      <colgroup>
-                        <col className="w-[260px]" />
-                        <col />
-                        <col />
-                        <col />
-                        <col />
-                        <col />
-                      </colgroup>
-                      <thead>
-                        <tr className="bg-[#1f4530] text-yellow-100 uppercase text-xs">
-                          <th className="px-3 py-2 text-left">{t.yearlyCalendar.weekHeader}</th>
-                          {weekdayLabels.map((d) => (
-                            <th key={d} className="px-3 py-2 text-left">{d}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {weeks.map((week) => {
-                          const weekCellId = `wkcell-${year}-${month}-${week.weekNumber}`;
-                          const weekEntries = sortByTypeAndColor(
-                            monthEntries.filter((e) => {
-                              if (spanPosition(e, week.weekNumber) === null) return false;
-                              if (e.entryType === "week_event" || e.entryType === "food") return true;
-                              // Notes anchored to a week are part of the week column
-                              // (matches the Word doc where "Skolens høstferie" etc.
-                              // sit in the same area as "UKE 41"); weekless notes
-                              // remain in the sidebar.
-                              if (e.entryType === "note" && e.weekNumber != null) return true;
-                              return false;
-                            })
-                          );
-                          return (
-                            <tr key={week.weekNumber} className="border-t-2 border-white/15 align-top">
-                              <DroppableCell
-                                id={weekCellId}
-                                data={{ kind: "week", year, month, weekNumber: week.weekNumber }}
-                                disabled={!canEdit}
-                                className="px-3 py-2 align-top bg-[#1f4530]/40"
-                              >
-                                <div className="flex items-baseline gap-2 mb-1.5">
-                                  {canEdit ? (
-                                    <button
-                                      type="button"
-                                      className="text-yellow-300 font-bold text-lg leading-none hover:underline"
-                                      onClick={() =>
-                                        openCreate({
-                                          year,
-                                          month,
-                                          entryType: "week_event",
-                                          weekNumber: week.weekNumber,
-                                        })
-                                      }
-                                    >
-                                      {week.weekNumber}
-                                    </button>
-                                  ) : (
-                                    <span className="text-yellow-300 font-bold text-lg leading-none">
-                                      {week.weekNumber}
-                                    </span>
-                                  )}
-                                  <span className="text-yellow-100/60 text-[10px] uppercase">
-                                    {t.yearlyCalendar.weekHeader}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  {weekEntries.map((entry) => {
-                                    const cs = colorStyle(entry);
-                                    const pos = spanPosition(entry, week.weekNumber)!;
-                                    const showLeftChevron = pos === "middle" || pos === "end";
-                                    const showRightChevron = pos === "start" || pos === "middle";
-                                    return (
-                                      <DraggableEntry
-                                        key={entry.id}
-                                        entry={entry}
-                                        canEdit={canEdit}
-                                        onClick={canEdit ? () => openEdit(entry) : undefined}
-                                        title={entry.description ?? entry.title}
-                                        className={`text-[11px] rounded-md px-2 py-1 font-medium shadow-sm flex items-start gap-1 max-w-full ${cs.className}`}
-                                        style={cs.style}
-                                      >
-                                        {showLeftChevron && (
-                                          <ChevronLeft className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
-                                        )}
-                                        {entry.entryType === "food" && (
-                                          <Utensils className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
-                                        )}
-                                        <span className="break-words leading-snug">{entry.title}</span>
-                                        {showRightChevron && (
-                                          <ChevronRight className="h-3 w-3 mt-0.5 shrink-0 ml-auto" aria-hidden />
-                                        )}
-                                      </DraggableEntry>
-                                    );
-                                  })}
-                                  {canEdit && (
-                                    <button
-                                      type="button"
-                                      className="text-[10px] text-white/60 hover:text-white text-left mt-0.5"
-                                      onClick={() =>
-                                        openCreate({
-                                          year,
-                                          month,
-                                          entryType: "week_event",
-                                          weekNumber: week.weekNumber,
-                                        })
-                                      }
-                                    >
-                                      + {t.yearlyCalendar.addEntry}
-                                    </button>
-                                  )}
-                                </div>
-                              </DroppableCell>
-                              {week.days.map((d) => {
-                                const dateStr = toIsoDate(d.date);
-                                const dayEntries = sortByTypeAndColor(
-                                  monthEntries.filter(
-                                    (e) => e.entryType === "day_event" && e.date === dateStr
-                                  )
-                                );
-                                const dayId = `day-${dateStr}`;
-                                return (
-                                  <DroppableCell
-                                    key={dateStr}
-                                    id={dayId}
-                                    data={{ kind: "day", year, month, weekNumber: week.weekNumber, date: dateStr }}
-                                    disabled={!canEdit || !d.inMonth}
-                                    className={`px-2 py-2 align-top ${d.inMonth ? "" : "opacity-30"}`}
+                  {/* Desktop layout: card per week (week# + badges → horizontal day grid) */}
+                  <div className="hidden lg:block p-3 space-y-3">
+                    {weeks.map((week) => {
+                      const weekRowId = `wkrow-${year}-${month}-${week.weekNumber}`;
+                      const weekEntries = sortByTypeAndColor(
+                        monthEntries.filter((e) => {
+                          if (spanPosition(e, week.weekNumber) === null) return false;
+                          if (e.entryType === "week_event" || e.entryType === "food") return true;
+                          // Notes anchored to a week appear in the week banner;
+                          // weekless notes remain in the sidebar.
+                          if (e.entryType === "note" && e.weekNumber != null) return true;
+                          return false;
+                        })
+                      );
+                      const dFirst = week.days[0].date;
+                      const dLast = week.days[4].date;
+                      const range = `${dFirst.getDate()}.${dFirst.getMonth() + 1}–${dLast.getDate()}.${dLast.getMonth() + 1}`;
+                      return (
+                        <div
+                          key={week.weekNumber}
+                          className="rounded-lg bg-[#1f4530] border border-white/10 overflow-hidden"
+                        >
+                          {/* Week header: number + range + week-level badges */}
+                          <DroppableRow
+                            id={weekRowId}
+                            data={{ kind: "week", year, month, weekNumber: week.weekNumber }}
+                            disabled={!canEdit}
+                            className="px-3 py-2"
+                          >
+                            <div className="flex items-baseline justify-between mb-2">
+                              <div className="flex items-baseline gap-2">
+                                {canEdit ? (
+                                  <button
+                                    type="button"
+                                    className="text-yellow-300 font-bold text-2xl leading-none hover:underline"
+                                    onClick={() =>
+                                      openCreate({
+                                        year,
+                                        month,
+                                        entryType: "week_event",
+                                        weekNumber: week.weekNumber,
+                                      })
+                                    }
                                   >
-                                    <div className="text-yellow-100 text-xs mb-1">{d.date.getDate()}</div>
-                                    <div className="space-y-1">
-                                      {dayEntries.map((entry) => {
-                                        const cs = colorStyle(entry);
-                                        return (
-                                          <DraggableEntry
-                                            key={entry.id}
-                                            entry={entry}
-                                            canEdit={canEdit}
-                                            onClick={canEdit ? () => openEdit(entry) : undefined}
-                                            title={entry.description ?? entry.title}
-                                            className={`text-[11px] rounded px-1.5 py-1 shadow-sm flex items-start gap-1 ${cs.className}`}
-                                            style={cs.style}
-                                          >
-                                            <CalendarIcon className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
-                                            <span className="break-words leading-snug font-medium min-w-0">{entry.title}</span>
-                                          </DraggableEntry>
-                                        );
-                                      })}
-                                      {canEdit && d.inMonth && dayEntries.length === 0 && (
-                                        <button
-                                          type="button"
-                                          className="text-[10px] text-white/60 hover:text-white"
-                                          onClick={() =>
-                                            openCreate({
-                                              year,
-                                              month,
-                                              entryType: "day_event",
-                                              weekNumber: week.weekNumber,
-                                              date: dateStr,
-                                            })
-                                          }
-                                        >
-                                          + {t.yearlyCalendar.addEntry}
-                                        </button>
-                                      )}
-                                    </div>
-                                  </DroppableCell>
+                                    {week.weekNumber}
+                                  </button>
+                                ) : (
+                                  <span className="text-yellow-300 font-bold text-2xl leading-none">
+                                    {week.weekNumber}
+                                  </span>
+                                )}
+                                <span className="text-yellow-100/80 text-xs uppercase">
+                                  {t.yearlyCalendar.weekHeader}
+                                </span>
+                              </div>
+                              <span className="text-yellow-100/60 text-xs">{range}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              {weekEntries.map((entry) => {
+                                const cs = colorStyle(entry);
+                                const pos = spanPosition(entry, week.weekNumber)!;
+                                const showLeftChevron = pos === "middle" || pos === "end";
+                                const showRightChevron = pos === "start" || pos === "middle";
+                                return (
+                                  <DraggableEntry
+                                    key={entry.id}
+                                    entry={entry}
+                                    canEdit={canEdit}
+                                    onClick={canEdit ? () => openEdit(entry) : undefined}
+                                    title={entry.description ?? entry.title}
+                                    className={`text-xs rounded-full px-3 py-1 font-medium shadow inline-flex items-center max-w-full ${cs.className}`}
+                                    style={cs.style}
+                                  >
+                                    {showLeftChevron && (
+                                      <ChevronLeft className="inline h-3 w-3 mr-1 shrink-0" aria-hidden />
+                                    )}
+                                    {entry.entryType === "food" && (
+                                      <Utensils className="inline h-3 w-3 mr-1 shrink-0" aria-hidden />
+                                    )}
+                                    <span className="break-words">{entry.title}</span>
+                                    {showRightChevron && (
+                                      <ChevronRight className="inline h-3 w-3 ml-1 shrink-0" aria-hidden />
+                                    )}
+                                  </DraggableEntry>
                                 );
                               })}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                              {canEdit && (
+                                <button
+                                  type="button"
+                                  className="text-[11px] text-white/70 hover:text-white border border-white/30 rounded-full px-2 py-0.5"
+                                  onClick={() =>
+                                    openCreate({
+                                      year,
+                                      month,
+                                      entryType: "week_event",
+                                      weekNumber: week.weekNumber,
+                                    })
+                                  }
+                                >
+                                  + {t.yearlyCalendar.addEntry}
+                                </button>
+                              )}
+                            </div>
+                          </DroppableRow>
+
+                          {/* Days: 5-column horizontal grid (Mon–Fri) */}
+                          <div className="grid grid-cols-5 divide-x divide-white/10 border-t border-white/10 bg-[#2C5F41]/40">
+                            {week.days.map((d) => {
+                              const dateStr = toIsoDate(d.date);
+                              const dayEntries = sortByTypeAndColor(
+                                monthEntries.filter(
+                                  (e) => e.entryType === "day_event" && e.date === dateStr
+                                )
+                              );
+                              const dayShort = weekdayLabels[week.days.indexOf(d)].slice(0, 3);
+                              return (
+                                <DroppableRow
+                                  key={dateStr}
+                                  id={`day-${dateStr}`}
+                                  data={{ kind: "day", year, month, weekNumber: week.weekNumber, date: dateStr }}
+                                  disabled={!canEdit || !d.inMonth}
+                                  className={`px-2 py-2 min-h-[64px] ${d.inMonth ? "" : "opacity-40"}`}
+                                >
+                                  <div className="flex items-baseline gap-1.5 mb-1">
+                                    <span className="text-yellow-100/70 text-[10px] uppercase">{dayShort}</span>
+                                    <span className="text-yellow-200 font-bold text-base leading-none">
+                                      {d.date.getDate()}
+                                    </span>
+                                  </div>
+                                  <div className="space-y-1">
+                                    {dayEntries.map((entry) => {
+                                      const cs = colorStyle(entry);
+                                      return (
+                                        <DraggableEntry
+                                          key={entry.id}
+                                          entry={entry}
+                                          canEdit={canEdit}
+                                          onClick={canEdit ? () => openEdit(entry) : undefined}
+                                          title={entry.description ?? entry.title}
+                                          className={`text-[11px] rounded px-1.5 py-1 shadow-sm flex items-start gap-1 ${cs.className}`}
+                                          style={cs.style}
+                                        >
+                                          <CalendarIcon className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
+                                          <span className="break-words leading-snug font-medium min-w-0">{entry.title}</span>
+                                        </DraggableEntry>
+                                      );
+                                    })}
+                                    {canEdit && d.inMonth && dayEntries.length === 0 && (
+                                      <button
+                                        type="button"
+                                        className="text-[10px] text-white/50 hover:text-white"
+                                        onClick={() =>
+                                          openCreate({
+                                            year,
+                                            month,
+                                            entryType: "day_event",
+                                            weekNumber: week.weekNumber,
+                                            date: dateStr,
+                                          })
+                                        }
+                                      >
+                                        + {t.yearlyCalendar.addEntry}
+                                      </button>
+                                    )}
+                                  </div>
+                                </DroppableRow>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
                 </div>
