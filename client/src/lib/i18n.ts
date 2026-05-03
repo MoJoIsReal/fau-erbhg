@@ -268,6 +268,8 @@ export interface Translations {
     title: string;
     subtitle: string;
     schoolYearLabel: string;
+    printAll: string;
+    printMonth: string;
     addEntry: string;
     noEntries: string;
     week: string;
@@ -605,6 +607,8 @@ export const translations: Record<Language, Translations> = {
       title: "Årskalender",
       subtitle: "Hva skjer i barnehagen måned for måned",
       schoolYearLabel: "Barnehageår",
+      printAll: "Skriv ut hele året",
+      printMonth: "Skriv ut måneden",
       addEntry: "Legg til",
       noEntries: "Ingenting registrert ennå.",
       week: "Uke",
@@ -940,6 +944,8 @@ export const translations: Record<Language, Translations> = {
       title: "Yearly calendar",
       subtitle: "What's happening at the kindergarten, month by month",
       schoolYearLabel: "Kindergarten year",
+      printAll: "Print whole year",
+      printMonth: "Print month",
       addEntry: "Add entry",
       noEntries: "Nothing scheduled yet.",
       week: "Week",
