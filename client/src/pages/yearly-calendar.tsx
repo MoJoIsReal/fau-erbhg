@@ -28,34 +28,15 @@ import { useToast } from "@/hooks/use-toast";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
 
-const ENTRY_COLOR_CLASSES: Record<string, string> = {
-  red: "bg-red-500 text-white",
-  yellow: "bg-yellow-300 text-neutral-900",
-  green: "bg-green-500 text-white",
-  orange: "bg-orange-400 text-neutral-900",
-  blue: "bg-blue-400 text-white",
-  pink: "bg-pink-400 text-white",
-  purple: "bg-purple-500 text-white",
-};
+type ColorStyle = { className: string };
 
-const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-
-function readableTextOn(hex: string): string {
-  let c = hex.replace("#", "");
-  if (c.length === 3) c = c.split("").map((ch) => ch + ch).join("");
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? "#1f2937" : "#ffffff";
-}
-
-type ColorStyle = { className: string; style?: React.CSSProperties };
-
-// Default badge colours per entry type. Kept in sync with DEFAULT_TYPE_COLOR
-// in client/src/lib/yearly-calendar-pdf.tsx so on-screen and PDF look the
-// same. Mat=gul, Uke info=blå, Stengt (note)=rød, Dags events=grønn.
-function defaultColorForType(type: YearlyCalendarEntry["entryType"]): string {
+// Badge colour is determined entirely by entry type so the calendar looks
+// the same in every month: Mat=gul, Uke info=blå, Stengt (note)=rød,
+// Dags events=grønn. Per-entry color overrides in the database are
+// intentionally ignored — if we honoured them, legacy entries created
+// before the standardisation would still render in their old colours.
+// Kept in sync with TYPE_COLOR in client/src/lib/yearly-calendar-pdf.tsx.
+function colorClassForType(type: YearlyCalendarEntry["entryType"]): string {
   switch (type) {
     case "food":
       return "bg-yellow-300 text-neutral-900";
@@ -70,16 +51,7 @@ function defaultColorForType(type: YearlyCalendarEntry["entryType"]): string {
 }
 
 function colorStyle(entry: YearlyCalendarEntry): ColorStyle {
-  if (entry.color && HEX_RE.test(entry.color)) {
-    return {
-      className: "shadow-sm",
-      style: { backgroundColor: entry.color, color: readableTextOn(entry.color) },
-    };
-  }
-  if (entry.color && ENTRY_COLOR_CLASSES[entry.color]) {
-    return { className: ENTRY_COLOR_CLASSES[entry.color] };
-  }
-  return { className: defaultColorForType(entry.entryType) };
+  return { className: colorClassForType(entry.entryType) };
 }
 
 // Effective end week for an entry. If weekNumberEnd is null/missing, the
@@ -319,12 +291,11 @@ interface DraggableEntryProps {
   canEdit: boolean;
   onClick?: () => void;
   className?: string;
-  style?: React.CSSProperties;
   children: React.ReactNode;
   title?: string;
 }
 
-function DraggableEntry({ entry, canEdit, onClick, className, style, children, title }: DraggableEntryProps) {
+function DraggableEntry({ entry, canEdit, onClick, className, children, title }: DraggableEntryProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `entry-${entry.id}`,
     data: { entry } as DragData,
@@ -339,10 +310,7 @@ function DraggableEntry({ entry, canEdit, onClick, className, style, children, t
       className={`${className ?? ""} ${canEdit ? "cursor-grab active:cursor-grabbing touch-none select-none" : ""} ${
         isDragging ? "opacity-60 z-50 relative" : ""
       }`}
-      style={{
-        ...style,
-        transform: CSS.Translate.toString(transform),
-      }}
+      style={{ transform: CSS.Translate.toString(transform) }}
       {...listeners}
       {...attributes}
     >
@@ -811,7 +779,6 @@ export default function YearlyCalendarPage() {
                                     onClick={canEdit ? () => openEdit(entry) : undefined}
                                     title={entry.description ?? entry.title}
                                     className={`text-xs rounded-full px-3 py-1 font-medium shadow inline-flex items-center ${cs.className}`}
-                                    style={cs.style}
                                   >
                                     {showLeftChevron && (
                                       <ChevronLeft className="inline h-3 w-3 mr-1" aria-hidden />
@@ -879,7 +846,6 @@ export default function YearlyCalendarPage() {
                                             onClick={canEdit ? () => openEdit(entry) : undefined}
                                             title={entry.description ?? entry.title}
                                             className={`text-xs rounded-md px-2 py-1 ${cs.className} max-w-full inline-flex items-center gap-1`}
-                                            style={cs.style}
                                           >
                                             <CalendarIcon className="h-3 w-3 shrink-0" />
                                             <span className="truncate">{entry.title}</span>
@@ -985,7 +951,6 @@ export default function YearlyCalendarPage() {
                                     onClick={canEdit ? () => openEdit(entry) : undefined}
                                     title={entry.description ?? entry.title}
                                     className={`text-xs rounded-full px-3 py-1 font-medium shadow inline-flex items-center max-w-full ${cs.className}`}
-                                    style={cs.style}
                                   >
                                     {showLeftChevron && (
                                       <ChevronLeft className="inline h-3 w-3 mr-1 shrink-0" aria-hidden />
@@ -1054,7 +1019,6 @@ export default function YearlyCalendarPage() {
                                           onClick={canEdit ? () => openEdit(entry) : undefined}
                                           title={entry.description ?? entry.title}
                                           className={`text-[11px] rounded px-1.5 py-1 shadow-sm flex items-start gap-1 ${cs.className}`}
-                                          style={cs.style}
                                         >
                                           <CalendarIcon className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
                                           <span className="break-words leading-snug font-medium min-w-0">{entry.title}</span>
