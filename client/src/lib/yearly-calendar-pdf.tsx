@@ -27,21 +27,29 @@ import type { YearlyCalendarEntry } from "@shared/schema";
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
+// Hex equivalents of the Tailwind classes in ENTRY_COLOR_CLASSES
+// (client/src/pages/yearly-calendar.tsx) and the swatches in
+// PRESET_HEX (client/src/components/yearly-calendar-entry-modal.tsx).
+// Keep these three lists in sync so the swatch a user picks in the
+// modal renders the same shade on screen and in the PDF.
 const ENTRY_COLOR_HEX: Record<string, string> = {
   red: "#ef4444",
-  yellow: "#eab308",
+  yellow: "#fde047",
   green: "#22c55e",
-  blue: "#3b82f6",
-  orange: "#f97316",
-  pink: "#ec4899",
+  blue: "#60a5fa",
+  orange: "#fb923c",
+  pink: "#f472b6",
   purple: "#a855f7",
 };
 
+// Mirror of defaultColorForType in client/src/pages/yearly-calendar.tsx so
+// the PDF matches the on-screen calendar. Mat=gul, Uke info=blå,
+// Stengt (note)=rød, Dags events=grønn.
 const DEFAULT_TYPE_COLOR: Record<string, string> = {
-  food: "#fb923c",
-  week_event: "#ef4444",
+  food: "#fde047",
+  week_event: "#3b82f6",
   day_event: "#22c55e",
-  note: "#e5e5e5",
+  note: "#ef4444",
 };
 
 function readableTextOn(hex: string): string {
