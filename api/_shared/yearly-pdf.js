@@ -12,7 +12,18 @@
 // proper page breaks.
 
 import puppeteer from 'puppeteer-core';
-import chromium from '@sparticuz/chromium';
+import chromium from '@sparticuz/chromium-min';
+
+// URL of the prebuilt chromium binary that matches the version of
+// @sparticuz/chromium-min in package.json. We use the "min" variant
+// (which doesn't ship the binary inside the package) so the Vercel
+// function bundle stays small and we don't depend on Vercel's NFT
+// tracer picking up the binary file — instead, chromium-min downloads
+// the tarball from the GitHub release at first launch and caches it in
+// /tmp. Cold start on first call: +1-2s for the download. Bump this
+// URL whenever you bump @sparticuz/chromium-min in package.json.
+const CHROMIUM_PACK_URL =
+  'https://github.com/Sparticuz/chromium/releases/download/v131.0.1/chromium-v131.0.1-pack.tar';
 
 // ──────────────────────────────────────────────────────────────────
 // Calendar helpers (ported from client/src/pages/yearly-calendar.tsx)
@@ -530,10 +541,11 @@ ${sections}
 // Puppeteer launch + render
 // ──────────────────────────────────────────────────────────────────
 
-// Launch Chromium. In production (Vercel) we use the bundled
-// @sparticuz/chromium binary. Locally, set PUPPETEER_EXECUTABLE_PATH to
-// your system Chrome / Chromium so dev doesn't have to download a 200 MB
-// binary on first run.
+// Launch Chromium. On Vercel/Lambda we have chromium-min download the
+// prebuilt binary from GitHub releases (cached in /tmp after first
+// call). Locally, set PUPPETEER_EXECUTABLE_PATH to your system Chrome
+// to skip the download — otherwise we fall back to chromium-min too,
+// which is fine but adds a one-time download on dev start.
 async function launchBrowser() {
   const localExec = process.env.PUPPETEER_EXECUTABLE_PATH;
   const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -542,18 +554,15 @@ async function launchBrowser() {
     return puppeteer.launch({
       args: chromium.args,
       defaultViewport: chromium.defaultViewport,
-      executablePath: await chromium.executablePath(),
+      executablePath: await chromium.executablePath(CHROMIUM_PACK_URL),
       headless: chromium.headless,
     });
   }
 
-  // Local dev: prefer system Chrome via env var, otherwise fall back to
-  // sparticuz's bundled binary (which works on dev machines too, just
-  // slower to spin up).
   return puppeteer.launch({
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
     headless: true,
-    executablePath: localExec || (await chromium.executablePath()),
+    executablePath: localExec || (await chromium.executablePath(CHROMIUM_PACK_URL)),
   });
 }
 
