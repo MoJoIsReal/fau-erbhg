@@ -52,17 +52,20 @@ function readableTextOn(hex: string): string {
 
 type ColorStyle = { className: string; style?: React.CSSProperties };
 
+// Default badge colours per entry type. Kept in sync with DEFAULT_TYPE_COLOR
+// in client/src/lib/yearly-calendar-pdf.tsx so on-screen and PDF look the
+// same. Mat=gul, Uke info=blå, Stengt (note)=rød, Dags events=grønn.
 function defaultColorForType(type: YearlyCalendarEntry["entryType"]): string {
   switch (type) {
     case "food":
-      return "bg-orange-400 text-neutral-900";
+      return "bg-yellow-300 text-neutral-900";
     case "week_event":
-      return "bg-red-500 text-white";
+      return "bg-blue-500 text-white";
     case "day_event":
       return "bg-green-500 text-white";
     case "note":
     default:
-      return "bg-neutral-200 text-neutral-900";
+      return "bg-red-500 text-white";
   }
 }
 
