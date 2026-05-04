@@ -24,8 +24,6 @@ import { sendContactEmail, sendEventConfirmationEmail, sendEventCancellationEmai
 import jwt from "jsonwebtoken";
 import multer from "multer";
 import path from "path";
-// @ts-expect-error — JS module shared with the Vercel functions; no .d.ts.
-import { generateYearlyPdf, pdfFilename } from "../api/_shared/yearly-pdf.js";
 
 // Configure multer for file uploads with enhanced security
 const upload = multer({
@@ -714,25 +712,6 @@ Crawl-delay: 1`;
         return res.status(400).json({ message: "Valid schoolYear query parameter required" });
       }
       const entries = await storage.getYearlyCalendarEntries(schoolYear);
-
-      // PDF download path — same shape as api/yearly-calendar.js so the
-      // client uses one URL for both dev and production.
-      if (req.query.format === "pdf") {
-        const lang = req.query.lang === "en" ? "en" : "no";
-        const yearParam = req.query.year != null ? parseInt(req.query.year as string) : NaN;
-        const monthParam = req.query.month != null ? parseInt(req.query.month as string) : NaN;
-        const year = Number.isFinite(yearParam) ? yearParam : undefined;
-        const month = Number.isFinite(monthParam) && monthParam >= 1 && monthParam <= 12
-          ? monthParam
-          : undefined;
-        const pdf = await generateYearlyPdf({ entries, schoolYear, lang, year, month });
-        const filename = pdfFilename({ schoolYear, year, month, lang });
-        res.setHeader("Content-Type", "application/pdf");
-        res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-        res.setHeader("Cache-Control", "private, no-store");
-        return res.status(200).send(pdf);
-      }
-
       res.json(entries);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch yearly calendar entries" });
