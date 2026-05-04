@@ -270,6 +270,7 @@ export interface Translations {
     schoolYearLabel: string;
     printAll: string;
     printMonth: string;
+    printLandscapeHint: string;
     addEntry: string;
     noEntries: string;
     week: string;
@@ -609,6 +610,7 @@ export const translations: Record<Language, Translations> = {
       schoolYearLabel: "Barnehageår",
       printAll: "Skriv ut hele året",
       printMonth: "Skriv ut måneden",
+      printLandscapeHint: "Tips: velg «Liggende» i utskriftsdialogen for best resultat.",
       addEntry: "Legg til",
       noEntries: "Ingenting registrert ennå.",
       week: "Uke",
@@ -946,6 +948,7 @@ export const translations: Record<Language, Translations> = {
       schoolYearLabel: "Kindergarten year",
       printAll: "Print whole year",
       printMonth: "Print month",
+      printLandscapeHint: "Tip: choose 'Landscape' in the print dialog for best layout.",
       addEntry: "Add entry",
       noEntries: "Nothing scheduled yet.",
       week: "Week",
