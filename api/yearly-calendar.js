@@ -8,6 +8,7 @@ import {
   sanitizeText,
   sanitizeNumber,
 } from './_shared/middleware.js';
+import { generateYearlyPdf, pdfFilename } from './_shared/yearly-pdf.js';
 
 const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note'];
 const VALID_COLOR_NAMES = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
@@ -97,7 +98,30 @@ export default async function handler(req, res) {
         WHERE school_year = ${schoolYear}
         ORDER BY year ASC, month ASC, week_number ASC NULLS LAST
       `;
-      return res.status(200).json(rows.map(mapEntry));
+      const entries = rows.map(mapEntry);
+
+      // PDF download path. Uses Puppeteer + headless Chromium to render a
+      // landscape A4 PDF — bypasses iOS Safari's broken @page handling so
+      // users get a consistent, properly-paginated file regardless of
+      // device.
+      if (req.query.format === 'pdf') {
+        const lang = req.query.lang === 'en' ? 'en' : 'no';
+        const yearParam = req.query.year != null ? parseInt(req.query.year) : null;
+        const monthParam = req.query.month != null ? parseInt(req.query.month) : null;
+        const year = Number.isFinite(yearParam) ? yearParam : undefined;
+        const month = Number.isFinite(monthParam) && monthParam >= 1 && monthParam <= 12
+          ? monthParam
+          : undefined;
+
+        const pdf = await generateYearlyPdf({ entries, schoolYear, lang, year, month });
+        const filename = pdfFilename({ schoolYear, year, month, lang });
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Cache-Control', 'private, no-store');
+        return res.status(200).send(pdf);
+      }
+
+      return res.status(200).json(entries);
     }
 
     // All write methods require auth + a yearly-calendar-eligible role
