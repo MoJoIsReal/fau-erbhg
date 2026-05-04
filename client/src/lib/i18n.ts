@@ -289,6 +289,7 @@ export interface Translations {
       dayEvent: string;
       food: string;
       note: string;
+      closed: string;
     };
     months: {
       january: string;
@@ -314,6 +315,7 @@ export interface Translations {
       weekNumberEnd: string;
       date: string;
       color: string;
+      colorHint: string;
       save: string;
       saving: string;
       delete: string;
@@ -630,7 +632,8 @@ export const translations: Record<Language, Translations> = {
         weekEvent: "Hele uken",
         dayEvent: "Dag",
         food: "Ukens varmmat",
-        note: "Notat"
+        note: "Notat",
+        closed: "Stengt"
       },
       months: {
         january: "Januar",
@@ -656,6 +659,7 @@ export const translations: Record<Language, Translations> = {
         weekNumberEnd: "Til uke (valgfri)",
         date: "Dato",
         color: "Farge",
+        colorHint: "Standardfarge bestemmes av type. Velg en farge her kun for spesielle unntak.",
         save: "Lagre",
         saving: "Lagrer...",
         delete: "Slett",
@@ -970,7 +974,8 @@ export const translations: Record<Language, Translations> = {
         weekEvent: "All week",
         dayEvent: "Day",
         food: "Hot meal of the week",
-        note: "Note"
+        note: "Note",
+        closed: "Closed"
       },
       months: {
         january: "January",
@@ -996,6 +1001,7 @@ export const translations: Record<Language, Translations> = {
         weekNumberEnd: "To week (optional)",
         date: "Date",
         color: "Color",
+        colorHint: "Default colour is determined by entry type. Pick a colour here only for special exceptions.",
         save: "Save",
         saving: "Saving...",
         delete: "Delete",
