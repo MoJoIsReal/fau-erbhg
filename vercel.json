@@ -4,12 +4,10 @@
   "outputDirectory": "dist/public",
   "functions": {
     "api/yearly-calendar.js": {
-      "maxDuration": 60,
-      "memory": 2048
+      "maxDuration": 60
     },
     "api/**/*.js": {
-      "maxDuration": 30,
-      "memory": 1024
+      "maxDuration": 30
     }
   },
   "rewrites": [
