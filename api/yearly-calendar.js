@@ -113,7 +113,18 @@ export default async function handler(req, res) {
           ? monthParam
           : undefined;
 
-        const pdf = await generateYearlyPdf({ entries, schoolYear, lang, year, month });
+        let pdf;
+        try {
+          pdf = await generateYearlyPdf({ entries, schoolYear, lang, year, month });
+        } catch (pdfErr) {
+          // Re-throw with extra context so handleError logs the underlying
+          // chromium / puppeteer message (the generic outer "API Error" line
+          // gets truncated in Vercel's log table view, which makes
+          // debugging hard).
+          console.error('PDF generation failed:', pdfErr?.message);
+          if (pdfErr?.stack) console.error('PDF generation stack:', pdfErr.stack);
+          throw pdfErr;
+        }
         const filename = pdfFilename({ schoolYear, year, month, lang });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
