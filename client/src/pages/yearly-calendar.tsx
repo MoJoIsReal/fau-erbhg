@@ -482,11 +482,12 @@ export default function YearlyCalendarPage() {
     setModalOpen(true);
   };
 
-  // Download the calendar as a server-rendered PDF (landscape A4).
+  // Download the calendar as a client-rendered PDF (landscape A4).
   // `target` is "all" for the full school year, or { year, month } for a
-  // single month. The server uses Puppeteer + headless Chromium so the
-  // result is identical on every device — fixes the iOS Safari portrait /
-  // page-break issues we hit with window.print().
+  // single month. We dynamic-import @react-pdf/renderer so the ~600 KB
+  // gzipped bundle only loads when the user clicks the button. The PDF
+  // is generated entirely in the browser — works identically across
+  // iOS/Android/desktop without server-side chromium dependencies.
   const downloadPdf = async (
     target: "all" | { year: number; month: number }
   ) => {
@@ -494,35 +495,14 @@ export default function YearlyCalendarPage() {
     if (pdfDownloading) return;
     setPdfDownloading(key);
     try {
-      const params = new URLSearchParams({
-        schoolYear: String(schoolYear),
-        format: "pdf",
+      const { downloadYearlyCalendarPdf } = await import("@/lib/yearly-calendar-pdf");
+      await downloadYearlyCalendarPdf({
+        entries,
+        schoolYear,
         lang: language,
+        year: target === "all" ? undefined : target.year,
+        month: target === "all" ? undefined : target.month,
       });
-      let suggestedName = `arskalender-${schoolYear}-${schoolYear + 1}.pdf`;
-      if (target !== "all") {
-        params.set("year", String(target.year));
-        params.set("month", String(target.month));
-        suggestedName = `arskalender-${target.year}-${String(target.month).padStart(2, "0")}.pdf`;
-      }
-      const res = await fetch(`/api/yearly-calendar?${params.toString()}`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error(`PDF request failed (${res.status})`);
-      const blob = await res.blob();
-      // Prefer the server-supplied filename when available so single-month
-      // downloads carry the month name.
-      const cd = res.headers.get("content-disposition") || "";
-      const match = /filename="?([^"]+)"?/i.exec(cd);
-      const filename = match?.[1] ?? suggestedName;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
     } catch (err) {
       toast({
         title: t.yearlyCalendar.pdfErrorTitle,
