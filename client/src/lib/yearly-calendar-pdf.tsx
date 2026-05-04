@@ -25,18 +25,52 @@ import type { YearlyCalendarEntry } from "@shared/schema";
 // looks like the on-screen calendar).
 // ──────────────────────────────────────────────────────────────────
 
-// Badge colour is determined entirely by entry type so the PDF looks the
-// same in every month. Mirror of colorClassForType in
-// client/src/pages/yearly-calendar.tsx — keep them in sync.
-// Mat=gul, Uke info=blå, Stengt (note)=rød, Dags events=grønn.
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+// Hex equivalents of ENTRY_COLOR_CLASSES in
+// client/src/pages/yearly-calendar.tsx and PRESET_HEX in
+// client/src/components/yearly-calendar-entry-modal.tsx. Keep all three
+// in sync so a swatch the user picks renders the same shade everywhere.
+const ENTRY_COLOR_HEX: Record<string, string> = {
+  red: "#ef4444",
+  yellow: "#fde047",
+  green: "#22c55e",
+  blue: "#60a5fa",
+  orange: "#fb923c",
+  pink: "#f472b6",
+  purple: "#a855f7",
+};
+
+// Default badge colour per entry type, used when an entry has no explicit
+// colour override. Mirror of defaultColorForType in
+// client/src/pages/yearly-calendar.tsx.
+// Mat=gul, Uke info=blå, Stengt=rød, Dags events=grønn, Note=rød.
 const TYPE_COLOR: Record<string, { background: string; color: string }> = {
   food:       { background: "#fde047", color: "#1f2937" },
   week_event: { background: "#3b82f6", color: "#ffffff" },
   day_event:  { background: "#22c55e", color: "#ffffff" },
+  closed:     { background: "#ef4444", color: "#ffffff" },
   note:       { background: "#ef4444", color: "#ffffff" },
 };
 
+function readableTextOn(hex: string): string {
+  let c = hex.replace("#", "");
+  if (c.length === 3) c = c.split("").map((ch) => ch + ch).join("");
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.6 ? "#1f2937" : "#ffffff";
+}
+
 function entryColors(entry: YearlyCalendarEntry): { background: string; color: string } {
+  if (entry.color && HEX_RE.test(entry.color)) {
+    return { background: entry.color, color: readableTextOn(entry.color) };
+  }
+  if (entry.color && ENTRY_COLOR_HEX[entry.color]) {
+    const bg = ENTRY_COLOR_HEX[entry.color];
+    return { background: bg, color: readableTextOn(bg) };
+  }
   return TYPE_COLOR[entry.entryType] ?? TYPE_COLOR.note;
 }
 
@@ -432,7 +466,7 @@ function Week({
           const dateStr = toIsoDate(d.date);
           const dayEntries = sortByTypeAndColor(
             monthEntries.filter(
-              (e) => e.entryType === "day_event" && e.date === dateStr,
+              (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr,
             ),
           );
           const isLast = idx === week.days.length - 1;

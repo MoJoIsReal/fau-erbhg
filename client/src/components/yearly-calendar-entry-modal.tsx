@@ -21,12 +21,13 @@ export type EntryDraft = {
   schoolYear: number;
   year: number;
   month: number;
-  entryType: "week_event" | "day_event" | "food" | "note";
+  entryType: "week_event" | "day_event" | "food" | "note" | "closed";
   weekNumber?: number | null;
   weekNumberEnd?: number | null;
   date?: string | null;
   title?: string;
   description?: string | null;
+  color?: string | null;
 };
 
 interface Props {
@@ -37,7 +38,21 @@ interface Props {
   existing?: YearlyCalendarEntry | null;
 }
 
-const TYPES: EntryDraft["entryType"][] = ["week_event", "day_event", "food", "note"];
+const TYPES: EntryDraft["entryType"][] = ["week_event", "day_event", "food", "closed", "note"];
+
+const COLORS = ["red", "yellow", "green", "orange", "blue", "pink", "purple"] as const;
+
+const PRESET_HEX: Record<(typeof COLORS)[number], string> = {
+  red: "#ef4444",
+  yellow: "#fde047",
+  green: "#22c55e",
+  orange: "#fb923c",
+  blue: "#60a5fa",
+  pink: "#f472b6",
+  purple: "#a855f7",
+};
+
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, initial, existing }: Props) {
   const { t } = useLanguage();
@@ -54,6 +69,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const [date, setDate] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  const [color, setColor] = useState<string>("");
 
   useEffect(() => {
     if (!isOpen) return;
@@ -66,6 +82,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setDate(seed.date ?? "");
     setTitle(seed.title ?? "");
     setDescription(seed.description ?? "");
+    setColor(seed.color ?? "");
   }, [isOpen, initial, existing]);
 
   const saveMutation = useMutation({
@@ -80,12 +97,10 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         entryType,
         title,
         description: description || null,
-        // Per-entry colour overrides are no longer supported. We send null
-        // so existing rows with stale colour values get cleared on save.
-        color: null,
+        color: color || null,
         weekNumber: weekNumber ? parseInt(weekNumber) : null,
         weekNumberEnd: supportsSpan && weekNumberEnd ? parseInt(weekNumberEnd) : null,
-        date: entryType === "day_event" ? (date || null) : null,
+        date: entryType === "day_event" || entryType === "closed" ? (date || null) : null,
       };
       if (isEditing) {
         const res = await apiRequest("PUT", `/api/yearly-calendar?id=${existing!.id}`, body);
@@ -171,6 +186,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                     {typ === "week_event" ? t.yearlyCalendar.entryTypes.weekEvent
                       : typ === "day_event" ? t.yearlyCalendar.entryTypes.dayEvent
                       : typ === "food" ? t.yearlyCalendar.entryTypes.food
+                      : typ === "closed" ? t.yearlyCalendar.entryTypes.closed
                       : t.yearlyCalendar.entryTypes.note}
                   </SelectItem>
                 ))}
@@ -196,7 +212,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             </div>
           </div>
 
-          {entryType !== "day_event" && (
+          {entryType !== "day_event" && entryType !== "closed" && (
             <div className={entryType === "week_event" || entryType === "note" ? "grid grid-cols-2 gap-3" : ""}>
               <div>
                 <Label>{t.yearlyCalendar.modal.weekNumber}</Label>
@@ -224,7 +240,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             </div>
           )}
 
-          {entryType === "day_event" && (
+          {(entryType === "day_event" || entryType === "closed") && (
             <div>
               <Label>{t.yearlyCalendar.modal.date}</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -241,6 +257,58 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             <Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
           </div>
 
+          <div>
+            <Label>{t.yearlyCalendar.modal.color}</Label>
+            <p className="text-xs text-neutral-500 mt-1 mb-2">
+              {t.yearlyCalendar.modal.colorHint}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setColor("")}
+                className={`h-7 w-7 rounded-full border-2 bg-white text-neutral-500 text-xs flex items-center justify-center ${
+                  !color ? "border-neutral-900 ring-2 ring-neutral-300" : "border-neutral-300"
+                }`}
+                title={t.yearlyCalendar.colors.none}
+                aria-label={t.yearlyCalendar.colors.none}
+              >
+                ✕
+              </button>
+              {COLORS.map((c) => {
+                const selected = color === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    style={{ backgroundColor: PRESET_HEX[c] }}
+                    className={`h-7 w-7 rounded-full border-2 ${
+                      selected ? "border-neutral-900 ring-2 ring-neutral-300" : "border-white shadow"
+                    }`}
+                    title={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
+                    aria-label={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
+                  />
+                );
+              })}
+              <input
+                type="color"
+                value={HEX_RE.test(color) ? color : "#ff6b35"}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-7 w-8 rounded cursor-pointer border border-neutral-300 p-0"
+                aria-label={t.yearlyCalendar.modal.color}
+              />
+              <Input
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                placeholder="#rrggbb"
+                maxLength={7}
+                className="w-28 font-mono text-xs"
+              />
+            </div>
+            {color && !HEX_RE.test(color) && !COLORS.includes(color as any) && (
+              <p className="text-xs text-red-500 mt-1">#rrggbb</p>
+            )}
+          </div>
         </div>
 
         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
