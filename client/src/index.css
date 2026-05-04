@@ -233,183 +233,34 @@
 }
 
 /* ============================================
-   PRINT STYLES — Årskalender (and general)
+   PRINT STYLES (general fallback only)
+
+   The yearly calendar has its own dedicated PDF download flow that uses
+   a server-side Puppeteer renderer — see api/_shared/yearly-pdf.js. The
+   rules below only matter if a user manually invokes Cmd/Ctrl-P on any
+   page, so we keep them minimal: hide chrome and let the browser do its
+   thing. We don't try to force landscape or compact the calendar
+   anymore; that's the PDF endpoint's job.
    ============================================ */
 @media print {
-  /* Force colors to render in print (otherwise Chrome strips backgrounds) */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
-
-  /* Hide chrome (header nav, footer, toasts, modals, hero, etc.) */
   header,
   footer,
   [role="dialog"],
   [data-radix-toast-viewport],
-  .yearly-hero,
-  .no-print {
+  .no-print,
+  .print\:hidden {
     display: none !important;
   }
-
-  /* A4 landscape. iOS Safari's "Forhåndsvisning" sometimes ignores this
-     directive and previews portrait pages — so we ALSO pin the printed
-     canvas (html/body/main) to landscape inner width below, keeping the
-     2-column grid sized correctly regardless of how the preview renders.
-     The user still has to confirm "Liggende" in the actual print dialog. */
-  @page {
-    size: A4 landscape;
-    margin: 8mm;
-  }
-
-  /* Pin the canvas to A4-landscape inner width: 297mm − 2 × 8mm margin
-     ≈ 281mm. */
-  html,
-  body {
-    background: white !important;
-    color: black;
-    padding: 0 !important;
-    margin: 0 !important;
-    width: 281mm !important;
-    max-width: 281mm !important;
-  }
+  body,
   main {
     background: white !important;
     color: black;
     padding: 0 !important;
     margin: 0 !important;
-    width: 281mm !important;
-    max-width: 281mm !important;
-  }
-
-  /* Force the desktop (5-col grid) layout in print regardless of viewport.
-     Important when printing from a phone, where the @media (lg) breakpoint
-     would otherwise pick the vertical "mobile" layout. */
-  .yearly-mobile-layout {
-    display: none !important;
-  }
-  .yearly-desktop-layout {
-    display: block !important;
-    padding: 2mm !important;
-  }
-
-  /* Force the parent grid (Notater sidebar + weeks) to render side-by-side
-     in print regardless of viewport. The Tailwind `lg:grid-cols-[260px_1fr]`
-     rule is keyed to viewport width, which iOS Safari evaluates as portrait
-     during print preview, so we have to override it explicitly here. */
-  .yearly-month-grid {
-    display: grid !important;
-    grid-template-columns: 52mm 1fr !important;
-    gap: 0 !important;
-  }
-
-  /* Compact Notater sidebar; drop lg:min-h-full pinning. */
-  .yearly-month-grid > div:first-child {
-    padding: 3mm 4mm !important;
-    border-bottom: 0 !important;
-    border-right: 0.4mm solid rgba(74, 140, 95, 0.4) !important;
-    min-height: 0 !important;
-  }
-  .yearly-month-grid > div:first-child .font-heading {
-    font-size: 10pt !important;
-    margin-bottom: 1.5mm !important;
-  }
-  .yearly-month-grid > div:first-child ul {
-    font-size: 8.5pt !important;
-  }
-  .yearly-month-grid > div:first-child ul > li {
-    margin-top: 1mm !important;
-  }
-
-  /* Each month section starts on a fresh page. We INTENTIONALLY do NOT set
-     break-inside: avoid on the section anymore — that was forcing the
-     browser to break between the gradient header and the inner grid when
-     the section was over-tall, producing the "empty page 1" artifact. */
-  .yearly-month-section {
-    page-break-before: always;
-    break-before: page;
-    page-break-after: auto;
-    break-after: auto;
-    margin: 0 !important;
-    box-shadow: none !important;
-    border-width: 0.5mm !important;
-    border-radius: 3mm !important;
-  }
-  .yearly-month-section:first-of-type {
-    page-break-before: auto;
-    break-before: auto;
-  }
-
-  /* Glue the gradient header to the first week so they never split across
-     pages. */
-  .yearly-month-section > div:first-child {
-    break-after: avoid !important;
-    page-break-after: avoid !important;
-    padding: 3mm 5mm !important;
-  }
-  .yearly-month-section h2 {
-    font-size: 16pt !important;
-    line-height: 1.05 !important;
-  }
-  .yearly-month-section h2 + p,
-  .yearly-month-section .text-yellow-100.italic {
-    font-size: 8.5pt !important;
-    margin-top: 0.5mm !important;
-  }
-  /* Hide decorative floaters in print — they bloat section height for no
-     informational value. */
-  .yearly-month-section [aria-hidden] {
-    display: none !important;
-  }
-
-  /* Tighter week cards. Each week card stays atomic so a break never lands
-     inside a single week. */
-  .yearly-desktop-layout > div {
-    page-break-inside: avoid;
-    break-inside: avoid;
-    margin: 0 0 1.5mm 0 !important;
-    border-radius: 2mm !important;
-  }
-  .yearly-desktop-layout > div + div {
-    margin-top: 1.5mm !important;
-  }
-  .yearly-desktop-layout > div > * {
-    padding-top: 1mm !important;
-    padding-bottom: 1mm !important;
-  }
-  .yearly-desktop-layout .grid-cols-5 > * {
-    min-height: 0 !important;
-    padding: 1.2mm !important;
-  }
-  .yearly-desktop-layout .text-2xl {
-    font-size: 13pt !important;
-  }
-  .yearly-desktop-layout .text-base {
-    font-size: 10pt !important;
-  }
-  .yearly-desktop-layout .text-xs,
-  .yearly-desktop-layout .text-\[11px\],
-  .yearly-desktop-layout .text-\[10px\] {
-    font-size: 7.5pt !important;
-  }
-
-  /* Hide editor-only affordances (+ Legg til buttons, drag handles, etc.) */
-  .yearly-print-hide {
-    display: none !important;
-  }
-
-  /* When printing a single month, hide every other month section, and let
-     the printed month start at the top of the first page. The !important
-     here is needed to override the section-level break-before: page set
-     above. */
-  body.yearly-print-single .yearly-month-section:not(.yearly-print-target) {
-    display: none !important;
-  }
-  body.yearly-print-single .yearly-print-target {
-    page-break-before: auto !important;
-    break-before: auto !important;
-    page-break-after: auto !important;
-    break-after: auto !important;
   }
 }
 

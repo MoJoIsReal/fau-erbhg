@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
 import {
   DndContext,
   type DragEndEvent,
@@ -383,9 +383,13 @@ function DroppableRow({ id, data, disabled, className, children }: DroppableProp
 }
 
 export default function YearlyCalendarPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user } = useAuth();
   const { toast } = useToast();
+  // Tracks the in-flight PDF generation so we can disable buttons and
+  // show a spinner. `null` → idle, `"all"` → full-year, `"YYYY-M"` → that
+  // specific month is downloading.
+  const [pdfDownloading, setPdfDownloading] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const canEdit = !!user && (user.role === "admin" || user.role === "member" || user.role === "staff");
 
@@ -478,37 +482,59 @@ export default function YearlyCalendarPage() {
     setModalOpen(true);
   };
 
-  // Print all months (uses the browser's native print dialog → also lets the
-  // user choose "Save as PDF").
-  const printAll = () => {
-    document.body.classList.remove("yearly-print-single");
-    document.querySelectorAll(".yearly-print-target").forEach((el) =>
-      el.classList.remove("yearly-print-target")
-    );
-    window.print();
-  };
-
-  // Print a single month by tagging the target section + body, calling
-  // window.print, then cleaning up.
-  const printMonth = (year: number, month: number) => {
-    const sectionId = `month-${year}-${month}`;
-    const target = document.getElementById(sectionId);
-    if (!target) {
-      window.print();
-      return;
+  // Download the calendar as a server-rendered PDF (landscape A4).
+  // `target` is "all" for the full school year, or { year, month } for a
+  // single month. The server uses Puppeteer + headless Chromium so the
+  // result is identical on every device — fixes the iOS Safari portrait /
+  // page-break issues we hit with window.print().
+  const downloadPdf = async (
+    target: "all" | { year: number; month: number }
+  ) => {
+    const key = target === "all" ? "all" : `${target.year}-${target.month}`;
+    if (pdfDownloading) return;
+    setPdfDownloading(key);
+    try {
+      const params = new URLSearchParams({
+        schoolYear: String(schoolYear),
+        format: "pdf",
+        lang: language,
+      });
+      let suggestedName = `arskalender-${schoolYear}-${schoolYear + 1}.pdf`;
+      if (target !== "all") {
+        params.set("year", String(target.year));
+        params.set("month", String(target.month));
+        suggestedName = `arskalender-${target.year}-${String(target.month).padStart(2, "0")}.pdf`;
+      }
+      const res = await fetch(`/api/yearly-calendar?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`PDF request failed (${res.status})`);
+      const blob = await res.blob();
+      // Prefer the server-supplied filename when available so single-month
+      // downloads carry the month name.
+      const cd = res.headers.get("content-disposition") || "";
+      const match = /filename="?([^"]+)"?/i.exec(cd);
+      const filename = match?.[1] ?? suggestedName;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({
+        title: t.yearlyCalendar.pdfErrorTitle,
+        description: t.yearlyCalendar.pdfErrorDescription,
+        variant: "destructive",
+      });
+      // Surface the underlying error in console for debugging without
+      // leaking it to the user.
+      console.error("Yearly calendar PDF download failed", err);
+    } finally {
+      setPdfDownloading(null);
     }
-    document.querySelectorAll(".yearly-print-target").forEach((el) =>
-      el.classList.remove("yearly-print-target")
-    );
-    target.classList.add("yearly-print-target");
-    document.body.classList.add("yearly-print-single");
-    const cleanup = () => {
-      document.body.classList.remove("yearly-print-single");
-      target.classList.remove("yearly-print-target");
-      window.removeEventListener("afterprint", cleanup);
-    };
-    window.addEventListener("afterprint", cleanup);
-    window.print();
   };
 
   const handleDragEnd = (e: DragEndEvent) => {
@@ -587,19 +613,21 @@ export default function YearlyCalendarPage() {
               </Button>
             )}
 
-            <div className="flex flex-col items-start gap-1">
-              <Button
-                onClick={printAll}
-                variant="outline"
-                className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
-              >
-                <Printer className="h-4 w-4 mr-1" />
-                {t.yearlyCalendar.printAll}
-              </Button>
-              <span className="text-xs text-white/70 italic print:hidden">
-                {t.yearlyCalendar.printLandscapeHint}
-              </span>
-            </div>
+            <Button
+              onClick={() => downloadPdf("all")}
+              disabled={pdfDownloading !== null}
+              variant="outline"
+              className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
+            >
+              {pdfDownloading === "all" ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-1" />
+              )}
+              {pdfDownloading === "all"
+                ? t.yearlyCalendar.pdfGenerating
+                : t.yearlyCalendar.downloadAllPdf}
+            </Button>
           </div>
         </div>
 
@@ -653,15 +681,24 @@ export default function YearlyCalendarPage() {
                     </div>
                     <Button
                       type="button"
-                      onClick={() => printMonth(year, month)}
+                      onClick={() => downloadPdf({ year, month })}
+                      disabled={pdfDownloading !== null}
                       variant="outline"
                       size="sm"
                       className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white shrink-0 print:hidden"
-                      title={t.yearlyCalendar.printMonth}
-                      aria-label={t.yearlyCalendar.printMonth}
+                      title={t.yearlyCalendar.downloadMonthPdf}
+                      aria-label={t.yearlyCalendar.downloadMonthPdf}
                     >
-                      <Printer className="h-4 w-4" />
-                      <span className="hidden sm:inline ml-1">{t.yearlyCalendar.printMonth}</span>
+                      {pdfDownloading === `${year}-${month}` ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Download className="h-4 w-4" />
+                      )}
+                      <span className="hidden sm:inline ml-1">
+                        {pdfDownloading === `${year}-${month}`
+                          ? t.yearlyCalendar.pdfGenerating
+                          : t.yearlyCalendar.downloadMonthPdf}
+                      </span>
                     </Button>
                   </div>
                 </div>

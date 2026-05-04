@@ -268,9 +268,11 @@ export interface Translations {
     title: string;
     subtitle: string;
     schoolYearLabel: string;
-    printAll: string;
-    printMonth: string;
-    printLandscapeHint: string;
+    downloadAllPdf: string;
+    downloadMonthPdf: string;
+    pdfGenerating: string;
+    pdfErrorTitle: string;
+    pdfErrorDescription: string;
     addEntry: string;
     noEntries: string;
     week: string;
@@ -608,9 +610,11 @@ export const translations: Record<Language, Translations> = {
       title: "Årskalender",
       subtitle: "Hva skjer i barnehagen måned for måned",
       schoolYearLabel: "Barnehageår",
-      printAll: "Skriv ut hele året",
-      printMonth: "Skriv ut måneden",
-      printLandscapeHint: "Tips: velg «Liggende» i utskriftsdialogen for best resultat.",
+      downloadAllPdf: "Last ned PDF (hele året)",
+      downloadMonthPdf: "Last ned måned",
+      pdfGenerating: "Genererer PDF…",
+      pdfErrorTitle: "Klarte ikke å lage PDF",
+      pdfErrorDescription: "Noe gikk galt under generering av PDF-en. Prøv igjen om litt.",
       addEntry: "Legg til",
       noEntries: "Ingenting registrert ennå.",
       week: "Uke",
@@ -946,9 +950,11 @@ export const translations: Record<Language, Translations> = {
       title: "Yearly calendar",
       subtitle: "What's happening at the kindergarten, month by month",
       schoolYearLabel: "Kindergarten year",
-      printAll: "Print whole year",
-      printMonth: "Print month",
-      printLandscapeHint: "Tip: choose 'Landscape' in the print dialog for best layout.",
+      downloadAllPdf: "Download PDF (whole year)",
+      downloadMonthPdf: "Download month",
+      pdfGenerating: "Generating PDF…",
+      pdfErrorTitle: "Could not generate PDF",
+      pdfErrorDescription: "Something went wrong while generating the PDF. Please try again in a moment.",
       addEntry: "Add entry",
       noEntries: "Nothing scheduled yet.",
       week: "Week",
