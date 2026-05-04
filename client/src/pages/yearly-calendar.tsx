@@ -587,14 +587,19 @@ export default function YearlyCalendarPage() {
               </Button>
             )}
 
-            <Button
-              onClick={printAll}
-              variant="outline"
-              className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
-            >
-              <Printer className="h-4 w-4 mr-1" />
-              {t.yearlyCalendar.printAll}
-            </Button>
+            <div className="flex flex-col items-start gap-1">
+              <Button
+                onClick={printAll}
+                variant="outline"
+                className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
+              >
+                <Printer className="h-4 w-4 mr-1" />
+                {t.yearlyCalendar.printAll}
+              </Button>
+              <span className="text-xs text-white/70 italic print:hidden">
+                {t.yearlyCalendar.printLandscapeHint}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -690,7 +695,7 @@ export default function YearlyCalendarPage() {
                       })}
                     </div>
                   )}
-                <div className="relative grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-0">
+                <div className="yearly-month-grid relative grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-0">
                   {/* Notes sidebar */}
                   <div className="bg-rose-50 text-neutral-900 p-5 border-b-2 lg:border-b-0 lg:border-r-2 border-[#4A8C5F]/30 lg:min-h-full">
                     <div className="font-heading font-bold text-[#2C5F41] mb-2 flex items-center gap-2">
