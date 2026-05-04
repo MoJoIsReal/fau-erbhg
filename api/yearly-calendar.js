@@ -9,7 +9,7 @@ import {
   sanitizeNumber,
 } from './_shared/middleware.js';
 
-const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note'];
+const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note', 'closed'];
 const VALID_COLOR_NAMES = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 

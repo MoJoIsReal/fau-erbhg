@@ -28,6 +28,13 @@ import { useToast } from "@/hooks/use-toast";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
 
+type ColorStyle = { className: string; style?: React.CSSProperties };
+
+const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+
+// Named colour presets — same names the modal exposes via its swatch
+// picker. Kept in sync with PRESET_HEX in
+// client/src/components/yearly-calendar-entry-modal.tsx.
 const ENTRY_COLOR_CLASSES: Record<string, string> = {
   red: "bg-red-500 text-white",
   yellow: "bg-yellow-300 text-neutral-900",
@@ -37,8 +44,6 @@ const ENTRY_COLOR_CLASSES: Record<string, string> = {
   pink: "bg-pink-400 text-white",
   purple: "bg-purple-500 text-white",
 };
-
-const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 function readableTextOn(hex: string): string {
   let c = hex.replace("#", "");
@@ -50,19 +55,23 @@ function readableTextOn(hex: string): string {
   return luminance > 0.6 ? "#1f2937" : "#ffffff";
 }
 
-type ColorStyle = { className: string; style?: React.CSSProperties };
-
+// Default badge colour per entry type, used when an entry has no explicit
+// colour override. Kept in sync with TYPE_COLOR in
+// client/src/lib/yearly-calendar-pdf.tsx so the on-screen view and PDF
+// match. Mat=gul, Uke info=blå, Stengt=rød, Dags events=grønn, Note=rød.
 function defaultColorForType(type: YearlyCalendarEntry["entryType"]): string {
   switch (type) {
     case "food":
-      return "bg-orange-400 text-neutral-900";
+      return "bg-yellow-300 text-neutral-900";
     case "week_event":
-      return "bg-red-500 text-white";
+      return "bg-blue-500 text-white";
     case "day_event":
       return "bg-green-500 text-white";
+    case "closed":
+      return "bg-red-500 text-white";
     case "note":
     default:
-      return "bg-neutral-200 text-neutral-900";
+      return "bg-red-500 text-white";
   }
 }
 
@@ -336,10 +345,7 @@ function DraggableEntry({ entry, canEdit, onClick, className, style, children, t
       className={`${className ?? ""} ${canEdit ? "cursor-grab active:cursor-grabbing touch-none select-none" : ""} ${
         isDragging ? "opacity-60 z-50 relative" : ""
       }`}
-      style={{
-        ...style,
-        transform: CSS.Translate.toString(transform),
-      }}
+      style={{ ...style, transform: CSS.Translate.toString(transform) }}
       {...listeners}
       {...attributes}
     >
@@ -526,7 +532,7 @@ export default function YearlyCalendarPage() {
     const { entry } = data;
 
     if (target.kind === "day") {
-      if (entry.entryType !== "day_event") return;
+      if (entry.entryType !== "day_event" && entry.entryType !== "closed") return;
       if (entry.date === target.date) return;
       moveMutation.mutate({
         entry,
@@ -847,7 +853,7 @@ export default function YearlyCalendarPage() {
                               const dateStr = toIsoDate(d.date);
                               const dayEntries = sortByTypeAndColor(
                                 monthEntries.filter(
-                                  (e) => e.entryType === "day_event" && e.date === dateStr
+                                  (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr
                                 )
                               );
                               const dayShort = weekdayLabels[week.days.indexOf(d)].slice(0, 3);
@@ -1022,7 +1028,7 @@ export default function YearlyCalendarPage() {
                               const dateStr = toIsoDate(d.date);
                               const dayEntries = sortByTypeAndColor(
                                 monthEntries.filter(
-                                  (e) => e.entryType === "day_event" && e.date === dateStr
+                                  (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr
                                 )
                               );
                               const dayShort = weekdayLabels[week.days.indexOf(d)].slice(0, 3);

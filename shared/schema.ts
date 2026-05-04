@@ -110,6 +110,7 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   //   "day_event"  → specific day (uses date)
   //   "food"       → ukens varmmat for a given week
   //   "note"       → freeform note attached to a week
+  //   "closed"     → barnehagen er stengt (planleggingsdag, ferie osv.) — single day, uses date
   entryType: text("entry_type").notNull(),
   weekNumber: integer("week_number"), // ISO week number, used for week_event/food/note (start week if span)
   weekNumberEnd: integer("week_number_end"), // optional end week for multi-week week_event/note spans

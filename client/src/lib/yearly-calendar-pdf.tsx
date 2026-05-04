@@ -27,21 +27,30 @@ import type { YearlyCalendarEntry } from "@shared/schema";
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
+// Hex equivalents of ENTRY_COLOR_CLASSES in
+// client/src/pages/yearly-calendar.tsx and PRESET_HEX in
+// client/src/components/yearly-calendar-entry-modal.tsx. Keep all three
+// in sync so a swatch the user picks renders the same shade everywhere.
 const ENTRY_COLOR_HEX: Record<string, string> = {
   red: "#ef4444",
-  yellow: "#eab308",
+  yellow: "#fde047",
   green: "#22c55e",
-  blue: "#3b82f6",
-  orange: "#f97316",
-  pink: "#ec4899",
+  blue: "#60a5fa",
+  orange: "#fb923c",
+  pink: "#f472b6",
   purple: "#a855f7",
 };
 
-const DEFAULT_TYPE_COLOR: Record<string, string> = {
-  food: "#fb923c",
-  week_event: "#ef4444",
-  day_event: "#22c55e",
-  note: "#e5e5e5",
+// Default badge colour per entry type, used when an entry has no explicit
+// colour override. Mirror of defaultColorForType in
+// client/src/pages/yearly-calendar.tsx.
+// Mat=gul, Uke info=blå, Stengt=rød, Dags events=grønn, Note=rød.
+const TYPE_COLOR: Record<string, { background: string; color: string }> = {
+  food:       { background: "#fde047", color: "#1f2937" },
+  week_event: { background: "#3b82f6", color: "#ffffff" },
+  day_event:  { background: "#22c55e", color: "#ffffff" },
+  closed:     { background: "#ef4444", color: "#ffffff" },
+  note:       { background: "#ef4444", color: "#ffffff" },
 };
 
 function readableTextOn(hex: string): string {
@@ -62,8 +71,7 @@ function entryColors(entry: YearlyCalendarEntry): { background: string; color: s
     const bg = ENTRY_COLOR_HEX[entry.color];
     return { background: bg, color: readableTextOn(bg) };
   }
-  const bg = DEFAULT_TYPE_COLOR[entry.entryType] ?? "#e5e5e5";
-  return { background: bg, color: readableTextOn(bg) };
+  return TYPE_COLOR[entry.entryType] ?? TYPE_COLOR.note;
 }
 
 function entryEndWeek(entry: YearlyCalendarEntry): number {
@@ -458,7 +466,7 @@ function Week({
           const dateStr = toIsoDate(d.date);
           const dayEntries = sortByTypeAndColor(
             monthEntries.filter(
-              (e) => e.entryType === "day_event" && e.date === dateStr,
+              (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr,
             ),
           );
           const isLast = idx === week.days.length - 1;

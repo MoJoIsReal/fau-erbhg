@@ -21,7 +21,7 @@ export type EntryDraft = {
   schoolYear: number;
   year: number;
   month: number;
-  entryType: "week_event" | "day_event" | "food" | "note";
+  entryType: "week_event" | "day_event" | "food" | "note" | "closed";
   weekNumber?: number | null;
   weekNumberEnd?: number | null;
   date?: string | null;
@@ -38,8 +38,9 @@ interface Props {
   existing?: YearlyCalendarEntry | null;
 }
 
+const TYPES: EntryDraft["entryType"][] = ["week_event", "day_event", "food", "closed", "note"];
+
 const COLORS = ["red", "yellow", "green", "orange", "blue", "pink", "purple"] as const;
-const TYPES: EntryDraft["entryType"][] = ["week_event", "day_event", "food", "note"];
 
 const PRESET_HEX: Record<(typeof COLORS)[number], string> = {
   red: "#ef4444",
@@ -99,7 +100,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         color: color || null,
         weekNumber: weekNumber ? parseInt(weekNumber) : null,
         weekNumberEnd: supportsSpan && weekNumberEnd ? parseInt(weekNumberEnd) : null,
-        date: entryType === "day_event" ? (date || null) : null,
+        date: entryType === "day_event" || entryType === "closed" ? (date || null) : null,
       };
       if (isEditing) {
         const res = await apiRequest("PUT", `/api/yearly-calendar?id=${existing!.id}`, body);
@@ -185,6 +186,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                     {typ === "week_event" ? t.yearlyCalendar.entryTypes.weekEvent
                       : typ === "day_event" ? t.yearlyCalendar.entryTypes.dayEvent
                       : typ === "food" ? t.yearlyCalendar.entryTypes.food
+                      : typ === "closed" ? t.yearlyCalendar.entryTypes.closed
                       : t.yearlyCalendar.entryTypes.note}
                   </SelectItem>
                 ))}
@@ -210,7 +212,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             </div>
           </div>
 
-          {entryType !== "day_event" && (
+          {entryType !== "day_event" && entryType !== "closed" && (
             <div className={entryType === "week_event" || entryType === "note" ? "grid grid-cols-2 gap-3" : ""}>
               <div>
                 <Label>{t.yearlyCalendar.modal.weekNumber}</Label>
@@ -238,7 +240,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             </div>
           )}
 
-          {entryType === "day_event" && (
+          {(entryType === "day_event" || entryType === "closed") && (
             <div>
               <Label>{t.yearlyCalendar.modal.date}</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -257,7 +259,10 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
           <div>
             <Label>{t.yearlyCalendar.modal.color}</Label>
-            <div className="flex flex-wrap items-center gap-2 mt-1">
+            <p className="text-xs text-neutral-500 mt-1 mb-2">
+              {t.yearlyCalendar.modal.colorHint}
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setColor("")}
