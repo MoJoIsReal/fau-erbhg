@@ -8,7 +8,11 @@ import {
   sanitizeEmail,
   sanitizePhone,
 } from './_shared/middleware.js';
+import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import Sentry from './_shared/sentry.js';
+
+const CONTACT_WINDOW_SECONDS = 10 * 60;
+const CONTACT_MAX_ATTEMPTS = 3;
 
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
@@ -20,7 +24,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { name, email, phone, subject, message } = req.body;
+    const { name, email, phone, subject, message, website } = req.body;
+
+    // Honeypot: humans never see/fill this field.
+    if (website) {
+      return res.status(204).end();
+    }
 
     // Validate required fields
     if (!subject || !message) {
@@ -59,6 +68,17 @@ export default async function handler(req, res) {
     }
 
     const sql = getDb();
+    const contactIdentifier = isAnonymous ? 'anonymous' : sanitizedEmail;
+    const rateLimit = await checkRateLimit(sql, {
+      key: rateLimitKey(req, 'contact', contactIdentifier),
+      limit: CONTACT_MAX_ATTEMPTS,
+      windowSeconds: CONTACT_WINDOW_SECONDS
+    });
+
+    if (!rateLimit.allowed) {
+      res.setHeader('Retry-After', String(rateLimit.retryAfter));
+      return res.status(429).json({ error: 'Too many messages. Try again later.' });
+    }
 
     // Create contact message in database
     const contactMessages = await sql`

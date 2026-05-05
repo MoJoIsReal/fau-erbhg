@@ -21,9 +21,13 @@ async function ensureRegistrationColumns(sql) {
   try {
     await sql`ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS children_names text`;
     await sql`ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS photo_slots text`;
+    await sql`
+      CREATE UNIQUE INDEX IF NOT EXISTS event_registrations_event_email_unique_idx
+      ON event_registrations (event_id, lower(email))
+    `;
     columnsVerified = true;
   } catch (e) {
-    console.warn('Column migration check failed:', e.message);
+    console.warn('Registration schema check failed:', e.message);
   }
 }
 
@@ -138,6 +142,9 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Valid event ID required' });
       }
 
+      // Ensure foto columns and duplicate guard exist before registration logic.
+      await ensureRegistrationColumns(sql);
+
       // Check if event exists and is active
       const events = await sql`
         SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees, type
@@ -152,31 +159,7 @@ export default async function handler(req, res) {
       const event = events[0];
       const requestedAttendees = sanitizedAttendeeCount;
 
-      // Check if email already registered for this event
-      const existingRegistrations = await sql`
-        SELECT id FROM event_registrations
-        WHERE event_id = ${eventIdNum} AND email = ${sanitizedEmail}
-      `;
-
-      if (existingRegistrations.length > 0) {
-        return res.status(400).json({
-          error: 'This email is already registered for this event'
-        });
-      }
-
-      // Foto events are not capacity-limited; everyone gets a slot.
-      if (event.type !== 'foto' && event.max_attendees &&
-          (event.current_attendees + requestedAttendees) > event.max_attendees) {
-        return res.status(400).json({
-          error: 'Event is at capacity',
-          available: event.max_attendees - event.current_attendees
-        });
-      }
-
       const sanitizedChildrenNames = childrenNames || null;
-
-      // Ensure foto-related columns exist before using them
-      await ensureRegistrationColumns(sql);
 
       // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
       let photoSlots = undefined;
@@ -193,45 +176,134 @@ export default async function handler(req, res) {
         photoSlotsJson = JSON.stringify(photoSlots);
       }
 
-      // Create registration
-      let newRegistration;
+      let registrationResult;
       if (sanitizedChildrenNames !== null || photoSlotsJson !== null) {
-        // Foto event: include children_names and photo_slots columns
-        newRegistration = await sql`
-          INSERT INTO event_registrations (
-            event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
-          ) VALUES (
-            ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-            ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
-            ${sanitizedChildrenNames}, ${photoSlotsJson}
+        registrationResult = await sql`
+          WITH target_event AS (
+            SELECT *
+            FROM events
+            WHERE id = ${eventIdNum} AND status = 'active'
+          ),
+          capacity_update AS (
+            UPDATE events
+            SET current_attendees = current_attendees + ${requestedAttendees}
+            WHERE id = ${eventIdNum}
+              AND EXISTS (SELECT 1 FROM target_event)
+              AND (
+                (SELECT type FROM target_event) = 'foto'
+                OR (SELECT max_attendees FROM target_event) IS NULL
+                OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
+              )
+            RETURNING *
+          ),
+          inserted_registration AS (
+            INSERT INTO event_registrations (
+              event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
+            )
+            SELECT
+              ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+              ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
+              ${sanitizedChildrenNames}, ${photoSlotsJson}
+            WHERE EXISTS (SELECT 1 FROM capacity_update)
+              AND NOT EXISTS (
+                SELECT 1 FROM event_registrations
+                WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
+              )
+            ON CONFLICT DO NOTHING
+            RETURNING *
+          ),
+          rollback_capacity AS (
+            UPDATE events
+            SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
+            WHERE id = ${eventIdNum}
+              AND EXISTS (SELECT 1 FROM capacity_update)
+              AND NOT EXISTS (SELECT 1 FROM inserted_registration)
+            RETURNING id
           )
-          RETURNING *
+          SELECT
+            (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
+            (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
+            (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
+            (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
+            (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
         `;
       } else {
-        // Standard event: omit foto-specific columns for compatibility
-        newRegistration = await sql`
-          INSERT INTO event_registrations (
-            event_id, name, email, phone, attendee_count, comments, language
-          ) VALUES (
-            ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-            ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}
+        registrationResult = await sql`
+          WITH target_event AS (
+            SELECT *
+            FROM events
+            WHERE id = ${eventIdNum} AND status = 'active'
+          ),
+          capacity_update AS (
+            UPDATE events
+            SET current_attendees = current_attendees + ${requestedAttendees}
+            WHERE id = ${eventIdNum}
+              AND EXISTS (SELECT 1 FROM target_event)
+              AND (
+                (SELECT type FROM target_event) = 'foto'
+                OR (SELECT max_attendees FROM target_event) IS NULL
+                OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
+              )
+            RETURNING *
+          ),
+          inserted_registration AS (
+            INSERT INTO event_registrations (
+              event_id, name, email, phone, attendee_count, comments, language
+            )
+            SELECT
+              ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+              ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}
+            WHERE EXISTS (SELECT 1 FROM capacity_update)
+              AND NOT EXISTS (
+                SELECT 1 FROM event_registrations
+                WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
+              )
+            ON CONFLICT DO NOTHING
+            RETURNING *
+          ),
+          rollback_capacity AS (
+            UPDATE events
+            SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
+            WHERE id = ${eventIdNum}
+              AND EXISTS (SELECT 1 FROM capacity_update)
+              AND NOT EXISTS (SELECT 1 FROM inserted_registration)
+            RETURNING id
           )
-          RETURNING *
+          SELECT
+            (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
+            (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
+            (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
+            (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
+            (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
         `;
       }
 
-      // Update event attendee count
-      await sql`
-        UPDATE events
-        SET current_attendees = current_attendees + ${requestedAttendees}
-        WHERE id = ${eventIdNum}
-      `;
+      const registrationState = registrationResult[0];
+      if (!registrationState?.eventExists) {
+        return res.status(404).json({ error: 'Event not found or not active' });
+      }
+
+      if (!registrationState.capacityReserved) {
+        return res.status(400).json({
+          error: 'Event is at capacity',
+          available: registrationState.available || 0
+        });
+      }
+
+      if (!registrationState.registration) {
+        return res.status(400).json({
+          error: 'This email is already registered for this event'
+        });
+      }
+
+      const newRegistration = [registrationState.registration];
+      const updatedEvent = registrationState.event || event;
 
       // Send confirmation email (if configured)
       try {
         await sendEventConfirmationEmail({
           registration: newRegistration[0],
-          event: event,
+          event: updatedEvent,
           language: sanitizedLanguage,
           photoSlots: photoSlots
         });
