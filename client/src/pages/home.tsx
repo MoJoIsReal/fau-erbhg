@@ -4,7 +4,7 @@ import kindergartenImage from "@/assets/kindergarten-playground.png";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
-import type { Event } from "@shared/schema";
+import type { Event, YearlyCalendarEntry } from "@shared/schema";
 
 interface FauBoardMember {
   id: number;
@@ -48,12 +48,52 @@ export default function Home() {
     queryKey: ["/api/events"],
   });
 
-  // Filter and sort upcoming events (next 3) - exclude cancelled events
-  const upcomingEvents = allEvents
-    .filter(event =>
-      new Date(event.date) >= new Date() &&
-      event.status === 'active'
+  // Fetch yearly calendar day-events for the current and next school year so
+  // the homepage stays correct around the August transition. The kindergarten
+  // year starts in August (month index 7), so before August we're still in
+  // last year's school year.
+  const now = new Date();
+  const currentSchoolYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  const { data: currentYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
+    queryKey: ["/api/yearly-calendar", currentSchoolYear],
+    queryFn: async () => {
+      const res = await fetch(`/api/yearly-calendar?schoolYear=${currentSchoolYear}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load yearly calendar");
+      return res.json();
+    },
+  });
+  const { data: nextYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
+    queryKey: ["/api/yearly-calendar", currentSchoolYear + 1],
+    queryFn: async () => {
+      const res = await fetch(`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to load yearly calendar");
+      return res.json();
+    },
+  });
+
+  type UpcomingItem =
+    | { kind: "event"; date: string; event: Event }
+    | { kind: "yearly"; date: string; entry: YearlyCalendarEntry };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayMs = today.getTime();
+
+  const eventItems: UpcomingItem[] = allEvents
+    .filter((event) => new Date(event.date).getTime() >= todayMs && event.status === "active")
+    .map((event) => ({ kind: "event" as const, date: event.date, event }));
+
+  const yearlyItems: UpcomingItem[] = [...currentYearEntries, ...nextYearEntries]
+    .filter(
+      (entry) =>
+        entry.entryType === "day_event" &&
+        !!entry.date &&
+        new Date(entry.date).getTime() >= todayMs &&
+        (entry.showOnHomepage === true || entry.showForParents === true)
     )
+    .map((entry) => ({ kind: "yearly" as const, date: entry.date as string, entry }));
+
+  const upcomingEvents = [...eventItems, ...yearlyItems]
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
     .slice(0, 3);
 
@@ -251,32 +291,70 @@ export default function Home() {
               </div>
             ) : (
               <div className="grid md:grid-cols-3 gap-6">
-                {upcomingEvents.map((event) => (
-                  <div key={event.id} className="border border-neutral-200 rounded-lg p-4">
-                    <div className="flex items-center mb-3">
-                      <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
-                        <Calendar className="h-4 w-4 text-primary" />
-                      </div>
-                      <h4 className="font-medium text-neutral-900">{event.title}</h4>
-                    </div>
-                    <div
-                      className="prose prose-sm prose-neutral max-w-none text-sm text-neutral-600 mb-3"
-                      dangerouslySetInnerHTML={{ __html: event.description }}
-                    />
-                    <div className="space-y-1 text-xs text-accent">
-                      <div className="flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span>{new Date(event.date).toLocaleDateString('no-NO')} kl. {event.time}</span>
-                      </div>
-                      {event.location && (
-                        <div className="flex items-center">
-                          <MapPin className="h-3 w-3 mr-1" />
-                          <span>{event.location}</span>
+                {upcomingEvents.map((item) => {
+                  if (item.kind === "event") {
+                    const event = item.event;
+                    return (
+                      <div key={`event-${event.id}`} className="border border-neutral-200 rounded-lg p-4">
+                        <div className="flex items-center mb-3">
+                          <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
+                            <Calendar className="h-4 w-4 text-primary" />
+                          </div>
+                          <h4 className="font-medium text-neutral-900">{event.title}</h4>
                         </div>
+                        <div
+                          className="prose prose-sm prose-neutral max-w-none text-sm text-neutral-600 mb-3"
+                          dangerouslySetInnerHTML={{ __html: event.description }}
+                        />
+                        <div className="space-y-1 text-xs text-accent">
+                          <div className="flex items-center">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span>{new Date(event.date).toLocaleDateString('no-NO')} kl. {event.time}</span>
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center">
+                              <MapPin className="h-3 w-3 mr-1" />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  const entry = item.entry;
+                  return (
+                    <div key={`yearly-${entry.id}`} className="border border-neutral-200 rounded-lg p-4">
+                      <div className="flex items-center mb-3">
+                        <div className="w-8 h-8 bg-secondary/20 rounded-lg flex items-center justify-center mr-3">
+                          <Calendar className="h-4 w-4 text-secondary" />
+                        </div>
+                        <h4 className="font-medium text-neutral-900">{entry.title}</h4>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {entry.showOnHomepage && (
+                          <span className="inline-flex items-center rounded-full bg-secondary/15 text-secondary text-[11px] font-medium px-2 py-0.5">
+                            {t.yearlyCalendar.inKindergartenBadge}
+                          </span>
+                        )}
+                        {entry.showForParents && (
+                          <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[11px] font-medium px-2 py-0.5">
+                            {t.yearlyCalendar.forParentsBadge}
+                          </span>
+                        )}
+                      </div>
+                      {entry.description && (
+                        <p className="text-sm text-neutral-600 mb-3">{entry.description}</p>
                       )}
+                      <div className="space-y-1 text-xs text-accent">
+                        <div className="flex items-center">
+                          <Clock className="h-3 w-3 mr-1" />
+                          <span>{new Date(entry.date as string).toLocaleDateString('no-NO')}</span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

@@ -316,6 +316,10 @@ export interface Translations {
       date: string;
       color: string;
       colorHint: string;
+      showOnHomepage: string;
+      showOnHomepageHint: string;
+      showForParents: string;
+      showForParentsHint: string;
       save: string;
       saving: string;
       delete: string;
@@ -324,6 +328,8 @@ export interface Translations {
       success: string;
       error: string;
     };
+    inKindergartenBadge: string;
+    forParentsBadge: string;
     colors: {
       red: string;
       yellow: string;
@@ -660,6 +666,10 @@ export const translations: Record<Language, Translations> = {
         date: "Dato",
         color: "Farge",
         colorHint: "Standardfarge bestemmes av type. Velg en farge her kun for spesielle unntak.",
+        showOnHomepage: "Vis på hjemmesiden (I barnehagen)",
+        showOnHomepageHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"I barnehagen\".",
+        showForParents: "Vis på hjemmesiden (For foreldre)",
+        showForParentsHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"For foreldre\".",
         save: "Lagre",
         saving: "Lagrer...",
         delete: "Slett",
@@ -668,6 +678,8 @@ export const translations: Record<Language, Translations> = {
         success: "Oppføring lagret",
         error: "Kunne ikke lagre oppføringen"
       },
+      inKindergartenBadge: "I barnehagen",
+      forParentsBadge: "For foreldre",
       colors: {
         red: "Rød",
         yellow: "Gul",
@@ -1002,6 +1014,10 @@ export const translations: Record<Language, Translations> = {
         date: "Date",
         color: "Color",
         colorHint: "Default colour is determined by entry type. Pick a colour here only for special exceptions.",
+        showOnHomepage: "Show on homepage (At the kindergarten)",
+        showOnHomepageHint: "Appears under \"Upcoming events\" on the front page, marked \"At the kindergarten\".",
+        showForParents: "Show on homepage (For parents)",
+        showForParentsHint: "Appears under \"Upcoming events\" on the front page, marked \"For parents\".",
         save: "Save",
         saving: "Saving...",
         delete: "Delete",
@@ -1010,6 +1026,8 @@ export const translations: Record<Language, Translations> = {
         success: "Entry saved",
         error: "Could not save the entry"
       },
+      inKindergartenBadge: "At the kindergarten",
+      forParentsBadge: "For parents",
       colors: {
         red: "Red",
         yellow: "Yellow",
