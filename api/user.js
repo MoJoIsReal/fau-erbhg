@@ -20,7 +20,7 @@ export default async function handler(req, res) {
     const decoded = parseAuthToken(req);
 
     if (!decoded) {
-      return res.status(401).json({ error: 'No token provided' });
+      return res.status(200).json(null);
     }
 
     const sql = getDb();
