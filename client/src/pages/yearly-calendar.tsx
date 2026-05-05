@@ -718,9 +718,9 @@ export default function YearlyCalendarPage() {
                       })}
                     </div>
                   )}
-                <div className="yearly-month-grid relative grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-0">
-                  {/* Notes sidebar */}
-                  <div className="bg-rose-50 text-neutral-900 p-5 border-b-2 lg:border-b-0 lg:border-r-2 border-[#4A8C5F]/30 lg:min-h-full">
+                <div className="yearly-month-grid relative grid grid-cols-1 gap-0">
+                  {/* Notes section */}
+                  <div className="order-last bg-rose-50 text-neutral-900 p-4 border-t-2 border-[#4A8C5F]/30">
                     <div className="font-heading font-bold text-[#2C5F41] mb-2 flex items-center gap-2">
                       <Sticker className="h-5 w-5" /> {t.yearlyCalendar.notes}
                     </div>
