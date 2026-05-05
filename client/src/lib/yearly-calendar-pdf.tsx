@@ -261,18 +261,18 @@ const styles = StyleSheet.create({
   },
   body: {
     flex: 1,
-    flexDirection: "row",
+    flexDirection: "column",
     paddingHorizontal: 8,
     paddingBottom: 8,
     paddingTop: 4,
   },
   notes: {
-    width: 130,
+    width: "100%",
     backgroundColor: "#FFF1F2",
     color: "#1f2937",
-    padding: 6,
+    padding: 5,
     borderRadius: 3,
-    marginRight: 6,
+    marginTop: 3,
   },
   notesTitle: {
     fontSize: 10,
@@ -409,14 +409,12 @@ function Badge({
   const { background, color } = entryColors(entry);
   const left = position === "middle" || position === "end";
   const right = position === "start" || position === "middle";
-  const isFood = entry.entryType === "food";
   return (
     <View style={[styles.badge, { backgroundColor: background }]}>
       <Text style={[styles.badgeText, { color }]}>
-        {left ? "‹ " : ""}
-        {isFood ? "🍴 " : ""}
+        {left ? "< " : ""}
         {entry.title}
-        {right ? " ›" : ""}
+        {right ? " >" : ""}
       </Text>
     </View>
   );
@@ -535,21 +533,6 @@ function Month({
       </View>
       <View style={[styles.headerAccentBar, { backgroundColor: accent }]} />
       <View style={styles.body}>
-        <View style={styles.notes}>
-          <Text style={styles.notesTitle}>{t.notes}</Text>
-          {noteEntries.length === 0 ? (
-            <Text style={styles.notesEmpty}>{t.emptyNotes}</Text>
-          ) : (
-            noteEntries.map((n) => (
-              <View key={n.id} style={styles.notesItem}>
-                <Text style={styles.notesItemTitle}>{n.title}</Text>
-                {n.description ? (
-                  <Text style={styles.notesItemDesc}>{n.description}</Text>
-                ) : null}
-              </View>
-            ))
-          )}
-        </View>
         <View style={styles.weeksColumn}>
           {weeks.map((w) => (
             <Week
@@ -561,6 +544,19 @@ function Month({
             />
           ))}
         </View>
+        {noteEntries.length > 0 ? (
+          <View style={styles.notes}>
+            <Text style={styles.notesTitle}>{t.notes}</Text>
+            {noteEntries.map((n) => (
+              <View key={n.id} style={styles.notesItem}>
+                <Text style={styles.notesItemTitle}>{n.title}</Text>
+                {n.description ? (
+                  <Text style={styles.notesItemDesc}>{n.description}</Text>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        ) : null}
       </View>
     </Page>
   );
