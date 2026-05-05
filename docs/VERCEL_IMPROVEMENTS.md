@@ -16,13 +16,13 @@ This document outlines the improvements made to optimize the FAU Erdal Barnehage
 - Configured caching headers for API and static assets
 
 **Benefits:**
-- Improved security with headers like `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy`
+- Improved security with headers like `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`
 - Better performance with optimized caching strategies
 - Longer function timeout for complex operations
 - Proper handling of devDependencies during build
 
 **Important Fix:**
-Initially added a custom `installCommand`, but this interfered with Vercel's default dependency installation process. Vercel's built-in install logic properly handles devDependencies (like `vite` and `esbuild`) needed during the build phase. Removing the custom command resolved build failures.
+Initially added a custom `installCommand`, but this interfered with Vercel's default dependency installation process. Vercel's built-in install logic properly handles devDependencies (like `vite`) needed during the build phase. Removing the custom command resolved build failures.
 
 **Files Modified:**
 - `/vercel.json`
@@ -260,13 +260,10 @@ Added via `vercel.json`:
 2. **X-Frame-Options: DENY**
    - Prevents clickjacking attacks
 
-3. **X-XSS-Protection: 1; mode=block**
-   - Enables browser XSS filtering
-
-4. **Referrer-Policy: strict-origin-when-cross-origin**
+3. **Referrer-Policy: strict-origin-when-cross-origin**
    - Controls referrer information
 
-5. **Permissions-Policy**
+4. **Permissions-Policy**
    - Restricts browser features (geolocation, camera, microphone)
 
 ### CORS Configuration

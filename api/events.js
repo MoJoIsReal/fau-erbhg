@@ -45,12 +45,12 @@ export default async function handler(req, res) {
     // CSRF protection for state-changing requests
     if (!requireCsrf(req, res)) return;
 
-    if (req.method === 'POST') {
-      // Check permissions
-      if (user.role !== 'admin' && user.role !== 'member') {
-        return res.status(403).json({ error: 'Council member access required' });
-      }
+    // All event mutations are council-only.
+    if (user.role !== 'admin' && user.role !== 'member') {
+      return res.status(403).json({ error: 'Council member access required' });
+    }
 
+    if (req.method === 'POST') {
       const { title, description, date, time, location, custom_location, customLocation: customLocationCamel, max_attendees, maxAttendees: maxAttendeesCamel, type, vigiloSignup, noSignup } = req.body;
 
       // Sanitize inputs (accept both camelCase and snake_case)

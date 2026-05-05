@@ -28,7 +28,6 @@ export function applySecurityHeaders(res, origin) {
   // Security headers (note: global headers in vercel.json will also apply)
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
 }
 
 /**
@@ -267,6 +266,26 @@ export function sanitizeText(text, maxLength = 1000) {
     .substring(0, maxLength);
 }
 
+function escapeHtmlAttribute(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function getAttributeValue(attrs, name) {
+  const match = attrs.match(new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'));
+  if (!match) return null;
+  return match[2] || match[3] || match[4] || null;
+}
+
+function isSafeUrl(value, allowedProtocols = /^(https?:|mailto:|tel:)/i) {
+  if (!value) return false;
+  const normalized = value.trim().replace(/[\u0000-\u001F\u007F\s]+/g, '');
+  return allowedProtocols.test(normalized);
+}
+
 /**
  * Sanitize HTML content (allows basic formatting but prevents XSS)
  * @param {string} html - HTML content to sanitize
@@ -276,13 +295,49 @@ export function sanitizeText(text, maxLength = 1000) {
 export function sanitizeHtml(html, maxLength = 10000) {
   if (!html || typeof html !== 'string') return '';
 
+  const allowedTags = new Set([
+    'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
+    'ul', 'ol', 'li', 'blockquote', 'code', 'pre',
+    'h1', 'h2', 'h3', 'a', 'img'
+  ]);
+
   return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handlers
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, '') // Remove iframes
-    .replace(/<object\b[^<]*(?:(?!<\/object>)<[^<]*)*<\/object>/gi, '') // Remove objects
-    .replace(/<embed\b[^<]*>/gi, '') // Remove embeds
+    .substring(0, maxLength)
+    .replace(/<\/?\s*([a-z0-9-]+)([^>]*)>/gi, (match, rawTag, attrs = '') => {
+      const tag = rawTag.toLowerCase();
+      const isClosing = /^<\//.test(match);
+
+      if (!allowedTags.has(tag)) {
+        return '';
+      }
+
+      if (tag === 'br') {
+        return '<br>';
+      }
+
+      if (isClosing) {
+        return tag === 'img' ? '' : `</${tag}>`;
+      }
+
+      if (tag === 'a') {
+        const href = getAttributeValue(attrs, 'href');
+        if (!isSafeUrl(href)) {
+          return '<a>';
+        }
+        return `<a href="${escapeHtmlAttribute(href)}" target="_blank" rel="noopener noreferrer">`;
+      }
+
+      if (tag === 'img') {
+        const src = getAttributeValue(attrs, 'src');
+        if (!isSafeUrl(src, /^https?:/i)) {
+          return '';
+        }
+        const alt = getAttributeValue(attrs, 'alt') || '';
+        return `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(alt)}">`;
+      }
+
+      return `<${tag}>`;
+    })
     .trim()
     .substring(0, maxLength);
 }

@@ -9,6 +9,44 @@ import {
   generateCsrfToken
 } from './_shared/middleware.js';
 
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = 5;
+const loginAttempts = new Map();
+
+function getClientIp(req) {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+    return forwardedFor.split(',')[0].trim();
+  }
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function checkLoginRateLimit(req, username) {
+  const now = Date.now();
+  const normalizedUsername = String(username || '').trim().toLowerCase();
+  const key = `${getClientIp(req)}:${normalizedUsername}`;
+  const current = loginAttempts.get(key);
+
+  if (!current || current.resetAt <= now) {
+    loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    return { allowed: true };
+  }
+
+  current.count += 1;
+
+  if (current.count > LOGIN_MAX_ATTEMPTS) {
+    const retryAfter = Math.ceil((current.resetAt - now) / 1000);
+    return { allowed: false, retryAfter };
+  }
+
+  return { allowed: true };
+}
+
+function clearLoginRateLimit(req, username) {
+  const normalizedUsername = String(username || '').trim().toLowerCase();
+  loginAttempts.delete(`${getClientIp(req)}:${normalizedUsername}`);
+}
+
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
   applySecurityHeaders(res, req.headers.origin);
@@ -27,6 +65,12 @@ export default async function handler(req, res) {
 
     if (!process.env.SESSION_SECRET) {
       return res.status(500).json({ error: 'Server configuration error' });
+    }
+
+    const rateLimit = checkLoginRateLimit(req, username);
+    if (!rateLimit.allowed) {
+      res.setHeader('Retry-After', String(rateLimit.retryAfter));
+      return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
     }
 
     const sql = getDb();
@@ -50,6 +94,8 @@ export default async function handler(req, res) {
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    clearLoginRateLimit(req, username);
 
     // Create JWT token (2 hour expiration for security)
     const token = jwt.sign(

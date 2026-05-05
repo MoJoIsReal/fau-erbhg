@@ -14,7 +14,7 @@ A comprehensive digital platform for FAU Erdal Barnehage that enhances parent-sc
 ## Technology Stack
 
 - **Frontend**: React 18 + TypeScript + Tailwind CSS
-- **Backend**: Express.js + Node.js
+- **Backend**: Vercel serverless functions + Neon PostgreSQL
 - **Database**: Neon PostgreSQL with Drizzle ORM
 - **File Storage**: Cloudinary
 - **Deployment**: Vercel
@@ -59,9 +59,12 @@ npm install
 npm run dev
 ```
 
+Local development runs the Vite frontend. API routes are implemented in `api/*.js`
+and run as Vercel serverless functions in production.
+
 ## Database Management
 
-The database schema is automatically initialized on first deployment. Admin user credentials will be logged on first startup.
+The database schema is managed through `shared/schema.ts` and Drizzle.
 
 ## File Upload Limits
 

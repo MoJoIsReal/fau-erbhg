@@ -1,4 +1,5 @@
 import { getDb } from './_shared/database.js';
+import { configureCloudinary } from './_shared/cloudinary.js';
 import {
   applySecurityHeaders,
   handleCorsPreFlight,
@@ -43,6 +44,10 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      if (user.role !== 'admin' && user.role !== 'member') {
+        return res.status(403).json({ error: 'Council member access required' });
+      }
+
       // CSRF protection for state-changing requests
       if (!requireCsrf(req, res)) return;
 
@@ -55,11 +60,24 @@ export default async function handler(req, res) {
       const documentId = parseInt(id);
 
       const deletedDoc = await sql`
-        DELETE FROM documents WHERE id = ${documentId} RETURNING id, cloudinary_url, filename
+        DELETE FROM documents
+        WHERE id = ${documentId}
+        RETURNING id, cloudinary_url, cloudinary_public_id, filename, mime_type
       `;
 
       if (deletedDoc.length === 0) {
         return res.status(404).json({ error: 'Document not found' });
+      }
+
+      const publicId = deletedDoc[0].cloudinary_public_id;
+      if (publicId) {
+        try {
+          const cloudinary = configureCloudinary();
+          const resourceType = deletedDoc[0].mime_type?.startsWith('image/') ? 'image' : 'raw';
+          await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+        } catch (cloudinaryError) {
+          console.error('Cloudinary cleanup failed:', cloudinaryError.message);
+        }
       }
 
       return res.status(200).json({

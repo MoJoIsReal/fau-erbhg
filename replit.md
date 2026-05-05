@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a comprehensive digital platform for FAU Erdal Barnehage (a Norwegian kindergarten parent association) that facilitates parent-school communication. The platform provides event management, document sharing, contact forms, and administrative tools for council members. It's built as a full-stack TypeScript application with React frontend and Express backend, deployed on Vercel with serverless functions.
+This is a comprehensive digital platform for FAU Erdal Barnehage (a Norwegian kindergarten parent association) that facilitates parent-school communication. The platform provides event management, document sharing, contact forms, and administrative tools for council members. It's built with a React frontend and Vercel serverless functions backed by Neon PostgreSQL.
 
 ## User Preferences
 
@@ -28,7 +28,7 @@ Preferred communication style: Simple, everyday language.
 
 **Key Features:**
 - Bilingual support (Norwegian/English) with persistent language preferences
-- Session-based authentication with JWT tokens stored in localStorage
+- Cookie-based JWT authentication for Vercel API functions
 - Real-time data synchronization with optimistic updates
 - File upload with drag-and-drop support
 - Calendar views with ICS export and multi-platform calendar integration
@@ -36,7 +36,7 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 
 **Technology Stack:**
-- Express.js with TypeScript for the API server
+- Vercel serverless functions in `api/*.js`
 - Drizzle ORM with Neon Postgres for database operations
 - JWT for authentication tokens
 - Bcrypt for password hashing
@@ -44,14 +44,13 @@ Preferred communication style: Simple, everyday language.
 
 **API Design:**
 - RESTful API endpoints organized by resource type
-- Dual deployment strategy: Traditional Express routes for development, serverless functions for production
-- Middleware-based security (rate limiting, CSRF protection, input sanitization)
-- Session-based authentication with JWT fallback
-- File uploads handled via Multer with memory storage for serverless compatibility
+- Serverless functions for production API routes
+- Shared serverless helpers for security, CSRF protection, auth and input sanitization
+- Cookie-based JWT authentication with Authorization header fallback
+- File uploads handled by the Vercel upload function and Cloudinary
 
 **Key Design Decisions:**
-- **Serverless-First Architecture**: API routes are duplicated as serverless functions (`/api/*.js`) for Vercel deployment while maintaining Express routes for local development
-- **Database Abstraction**: Storage interface (`IStorage`) allows swapping between different database implementations
+- **Serverless Architecture**: API routes live in `/api/*.js` and are deployed as Vercel functions
 - **Email System**: Dual support for Gmail (Nodemailer) and SendGrid for transactional emails
 - **Security Layers**: Multiple security mechanisms including rate limiting, CORS configuration, content security policy headers
 
@@ -73,10 +72,9 @@ Preferred communication style: Simple, everyday language.
 ### Authentication & Authorization
 
 **Strategy:**
-- Session-based authentication for traditional web flow
-- JWT tokens for API authentication and serverless functions
+- JWT tokens in HttpOnly cookies for API authentication
 - Role-based access control (admin vs member)
-- Dual authentication check: session cookie OR Bearer token
+- Authentication check via cookie with Bearer token fallback
 
 **Security Measures:**
 - Bcrypt password hashing with salt rounds
@@ -103,7 +101,7 @@ Preferred communication style: Simple, everyday language.
 - Dual provider support for reliability
 
 **Neon Database (PostgreSQL):**
-- Serverless PostgreSQL with WebSocket connections
+- Serverless PostgreSQL
 - Connection pooling for production performance
 - Migration support via Drizzle Kit
 - Environment-based connection string configuration
@@ -129,8 +127,7 @@ Preferred communication style: Simple, everyday language.
 
 **Build & Development:**
 - Vite for fast development and optimized production builds
-- TypeScript for type checking across client/server
-- ESBuild for server bundling
+- TypeScript for type checking frontend and shared code
 - Drizzle Kit for database migrations
 
 **Deployment (Vercel):**

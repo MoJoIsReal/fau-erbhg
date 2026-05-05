@@ -119,6 +119,13 @@ async function handleBlogPosts(req, res, sql) {
 
     let posts;
     if (includeArchived === 'true') {
+      const user = requireAuth(req, res);
+      if (!user) return;
+
+      if (user.role !== 'admin') {
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
       // Admin view - show all posts
       posts = await sql`
         SELECT id, title, content, status, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
