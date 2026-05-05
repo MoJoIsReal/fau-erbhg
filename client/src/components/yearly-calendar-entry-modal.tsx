@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -28,6 +29,8 @@ export type EntryDraft = {
   title?: string;
   description?: string | null;
   color?: string | null;
+  showOnHomepage?: boolean | null;
+  showForParents?: boolean | null;
 };
 
 interface Props {
@@ -70,6 +73,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [color, setColor] = useState<string>("");
+  const [showOnHomepage, setShowOnHomepage] = useState<boolean>(false);
+  const [showForParents, setShowForParents] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -83,6 +88,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setTitle(seed.title ?? "");
     setDescription(seed.description ?? "");
     setColor(seed.color ?? "");
+    setShowOnHomepage(seed.showOnHomepage === true);
+    setShowForParents(seed.showForParents === true);
   }, [isOpen, initial, existing]);
 
   const saveMutation = useMutation({
@@ -101,6 +108,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         weekNumber: weekNumber ? parseInt(weekNumber) : null,
         weekNumberEnd: supportsSpan && weekNumberEnd ? parseInt(weekNumberEnd) : null,
         date: entryType === "day_event" || entryType === "closed" ? (date || null) : null,
+        showOnHomepage: entryType === "day_event" ? showOnHomepage : false,
+        showForParents: entryType === "day_event" ? showForParents : false,
       };
       if (isEditing) {
         const res = await apiRequest("PUT", `/api/yearly-calendar?id=${existing!.id}`, body);
@@ -244,6 +253,41 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             <div>
               <Label>{t.yearlyCalendar.modal.date}</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          )}
+
+          {entryType === "day_event" && (
+            <div className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+              <div className="flex flex-row items-start space-x-3 space-y-0">
+                <Checkbox
+                  id="show-on-homepage"
+                  checked={showOnHomepage}
+                  onCheckedChange={(checked) => setShowOnHomepage(checked === true)}
+                />
+                <div className="space-y-1 leading-none">
+                  <Label htmlFor="show-on-homepage" className="cursor-pointer">
+                    {t.yearlyCalendar.modal.showOnHomepage}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t.yearlyCalendar.modal.showOnHomepageHint}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-row items-start space-x-3 space-y-0">
+                <Checkbox
+                  id="show-for-parents"
+                  checked={showForParents}
+                  onCheckedChange={(checked) => setShowForParents(checked === true)}
+                />
+                <div className="space-y-1 leading-none">
+                  <Label htmlFor="show-for-parents" className="cursor-pointer">
+                    {t.yearlyCalendar.modal.showForParents}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t.yearlyCalendar.modal.showForParentsHint}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
