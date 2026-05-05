@@ -84,13 +84,17 @@ export default function Home() {
     .map((event) => ({ kind: "event" as const, date: event.date, event }));
 
   const yearlyItems: UpcomingItem[] = [...currentYearEntries, ...nextYearEntries]
-    .filter(
-      (entry) =>
-        entry.entryType === "day_event" &&
-        !!entry.date &&
-        new Date(entry.date).getTime() >= todayMs &&
-        (entry.showOnHomepage === true || entry.showForParents === true)
-    )
+    .filter((entry) => {
+      if (!entry.date || new Date(entry.date).getTime() < todayMs) return false;
+      // "Closed" days (planleggingsdag, ferie etc.) always surface on the
+      // homepage so parents see them without anyone having to flag them.
+      if (entry.entryType === "closed") return true;
+      // Day events only show when at least one homepage flag is set.
+      if (entry.entryType === "day_event") {
+        return entry.showOnHomepage === true || entry.showForParents === true;
+      }
+      return false;
+    })
     .map((entry) => ({ kind: "yearly" as const, date: entry.date as string, entry }));
 
   const upcomingEvents = [...eventItems, ...yearlyItems]
@@ -323,21 +327,38 @@ export default function Home() {
                   }
 
                   const entry = item.entry;
+                  const isClosed = entry.entryType === "closed";
                   return (
-                    <div key={`yearly-${entry.id}`} className="border border-neutral-200 rounded-lg p-4">
+                    <div
+                      key={`yearly-${entry.id}`}
+                      className={`border rounded-lg p-4 ${
+                        isClosed ? "border-red-200 bg-red-50/40" : "border-neutral-200"
+                      }`}
+                    >
                       <div className="flex items-center mb-3">
-                        <div className="w-8 h-8 bg-secondary/20 rounded-lg flex items-center justify-center mr-3">
-                          <Calendar className="h-4 w-4 text-secondary" />
+                        <div
+                          className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
+                            isClosed ? "bg-red-500/15" : "bg-secondary/20"
+                          }`}
+                        >
+                          <Calendar
+                            className={`h-4 w-4 ${isClosed ? "text-red-600" : "text-secondary"}`}
+                          />
                         </div>
                         <h4 className="font-medium text-neutral-900">{entry.title}</h4>
                       </div>
                       <div className="flex flex-wrap gap-1.5 mb-3">
-                        {entry.showOnHomepage && (
+                        {isClosed && (
+                          <span className="inline-flex items-center rounded-full bg-red-500/15 text-red-700 text-[11px] font-medium px-2 py-0.5">
+                            {t.yearlyCalendar.closedBadge}
+                          </span>
+                        )}
+                        {!isClosed && entry.showOnHomepage && (
                           <span className="inline-flex items-center rounded-full bg-secondary/15 text-secondary text-[11px] font-medium px-2 py-0.5">
                             {t.yearlyCalendar.inKindergartenBadge}
                           </span>
                         )}
-                        {entry.showForParents && (
+                        {!isClosed && entry.showForParents && (
                           <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[11px] font-medium px-2 py-0.5">
                             {t.yearlyCalendar.forParentsBadge}
                           </span>
