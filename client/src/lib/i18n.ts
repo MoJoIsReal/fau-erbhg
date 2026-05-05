@@ -330,6 +330,7 @@ export interface Translations {
     };
     inKindergartenBadge: string;
     forParentsBadge: string;
+    closedBadge: string;
     colors: {
       red: string;
       yellow: string;
@@ -680,6 +681,7 @@ export const translations: Record<Language, Translations> = {
       },
       inKindergartenBadge: "I barnehagen",
       forParentsBadge: "For foreldre",
+      closedBadge: "Stengt",
       colors: {
         red: "Rød",
         yellow: "Gul",
@@ -1028,6 +1030,7 @@ export const translations: Record<Language, Translations> = {
       },
       inKindergartenBadge: "At the kindergarten",
       forParentsBadge: "For parents",
+      closedBadge: "Closed",
       colors: {
         red: "Red",
         yellow: "Yellow",
