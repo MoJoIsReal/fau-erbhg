@@ -280,9 +280,18 @@ function getAttributeValue(attrs, name) {
   return match[2] || match[3] || match[4] || null;
 }
 
+function decodeHtmlEntities(value) {
+  return String(value).replace(/&#(x?[0-9a-fA-F]+);?/g, (_, entity) => {
+    const codePoint = entity.toLowerCase().startsWith('x')
+      ? parseInt(entity.slice(1), 16)
+      : parseInt(entity, 10);
+    return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : '';
+  });
+}
+
 function isSafeUrl(value, allowedProtocols = /^(https?:|mailto:|tel:)/i) {
   if (!value) return false;
-  const normalized = value.trim().replace(/[\u0000-\u001F\u007F\s]+/g, '');
+  const normalized = decodeHtmlEntities(value).trim().replace(/[\u0000-\u001F\u007F\s]+/g, '');
   return allowedProtocols.test(normalized);
 }
 
