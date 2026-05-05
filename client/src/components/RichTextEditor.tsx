@@ -35,6 +35,27 @@ interface RichTextEditorProps {
   placeholder?: string;
 }
 
+const SAFE_LINK_PROTOCOLS = /^(https?:|mailto:|tel:)/i;
+
+function isSafeLink(url: string) {
+  return SAFE_LINK_PROTOCOLS.test(url.trim());
+}
+
+function fileToDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error('Invalid file data'));
+      }
+    };
+    reader.onerror = () => reject(reader.error || new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +74,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           target: '_blank',
           rel: 'noopener noreferrer',
         },
+        protocols: ['http', 'https', 'mailto', 'tel'],
+        validate: href => isSafeLink(href),
       }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
@@ -82,28 +105,45 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       return;
     }
 
+    if (!isSafeLink(url)) {
+      toast({
+        variant: 'destructive',
+        title: 'Ugyldig lenke',
+        description: 'Lenker må starte med http, https, mailto eller tel.',
+      });
+      return;
+    }
+
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-  }, [editor]);
+  }, [editor, toast]);
 
   const handleImageUpload = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
       const csrfToken = getCookie('csrf-token');
+      const fileData = await fileToDataUrl(file);
+      const title = file.name.replace(/\.[^/.]+$/, '') || file.name;
+
       const response = await fetch('/api/upload', {
         method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-CSRF-Token': csrfToken || '',
         },
         credentials: 'include',
-        body: formData,
+        body: JSON.stringify({
+          fileData,
+          filename: file.name,
+          title,
+          category: 'editor-image',
+          description: '',
+          uploadedBy: 'Rich text editor',
+        }),
       });
 
       if (!response.ok) throw new Error('Upload failed');
 
       const data = await response.json();
-      return data.url;
+      return data.fileUrl || data.document?.fileUrl || data.document?.cloudinary_url || null;
     } catch (error) {
       toast({
         variant: 'destructive',

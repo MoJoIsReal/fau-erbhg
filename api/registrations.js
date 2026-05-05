@@ -48,7 +48,11 @@ export default async function handler(req, res) {
       const user = parseAuthToken(req);
 
       if (user) {
-        // Authenticated - return full registration details
+        if (user.role !== 'admin' && user.role !== 'member') {
+          return res.status(403).json({ error: 'Council member access required' });
+        }
+
+        // Council view - return full registration details
         const registrations = await sql`
           SELECT id, event_id as "eventId", name, email, phone,
                  attendee_count as "attendeeCount", comments,
@@ -61,16 +65,13 @@ export default async function handler(req, res) {
         `;
         return res.status(200).json(registrations);
       } else {
-        // Public access - return basic count only
-        const registrations = await sql`
-          SELECT id, name, email, phone, attendee_count as "attendeeCount",
-                 comments, language, children_names as "childrenNames",
-                 photo_slots as "photoSlots"
+        // Public access - return aggregate only. Never expose registration PII.
+        const totals = await sql`
+          SELECT COALESCE(SUM(attendee_count), 0)::int as count
           FROM event_registrations
           WHERE event_id = ${eventIdNum}
-          ORDER BY id DESC
         `;
-        return res.status(200).json(registrations);
+        return res.status(200).json({ count: totals[0]?.count || 0 });
       }
     }
 
@@ -253,13 +254,21 @@ export default async function handler(req, res) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      if (user.role !== 'admin' && user.role !== 'member') {
+        return res.status(403).json({ error: 'Council member access required' });
+      }
+
       // CSRF protection for state-changing requests
       if (!requireCsrf(req, res)) return;
 
       const { id } = req.query;
 
+      if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: 'Valid registration ID required' });
+      }
+
       const deletedReg = await sql`
-        DELETE FROM event_registrations WHERE id = ${id} RETURNING event_id, attendee_count
+        DELETE FROM event_registrations WHERE id = ${parseInt(id)} RETURNING event_id, attendee_count
       `;
 
       if (deletedReg.length === 0) {

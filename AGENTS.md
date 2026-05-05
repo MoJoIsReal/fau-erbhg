@@ -1,4 +1,4 @@
-# CLAUDE.md — FAU Erdal Barnehage
+# AGENTS.md — FAU Erdal Barnehage
 
 This file provides guidance for AI assistants working on this codebase.
 

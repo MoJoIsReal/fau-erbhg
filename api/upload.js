@@ -24,6 +24,10 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Authentication required' });
   }
 
+  if (decoded.role !== 'admin' && decoded.role !== 'member') {
+    return res.status(403).json({ error: 'Council member access required' });
+  }
+
   // CSRF protection for file uploads
   if (!requireCsrf(req, res)) return;
 
@@ -116,11 +120,12 @@ export default async function handler(req, res) {
 
     // Save document to database with sanitized inputs
     const newDocument = await sql`
-      INSERT INTO documents (title, filename, cloudinary_url, file_size, mime_type, category, description, uploaded_by, uploaded_at)
+      INSERT INTO documents (title, filename, cloudinary_url, cloudinary_public_id, file_size, mime_type, category, description, uploaded_by, uploaded_at)
       VALUES (
         ${sanitizedTitle},
         ${sanitizedFilename},
         ${uploadResult.secure_url},
+        ${uploadResult.public_id},
         ${uploadResult.bytes || 0},
         ${detectedMimeType},
         ${sanitizedCategory},

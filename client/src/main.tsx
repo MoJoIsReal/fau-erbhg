@@ -1,7 +1,8 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { ThemeProvider } from "next-themes";
@@ -17,8 +18,8 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     integrations: [
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration({
-        maskAllText: false,
-        blockAllMedia: false,
+        maskAllText: true,
+        blockAllMedia: true,
       }),
     ],
     tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0,
@@ -26,18 +27,6 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     replaysOnErrorSampleRate: 1.0,
   });
 }
-
-// Optimized QueryClient configuration for better caching
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
-      gcTime: 10 * 60 * 1000, // 10 minutes (formerly cacheTime)
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>

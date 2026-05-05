@@ -128,19 +128,7 @@ npm run db:push
 
 ### 3. Initialize Admin User
 
-After migrations, create an admin user:
-
-```bash
-# Make a POST request to initialize admin
-curl -X POST https://your-app.vercel.app/api/secure-auth/init-admin \
-  -H "Content-Type: application/json" \
-  -d '{
-    "setupKey": "your-ADMIN_SETUP_KEY",
-    "username": "admin",
-    "password": "secure-password",
-    "name": "Admin User"
-  }'
-```
+After migrations, create an admin user through the database setup workflow, then log in via `/api/login`.
 
 **Important:** Change the admin password immediately after first login!
 
@@ -240,7 +228,7 @@ Consider adding error tracking:
 
 **Option 1: Sentry**
 ```bash
-npm install @sentry/react @sentry/node
+npm install @sentry/react
 ```
 
 **Option 2: LogRocket**

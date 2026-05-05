@@ -33,12 +33,20 @@
     <priority>0.8</priority>
   </url>
 
-  <!-- Messages Page -->
+  <!-- News Page -->
   <url>
-    <loc>https://www.erdal-bhg.no/messages</loc>
+    <loc>https://www.erdal-bhg.no/news</loc>
     <lastmod>2025-12-18</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Yearly Calendar Page -->
+  <url>
+    <loc>https://www.erdal-bhg.no/arskalender</loc>
+    <lastmod>2025-12-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
   </url>
 
 </urlset>
