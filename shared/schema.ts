@@ -120,6 +120,12 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   title: text("title").notNull(),
   description: text("description"),
   color: text("color"), // optional CSS color hint, e.g. "red", "yellow", "green"
+  // When true (only meaningful for day_event entries), surface this entry in
+  // the homepage "Kommende arrangementer" list with an "I barnehagen" badge.
+  showOnHomepage: boolean("show_on_homepage").default(false),
+  // When true (only meaningful for day_event entries), surface this entry in
+  // the homepage "Kommende arrangementer" list with a "For foreldre" badge.
+  showForParents: boolean("show_for_parents").default(false),
   createdBy: text("created_by"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

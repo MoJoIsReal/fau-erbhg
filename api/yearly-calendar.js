@@ -36,6 +36,8 @@ function mapEntry(row) {
     title: row.title,
     description: row.description,
     color: row.color,
+    showOnHomepage: row.show_on_homepage ?? false,
+    showForParents: row.show_for_parents ?? false,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -59,6 +61,10 @@ function sanitizeEntryPayload(body) {
   const weekdayStart = body.weekdayStart != null ? sanitizeNumber(body.weekdayStart, 1, 7) : null;
   const weekdayEnd = body.weekdayEnd != null ? sanitizeNumber(body.weekdayEnd, 1, 7) : null;
   const date = body.date && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : null;
+  // Only day_event entries can be flagged for the homepage. Force false on
+  // every other type so a stale flag can't survive a type change.
+  const showOnHomepage = entryType === 'day_event' ? body.showOnHomepage === true : false;
+  const showForParents = entryType === 'day_event' ? body.showForParents === true : false;
 
   return {
     entryType,
@@ -73,6 +79,8 @@ function sanitizeEntryPayload(body) {
     weekdayStart,
     weekdayEnd,
     date,
+    showOnHomepage,
+    showForParents,
   };
 }
 
@@ -92,7 +100,7 @@ export default async function handler(req, res) {
       const rows = await sql`
         SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
                weekday_start, weekday_end, date, title, description, color,
-               created_by, created_at, updated_at
+               show_on_homepage, show_for_parents, created_by, created_at, updated_at
         FROM yearly_calendar_entries
         WHERE school_year = ${schoolYear}
         ORDER BY year ASC, month ASC, week_number ASC NULLS LAST
@@ -122,11 +130,11 @@ export default async function handler(req, res) {
         INSERT INTO yearly_calendar_entries (
           school_year, year, month, entry_type, week_number, week_number_end,
           weekday_start, weekday_end, date, title, description, color,
-          created_by, created_at, updated_at
+          show_on_homepage, show_for_parents, created_by, created_at, updated_at
         ) VALUES (
           ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber}, ${payload.weekNumberEnd},
           ${payload.weekdayStart}, ${payload.weekdayEnd}, ${payload.date}, ${payload.title}, ${payload.description}, ${payload.color},
-          ${user.name || user.username || 'ukjent'}, ${now}, ${now}
+          ${payload.showOnHomepage}, ${payload.showForParents}, ${user.name || user.username || 'ukjent'}, ${now}, ${now}
         )
         RETURNING *
       `;
@@ -157,6 +165,8 @@ export default async function handler(req, res) {
             title = ${payload.title},
             description = ${payload.description},
             color = ${payload.color},
+            show_on_homepage = ${payload.showOnHomepage},
+            show_for_parents = ${payload.showForParents},
             updated_at = ${now}
         WHERE id = ${id}
         RETURNING *
