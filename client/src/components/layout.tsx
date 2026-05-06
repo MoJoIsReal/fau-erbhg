@@ -48,13 +48,13 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col">
+    <div className="min-h-screen bg-neutral-50 flex flex-col min-w-0">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-3 min-h-[4rem]">
+          <div className="flex justify-between items-center gap-4 py-3 min-h-[4rem] min-w-0">
             {/* Logo */}
-            <Link href="/" className="flex items-center space-x-3">
+            <Link href="/" className="flex min-w-0 shrink-0 items-center space-x-3">
               <div className="w-10 h-10 flex items-center justify-center">
                 <img src={childIcon} alt="FAU Erdal Barnehage" className="w-10 h-10 object-contain" />
               </div>
@@ -65,8 +65,8 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <nav className="flex space-x-8">
+            <div className="hidden md:flex min-w-0 flex-1 items-center justify-end gap-4 lg:gap-8">
+              <nav className="flex min-w-0 flex-wrap justify-end gap-x-4 gap-y-2 lg:gap-x-8">
                 {navigation.map((item) => {
                   const isActive = location === item.href;
                   const Icon = item.icon;
@@ -74,7 +74,7 @@ export default function Layout({ children }: LayoutProps) {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`font-medium transition-colors pb-1 flex items-center space-x-2 ${
+                      className={`font-medium transition-colors pb-1 flex min-w-0 items-center space-x-2 whitespace-nowrap ${
                         isActive
                           ? "text-primary border-b-2 border-primary"
                           : "text-neutral-600 hover:text-primary"
@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
               </nav>
 
               {/* Language Toggle, Dark Mode & Auth Controls */}
-              <div className="flex items-center space-x-4 ml-8 border-l border-neutral-200 pl-8">
+              <div className="flex shrink-0 items-center space-x-3 lg:space-x-4 border-l border-neutral-200 pl-4 lg:pl-8">
                 <LanguageToggle />
                 <DarkModeToggle />
                 {isAuthenticated ? (
@@ -249,7 +249,7 @@ export default function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full animate-in fade-in-0 duration-200">
+      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full min-w-0 animate-in fade-in-0 duration-200">
         {children}
       </main>
 

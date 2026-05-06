@@ -4,6 +4,17 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Trash2, UserPlus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -127,20 +138,36 @@ export default function StaffUsersSection() {
                   <div className="font-medium text-neutral-900">{u.name}</div>
                   <div className="text-xs text-neutral-500">{u.username}</div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="border-red-300 text-red-600 hover:bg-red-50"
-                  onClick={() => {
-                    if (window.confirm(t.yearlyCalendar.staff.deleteConfirm)) {
-                      deleteMutation.mutate(u.id);
-                    }
-                  }}
-                  disabled={deleteMutation.isPending}
-                  aria-label={t.yearlyCalendar.staff.delete}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="border-red-300 text-red-600 hover:bg-red-50"
+                      disabled={deleteMutation.isPending}
+                      aria-label={t.yearlyCalendar.staff.delete}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t.yearlyCalendar.staff.delete}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t.yearlyCalendar.staff.deleteConfirm}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t.yearlyCalendar.modal.cancel}</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-red-600 text-white hover:bg-red-700"
+                        onClick={() => deleteMutation.mutate(u.id)}
+                      >
+                        {t.yearlyCalendar.staff.delete}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </li>
             ))}
           </ul>

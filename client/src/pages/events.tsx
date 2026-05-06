@@ -28,6 +28,7 @@ import EventRegistrationModal from "@/components/event-registration-modal";
 import EventCreationModal from "@/components/event-creation-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
 import LocationMapLink from "@/components/location-map-link";
+import SafeHtml from "@/components/safe-html";
 import AttendeeTooltip from "@/components/attendee-tooltip";
 
 // Lazy load calendar component (only loaded when user switches to calendar view)
@@ -335,9 +336,9 @@ export default function Events() {
                                 />
                               </div>
                             )}
-                            <div
+                            <SafeHtml
+                              html={event.description}
                               className="prose prose-sm prose-neutral max-w-none text-neutral-700"
-                              dangerouslySetInnerHTML={{ __html: event.description }}
                             />
                           </div>
 
@@ -516,9 +517,9 @@ export default function Events() {
                                     </div>
                                   </div>
                                 </div>
-                                <div
+                                <SafeHtml
+                                  html={event.description}
                                   className="prose prose-sm prose-neutral max-w-none text-neutral-600 text-sm"
-                                  dangerouslySetInnerHTML={{ __html: event.description }}
                                 />
                               </div>
                               

@@ -2,6 +2,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Users, Mail, Phone, MessageSquare, Calendar, Camera, Clock, Download, Trash2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
@@ -81,15 +92,6 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
 
   const handleExportExcel = () => {
     exportAttendeesToExcel(event, registrations, language);
-  };
-
-  const handleDeleteRegistration = (registrationId: number, registrationName: string) => {
-    if (confirm(language === 'no' 
-      ? `Er du sikker på at du vil slette påmeldingen for ${registrationName}?`
-      : `Are you sure you want to delete the registration for ${registrationName}?`
-    )) {
-      deleteRegistrationMutation.mutate(registrationId);
-    }
   };
 
   if (isLoading) {
@@ -214,15 +216,42 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className="text-sm text-neutral-500">#{index + 1}</span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDeleteRegistration(registration.id, registration.name)}
-                        disabled={deleteRegistrationMutation.isPending}
-                        className="border-red-500 text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={deleteRegistrationMutation.isPending}
+                            className="border-red-500 text-red-600 hover:bg-red-50"
+                            aria-label={language === 'no' ? 'Slett påmelding' : 'Delete registration'}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {language === 'no' ? 'Slett påmelding?' : 'Delete registration?'}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {language === 'no'
+                                ? `Er du sikker på at du vil slette påmeldingen for ${registration.name}?`
+                                : `Are you sure you want to delete the registration for ${registration.name}?`}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>
+                              {language === 'no' ? 'Avbryt' : 'Cancel'}
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-red-600 text-white hover:bg-red-700"
+                              onClick={() => deleteRegistrationMutation.mutate(registration.id)}
+                            >
+                              {language === 'no' ? 'Slett' : 'Delete'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
 

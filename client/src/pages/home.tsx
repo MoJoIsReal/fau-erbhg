@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
+import SafeHtml from "@/components/safe-html";
 
 interface FauBoardMember {
   id: number;
@@ -179,13 +180,10 @@ export default function Home() {
                         </span>
                       )}
                     </p>
-                    <div
+                    <SafeHtml
+                      html={post.content}
+                      truncate={200}
                       className="prose prose-sm prose-neutral max-w-none mb-2 text-neutral-700"
-                      dangerouslySetInnerHTML={{
-                        __html: post.content.length > 200
-                          ? `${post.content.substring(0, 200)}...`
-                          : post.content
-                      }}
                     />
                     <Link href="/news">
                       <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
@@ -306,9 +304,9 @@ export default function Home() {
                           </div>
                           <h4 className="font-medium text-neutral-900">{event.title}</h4>
                         </div>
-                        <div
+                        <SafeHtml
+                          html={event.description}
                           className="prose prose-sm prose-neutral max-w-none text-sm text-neutral-600 mb-3"
-                          dangerouslySetInnerHTML={{ __html: event.description }}
                         />
                         <div className="space-y-1 text-xs text-accent">
                           <div className="flex items-center">
