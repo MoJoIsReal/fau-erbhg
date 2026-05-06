@@ -123,13 +123,13 @@ export default function Home() {
   return (
     <div className="space-y-8">
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary/10 to-secondary/10 rounded-2xl p-8">
+      <section className="bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-neutral-900 dark:via-neutral-900 dark:to-[#173629] rounded-2xl p-8 border border-transparent dark:border-neutral-800">
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div>
-            <h2 className="font-heading font-bold text-3xl md:text-4xl text-neutral-900 mb-4">
+            <h2 className="font-heading font-bold text-3xl md:text-4xl text-neutral-900 dark:text-neutral-50 mb-4">
               {t.home.title}
             </h2>
-            <p className="text-lg text-neutral-700 mb-6">
+            <p className="text-lg text-neutral-700 dark:text-neutral-200 mb-6">
               {t.home.welcomeDescription}
             </p>
             <div className="flex flex-wrap gap-3">
@@ -159,16 +159,16 @@ export default function Home() {
         <section>
           <Card>
             <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 mb-6">
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">
                 {language === 'no' ? 'Nyheter' : 'News'}
               </h3>
               <div className="space-y-6">
                 {blogPosts.slice(0, 3).map((post) => (
-                  <div key={post.id} className="border-b border-neutral-200 last:border-0 pb-6 last:pb-0">
-                    <h4 className="font-semibold text-lg text-neutral-900 mb-2">
+                  <div key={post.id} className="border-b border-neutral-200 dark:border-neutral-800 last:border-0 pb-6 last:pb-0">
+                    <h4 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">
                       {post.title}
                     </h4>
-                    <p className="text-xs text-neutral-500 mb-3">
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
                       {new Date(post.publishedDate).toLocaleDateString('no-NO', {
                         year: 'numeric',
                         month: 'long',
@@ -183,7 +183,7 @@ export default function Home() {
                     <SafeHtml
                       html={post.content}
                       truncate={200}
-                      className="prose prose-sm prose-neutral max-w-none mb-2 text-neutral-700"
+                      className="prose prose-sm prose-neutral max-w-none mb-2 text-neutral-700 dark:text-neutral-300"
                     />
                     <Link href="/news">
                       <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
@@ -206,14 +206,14 @@ export default function Home() {
               <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mr-4">
                 <School className="h-6 w-6 text-secondary" />
               </div>
-              <h3 className="font-heading font-semibold text-xl text-neutral-900">{t.home.aboutKindergarten}</h3>
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.aboutKindergarten}</h3>
             </div>
-            <div className="space-y-3 text-neutral-700">
+            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
               {kindergartenInfo ? (
                 <>
                   <p><strong>{t.home.contact}</strong> <a
                     href={`mailto:${kindergartenInfo.contactEmail}`}
-                    className="text-blue-600 hover:text-blue-500 transition-colors"
+                    className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
                   >
                     {kindergartenInfo.contactEmail}
                   </a></p>
@@ -224,7 +224,7 @@ export default function Home() {
                   {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
                     <p><strong>{language === 'no' ? 'Styrer:' : 'Director:'}</strong> <a
                       href={`mailto:${kindergartenInfo.styrerEmail}`}
-                      className="text-blue-600 hover:text-blue-500 transition-colors"
+                      className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
                     >
                       {kindergartenInfo.styrerName}
                     </a></p>
@@ -234,7 +234,7 @@ export default function Home() {
                   </p>
                 </>
               ) : (
-                <p className="text-sm text-neutral-500 italic">
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">
                   {language === 'no' ? 'Laster informasjon...' : 'Loading information...'}
                 </p>
               )}
@@ -248,12 +248,12 @@ export default function Home() {
               <div className="w-12 h-12 bg-accent/20 rounded-xl flex items-center justify-center mr-4">
                 <Handshake className="h-6 w-6 text-accent" />
               </div>
-              <h3 className="font-heading font-semibold text-xl text-neutral-900">{t.home.fauTitle}</h3>
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.fauTitle}</h3>
             </div>
-            <div className="space-y-3 text-neutral-700">
+            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
               <p><strong>{t.home.contact}</strong> <a 
                 href="mailto:fauerdalbarnehage@gmail.com"
-                className="text-blue-600 hover:text-blue-500 transition-colors"
+                className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
               >
                 fauerdalbarnehage@gmail.com
               </a></p>
@@ -285,11 +285,11 @@ export default function Home() {
       <section>
         <Card>
           <CardContent className="p-6">
-            <h3 className="font-heading font-semibold text-xl text-neutral-900 mb-6">{t.home.upcomingEvents}</h3>
+            <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.home.upcomingEvents}</h3>
             {upcomingEvents.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-                <p className="text-neutral-600">{t.home.noEvents}</p>
+                <p className="text-neutral-600 dark:text-neutral-300">{t.home.noEvents}</p>
               </div>
             ) : (
               <div className="grid md:grid-cols-3 gap-6">
@@ -297,16 +297,16 @@ export default function Home() {
                   if (item.kind === "event") {
                     const event = item.event;
                     return (
-                      <div key={`event-${event.id}`} className="border border-neutral-200 rounded-lg p-4">
+                      <div key={`event-${event.id}`} className="border border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/50 rounded-lg p-4">
                         <div className="flex items-center mb-3">
                           <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
                             <Calendar className="h-4 w-4 text-primary" />
                           </div>
-                          <h4 className="font-medium text-neutral-900">{event.title}</h4>
+                          <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{event.title}</h4>
                         </div>
                         <SafeHtml
                           html={event.description}
-                          className="prose prose-sm prose-neutral max-w-none text-sm text-neutral-600 mb-3"
+                          className="prose prose-sm prose-neutral max-w-none text-sm text-neutral-600 dark:text-neutral-300 mb-3"
                         />
                         <div className="space-y-1 text-xs text-accent">
                           <div className="flex items-center">
@@ -330,7 +330,9 @@ export default function Home() {
                     <div
                       key={`yearly-${entry.id}`}
                       className={`border rounded-lg p-4 ${
-                        isClosed ? "border-red-200 bg-red-50/40" : "border-neutral-200"
+                        isClosed
+                          ? "border-red-200 bg-red-50/40 dark:border-red-900/70 dark:bg-red-950/30"
+                          : "border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/50"
                       }`}
                     >
                       <div className="flex items-center mb-3">
@@ -343,7 +345,7 @@ export default function Home() {
                             className={`h-4 w-4 ${isClosed ? "text-red-600" : "text-secondary"}`}
                           />
                         </div>
-                        <h4 className="font-medium text-neutral-900">{entry.title}</h4>
+                        <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{entry.title}</h4>
                       </div>
                       <div className="flex flex-wrap gap-1.5 mb-3">
                         {isClosed && (
@@ -363,7 +365,7 @@ export default function Home() {
                         )}
                       </div>
                       {entry.description && (
-                        <p className="text-sm text-neutral-600 mb-3">{entry.description}</p>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-3">{entry.description}</p>
                       )}
                       <div className="space-y-1 text-xs text-accent">
                         <div className="flex items-center">

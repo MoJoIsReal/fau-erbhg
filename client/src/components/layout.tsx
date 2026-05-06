@@ -48,9 +48,9 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-neutral-50 flex flex-col min-w-0">
+    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col min-w-0">
       {/* Header */}
-      <header className="bg-white shadow-sm sticky top-0 z-50">
+      <header className="bg-white dark:bg-neutral-950 border-b border-transparent dark:border-neutral-800 shadow-sm sticky top-0 z-50">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center gap-4 py-3 min-h-[4rem] min-w-0">
             {/* Logo */}
@@ -59,8 +59,8 @@ export default function Layout({ children }: LayoutProps) {
                 <img src={childIcon} alt="FAU Erdal Barnehage" className="w-10 h-10 object-contain" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="font-heading font-bold text-lg text-neutral-900 leading-tight">{t.header.title}</h1>
-                <p className="text-xs sm:text-sm text-neutral-600 leading-tight">{t.header.subtitle}</p>
+                <h1 className="font-heading font-bold text-lg text-neutral-900 dark:text-neutral-50 leading-tight">{t.header.title}</h1>
+                <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-tight">{t.header.subtitle}</p>
               </div>
             </Link>
 
@@ -77,7 +77,7 @@ export default function Layout({ children }: LayoutProps) {
                       className={`font-medium transition-colors pb-1 flex min-w-0 items-center space-x-2 whitespace-nowrap ${
                         isActive
                           ? "text-primary border-b-2 border-primary"
-                          : "text-neutral-600 hover:text-primary"
+                          : "text-neutral-600 dark:text-neutral-300 hover:text-primary"
                       }`}
                     >
                       <Icon className="h-4 w-4" />
@@ -88,12 +88,12 @@ export default function Layout({ children }: LayoutProps) {
               </nav>
 
               {/* Language Toggle, Dark Mode & Auth Controls */}
-              <div className="flex shrink-0 items-center space-x-4 border-l border-neutral-200 pl-6">
+              <div className="flex shrink-0 items-center space-x-4 border-l border-neutral-200 dark:border-neutral-800 pl-6">
                 <LanguageToggle />
                 <DarkModeToggle />
                 {isAuthenticated ? (
                   <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2 text-sm text-neutral-600">
+                    <div className="flex items-center space-x-2 text-sm text-neutral-600 dark:text-neutral-300">
                       <User className="h-4 w-4" />
                       <span>{user?.name}</span>
                     </div>
@@ -161,7 +161,7 @@ export default function Layout({ children }: LayoutProps) {
                   </div>
                   <div>
                     <h2 className="font-heading font-bold text-lg">{t.header.title}</h2>
-                    <p className="text-sm text-neutral-600">{t.header.subtitle}</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.header.subtitle}</p>
                   </div>
                 </div>
                 <nav className="space-y-3">
@@ -176,7 +176,7 @@ export default function Layout({ children }: LayoutProps) {
                         className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors ${
                           isActive
                             ? "text-primary bg-primary/10"
-                            : "text-neutral-600 hover:text-primary hover:bg-neutral-100"
+                            : "text-neutral-600 dark:text-neutral-300 hover:text-primary hover:bg-neutral-100 dark:hover:bg-neutral-800"
                         }`}
                       >
                         <Icon className="h-5 w-5" />
@@ -187,16 +187,16 @@ export default function Layout({ children }: LayoutProps) {
                 </nav>
 
                 {/* Mobile Language Toggle & Auth Controls */}
-                <div className="border-t border-neutral-200 pt-6 mt-6 space-y-4">
+                <div className="border-t border-neutral-200 dark:border-neutral-800 pt-6 mt-6 space-y-4">
                   <div className="flex justify-center gap-2">
                     <LanguageToggle />
                     <DarkModeToggle />
                   </div>
                   {isAuthenticated ? (
                     <div className="space-y-4">
-                      <div className="flex items-center space-x-3 px-4 py-2 bg-neutral-100 rounded-lg">
-                        <User className="h-5 w-5 text-neutral-600" />
-                        <span className="font-medium text-neutral-900">{user?.name}</span>
+                      <div className="flex items-center space-x-3 px-4 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
+                        <User className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+                        <span className="font-medium text-neutral-900 dark:text-neutral-50">{user?.name}</span>
                       </div>
                       <Link href="/messages">
                         <Button
