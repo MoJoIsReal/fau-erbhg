@@ -243,7 +243,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                       className={`border-2 border-dashed rounded-lg p-4 text-center transition-colors ${
                         dragActive 
                           ? "border-primary bg-primary/5" 
-                          : "border-neutral-300 hover:border-primary"
+                          : "border-neutral-300 dark:border-neutral-700 hover:border-primary"
                       }`}
                       onDragEnter={handleDrag}
                       onDragLeave={handleDrag}
@@ -253,7 +253,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                       {selectedFile ? (
                         <div className="space-y-2">
                           <div className="flex items-center justify-center space-x-2">
-                            <span className="text-sm font-medium text-neutral-900">
+                            <span className="text-sm font-medium text-neutral-900 dark:text-neutral-50">
                               {selectedFile.name}
                             </span>
                             <Button
@@ -265,14 +265,14 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                               <X className="h-4 w-4" />
                             </Button>
                           </div>
-                          <p className="text-xs text-neutral-500">
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400">
                             {formatFileSize(selectedFile.size)}
                           </p>
                         </div>
                       ) : (
                         <>
-                          <CloudUpload className="h-8 w-8 text-neutral-400 mx-auto mb-2" />
-                          <p className="text-sm text-neutral-600 mb-2">
+                          <CloudUpload className="h-8 w-8 text-neutral-400 dark:text-neutral-500 mx-auto mb-2" />
+                          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-2">
                             {t.documents.dragDropText}
                           </p>
                           <Button
@@ -282,7 +282,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                           >
                             {t.documents.orClickToSelect}
                           </Button>
-                          <p className="text-xs text-neutral-500 mt-2">
+                          <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-2">
                             {t.documents.maxFileSize}
                           </p>
                         </>

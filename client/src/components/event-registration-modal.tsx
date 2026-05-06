@@ -201,16 +201,16 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         {/* Scrollable form body */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
           <div className="px-4 pt-3 pb-2 sm:px-6">
-            <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-              <h4 className="font-medium text-neutral-900">{event.title}</h4>
-              <p className="text-sm text-neutral-600">
+            <div className="p-3 bg-neutral-50 dark:bg-neutral-950 rounded-lg border border-neutral-200 dark:border-neutral-800">
+              <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{event.title}</h4>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">
                 {new Date(event.date).toLocaleDateString('no-NO', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
                 })} kl. {event.time}
               </p>
-              <p className="text-sm text-neutral-600">{event.location}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{event.location}</p>
             </div>
           </div>
 
@@ -294,7 +294,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             {/* Dynamic child name fields for foto events */}
             {isFotoEvent && (
               <div className="space-y-3">
-                <p className="text-sm font-medium text-neutral-700">
+                <p className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
                   {language === 'no' ? 'Fornavn på barn' : 'Children\'s first names'}
                 </p>
                 {Array.from({ length: attendeeCount || 1 }, (_, i) => (
@@ -329,8 +329,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             />
 
             {event.maxAttendees != null && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm text-yellow-800">
+              <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900/70 rounded-lg">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
                   <strong>Plasser igjen:</strong> {event.maxAttendees - (event.currentAttendees ?? 0)} av {event.maxAttendees}
                 </p>
               </div>

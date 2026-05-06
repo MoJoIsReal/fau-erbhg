@@ -3,6 +3,17 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Mail, Clock, User, Phone, Trash2, Check, Archive, Loader2 } from "lucide-react";
@@ -134,10 +145,10 @@ export default function Messages() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800">
+        <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
           {language === "no" ? "Meldinger" : "Messages"}
         </h1>
-        <p className="text-neutral-600 mt-2">
+        <p className="text-neutral-600 dark:text-neutral-300 mt-2">
           {language === "no"
             ? "Administrer henvendelser fra kontaktskjemaet"
             : "Manage contact form submissions"}
@@ -150,7 +161,7 @@ export default function Messages() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-neutral-600">{language === "no" ? "Nye" : "New"}</p>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === "no" ? "Nye" : "New"}</p>
                 <p className="text-2xl font-bold text-blue-600">{newMessages.length}</p>
               </div>
               <Mail className="h-8 w-8 text-blue-500" />
@@ -161,7 +172,7 @@ export default function Messages() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-neutral-600">{language === "no" ? "Besvart" : "Responded"}</p>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === "no" ? "Besvart" : "Responded"}</p>
                 <p className="text-2xl font-bold text-green-600">{respondedMessages.length}</p>
               </div>
               <Check className="h-8 w-8 text-green-500" />
@@ -172,10 +183,10 @@ export default function Messages() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-neutral-600">{language === "no" ? "Arkivert" : "Archived"}</p>
-                <p className="text-2xl font-bold text-neutral-600">{archivedMessages.length}</p>
+                <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === "no" ? "Arkivert" : "Archived"}</p>
+                <p className="text-2xl font-bold text-neutral-600 dark:text-neutral-300">{archivedMessages.length}</p>
               </div>
-              <Archive className="h-8 w-8 text-neutral-500" />
+              <Archive className="h-8 w-8 text-neutral-500 dark:text-neutral-400" />
             </div>
           </CardContent>
         </Card>
@@ -185,27 +196,27 @@ export default function Messages() {
       <Card>
         <CardContent className="p-6">
           {messages.length === 0 ? (
-            <p className="text-center text-neutral-500 py-8">
+            <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
               {language === "no" ? "Ingen meldinger ennå" : "No messages yet"}
             </p>
           ) : (
             <div className="space-y-4">
               {messages.map((message) => (
-                <Card key={message.id} className={`${message.status === 'new' ? 'border-blue-300 bg-blue-50/50' : ''}`}>
+                <Card key={message.id} className={`${message.status === 'new' ? 'border-blue-300 bg-blue-50/50 dark:border-blue-900/80 dark:bg-blue-950/20' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
                           {getStatusBadge(message.status)}
-                          <span className="font-semibold text-neutral-900">{getSubjectLabel(message.subject)}</span>
+                          <span className="font-semibold text-neutral-900 dark:text-neutral-50">{getSubjectLabel(message.subject)}</span>
                         </div>
-                        <div className="text-sm text-neutral-600 space-y-1">
+                        <div className="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
                           {message.name && (
                             <p className="flex items-center gap-2">
                               <User className="h-4 w-4" />
                               {message.name}
                               {message.email && (
-                                <a href={`mailto:${message.email}`} className="text-blue-600 hover:text-blue-500">
+                                <a href={`mailto:${message.email}`} className="text-blue-600 dark:text-blue-300 hover:text-blue-500">
                                   ({message.email})
                                 </a>
                               )}
@@ -268,22 +279,47 @@ export default function Messages() {
                             {language === "no" ? "Gjenopprett" : "Restore"}
                           </Button>
                         )}
-                        <Button
-                          onClick={() => deleteMutation.mutate(message.id)}
-                          variant="outline"
-                          size="sm"
-                          className="text-red-600 hover:bg-red-50 border-red-200"
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200 dark:border-red-900/70"
+                              disabled={deleteMutation.isPending}
+                              aria-label={language === "no" ? "Slett melding" : "Delete message"}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {language === "no" ? "Slett melding?" : "Delete message?"}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {language === "no"
+                                  ? "Dette sletter henvendelsen permanent fra meldingslisten."
+                                  : "This permanently deletes the inquiry from the message list."}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => deleteMutation.mutate(message.id)}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                {language === "no" ? "Slett" : "Delete"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
 
                     <div
                       className={`mt-3 ${expandedMessage === message.id ? '' : 'line-clamp-2'}`}
                     >
-                      <p className="text-sm text-neutral-700 whitespace-pre-wrap bg-neutral-50 p-3 rounded">
+                      <p className="text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap bg-neutral-50 dark:bg-neutral-950 p-3 rounded">
                         {message.message}
                       </p>
                     </div>
@@ -300,7 +336,7 @@ export default function Messages() {
                     </Button>
 
                     {message.respondedAt && (
-                      <p className="text-xs text-neutral-500 mt-3 italic">
+                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3 italic">
                         {language === "no" ? "Besvart" : "Responded"}{" "}
                         {new Date(message.respondedAt).toLocaleDateString("no-NO")}
                         {message.respondedBy && ` ${language === "no" ? "av" : "by"} ${message.respondedBy}`}

@@ -480,10 +480,10 @@ export default function Settings() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800">
+        <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
           {language === "no" ? "Innstillinger" : "Settings"}
         </h1>
-        <p className="text-neutral-600 mt-2">
+        <p className="text-neutral-600 dark:text-neutral-300 mt-2">
           {language === "no"
             ? "Administrer FAU-styret og annet innhold på siden"
             : "Manage FAU board and other site content"}
@@ -493,10 +493,10 @@ export default function Settings() {
       {/* Blog Posts Section */}
       <Card className="p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-neutral-800 mb-2">
+          <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
             {language === "no" ? "Nyheter / Innlegg" : "News / Blog Posts"}
           </h2>
-          <p className="text-sm text-neutral-600 mb-4">
+          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
             {language === "no"
               ? "Administrer nyheter og informasjon som vises på forsiden. Arkiver gamle innlegg for å skjule dem."
               : "Manage news and information displayed on the homepage. Archive old posts to hide them."}
@@ -509,7 +509,7 @@ export default function Settings() {
 
           <div className="space-y-6">
             {posts.map((post, index) => (
-              <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-gray-50 opacity-75" : ""}`}>
+              <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-gray-50 dark:bg-neutral-900/70 opacity-75" : ""}`}>
                 {isEditingPost === index ? (
                   // Edit mode
                   <div className="space-y-4">
@@ -592,7 +592,7 @@ export default function Settings() {
                   // View mode
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-neutral-900 flex-1 pr-2">
+                      <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50 flex-1 pr-2">
                         {post.title || (language === "no" ? "(Uten tittel)" : "(No title)")}
                       </h3>
 
@@ -675,7 +675,7 @@ export default function Settings() {
                         </DropdownMenu>
                       </div>
                     </div>
-                    <p className="text-sm text-neutral-600 mb-2">
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
                       {post.publishedDate &&
                         new Date(post.publishedDate).toLocaleDateString("no-NO")}
                       {post.author && (
@@ -691,7 +691,7 @@ export default function Settings() {
                     </p>
                     <SafeHtml
                       html={post.content}
-                      className="prose prose-sm prose-neutral max-w-none line-clamp-3 text-neutral-700"
+                      className="prose prose-sm prose-neutral max-w-none line-clamp-3 text-neutral-700 dark:text-neutral-300"
                     />
                   </div>
                 )}
@@ -699,7 +699,7 @@ export default function Settings() {
             ))}
 
             {posts.length === 0 && (
-              <p className="text-center text-neutral-500 py-8">
+              <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
                 {language === "no"
                   ? "Ingen innlegg ennå. Klikk 'Nytt innlegg' for å komme i gang."
                   : "No posts yet. Click 'New post' to get started."}
@@ -712,10 +712,10 @@ export default function Settings() {
       {/* FAU Board Section */}
       <Card className="p-6 mt-8">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-neutral-800 mb-2">
+          <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
             {language === "no" ? "FAU-styret" : "FAU Board"}
           </h2>
-          <p className="text-sm text-neutral-600 mb-4">
+          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
             {language === "no"
               ? "Definer styremedlemmer og deres roller. Dette vises på forsiden."
               : "Define board members and their roles. This is shown on the homepage."}
@@ -759,7 +759,7 @@ export default function Settings() {
                   variant="outline"
                   size="icon"
                   onClick={() => removeMember(index)}
-                  className="border-red-300 text-red-600 hover:bg-red-50"
+                  className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                   disabled={deleteMutation.isPending}
                 >
                   <Trash2 className="h-4 w-4" />
@@ -778,7 +778,7 @@ export default function Settings() {
           </Button>
         </div>
 
-        <div className="flex justify-end gap-4 pt-6 border-t">
+        <div className="flex justify-end gap-4 pt-6 border-t dark:border-neutral-800">
           <Button
             onClick={handleSave}
             disabled={createMutation.isPending || updateMutation.isPending}
@@ -797,10 +797,10 @@ export default function Settings() {
       {/* Kindergarten Info Section */}
       <Card className="p-6 mt-8">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-neutral-800 mb-2">
+          <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
             {language === "no" ? "Barnehageinformasjon" : "Kindergarten Information"}
           </h2>
-          <p className="text-sm text-neutral-600 mb-4">
+          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
             {language === "no"
               ? "Administrer kontaktinformasjon og detaljer om barnehagen som vises på forsiden."
               : "Manage contact information and kindergarten details displayed on the homepage."}
@@ -925,9 +925,9 @@ export default function Settings() {
                 </div>
               ) : (
                 // View mode
-                <div className="bg-neutral-50 p-4 rounded-lg">
+                <div className="bg-neutral-50 dark:bg-neutral-950 p-4 rounded-lg">
                   <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-neutral-900">
+                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
                       {language === "no" ? "Om Barnehagen" : "About Kindergarten"}
                     </h3>
                     <Button onClick={() => setIsEditingKindergarten(true)} variant="outline" size="sm">
@@ -935,7 +935,7 @@ export default function Settings() {
                     </Button>
                   </div>
 
-                  <div className="space-y-2 text-sm">
+                  <div className="space-y-2 text-sm dark:text-neutral-300">
                     <p><strong>{language === "no" ? "Kontakt:" : "Contact:"}</strong> {kindergartenInfo.contactEmail}</p>
                     <p><strong>{language === "no" ? "Adresse:" : "Address:"}</strong> {kindergartenInfo.address}</p>
                     <p><strong>{language === "no" ? "Åpningstider:" : "Opening hours:"}</strong> {kindergartenInfo.openingHours}</p>
@@ -948,7 +948,7 @@ export default function Settings() {
                       <p><strong>{language === "no" ? "Styrer e-post:" : "Director email:"}</strong> {kindergartenInfo.styrerEmail}</p>
                     )}
                     <p className="mt-3"><strong>{language === "no" ? "Beskrivelse:" : "Description:"}</strong></p>
-                    <p className="text-neutral-700">{kindergartenInfo.description}</p>
+                    <p className="text-neutral-700 dark:text-neutral-300">{kindergartenInfo.description}</p>
                   </div>
                 </div>
               )}

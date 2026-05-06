@@ -110,15 +110,15 @@ export default function Contact() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="font-heading font-bold text-3xl text-neutral-900 mb-2">{t.contact.title}</h2>
-        <p className="text-neutral-600">{t.contact.subtitle}</p>
+        <h2 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.contact.title}</h2>
+        <p className="text-neutral-600 dark:text-neutral-300">{t.contact.subtitle}</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         {/* Contact Form */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="font-heading font-semibold text-xl text-neutral-900 mb-6">{t.contact.send}</h3>
+            <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.contact.send}</h3>
             
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -178,8 +178,8 @@ export default function Contact() {
                 )}
 
                 {isAnonymous && (
-                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800">
+                  <div className="p-4 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900/70 rounded-lg">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
                       <strong>{t.contact.anonymous}:</strong> {t.contact.anonymousDesc}
                     </p>
                   </div>
@@ -245,7 +245,7 @@ export default function Contact() {
           {/* Council Members */}
           <Card>
             <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 mb-6">Foreldrenes arbeidsutvalg (FAU)</h3>
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">Foreldrenes arbeidsutvalg (FAU)</h3>
               
               <div className="space-y-4">
                 {contactInfo.map((contact, index) => {
@@ -256,24 +256,24 @@ export default function Contact() {
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-neutral-900">{contact.title}</h4>
-                        <p className="text-sm text-neutral-600 mb-1">{contact.description}</p>
+                        <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{contact.title}</h4>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-1">{contact.description}</p>
                         {contact.email && (
-                          <p className="text-sm text-neutral-700">
+                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
                             <Mail className="h-3 w-3 inline mr-2" />
-                            <a href={`mailto:${contact.email}`} className="hover:text-primary">
+                            <a href={`mailto:${contact.email}`} className="hover:text-primary dark:hover:text-primary">
                               {contact.email}
                             </a>
                           </p>
                         )}
                         {contact.address && (
-                          <p className="text-sm text-neutral-700">
+                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
                             <MapPin className="h-3 w-3 inline mr-2" />
                             {contact.address}
                           </p>
                         )}
                         {contact.phone && (
-                          <p className="text-sm text-neutral-700">
+                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
                             <Phone className="h-3 w-3 inline mr-2" />
                             {contact.phone}
                           </p>

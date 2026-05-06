@@ -261,7 +261,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
           )}
 
           {entryType === "day_event" && (
-            <div className="space-y-3 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+            <div className="space-y-3 rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-3">
               <div className="flex flex-row items-start space-x-3 space-y-0">
                 <Checkbox
                   id="show-on-homepage"
@@ -307,15 +307,15 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
           <div>
             <Label>{t.yearlyCalendar.modal.color}</Label>
-            <p className="text-xs text-neutral-500 mt-1 mb-2">
+            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 mb-2">
               {t.yearlyCalendar.modal.colorHint}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setColor("")}
-                className={`h-7 w-7 rounded-full border-2 bg-white text-neutral-500 text-xs flex items-center justify-center ${
-                  !color ? "border-neutral-900 ring-2 ring-neutral-300" : "border-neutral-300"
+                className={`h-7 w-7 rounded-full border-2 bg-white dark:bg-neutral-950 text-neutral-500 dark:text-neutral-300 text-xs flex items-center justify-center ${
+                  !color ? "border-neutral-900 dark:border-neutral-50 ring-2 ring-neutral-300 dark:ring-neutral-700" : "border-neutral-300 dark:border-neutral-700"
                 }`}
                 title={t.yearlyCalendar.colors.none}
                 aria-label={t.yearlyCalendar.colors.none}
@@ -331,7 +331,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                     onClick={() => setColor(c)}
                     style={{ backgroundColor: PRESET_HEX[c] }}
                     className={`h-7 w-7 rounded-full border-2 ${
-                      selected ? "border-neutral-900 ring-2 ring-neutral-300" : "border-white shadow"
+                      selected ? "border-neutral-900 dark:border-neutral-50 ring-2 ring-neutral-300 dark:ring-neutral-700" : "border-white dark:border-neutral-700 shadow"
                     }`}
                     title={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
                     aria-label={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
@@ -342,7 +342,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                 type="color"
                 value={HEX_RE.test(color) ? color : "#ff6b35"}
                 onChange={(e) => setColor(e.target.value)}
-                className="h-7 w-8 rounded cursor-pointer border border-neutral-300 p-0"
+                className="h-7 w-8 rounded cursor-pointer border border-neutral-300 dark:border-neutral-700 p-0"
                 aria-label={t.yearlyCalendar.modal.color}
               />
               <Input

@@ -4,6 +4,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { FileText, Gavel, Calendar, Upload, Download, Plus, Edit, FileSpreadsheet, FileIcon, Trash2 } from "lucide-react";
 import FileUploadModal from "@/components/file-upload-modal";
 import { useAuth } from "@/hooks/useAuth";
@@ -106,18 +117,61 @@ export default function Files() {
       date: doc.uploadedAt
     }));
 
+  const renderDeleteDocumentButton = (
+    doc: Document,
+    options: { variant?: "ghost" | "outline"; className?: string; showLabel?: boolean } = {}
+  ) => (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant={options.variant || "ghost"}
+          size="sm"
+          className={options.className}
+          disabled={deleteDocumentMutation.isPending}
+          aria-label={language === 'no' ? `Slett ${doc.title}` : `Delete ${doc.title}`}
+        >
+          <Trash2 className={`h-4 w-4 ${options.showLabel ? "sm:mr-2" : ""}`} />
+          {options.showLabel && (
+            <span className="hidden sm:inline">{language === 'no' ? 'Slett' : 'Delete'}</span>
+          )}
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {language === 'no' ? 'Slett dokument?' : 'Delete document?'}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {language === 'no'
+              ? `Dette sletter "${doc.title}" fra dokumentlisten.`
+              : `This deletes "${doc.title}" from the document list.`}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>{language === 'no' ? 'Avbryt' : 'Cancel'}</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => deleteDocumentMutation.mutate(doc.id)}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {language === 'no' ? 'Slett' : 'Delete'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 bg-neutral-200 rounded animate-pulse"></div>
+        <div className="h-8 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse"></div>
         <div className="grid md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
-                <div className="h-6 bg-neutral-200 rounded mb-4"></div>
+                <div className="h-6 bg-neutral-200 dark:bg-neutral-800 rounded mb-4"></div>
                 <div className="space-y-3">
-                  <div className="h-4 bg-neutral-200 rounded"></div>
-                  <div className="h-4 bg-neutral-200 rounded"></div>
+                  <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded"></div>
+                  <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded"></div>
                 </div>
               </CardContent>
             </Card>
@@ -130,9 +184,9 @@ export default function Files() {
   if (error) {
     return (
       <div className="space-y-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-          <h3 className="text-red-800 font-medium">Failed to load documents</h3>
-          <p className="text-red-600 text-sm mt-1">{error.message}</p>
+        <div className="bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-900/70 rounded-lg p-4">
+          <h3 className="text-red-800 dark:text-red-200 font-medium">Failed to load documents</h3>
+          <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error.message}</p>
         </div>
       </div>
     );
@@ -143,8 +197,8 @@ export default function Files() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="font-heading font-bold text-3xl text-neutral-900 mb-2">{t.documents.title}</h2>
-          <p className="text-neutral-600">{t.documents.subtitle}</p>
+          <h2 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.documents.title}</h2>
+          <p className="text-neutral-600 dark:text-neutral-300">{t.documents.subtitle}</p>
         </div>
         {isAuthenticated && (
           <div className="mt-4 md:mt-0">
@@ -172,26 +226,26 @@ export default function Files() {
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 ${category.color}`}>
                     <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="font-heading font-semibold text-lg text-neutral-900">{category.name}</h3>
+                  <h3 className="font-heading font-semibold text-lg text-neutral-900 dark:text-neutral-50">{category.name}</h3>
                 </div>
                 
                 <div className="space-y-3">
                   {documents.length === 0 ? (
-                    <p className="text-sm text-neutral-500 italic">{t.documents.noDocuments}</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">{t.documents.noDocuments}</p>
                   ) : (
                     documents.slice(0, 3).map((doc) => {
                       const FileIcon = getFileIcon(doc.mimeType || "");
                       return (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg hover:bg-neutral-100 transition-colors">
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-900/70 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors">
                           <div className="flex items-center flex-1 min-w-0">
                             <FileIcon className="h-4 w-4 text-red-500 mr-3 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm text-neutral-900 truncate">{doc.title}</p>
-                              <p className="text-xs text-neutral-600">
+                              <p className="font-medium text-sm text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
+                              <p className="text-xs text-neutral-600 dark:text-neutral-400">
                                 {formatDate(doc.uploadedAt)} • {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
                               </p>
                               {doc.description && (
-                                <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{doc.description}</p>
+                                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">{doc.description}</p>
                               )}
                             </div>
                           </div>
@@ -204,17 +258,9 @@ export default function Files() {
                             >
                               <Download className="h-4 w-4" />
                             </Button>
-                            {isAuthenticated && (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => deleteDocumentMutation.mutate(doc.id)}
-                                disabled={deleteDocumentMutation.isPending}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            {isAuthenticated && renderDeleteDocumentButton(doc, {
+                                className: "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30",
+                              })}
                           </div>
                         </div>
                       );
@@ -240,10 +286,10 @@ export default function Files() {
       {/* Recent Activity */}
       <Card>
         <CardContent className="p-6">
-          <h3 className="font-heading font-semibold text-xl text-neutral-900 mb-6">{t.documents.recentActivity}</h3>
+          <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.documents.recentActivity}</h3>
           
           {recentActivity.length === 0 ? (
-            <p className="text-neutral-500 text-center py-8">{t.documents.noRecentActivity}</p>
+            <p className="text-neutral-500 dark:text-neutral-400 text-center py-8">{t.documents.noRecentActivity}</p>
           ) : (
             <div className="space-y-4">
               {recentActivity.map((activity, index) => (
@@ -252,11 +298,11 @@ export default function Files() {
                     <Upload className="h-3 w-3 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-neutral-900">
+                    <p className="text-sm text-neutral-900 dark:text-neutral-200">
                       <span className="font-medium">{activity.user}</span> lastet opp{" "}
                       <span className="font-medium">"{activity.document}"</span>
                     </p>
-                    <p className="text-xs text-neutral-600 mt-1">
+                    <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
                       {formatDate(activity.date)}
                     </p>
                   </div>
@@ -285,19 +331,19 @@ export default function Files() {
             {selectedCategory && getDocumentsByCategory(selectedCategory).map((doc) => {
               const DocIcon = getFileIcon(doc.mimeType || "");
               return (
-                <div key={doc.id} className="flex items-start justify-between p-4 border border-neutral-200 rounded-lg gap-3">
+                <div key={doc.id} className="flex items-start justify-between p-4 border border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/40 rounded-lg gap-3">
                   <div className="flex items-start flex-1 min-w-0">
                     <DocIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-neutral-900 truncate">{doc.title}</p>
-                      <p className="text-sm text-neutral-600">
+                      <p className="font-medium text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
                         {formatDate(doc.uploadedAt)} • {formatFileSize(doc.fileSize)}
                       </p>
-                      <p className="text-sm text-neutral-500">
+                      <p className="text-sm text-neutral-500 dark:text-neutral-400">
                         {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
                       </p>
                       {doc.description && (
-                        <p className="text-sm text-neutral-500 mt-2 bg-neutral-50 p-2 rounded border-l-2 border-neutral-200">
+                        <p className="text-sm text-neutral-500 dark:text-neutral-300 mt-2 bg-neutral-50 dark:bg-neutral-950 p-2 rounded border-l-2 border-neutral-200 dark:border-neutral-800">
                           {doc.description}
                         </p>
                       )}
@@ -312,17 +358,10 @@ export default function Files() {
                       <Download className="h-4 w-4 sm:mr-2" />
                       <span className="hidden sm:inline">{language === 'no' ? 'Last ned' : 'Download'}</span>
                     </Button>
-                    {isAuthenticated && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10"
-                        onClick={() => deleteDocumentMutation.mutate(doc.id)}
-                        disabled={deleteDocumentMutation.isPending}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
+                    {isAuthenticated && renderDeleteDocumentButton(doc, {
+                        variant: "outline",
+                        className: "text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10",
+                      })}
                   </div>
                 </div>
               );

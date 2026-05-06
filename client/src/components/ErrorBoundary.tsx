@@ -39,7 +39,7 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-neutral-50">
+        <div className="min-h-screen flex items-center justify-center p-4 bg-neutral-50 dark:bg-neutral-950">
           <Card className="max-w-md w-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-red-600">
@@ -48,7 +48,7 @@ class ErrorBoundary extends Component<Props, State> {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-neutral-600">
+              <p className="text-neutral-600 dark:text-neutral-300">
                 Beklager, det oppstod en uventet feil. Vi har blitt varslet om problemet.
               </p>
 

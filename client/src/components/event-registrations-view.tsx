@@ -98,7 +98,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center text-neutral-600">
+          <div className="text-center text-neutral-600 dark:text-neutral-300">
             {language === 'no' ? 'Laster påmeldinger...' : 'Loading registrations...'}
           </div>
         </CardContent>
@@ -143,22 +143,22 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-neutral-600">{language === 'no' ? 'Dato' : 'Date'}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === 'no' ? 'Dato' : 'Date'}</p>
               <p className="font-medium">{formatDate(event.date, language)}</p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600">{language === 'no' ? 'Tid' : 'Time'}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === 'no' ? 'Tid' : 'Time'}</p>
               <p className="font-medium">{event.time}</p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600">{language === 'no' ? 'Påmeldte' : 'Registered'}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === 'no' ? 'Påmeldte' : 'Registered'}</p>
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="flex items-center space-x-1">
                   <Users className="h-3 w-3" />
                   <span>{totalAttendees}</span>
                 </Badge>
                 {event.maxAttendees && (
-                  <span className="text-sm text-neutral-600">
+                  <span className="text-sm text-neutral-600 dark:text-neutral-400">
                     / {event.maxAttendees} {language === 'no' ? 'maks' : 'max'}
                   </span>
                 )}
@@ -190,8 +190,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         </CardHeader>
         <CardContent>
           {registrations.length === 0 ? (
-            <div className="text-center py-8 text-neutral-600">
-              <Users className="h-12 w-12 mx-auto mb-4 text-neutral-300" />
+            <div className="text-center py-8 text-neutral-600 dark:text-neutral-300">
+              <Users className="h-12 w-12 mx-auto mb-4 text-neutral-300 dark:text-neutral-600" />
               <p>{language === 'no' ? 'Ingen påmeldinger ennå' : 'No registrations yet'}</p>
             </div>
           ) : (
@@ -203,10 +203,10 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                 const photoSlots = getPhotoSlots(index);
 
                 return (
-                <div key={registration.id} className="border rounded-lg p-4">
+                <div key={registration.id} className="border dark:border-neutral-800 rounded-lg p-4">
                   <div className="flex items-start justify-between mb-3">
                     <div>
-                      <h4 className="font-medium text-neutral-900">{registration.name}</h4>
+                      <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{registration.name}</h4>
                       <Badge variant="outline" className="mt-1">
                         {isFotoEvent
                           ? `${registration.attendeeCount || 1} ${language === 'no' ? 'barn' : 'children'}`
@@ -215,14 +215,14 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                       </Badge>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm text-neutral-500">#{index + 1}</span>
+                      <span className="text-sm text-neutral-500 dark:text-neutral-400">#{index + 1}</span>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
                             variant="outline"
                             size="sm"
                             disabled={deleteRegistrationMutation.isPending}
-                            className="border-red-500 text-red-600 hover:bg-red-50"
+                            className="border-red-500 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                             aria-label={language === 'no' ? 'Slett påmelding' : 'Delete registration'}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -257,10 +257,10 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
 
                   {/* Photo event: show children names and their time slots */}
                   {isFotoEvent && childrenNames.length > 0 && (
-                    <div className="mb-3 p-3 bg-purple-50 rounded-lg">
+                    <div className="mb-3 p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
                       <div className="flex items-center space-x-2 mb-2">
                         <Camera className="h-4 w-4 text-purple-600" />
-                        <span className="text-sm font-medium text-purple-700">
+                        <span className="text-sm font-medium text-purple-700 dark:text-purple-200">
                           {language === 'no' ? 'Barn og tidspunkt' : 'Children and time slots'}
                         </span>
                       </div>
@@ -268,8 +268,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                         {childrenNames.map((childName: string, i: number) => (
                           <div key={i} className="flex items-center space-x-2 text-sm">
                             <Clock className="h-3 w-3 text-purple-500" />
-                            <span className="text-neutral-900">{childName}</span>
-                            <span className="text-purple-600 font-medium">
+                            <span className="text-neutral-900 dark:text-neutral-50">{childName}</span>
+                            <span className="text-purple-600 dark:text-purple-200 font-medium">
                               {photoSlots[i] || '-'}
                             </span>
                           </div>
@@ -281,14 +281,14 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <div className="flex items-center space-x-2 text-sm">
-                        <Mail className="h-4 w-4 text-neutral-500" />
+                        <Mail className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
                         <a href={`mailto:${registration.email}`} className="text-primary hover:underline">
                           {registration.email}
                         </a>
                       </div>
                       {registration.phone && (
                         <div className="flex items-center space-x-2 text-sm">
-                          <Phone className="h-4 w-4 text-neutral-500" />
+                          <Phone className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
                           <a href={`tel:${registration.phone}`} className="text-primary hover:underline">
                             {registration.phone}
                           </a>
@@ -299,12 +299,12 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                     {registration.comments && (
                       <div className="space-y-2">
                         <div className="flex items-start space-x-2 text-sm">
-                          <MessageSquare className="h-4 w-4 text-neutral-500 mt-0.5" />
+                          <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-neutral-400 mt-0.5" />
                           <div>
-                            <p className="text-neutral-600 text-xs mb-1">
+                            <p className="text-neutral-600 dark:text-neutral-400 text-xs mb-1">
                               {language === 'no' ? 'Kommentar:' : 'Comment:'}
                             </p>
-                            <p className="text-neutral-900">{registration.comments}</p>
+                            <p className="text-neutral-900 dark:text-neutral-50">{registration.comments}</p>
                           </div>
                         </div>
                       </div>
