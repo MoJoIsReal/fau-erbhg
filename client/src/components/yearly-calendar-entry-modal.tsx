@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -152,13 +163,6 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
       });
     },
   });
-
-  const handleDelete = () => {
-    if (!isEditing) return;
-    if (window.confirm(t.yearlyCalendar.modal.deleteConfirm)) {
-      deleteMutation.mutate();
-    }
-  };
 
   const monthNames = [
     t.yearlyCalendar.months.january,
@@ -357,14 +361,34 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
         <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
           {isEditing ? (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteMutation.isPending}
-            >
-              {t.yearlyCalendar.modal.delete}
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deleteMutation.isPending}
+                >
+                  {t.yearlyCalendar.modal.delete}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t.yearlyCalendar.modal.delete}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t.yearlyCalendar.modal.deleteConfirm}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t.yearlyCalendar.modal.cancel}</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-red-600 text-white hover:bg-red-700"
+                    onClick={() => deleteMutation.mutate()}
+                  >
+                    {t.yearlyCalendar.modal.delete}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           ) : <span />}
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose} disabled={saveMutation.isPending}>

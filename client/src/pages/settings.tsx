@@ -20,6 +20,7 @@ import { getCookie } from "@/lib/queryClient";
 import RichTextEditor from "@/components/RichTextEditor";
 import StaffUsersSection from "@/components/staff-users-section";
 import { useAuth } from "@/hooks/useAuth";
+import SafeHtml from "@/components/safe-html";
 
 // Role values stored in database (Norwegian)
 const ROLE_VALUES = ["Leder", "Medlem", "Vara"] as const;
@@ -688,9 +689,9 @@ export default function Settings() {
                         </span>
                       )}
                     </p>
-                    <div
+                    <SafeHtml
+                      html={post.content}
                       className="prose prose-sm prose-neutral max-w-none line-clamp-3 text-neutral-700"
-                      dangerouslySetInnerHTML={{ __html: post.content || '' }}
                     />
                   </div>
                 )}

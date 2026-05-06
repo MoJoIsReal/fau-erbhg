@@ -25,9 +25,13 @@ import {
   Heading3
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useCallback, useRef } from 'react';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useCallback, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getCookie } from '@/lib/queryClient';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RichTextEditorProps {
   content: string;
@@ -58,7 +62,10 @@ function fileToDataUrl(file: File) {
 
 export default function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
   const { toast } = useToast();
+  const { language } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
 
   const editor = useEditor({
     extensions: [
@@ -96,26 +103,34 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     if (!editor) return;
 
     const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('Enter URL:', previousUrl);
+    setLinkUrl(previousUrl || "");
+    setLinkDialogOpen(true);
+  }, [editor]);
 
-    if (url === null) return;
+  const applyLink = useCallback(() => {
+    if (!editor) return;
 
-    if (url === '') {
+    const trimmedUrl = linkUrl.trim();
+    if (trimmedUrl === '') {
       editor.chain().focus().extendMarkRange('link').unsetLink().run();
+      setLinkDialogOpen(false);
       return;
     }
 
-    if (!isSafeLink(url)) {
+    if (!isSafeLink(trimmedUrl)) {
       toast({
         variant: 'destructive',
         title: 'Ugyldig lenke',
-        description: 'Lenker må starte med http, https, mailto eller tel.',
+        description: language === 'no'
+          ? 'Lenker må starte med http, https, mailto eller tel.'
+          : 'Links must start with http, https, mailto or tel.',
       });
       return;
     }
 
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
-  }, [editor, toast]);
+    editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedUrl }).run();
+    setLinkDialogOpen(false);
+  }, [editor, language, linkUrl, toast]);
 
   const handleImageUpload = async (file: File) => {
     try {
@@ -393,6 +408,41 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
         className="hidden"
         onChange={handleFileChange}
       />
+
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{language === 'no' ? 'Legg til lenke' : 'Add link'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rich-text-link-url">
+              {language === 'no' ? 'URL' : 'URL'}
+            </Label>
+            <Input
+              id="rich-text-link-url"
+              value={linkUrl}
+              onChange={(event) => setLinkUrl(event.target.value)}
+              placeholder="https://example.com"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  applyLink();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setLinkDialogOpen(false)}>
+              {language === 'no' ? 'Avbryt' : 'Cancel'}
+            </Button>
+            <Button type="button" onClick={applyLink}>
+              {linkUrl.trim()
+                ? (language === 'no' ? 'Lagre lenke' : 'Save link')
+                : (language === 'no' ? 'Fjern lenke' : 'Remove link')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Calendar, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import SafeHtml from "@/components/safe-html";
 
 interface BlogPost {
   id: number;
@@ -77,9 +78,9 @@ export default function News() {
                     </span>
                   )}
                 </div>
-                <div
+                <SafeHtml
+                  html={post.content}
                   className="prose prose-neutral max-w-none text-neutral-700"
-                  dangerouslySetInnerHTML={{ __html: post.content }}
                 />
               </CardContent>
             </Card>
