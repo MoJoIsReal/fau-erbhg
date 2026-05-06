@@ -42,7 +42,7 @@ export default function SafeHtml({ html, className, truncate }: SafeHtmlProps) {
 
   return (
     <div
-      className={cn("safe-html", className)}
+      className={cn("safe-html dark:prose-invert", className)}
       dangerouslySetInnerHTML={{ __html: sanitizeClientHtml(displayHtml) }}
     />
   );
