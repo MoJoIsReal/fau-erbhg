@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, index, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -38,10 +38,19 @@ export const eventRegistrations = pgTable("event_registrations", {
   language: text("language").default("no"),
   childrenNames: text("children_names"), // JSON array of child names for "foto" events
   photoSlots: text("photo_slots"), // JSON array of assigned "HH:MM" slots for "foto" events
+  reminderSentAt: text("reminder_sent_at"),
+  registeredAt: text("registered_at"),
 }, (table) => ({
   eventIdIdx: index("event_registrations_event_id_idx").on(table.eventId),
   emailIdx: index("event_registrations_email_idx").on(table.email),
 }));
+
+export const apiRateLimits = pgTable("api_rate_limits", {
+  key: text("key").primaryKey(),
+  count: integer("count").notNull(),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
+});
 
 export const contactMessages = pgTable("contact_messages", {
   id: serial("id").primaryKey(),

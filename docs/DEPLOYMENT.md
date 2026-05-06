@@ -67,9 +67,11 @@ DATABASE_URL=postgresql://user:password@host/database?sslmode=require
 ```
 SESSION_SECRET=<generate-a-secure-random-string-min-32-chars>
 ADMIN_SETUP_KEY=<secure-admin-key-for-initialization>
+CRON_SECRET=<generate-a-secure-random-string-for-vercel-cron>
 ```
 - Generate `SESSION_SECRET` using: `openssl rand -base64 32`
 - Keep `ADMIN_SETUP_KEY` secure - only use once for admin creation
+- Generate `CRON_SECRET` the same way. Vercel Cron requests must include it.
 
 #### Cloudinary
 ```
@@ -81,6 +83,7 @@ CLOUDINARY_API_SECRET=your-api-secret
 
 #### Email (Optional)
 ```
+GMAIL_USER=your-gmail-address
 GMAIL_APP_PASSWORD=your-gmail-app-password
 ```
 Or for SendGrid:
@@ -113,7 +116,7 @@ Set all variables for:
 
 ### 2. Run Migrations
 
-After first deployment, run migrations:
+Before deploying code that depends on new columns or indexes, run migrations:
 
 ```bash
 # Install dependencies locally
@@ -125,6 +128,9 @@ echo "DATABASE_URL=your_connection_string" > .env
 # Push schema to database
 npm run db:push
 ```
+
+Then apply SQL migrations from `migrations/` in lexical order using the Neon SQL editor.
+Start with `migrations/0001_production_hardening.sql` before enabling reminders or rate limiting in production.
 
 ### 3. Initialize Admin User
 

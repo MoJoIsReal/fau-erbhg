@@ -18,8 +18,10 @@ const envSchema = z.object({
   CLOUDINARY_API_SECRET: z.string().min(1, 'CLOUDINARY_API_SECRET is required'),
 
   // Email (optional)
+  GMAIL_USER: z.string().email().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
   SENDGRID_API_KEY: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
 
   // Application
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
