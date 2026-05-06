@@ -600,7 +600,7 @@ export default function YearlyCalendarPage() {
           <div className="mt-5 flex flex-wrap gap-3 items-center">
             <span className="text-sm text-white/80">{t.yearlyCalendar.schoolYearLabel}:</span>
             <Select value={String(schoolYear)} onValueChange={(v) => setSchoolYear(parseInt(v))}>
-              <SelectTrigger className="w-[180px] bg-white text-neutral-900">
+              <SelectTrigger className="w-[180px] bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -613,7 +613,7 @@ export default function YearlyCalendarPage() {
             {canEdit && (
               <Button
                 onClick={() => openCreate({ year: months[0].year, month: months[0].month, entryType: "week_event" })}
-                className="bg-white text-[#FF6B35] hover:bg-yellow-100 print:hidden"
+                className="bg-white dark:bg-neutral-950 text-[#FF6B35] hover:bg-yellow-100 dark:hover:bg-neutral-900 print:hidden"
               >
                 <Plus className="h-4 w-4 mr-1" />
                 {t.yearlyCalendar.addEntry}
@@ -741,8 +741,8 @@ export default function YearlyCalendarPage() {
                   )}
                 <div className="yearly-month-grid relative grid grid-cols-1 gap-0">
                   {/* Notes section */}
-                  <div className="order-last bg-rose-50 text-neutral-900 p-4 border-t-2 border-[#4A8C5F]/30">
-                    <div className="font-heading font-bold text-[#2C5F41] mb-2 flex items-center gap-2">
+                  <div className="order-last bg-rose-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50 p-4 border-t-2 border-[#4A8C5F]/30 dark:border-neutral-800">
+                    <div className="font-heading font-bold text-[#2C5F41] dark:text-green-200 mb-2 flex items-center gap-2">
                       <Sticker className="h-5 w-5" /> {t.yearlyCalendar.notes}
                     </div>
                     <ul className="space-y-2 text-sm">
@@ -752,20 +752,20 @@ export default function YearlyCalendarPage() {
                             entry={entry}
                             canEdit={canEdit}
                             onClick={canEdit ? () => openEdit(entry) : undefined}
-                            className="bg-white rounded-md px-3 py-2 shadow-sm hover:bg-yellow-50"
+                            className="bg-white dark:bg-neutral-900 rounded-md px-3 py-2 shadow-sm hover:bg-yellow-50 dark:hover:bg-neutral-800"
                           >
                             <div className="font-medium flex items-center gap-1">
-                              {canEdit && <GripVertical className="h-3 w-3 text-neutral-400" aria-hidden />}
+                              {canEdit && <GripVertical className="h-3 w-3 text-neutral-400 dark:text-neutral-500" aria-hidden />}
                               {entry.title}
                             </div>
                             {entry.description && (
-                              <div className="text-neutral-600 text-xs">{entry.description}</div>
+                              <div className="text-neutral-600 dark:text-neutral-400 text-xs">{entry.description}</div>
                             )}
                           </DraggableEntry>
                         </li>
                       ))}
                       {noteEntries.length === 0 && (
-                        <li className="text-neutral-500 italic text-sm">—</li>
+                        <li className="text-neutral-500 dark:text-neutral-400 italic text-sm">—</li>
                       )}
                     </ul>
                     {canEdit && (
@@ -773,7 +773,7 @@ export default function YearlyCalendarPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        className="mt-3 w-full border-[#2C5F41] text-[#2C5F41] print:hidden"
+                        className="mt-3 w-full border-[#2C5F41] dark:border-green-900/70 text-[#2C5F41] dark:text-green-200 print:hidden"
                         onClick={() => openCreate({ year, month, entryType: "note" })}
                       >
                         <Plus className="h-4 w-4 mr-1" />

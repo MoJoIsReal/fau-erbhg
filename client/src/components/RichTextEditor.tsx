@@ -40,6 +40,7 @@ interface RichTextEditorProps {
 }
 
 const SAFE_LINK_PROTOCOLS = /^(https?:|mailto:|tel:)/i;
+const ACTIVE_BUTTON_CLASS = 'bg-neutral-200 dark:bg-neutral-800';
 
 function isSafeLink(url: string) {
   return SAFE_LINK_PROTOCOLS.test(url.trim());
@@ -94,7 +95,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm prose-neutral max-w-none focus:outline-none min-h-[150px] max-h-[200px] sm:max-h-none sm:min-h-[250px] overflow-y-auto p-4',
+        class: 'prose prose-sm prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[150px] max-h-[200px] sm:max-h-none sm:min-h-[250px] overflow-y-auto p-4 dark:text-neutral-200',
       },
     },
   });
@@ -206,16 +207,16 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
   }
 
   return (
-    <div className="border border-neutral-300 rounded-lg overflow-hidden">
+    <div className="border border-neutral-300 dark:border-neutral-800 rounded-lg overflow-hidden">
       {/* Toolbar */}
-      <div className="flex gap-1 p-2 border-b border-neutral-200 bg-neutral-50 overflow-x-auto sm:flex-wrap" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-1 p-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 overflow-x-auto sm:flex-wrap" style={{ scrollbarWidth: 'none' }}>
         {/* Text formatting */}
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleBold().run()}
-          className={editor.isActive('bold') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('bold') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Bold className="h-4 w-4" />
         </Button>
@@ -224,7 +225,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={editor.isActive('italic') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('italic') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Italic className="h-4 w-4" />
         </Button>
@@ -233,7 +234,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleUnderline().run()}
-          className={editor.isActive('underline') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('underline') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <UnderlineIcon className="h-4 w-4" />
         </Button>
@@ -242,12 +243,12 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={editor.isActive('strike') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('strike') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Strikethrough className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
 
         {/* Headings */}
         <Button
@@ -255,7 +256,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          className={editor.isActive('heading', { level: 1 }) ? 'bg-neutral-200' : ''}
+          className={editor.isActive('heading', { level: 1 }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Heading1 className="h-4 w-4" />
         </Button>
@@ -264,7 +265,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          className={editor.isActive('heading', { level: 2 }) ? 'bg-neutral-200' : ''}
+          className={editor.isActive('heading', { level: 2 }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Heading2 className="h-4 w-4" />
         </Button>
@@ -273,12 +274,12 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          className={editor.isActive('heading', { level: 3 }) ? 'bg-neutral-200' : ''}
+          className={editor.isActive('heading', { level: 3 }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Heading3 className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
 
         {/* Lists */}
         <Button
@@ -286,7 +287,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className={editor.isActive('bulletList') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('bulletList') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <List className="h-4 w-4" />
         </Button>
@@ -295,12 +296,12 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className={editor.isActive('orderedList') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('orderedList') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
 
         {/* Alignment */}
         <Button
@@ -308,7 +309,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
-          className={editor.isActive({ textAlign: 'left' }) ? 'bg-neutral-200' : ''}
+          className={editor.isActive({ textAlign: 'left' }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <AlignLeft className="h-4 w-4" />
         </Button>
@@ -317,7 +318,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().setTextAlign('center').run()}
-          className={editor.isActive({ textAlign: 'center' }) ? 'bg-neutral-200' : ''}
+          className={editor.isActive({ textAlign: 'center' }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <AlignCenter className="h-4 w-4" />
         </Button>
@@ -326,12 +327,12 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
-          className={editor.isActive({ textAlign: 'right' }) ? 'bg-neutral-200' : ''}
+          className={editor.isActive({ textAlign: 'right' }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <AlignRight className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
 
         {/* Quote and code */}
         <Button
@@ -339,7 +340,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className={editor.isActive('blockquote') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('blockquote') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Quote className="h-4 w-4" />
         </Button>
@@ -348,12 +349,12 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-          className={editor.isActive('codeBlock') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('codeBlock') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Code className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
 
         {/* Link and Image */}
         <Button
@@ -361,7 +362,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={setLink}
-          className={editor.isActive('link') ? 'bg-neutral-200' : ''}
+          className={editor.isActive('link') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <LinkIcon className="h-4 w-4" />
         </Button>
@@ -374,7 +375,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           <ImageIcon className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
 
         {/* Undo/Redo */}
         <Button

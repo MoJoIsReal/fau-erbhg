@@ -59,7 +59,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
     // Week day headers
     weekDays.forEach(day => {
       days.push(
-        <div key={day} className="p-2 text-center text-sm font-medium text-neutral-600 border-b">
+        <div key={day} className="p-2 text-center text-sm font-medium text-neutral-600 dark:text-neutral-300 border-b dark:border-neutral-800">
           {day}
         </div>
       );
@@ -67,7 +67,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
 
     // Empty cells for days before month starts
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} className="p-2 min-h-[80px] border-b border-r"></div>);
+      days.push(<div key={`empty-${i}`} className="p-2 min-h-[80px] border-b border-r dark:border-neutral-800"></div>);
     }
 
     // Days of the month
@@ -80,8 +80,8 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
         date.getFullYear() === today.getFullYear();
 
       days.push(
-        <div key={day} className="p-1 min-h-[80px] border-b border-r relative">
-          <div className={`text-sm font-medium mb-1 ${isToday ? 'text-primary font-bold' : 'text-neutral-900'}`}>
+        <div key={day} className="p-1 min-h-[80px] border-b border-r dark:border-neutral-800 relative">
+          <div className={`text-sm font-medium mb-1 ${isToday ? 'text-primary font-bold' : 'text-neutral-900 dark:text-neutral-50'}`}>
             {day}
           </div>
           <div className="space-y-1">
@@ -91,7 +91,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
                 onClick={() => onEventClick(event)}
                 className={`w-full text-xs p-1 rounded text-left truncate relative ${
                   event.status === 'cancelled' 
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200 line-through' 
+                    ? 'bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-200 hover:bg-red-200 dark:hover:bg-red-950/60 line-through'
                     : 'bg-primary/10 text-primary hover:bg-primary/20'
                 }`}
               >
@@ -104,7 +104,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
               </button>
             ))}
             {dayEvents.length > 2 && (
-              <div className="text-xs text-neutral-500">
+              <div className="text-xs text-neutral-500 dark:text-neutral-400">
                 +{dayEvents.length - 2} {language === 'no' ? 'mer' : 'more'}
               </div>
             )}
@@ -133,7 +133,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
           <Button variant="ghost" size="sm" onClick={() => navigateMonth('prev')}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h3 className="text-lg font-semibold flex items-center space-x-2">
+          <h3 className="text-lg font-semibold flex items-center space-x-2 text-neutral-900 dark:text-neutral-50">
             <CalendarIcon className="h-5 w-5" />
             <span>{getMonthYearText()}</span>
           </h3>
@@ -144,13 +144,13 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
 
         {/* Calendar Grid */}
         <div className="overflow-x-auto">
-          <div className="grid grid-cols-7 border-l border-t min-w-[280px]">
+          <div className="grid grid-cols-7 border-l border-t dark:border-neutral-800 min-w-[280px]">
             {renderCalendarGrid()}
           </div>
         </div>
 
         {/* Legend */}
-        <div className="mt-4 text-xs text-neutral-600 flex items-center space-x-4">
+        <div className="mt-4 text-xs text-neutral-600 dark:text-neutral-300 flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded bg-primary/10"></div>
             <span>{language === 'no' ? 'Arrangement' : 'Event'}</span>

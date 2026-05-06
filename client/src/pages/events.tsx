@@ -167,9 +167,9 @@ export default function Events() {
       case "dugnad":
         return "bg-accent/20 text-accent";
       case "foto":
-        return "bg-purple-100 text-purple-700";
+        return "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-200";
       case "internal":
-        return "bg-gray-100 text-gray-700";
+        return "bg-gray-100 text-gray-700 dark:bg-neutral-800 dark:text-neutral-200";
       default:
         return "bg-primary/20 text-primary";
     }
@@ -209,9 +209,9 @@ export default function Events() {
         {[1, 2, 3].map((i) => (
           <Card key={i} className="animate-pulse">
             <CardContent className="p-6">
-              <div className="h-6 bg-neutral-200 rounded mb-4"></div>
-              <div className="h-4 bg-neutral-200 rounded mb-2"></div>
-              <div className="h-4 bg-neutral-200 rounded w-3/4"></div>
+              <div className="h-6 bg-neutral-200 dark:bg-neutral-800 rounded mb-4"></div>
+              <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded mb-2"></div>
+              <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded w-3/4"></div>
             </CardContent>
           </Card>
         ))}
@@ -224,12 +224,12 @@ export default function Events() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="font-heading font-bold text-3xl text-neutral-900 mb-2">{t.events.title}</h2>
-          <p className="text-neutral-600">{t.events.subtitle}</p>
+          <h2 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.events.title}</h2>
+          <p className="text-neutral-600 dark:text-neutral-300">{t.events.subtitle}</p>
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-3">
           {/* View Toggle */}
-          <div className="flex rounded-lg border border-neutral-200 p-1" role="group" aria-label={language === 'no' ? 'Visningsvalg' : 'View options'}>
+          <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1" role="group" aria-label={language === 'no' ? 'Visningsvalg' : 'View options'}>
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
@@ -272,7 +272,7 @@ export default function Events() {
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-neutral-600">{language === 'no' ? 'Laster kalender...' : 'Loading calendar...'}</p>
+              <p className="text-neutral-600 dark:text-neutral-300">{language === 'no' ? 'Laster kalender...' : 'Loading calendar...'}</p>
             </div>
           </div>
         }>
@@ -286,9 +286,9 @@ export default function Events() {
           {events.length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <Calendar className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-                <h3 className="font-semibold text-lg text-neutral-900 mb-2">{t.events.noEvents}</h3>
-                <p className="text-neutral-600">{t.events.noEventsDesc}</p>
+                <Calendar className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
+                <h3 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">{t.events.noEvents}</h3>
+                <p className="text-neutral-600 dark:text-neutral-300">{t.events.noEventsDesc}</p>
               </CardContent>
             </Card>
           ) : (
@@ -308,8 +308,8 @@ export default function Events() {
                               <IconComponent className="h-6 w-6" />
                             </div>
                             <div>
-                              <h3 className="font-heading font-semibold text-xl text-neutral-900">{event.title}</h3>
-                              <div className="flex items-center text-neutral-600 text-sm mt-1">
+                              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{event.title}</h3>
+                              <div className="flex items-center text-neutral-600 dark:text-neutral-400 text-sm mt-1">
                                 <Clock className="h-4 w-4 mr-2" />
                                 <span>{new Date(event.date).toLocaleDateString('no-NO', { 
                                   day: 'numeric', 
@@ -322,12 +322,12 @@ export default function Events() {
                           
                           <div className="mb-4">
                             {event.location === "Digitalt" ? (
-                              <div className="flex items-center text-blue-600 text-sm mb-2">
+                              <div className="flex items-center text-blue-600 dark:text-blue-300 text-sm mb-2">
                                 <Monitor className="h-4 w-4 mr-2" />
                                 <span>{language === 'no' ? 'Digitalt arrangement' : 'Digital event'}</span>
                               </div>
                             ) : (
-                              <div className="flex items-center text-neutral-600 text-sm mb-2">
+                              <div className="flex items-center text-neutral-600 dark:text-neutral-400 text-sm mb-2">
                                 <LocationMapLink 
                                   location={event.location}
                                   customLocation={event.customLocation || undefined}
@@ -338,7 +338,7 @@ export default function Events() {
                             )}
                             <SafeHtml
                               html={event.description}
-                              className="prose prose-sm prose-neutral max-w-none text-neutral-700"
+                              className="prose prose-sm prose-neutral max-w-none text-neutral-700 dark:text-neutral-200"
                             />
                           </div>
 
@@ -349,7 +349,7 @@ export default function Events() {
                                 <span>{(event.currentAttendees || 0)} {t.events.attendees}</span>
                               </div>
                               {event.maxAttendees && (
-                                <div className="flex items-center text-neutral-500">
+                                <div className="flex items-center text-neutral-500 dark:text-neutral-400">
                                   <span>{t.events.maxAttendees}: {event.maxAttendees}</span>
                                 </div>
                               )}
@@ -359,22 +359,22 @@ export default function Events() {
                         
                         <div className="flex flex-col space-y-3 mt-6 md:mt-0 md:ml-6">
                           {event.status === "cancelled" ? (
-                            <div className="flex items-center text-red-600 text-sm font-medium bg-red-50 px-3 py-2 rounded-lg">
+                            <div className="flex items-center text-red-600 dark:text-red-200 text-sm font-medium bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">
                               <AlertTriangle className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Arrangementet er avlyst' : 'Event is cancelled'}</span>
                             </div>
                           ) : event.noSignup === true ? (
-                            <div className="flex items-center text-gray-600 text-sm font-medium bg-gray-50 px-3 py-2 rounded-lg">
+                            <div className="flex items-center text-gray-600 dark:text-neutral-200 text-sm font-medium bg-gray-50 dark:bg-neutral-900 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Ingen påmelding nødvendig' : 'No signup required'}</span>
                             </div>
                           ) : event.vigiloSignup === true ? (
-                            <div className="flex items-center text-blue-600 text-sm font-medium bg-blue-50 px-3 py-2 rounded-lg">
+                            <div className="flex items-center text-blue-600 dark:text-blue-200 text-sm font-medium bg-blue-50 dark:bg-blue-950/30 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Påmelding i Vigilo' : 'Register in Vigilo'}</span>
                             </div>
                           ) : event.type === "internal" ? (
-                            <div className="flex items-center text-gray-600 text-sm font-medium bg-gray-50 px-3 py-2 rounded-lg">
+                            <div className="flex items-center text-gray-600 dark:text-neutral-200 text-sm font-medium bg-gray-50 dark:bg-neutral-900 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
                               <span>{language === 'no' ? 'Internt arrangement' : 'Internal event'}</span>
                             </div>
@@ -443,7 +443,7 @@ export default function Events() {
                                       setSelectedEventForEdit(event);
                                       setIsCreationModalOpen(true);
                                     }}
-                                    className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                                    className="border-blue-500 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
                                     <span>{language === 'no' ? 'Rediger' : 'Edit'}</span>
@@ -454,7 +454,7 @@ export default function Events() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => cancelMutation.mutate(event.id)}
-                                      className="border-orange-500 text-orange-600 hover:bg-orange-50"
+                                      className="border-orange-500 text-orange-600 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/30"
                                     >
                                       <AlertTriangle className="h-4 w-4 mr-1" />
                                       <span>{language === 'no' ? 'Avlys' : 'Cancel'}</span>
@@ -464,7 +464,7 @@ export default function Events() {
                                       variant="outline"
                                       size="sm"
                                       onClick={() => deleteMutation.mutate(event.id)}
-                                      className="border-red-500 text-red-600 hover:bg-red-50"
+                                      className="border-red-500 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                                     >
                                       <Trash2 className="h-4 w-4 mr-1" />
                                       <span>{language === 'no' ? 'Slett' : 'Delete'}</span>
@@ -484,14 +484,14 @@ export default function Events() {
               {/* Past Events Section */}
               {pastEvents.length > 0 && (
                 <div className="mt-12">
-                  <h2 className="text-2xl font-bold text-neutral-900 mb-6">
+                  <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50 mb-6">
                     {language === 'no' ? 'Tidligere arrangementer' : 'Past Events'}
                   </h2>
                   <div className="space-y-4">
                     {pastEvents.map((event) => {
                       const IconComponent = getEventIcon(event.type);
                       return (
-                        <Card key={event.id} className="opacity-75 border-neutral-200">
+                        <Card key={event.id} className="opacity-75 border-neutral-200 dark:border-neutral-800">
                           <CardContent className="p-6">
                             <div className="flex flex-col md:flex-row md:items-start gap-4">
                               <div className="flex-1">
@@ -500,8 +500,8 @@ export default function Events() {
                                     <IconComponent className="h-4 w-4" />
                                   </div>
                                   <div className="flex-1">
-                                    <h3 className="text-lg font-semibold text-neutral-700">{event.title}</h3>
-                                    <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-500 mt-1">
+                                    <h3 className="text-lg font-semibold text-neutral-700 dark:text-neutral-200">{event.title}</h3>
+                                    <div className="flex flex-wrap items-center gap-4 text-sm text-neutral-500 dark:text-neutral-400 mt-1">
                                       <div className="flex items-center">
                                         <Calendar className="h-4 w-4 mr-1" />
                                         <span>{formatDate(event.date, language)}</span>
@@ -519,13 +519,13 @@ export default function Events() {
                                 </div>
                                 <SafeHtml
                                   html={event.description}
-                                  className="prose prose-sm prose-neutral max-w-none text-neutral-600 text-sm"
+                                  className="prose prose-sm prose-neutral max-w-none text-neutral-600 dark:text-neutral-300 text-sm"
                                 />
                               </div>
                               
                               <div className="flex items-center space-x-4 text-sm">
                                 {!event.noSignup && !event.vigiloSignup && (
-                                  <div className="flex items-center text-neutral-500">
+                                  <div className="flex items-center text-neutral-500 dark:text-neutral-400">
                                     <Users className="h-4 w-4 mr-1" />
                                     <span>{(event.currentAttendees || 0)} {language === 'no' ? 'deltok' : 'attended'}</span>
                                   </div>
@@ -538,7 +538,7 @@ export default function Events() {
                                       setSelectedEventForRegistrations(event);
                                       setIsRegistrationsModalOpen(true);
                                     }}
-                                    className="flex items-center space-x-2 text-neutral-500 border-neutral-300"
+                                    className="flex items-center space-x-2 text-neutral-500 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700"
                                   >
                                     <Users className="h-4 w-4" />
                                     <span>{language === 'no' ? 'Se deltakere' : 'View attendees'}</span>

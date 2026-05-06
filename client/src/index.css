@@ -185,11 +185,21 @@
   color: hsl(var(--neutral-600));
 }
 
+.dark .ProseMirror blockquote {
+  border-left-color: hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+
 .ProseMirror code {
   background-color: hsl(var(--neutral-100));
   padding: 0.125rem 0.25rem;
   border-radius: 0.25rem;
   font-size: 0.875em;
+}
+
+.dark .ProseMirror code {
+  background-color: hsl(var(--muted));
+  color: hsl(var(--foreground));
 }
 
 .ProseMirror pre {
@@ -222,6 +232,14 @@
 
 .ProseMirror a:hover {
   color: #1d4ed8;
+}
+
+.dark .ProseMirror a {
+  color: #93c5fd;
+}
+
+.dark .ProseMirror a:hover {
+  color: #bfdbfe;
 }
 
 .ProseMirror p.is-editor-empty:first-child::before {

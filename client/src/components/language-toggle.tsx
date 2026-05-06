@@ -23,7 +23,7 @@ export default function LanguageToggle() {
       variant="ghost"
       size="sm"
       onClick={toggleLanguage}
-      className="flex items-center space-x-2 text-neutral-600 hover:text-primary"
+      className="flex items-center space-x-2 text-neutral-600 dark:text-neutral-300 hover:text-primary"
       title={`Switch to ${getNextLanguageLabel()}`}
     >
       <Languages className="h-4 w-4" />
