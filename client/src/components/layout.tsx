@@ -51,7 +51,7 @@ export default function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-neutral-50 flex flex-col min-w-0">
       {/* Header */}
       <header className="bg-white shadow-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center gap-4 py-3 min-h-[4rem] min-w-0">
             {/* Logo */}
             <Link href="/" className="flex min-w-0 shrink-0 items-center space-x-3">
@@ -65,8 +65,8 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden md:flex min-w-0 flex-1 items-center justify-end gap-4 lg:gap-8">
-              <nav className="flex min-w-0 flex-wrap justify-end gap-x-4 gap-y-2 lg:gap-x-8">
+            <div className="hidden 2xl:flex min-w-0 flex-1 items-center justify-end gap-6">
+              <nav className="flex min-w-0 flex-nowrap justify-end gap-x-5">
                 {navigation.map((item) => {
                   const isActive = location === item.href;
                   const Icon = item.icon;
@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
               </nav>
 
               {/* Language Toggle, Dark Mode & Auth Controls */}
-              <div className="flex shrink-0 items-center space-x-3 lg:space-x-4 border-l border-neutral-200 pl-4 lg:pl-8">
+              <div className="flex shrink-0 items-center space-x-4 border-l border-neutral-200 pl-6">
                 <LanguageToggle />
                 <DarkModeToggle />
                 {isAuthenticated ? (
@@ -148,7 +148,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden"
+                  className="2xl:hidden"
                   aria-label={language === 'no' ? 'Åpne meny' : 'Open menu'}
                 >
                   <Menu className="h-6 w-6" aria-hidden="true" />
