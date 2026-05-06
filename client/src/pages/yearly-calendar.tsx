@@ -149,6 +149,23 @@ function monthsForSchoolYear(schoolYear: number): { year: number; month: number 
   return out;
 }
 
+function monthOrderValue(monthRef: { year: number; month: number }): number {
+  return monthRef.year * 12 + monthRef.month;
+}
+
+function monthsForDisplay(
+  schoolYear: number,
+  currentMonthValue: number
+): { year: number; month: number }[] {
+  const months = monthsForSchoolYear(schoolYear);
+  const currentAndUpcoming = months.filter((monthRef) => monthOrderValue(monthRef) >= currentMonthValue);
+  const historical = months
+    .filter((monthRef) => monthOrderValue(monthRef) < currentMonthValue)
+    .sort((a, b) => monthOrderValue(b) - monthOrderValue(a));
+
+  return [...currentAndUpcoming, ...historical];
+}
+
 function weeksOfMonth(year: number, month: number): { weekNumber: number; days: { date: Date; inMonth: boolean }[] }[] {
   const first = new Date(year, month - 1, 1);
   const last = new Date(year, month, 0);
@@ -401,6 +418,7 @@ export default function YearlyCalendarPage() {
 
   const now = new Date();
   const defaultSchoolYear = now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const currentMonthValue = monthOrderValue({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [schoolYear, setSchoolYear] = useState<number>(defaultSchoolYear);
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -458,7 +476,10 @@ export default function YearlyCalendarPage() {
     },
   });
 
-  const months = useMemo(() => monthsForSchoolYear(schoolYear), [schoolYear]);
+  const months = useMemo(
+    () => monthsForDisplay(schoolYear, currentMonthValue),
+    [schoolYear, currentMonthValue]
+  );
 
   const monthName = (m: number) => {
     const keys = [
