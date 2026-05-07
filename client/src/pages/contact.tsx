@@ -12,12 +12,23 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertContactMessageSchema } from "@shared/schema";
 import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
-import { Send, UserRoundCheck, User, GraduationCap, MapPin, Phone, Mail, Clock, Calendar } from "lucide-react";
+import { Send, UserRoundCheck, User, GraduationCap, MapPin, Phone, Mail, Clock, Calendar, type LucideIcon } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 type FormData = z.infer<typeof insertContactMessageSchema> & {
   subject: string;
+  website?: string;
+};
+
+type ContactInfo = {
+  title: string;
+  email?: string;
+  address?: string;
+  phone?: string;
+  description: string;
+  icon: LucideIcon;
+  color: string;
 };
 
 export default function Contact() {
@@ -26,10 +37,11 @@ export default function Contact() {
   const [isAnonymous, setIsAnonymous] = useState(false);
 
   const formSchema = insertContactMessageSchema.extend({
-    subject: z.string().min(1, t.contact.selectSubject)
+    subject: z.string().min(1, t.contact.selectSubject),
+    website: z.string().optional()
   });
 
-  const contactInfo = [
+  const contactInfo: ContactInfo[] = [
     {
       title: t.contact.fauContact,
       email: FAU_EMAIL,
@@ -54,7 +66,8 @@ export default function Contact() {
       email: "",
       phone: "",
       subject: "",
-      message: ""
+      message: "",
+      website: ""
     }
   });
 
@@ -124,11 +137,12 @@ export default function Contact() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <input
                   type="text"
-                  name="website"
+                  {...form.register("website")}
                   tabIndex={-1}
                   autoComplete="off"
-                  className="hidden"
                   aria-hidden="true"
+                  className="absolute h-px w-px opacity-0"
+                  style={{ left: "-10000px" }}
                 />
 
                 {!isAnonymous && (
@@ -168,7 +182,7 @@ export default function Contact() {
                         <FormItem>
                           <FormLabel>{t.contact.phone}</FormLabel>
                           <FormControl>
-                            <Input type="tel" placeholder={PHONE_PLACEHOLDER} {...field} />
+                            <Input type="tel" placeholder={PHONE_PLACEHOLDER} {...field} value={field.value ?? ""} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>

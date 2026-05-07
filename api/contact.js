@@ -69,14 +69,21 @@ export default async function handler(req, res) {
 
     const sql = getDb();
     const contactIdentifier = isAnonymous ? 'anonymous' : sanitizedEmail;
-    const rateLimit = await checkRateLimit(sql, {
-      key: rateLimitKey(req, 'contact', contactIdentifier),
-      limit: CONTACT_MAX_ATTEMPTS,
-      windowSeconds: CONTACT_WINDOW_SECONDS
-    });
+    const [rateLimit, ipRateLimit] = await Promise.all([
+      checkRateLimit(sql, {
+        key: rateLimitKey(req, 'contact', contactIdentifier),
+        limit: CONTACT_MAX_ATTEMPTS,
+        windowSeconds: CONTACT_WINDOW_SECONDS
+      }),
+      checkRateLimit(sql, {
+        key: rateLimitKey(req, 'contact-ip', ''),
+        limit: CONTACT_MAX_ATTEMPTS,
+        windowSeconds: CONTACT_WINDOW_SECONDS
+      })
+    ]);
 
-    if (!rateLimit.allowed) {
-      res.setHeader('Retry-After', String(rateLimit.retryAfter));
+    if (!rateLimit.allowed || !ipRateLimit.allowed) {
+      res.setHeader('Retry-After', String(Math.max(rateLimit.retryAfter, ipRateLimit.retryAfter)));
       return res.status(429).json({ error: 'Too many messages. Try again later.' });
     }
 

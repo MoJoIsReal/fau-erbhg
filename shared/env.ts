@@ -10,7 +10,6 @@ const envSchema = z.object({
 
   // Security
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
-  ADMIN_SETUP_KEY: z.string().min(1, 'ADMIN_SETUP_KEY is required'),
 
   // Cloudinary
   CLOUDINARY_CLOUD_NAME: z.string().min(1, 'CLOUDINARY_CLOUD_NAME is required'),
@@ -22,6 +21,8 @@ const envSchema = z.object({
   GMAIL_APP_PASSWORD: z.string().optional(),
   SENDGRID_API_KEY: z.string().optional(),
   CRON_SECRET: z.string().optional(),
+  SENTRY_DSN: z.string().url().optional(),
+  VITE_SENTRY_DSN: z.string().url().optional(),
 
   // Application
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),

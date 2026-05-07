@@ -1,7 +1,8 @@
-import { lazy, Suspense } from "react";
-import { Switch, Route } from "wouter";
+import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { Switch, Route, useLocation } from "wouter";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/layout";
+import { useAuth } from "@/hooks/useAuth";
 
 // Lazy load route components for code splitting
 const Home = lazy(() => import("@/pages/home"));
@@ -25,6 +26,23 @@ function PageLoader() {
   );
 }
 
+function RequireAuth({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      setLocation("/");
+    }
+  }, [isAuthenticated, isLoading, setLocation]);
+
+  if (isLoading || !isAuthenticated) {
+    return <PageLoader />;
+  }
+
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Layout>
@@ -35,8 +53,16 @@ function Router() {
           <Route path="/news" component={News} />
           <Route path="/contact" component={Contact} />
           <Route path="/files" component={Files} />
-          <Route path="/settings" component={Settings} />
-          <Route path="/messages" component={Messages} />
+          <Route path="/settings">
+            <RequireAuth>
+              <Settings />
+            </RequireAuth>
+          </Route>
+          <Route path="/messages">
+            <RequireAuth>
+              <Messages />
+            </RequireAuth>
+          </Route>
           <Route path="/arskalender" component={YearlyCalendar} />
           <Route>
             <div className="min-h-screen w-full flex items-center justify-center bg-neutral-50">

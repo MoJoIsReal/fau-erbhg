@@ -211,6 +211,10 @@ export interface Translations {
         annet: string;
       };
     };
+    eventEdit: {
+      title: string;
+      description: string;
+    };
     eventRegistration: {
       title: string;
       name: string;
@@ -566,6 +570,10 @@ export const translations: Record<Language, Translations> = {
           annet: "Annet"
         }
       },
+      eventEdit: {
+        title: "Rediger arrangement",
+        description: "Oppdater arrangementets detaljer"
+      },
       eventRegistration: {
         title: "Meld deg på arrangement",
         name: "Navn",
@@ -914,6 +922,10 @@ export const translations: Record<Language, Translations> = {
           digitalt: "Digital",
           annet: "Other"
         }
+      },
+      eventEdit: {
+        title: "Edit event",
+        description: "Update the event details"
       },
       eventRegistration: {
         title: "Register for event",

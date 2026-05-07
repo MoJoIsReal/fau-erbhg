@@ -12,24 +12,11 @@ import {
   sanitizeNumber
 } from './_shared/middleware.js';
 import { assignPhotoSlots } from './_shared/photo-slots.js';
+import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import Sentry from './_shared/sentry.js';
 
-// Ensure foto-related columns exist (runs once per cold start)
-let columnsVerified = false;
-async function ensureRegistrationColumns(sql) {
-  if (columnsVerified) return;
-  try {
-    await sql`ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS children_names text`;
-    await sql`ALTER TABLE event_registrations ADD COLUMN IF NOT EXISTS photo_slots text`;
-    await sql`
-      CREATE UNIQUE INDEX IF NOT EXISTS event_registrations_event_email_unique_idx
-      ON event_registrations (event_id, lower(email))
-    `;
-    columnsVerified = true;
-  } catch (e) {
-    console.warn('Registration schema check failed:', e.message);
-  }
-}
+const REGISTRATION_WINDOW_SECONDS = 10 * 60;
+const REGISTRATION_MAX_ATTEMPTS = 10;
 
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
@@ -142,12 +129,37 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Valid event ID required' });
       }
 
-      // Ensure foto columns and duplicate guard exist before registration logic.
-      await ensureRegistrationColumns(sql);
+      const registrationRateLimitKey = rateLimitKey(req, 'register', `${eventIdNum}:${sanitizedEmail}`);
+      const registrationIpRateLimitKey = rateLimitKey(req, 'register-ip', '');
+      const [registrationRateLimit, registrationIpRateLimit] = await Promise.all([
+        checkRateLimit(sql, {
+          key: registrationRateLimitKey,
+          limit: REGISTRATION_MAX_ATTEMPTS,
+          windowSeconds: REGISTRATION_WINDOW_SECONDS
+        }),
+        checkRateLimit(sql, {
+          key: registrationIpRateLimitKey,
+          limit: REGISTRATION_MAX_ATTEMPTS,
+          windowSeconds: REGISTRATION_WINDOW_SECONDS
+        })
+      ]);
+
+      if (!registrationRateLimit.allowed || !registrationIpRateLimit.allowed) {
+        res.setHeader(
+          'Retry-After',
+          String(Math.max(registrationRateLimit.retryAfter, registrationIpRateLimit.retryAfter))
+        );
+        return res.status(429).json({
+          error: sanitizedLanguage === 'no'
+            ? 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
+            : 'Too many registrations from this device. Try again later.'
+        });
+      }
 
       // Check if event exists and is active
       const events = await sql`
-        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees, type
+        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees,
+               type, no_signup, vigilo_signup
         FROM events
         WHERE id = ${eventIdNum} AND status = 'active'
       `;
@@ -157,6 +169,14 @@ export default async function handler(req, res) {
       }
 
       const event = events[0];
+      if (event.no_signup || event.vigilo_signup) {
+        return res.status(400).json({
+          error: sanitizedLanguage === 'no'
+            ? 'Påmelding er ikke tillatt for dette arrangementet'
+            : 'Registration is not available for this event'
+        });
+      }
+
       const requestedAttendees = sanitizedAttendeeCount;
 
       const sanitizedChildrenNames = childrenNames || null;
@@ -183,6 +203,8 @@ export default async function handler(req, res) {
             SELECT *
             FROM events
             WHERE id = ${eventIdNum} AND status = 'active'
+              AND COALESCE(no_signup, false) = false
+              AND COALESCE(vigilo_signup, false) = false
           ),
           capacity_update AS (
             UPDATE events
@@ -233,6 +255,8 @@ export default async function handler(req, res) {
             SELECT *
             FROM events
             WHERE id = ${eventIdNum} AND status = 'active'
+              AND COALESCE(no_signup, false) = false
+              AND COALESCE(vigilo_signup, false) = false
           ),
           capacity_update AS (
             UPDATE events

@@ -6,6 +6,17 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Save, Archive, Home, MoreVertical } from "lucide-react";
 import {
@@ -577,15 +588,39 @@ export default function Settings() {
                       <Button onClick={() => setIsEditingPost(null)} variant="outline" size="sm">
                         {language === "no" ? "Avbryt" : "Cancel"}
                       </Button>
-                      <Button
-                        onClick={() => deletePost(index)}
-                        variant="destructive"
-                        size="sm"
-                        className="ml-auto"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {language === "no" ? "Slett" : "Delete"}
-                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="ml-auto"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {language === "no" ? "Slett" : "Delete"}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>
+                              {language === "no" ? "Slette blogginnlegg?" : "Delete blog post?"}
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {language === "no"
+                                ? `Dette sletter "${post.title || "innlegget"}" permanent.`
+                                : `This permanently deletes "${post.title || "this post"}".`}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => deletePost(index)}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {language === "no" ? "Slett" : "Delete"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     </div>
                   </div>
                 ) : (
@@ -755,15 +790,53 @@ export default function Settings() {
                     </SelectContent>
                   </Select>
                 </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => removeMember(index)}
-                  className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                {member.id ? (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        disabled={deleteMutation.isPending}
+                        aria-label={language === "no" ? "Slett medlem" : "Delete member"}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {language === "no" ? "Slette styremedlem?" : "Delete board member?"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {language === "no"
+                            ? `Dette sletter ${member.name || "medlemmet"} fra styret.`
+                            : `This removes ${member.name || "this member"} from the board.`}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => removeMember(index)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {language === "no" ? "Slett" : "Delete"}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => removeMember(index)}
+                    className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                    disabled={deleteMutation.isPending}
+                    aria-label={language === "no" ? "Fjern medlem" : "Remove member"}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             ))}
           </div>
