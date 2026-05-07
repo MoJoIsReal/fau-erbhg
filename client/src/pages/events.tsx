@@ -2,6 +2,17 @@ import { useState, useMemo, lazy, Suspense } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   Calendar,
@@ -47,7 +58,7 @@ export default function Events() {
   const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
 
-  const { data: events = [], isLoading } = useQuery({
+  const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["/api/events"]
   });
 
@@ -460,15 +471,39 @@ export default function Events() {
                                       <span>{language === 'no' ? 'Avlys' : 'Cancel'}</span>
                                     </Button>
                                   ) : (
-                                    <Button 
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => deleteMutation.mutate(event.id)}
-                                      className="border-red-500 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                                    >
-                                      <Trash2 className="h-4 w-4 mr-1" />
-                                      <span>{language === 'no' ? 'Slett' : 'Delete'}</span>
-                                    </Button>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          className="border-red-500 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                        >
+                                          <Trash2 className="h-4 w-4 mr-1" />
+                                          <span>{language === 'no' ? 'Slett' : 'Delete'}</span>
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            {language === 'no' ? 'Slette arrangement?' : 'Delete event?'}
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            {language === 'no'
+                                              ? `Dette sletter "${event.title}" permanent.`
+                                              : `This permanently deletes "${event.title}".`}
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>{language === 'no' ? 'Avbryt' : 'Cancel'}</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => deleteMutation.mutate(event.id)}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          >
+                                            {language === 'no' ? 'Slett' : 'Delete'}
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                   )}
                                 </div>
                               )}

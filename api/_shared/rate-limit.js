@@ -1,7 +1,5 @@
 import crypto from 'crypto';
 
-let tableReady = false;
-
 function getClientIp(req) {
   const forwardedFor = req.headers['x-forwarded-for'];
   if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
@@ -17,26 +15,11 @@ function hashKey(parts) {
     .digest('hex');
 }
 
-async function ensureRateLimitTable(sql) {
-  if (tableReady) return;
-  await sql`
-    CREATE TABLE IF NOT EXISTS api_rate_limits (
-      key text PRIMARY KEY,
-      count integer NOT NULL,
-      reset_at timestamptz NOT NULL,
-      updated_at timestamptz NOT NULL DEFAULT NOW()
-    )
-  `;
-  tableReady = true;
-}
-
 export function rateLimitKey(req, scope, identifier = '') {
   return hashKey([scope, getClientIp(req), String(identifier).trim().toLowerCase()]);
 }
 
 export async function checkRateLimit(sql, { key, limit, windowSeconds }) {
-  await ensureRateLimitTable(sql);
-
   const rows = await sql`
     INSERT INTO api_rate_limits (key, count, reset_at, updated_at)
     VALUES (${key}, 1, NOW() + (${windowSeconds} * INTERVAL '1 second'), NOW())
@@ -62,7 +45,5 @@ export async function checkRateLimit(sql, { key, limit, windowSeconds }) {
 }
 
 export async function clearRateLimit(sql, key) {
-  await ensureRateLimitTable(sql);
   await sql`DELETE FROM api_rate_limits WHERE key = ${key}`;
 }
-

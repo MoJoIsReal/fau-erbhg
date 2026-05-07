@@ -11,7 +11,9 @@ import {
 import { checkRateLimit, clearRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 
 const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_IP_MAX_ATTEMPTS = 30;
 const LOGIN_WINDOW_SECONDS = 15 * 60;
+const DUMMY_PASSWORD_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8b5Fzi/i8rYJO/8qZjU1BkJ1REsHiy';
 
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
@@ -35,13 +37,21 @@ export default async function handler(req, res) {
 
     const sql = getDb();
     const loginRateLimitKey = rateLimitKey(req, 'login', username);
-    const rateLimit = await checkRateLimit(sql, {
-      key: loginRateLimitKey,
-      limit: LOGIN_MAX_ATTEMPTS,
-      windowSeconds: LOGIN_WINDOW_SECONDS
-    });
-    if (!rateLimit.allowed) {
-      res.setHeader('Retry-After', String(rateLimit.retryAfter));
+    const loginIpRateLimitKey = rateLimitKey(req, 'login-ip', '');
+    const [rateLimit, ipRateLimit] = await Promise.all([
+      checkRateLimit(sql, {
+        key: loginRateLimitKey,
+        limit: LOGIN_MAX_ATTEMPTS,
+        windowSeconds: LOGIN_WINDOW_SECONDS
+      }),
+      checkRateLimit(sql, {
+        key: loginIpRateLimitKey,
+        limit: LOGIN_IP_MAX_ATTEMPTS,
+        windowSeconds: LOGIN_WINDOW_SECONDS
+      })
+    ]);
+    if (!rateLimit.allowed || !ipRateLimit.allowed) {
+      res.setHeader('Retry-After', String(Math.max(rateLimit.retryAfter, ipRateLimit.retryAfter)));
       return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
     }
     
@@ -52,16 +62,12 @@ export default async function handler(req, res) {
       WHERE username = ${username}
     `;
 
-    if (users.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
     const user = users[0];
     
-    // Verify password
-    const isValid = await bcryptjs.compare(password, user.password);
+    // Always run bcrypt to reduce username-existence timing leaks.
+    const isValid = await bcryptjs.compare(password, user?.password || DUMMY_PASSWORD_HASH);
     
-    if (!isValid) {
+    if (!user || !isValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 

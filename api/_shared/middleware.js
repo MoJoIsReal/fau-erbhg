@@ -6,6 +6,35 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import Sentry from './sentry.js';
 
+function appendVaryHeader(res, value) {
+  const current = res.getHeader?.('Vary');
+  if (!current) {
+    res.setHeader('Vary', value);
+    return;
+  }
+
+  const values = String(current).split(',').map((part) => part.trim().toLowerCase());
+  if (!values.includes(value.toLowerCase())) {
+    res.setHeader('Vary', `${current}, ${value}`);
+  }
+}
+
+function redactSensitiveText(value) {
+  return String(value)
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted-email]')
+    .replace(/(?:\+?\d[\d\s().-]{6,}\d)/g, '[redacted-phone]');
+}
+
+function safeErrorForLog(error) {
+  if (!error) return error;
+  return {
+    name: error.name,
+    message: redactSensitiveText(error.message || String(error)),
+    stack: error.stack ? redactSensitiveText(error.stack) : undefined,
+    code: error.code,
+  };
+}
+
 /**
  * Apply security headers to API responses
  * @param {Object} res - Response object
@@ -22,6 +51,7 @@ export function applySecurityHeaders(res, origin) {
     res.setHeader('Access-Control-Allow-Credentials', 'true');
   }
 
+  appendVaryHeader(res, 'Origin');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, X-CSRF-Token');
 
@@ -69,7 +99,7 @@ export function validateMethod(req, res, allowedMethods) {
  * @param {number} statusCode - HTTP status code (default: 500)
  */
 export function handleError(res, error, statusCode = 500) {
-  console.error('API Error:', error);
+  console.error('API Error:', safeErrorForLog(error));
 
   // Log error to Sentry in production
   if (process.env.NODE_ENV === 'production' && statusCode >= 500) {
@@ -227,7 +257,9 @@ export function parseAuthToken(req) {
   try {
     return jwt.verify(token, process.env.SESSION_SECRET);
   } catch (error) {
-    console.error('Token validation error:', error.message);
+    if (error.name !== 'TokenExpiredError') {
+      console.error('Token validation error:', redactSensitiveText(error.message));
+    }
     return null;
   }
 }
