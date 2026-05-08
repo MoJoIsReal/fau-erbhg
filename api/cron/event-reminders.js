@@ -108,6 +108,27 @@ async function sendReminder(transporter, registration) {
   });
 }
 
+async function cleanupPrivacyRetention(sql) {
+  const deletedContactMessages = await sql`
+    DELETE FROM contact_messages
+    WHERE created_at::timestamptz < NOW() - INTERVAL '12 months'
+    RETURNING id
+  `;
+
+  const deletedRegistrations = await sql`
+    DELETE FROM event_registrations r
+    USING events e
+    WHERE e.id = r.event_id
+      AND e.date::date < CURRENT_DATE - INTERVAL '6 months'
+    RETURNING r.id
+  `;
+
+  return {
+    contactMessagesDeleted: deletedContactMessages.length,
+    eventRegistrationsDeleted: deletedRegistrations.length,
+  };
+}
+
 export default async function handler(req, res) {
   applySecurityHeaders(res, req.headers.origin);
   if (handleCorsPreFlight(req, res)) return;
@@ -160,7 +181,8 @@ export default async function handler(req, res) {
     `;
 
     if (claimed.length === 0) {
-      return res.status(200).json({ success: true, targetDate, sent: 0, failed: 0 });
+      const retention = await cleanupPrivacyRetention(sql);
+      return res.status(200).json({ success: true, targetDate, sent: 0, failed: 0, retention });
     }
 
     const transporter = createTransporter();
@@ -185,7 +207,8 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ success: true, targetDate, sent, failed });
+    const retention = await cleanupPrivacyRetention(sql);
+    return res.status(200).json({ success: true, targetDate, sent, failed, retention });
   } catch (error) {
     return handleError(res, error);
   }
