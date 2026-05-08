@@ -101,7 +101,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         throw new Error(language === "no" ? "Filen er større enn 10 MB" : "File is larger than 10 MB");
       }
 
-      const signResponse = await fetch("/api/upload-sign", {
+      const signResponse = await fetch("/api/upload?action=sign", {
         method: "POST",
         headers: {
           "X-CSRF-Token": csrfToken,
@@ -109,6 +109,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         },
         credentials: "include",
         body: JSON.stringify({
+          action: "sign",
           filename: data.file.name,
           mimeType: data.file.type,
           size: data.file.size
