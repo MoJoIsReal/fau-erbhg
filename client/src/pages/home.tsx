@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Users, Heart, Star, School, Handshake, Calendar, Clock, MapPin } from "lucide-react";
-import kindergartenImage from "@/assets/kindergarten-playground.png";
+import kindergartenImage768 from "@/assets/kindergarten-playground-768.jpg";
+import kindergartenImage1280 from "@/assets/kindergarten-playground-1280.jpg";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
@@ -145,11 +146,20 @@ export default function Home() {
             </div>
           </div>
           <div className="hidden md:block">
-            <img 
-              src={kindergartenImage}
-              alt="Barn som leker på lekeplass" 
-              className="rounded-xl shadow-lg w-full h-auto"
-            />
+            <picture>
+              <source
+                type="image/jpeg"
+                srcSet={`${kindergartenImage768} 768w, ${kindergartenImage1280} 1280w`}
+                sizes="(min-width: 768px) 50vw, 100vw"
+              />
+              <img
+                src={kindergartenImage1280}
+                alt="Barn som leker på lekeplass"
+                className="rounded-xl shadow-lg w-full h-auto"
+                loading="eager"
+                decoding="async"
+              />
+            </picture>
           </div>
         </div>
       </section>

@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import { cn } from "@/lib/utils";
 
 interface SafeHtmlProps {
@@ -7,28 +8,23 @@ interface SafeHtmlProps {
 }
 
 function sanitizeClientHtml(html: string) {
-  if (typeof window === "undefined") return html;
+  if (typeof window === "undefined") return "";
 
+  const sanitized = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      "p", "br", "strong", "b", "em", "i", "u", "s",
+      "ul", "ol", "li", "blockquote", "code", "pre",
+      "h1", "h2", "h3", "a", "img"
+    ],
+    ALLOWED_ATTR: ["href", "src", "alt"],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+  });
   const template = document.createElement("template");
-  template.innerHTML = html;
+  template.innerHTML = sanitized;
 
-  template.content
-    .querySelectorAll("script, iframe, object, embed, svg, math, style, link, meta")
-    .forEach((node) => node.remove());
-
-  template.content.querySelectorAll<HTMLElement>("*").forEach((node) => {
-    for (const attr of Array.from(node.attributes)) {
-      const name = attr.name.toLowerCase();
-      const value = attr.value.trim();
-
-      if (name.startsWith("on")) {
-        node.removeAttribute(attr.name);
-      }
-
-      if ((name === "href" || name === "src") && /^(javascript|data):/i.test(value)) {
-        node.removeAttribute(attr.name);
-      }
-    }
+  template.content.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((node) => {
+    node.setAttribute("target", "_blank");
+    node.setAttribute("rel", "noopener noreferrer");
   });
 
   return template.innerHTML;

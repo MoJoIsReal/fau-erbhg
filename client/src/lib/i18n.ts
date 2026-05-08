@@ -246,6 +246,7 @@ export interface Translations {
     hours: string;
     nextMeeting: string;
     parentMeeting: string;
+    privacy: string;
     copyright: string;
   };
   // Common
@@ -604,6 +605,7 @@ export const translations: Record<Language, Translations> = {
       hours: "",
       nextMeeting: "Neste Arrangement",
       parentMeeting: "FAU-møte",
+      privacy: "Personvern",
       copyright: "© 2025 FAU Erdal Barnehage. Alle rettigheter reservert."
     },
     common: {
@@ -957,6 +959,7 @@ export const translations: Record<Language, Translations> = {
       hours: "",
       nextMeeting: "Next Event",
       parentMeeting: "FAU meeting",
+      privacy: "Privacy",
       copyright: "© 2025 FAU Erdal Kindergarten. All rights reserved."
     },
     common: {

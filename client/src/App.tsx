@@ -13,6 +13,7 @@ const Files = lazy(() => import("@/pages/files"));
 const Settings = lazy(() => import("@/pages/settings"));
 const Messages = lazy(() => import("@/pages/messages"));
 const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
+const Privacy = lazy(() => import("@/pages/privacy"));
 
 // Loading fallback component
 function PageLoader() {
@@ -53,6 +54,8 @@ function Router() {
           <Route path="/news" component={News} />
           <Route path="/contact" component={Contact} />
           <Route path="/files" component={Files} />
+          <Route path="/personvern" component={Privacy} />
+          <Route path="/privacy" component={Privacy} />
           <Route path="/settings">
             <RequireAuth>
               <Settings />
