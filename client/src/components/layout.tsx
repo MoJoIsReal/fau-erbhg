@@ -339,6 +339,9 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           
           <div className="border-t border-neutral-800 mt-8 pt-8 text-center text-sm text-neutral-400">
+            <Link href="/personvern" className="inline-block mb-2 text-blue-400 hover:text-blue-300 transition-colors">
+              {t.footer.privacy}
+            </Link>
             <p>{t.footer.copyright}</p>
           </div>
         </div>

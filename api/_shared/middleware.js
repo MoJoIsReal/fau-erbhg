@@ -4,6 +4,7 @@
 
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import sanitizeHtmlContent from 'sanitize-html';
 import Sentry from './sentry.js';
 
 function appendVaryHeader(res, value) {
@@ -298,35 +299,6 @@ export function sanitizeText(text, maxLength = 1000) {
     .substring(0, maxLength);
 }
 
-function escapeHtmlAttribute(value) {
-  return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
-function getAttributeValue(attrs, name) {
-  const match = attrs.match(new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)'|([^\\s>]+))`, 'i'));
-  if (!match) return null;
-  return match[2] || match[3] || match[4] || null;
-}
-
-function decodeHtmlEntities(value) {
-  return String(value).replace(/&#(x?[0-9a-fA-F]+);?/g, (_, entity) => {
-    const codePoint = entity.toLowerCase().startsWith('x')
-      ? parseInt(entity.slice(1), 16)
-      : parseInt(entity, 10);
-    return Number.isFinite(codePoint) ? String.fromCodePoint(codePoint) : '';
-  });
-}
-
-function isSafeUrl(value, allowedProtocols = /^(https?:|mailto:|tel:)/i) {
-  if (!value) return false;
-  const normalized = decodeHtmlEntities(value).trim().replace(/[\u0000-\u001F\u007F\s]+/g, '');
-  return allowedProtocols.test(normalized);
-}
-
 /**
  * Sanitize HTML content (allows basic formatting but prevents XSS)
  * @param {string} html - HTML content to sanitize
@@ -336,49 +308,29 @@ function isSafeUrl(value, allowedProtocols = /^(https?:|mailto:|tel:)/i) {
 export function sanitizeHtml(html, maxLength = 10000) {
   if (!html || typeof html !== 'string') return '';
 
-  const allowedTags = new Set([
-    'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
-    'ul', 'ol', 'li', 'blockquote', 'code', 'pre',
-    'h1', 'h2', 'h3', 'a', 'img'
-  ]);
-
-  return html
-    .substring(0, maxLength)
-    .replace(/<\/?\s*([a-z0-9-]+)([^>]*)>/gi, (match, rawTag, attrs = '') => {
-      const tag = rawTag.toLowerCase();
-      const isClosing = /^<\//.test(match);
-
-      if (!allowedTags.has(tag)) {
-        return '';
-      }
-
-      if (tag === 'br') {
-        return '<br>';
-      }
-
-      if (isClosing) {
-        return tag === 'img' ? '' : `</${tag}>`;
-      }
-
-      if (tag === 'a') {
-        const href = getAttributeValue(attrs, 'href');
-        if (!isSafeUrl(href)) {
-          return '<a>';
-        }
-        return `<a href="${escapeHtmlAttribute(href)}" target="_blank" rel="noopener noreferrer">`;
-      }
-
-      if (tag === 'img') {
-        const src = getAttributeValue(attrs, 'src');
-        if (!isSafeUrl(src, /^https?:/i)) {
-          return '';
-        }
-        const alt = getAttributeValue(attrs, 'alt') || '';
-        return `<img src="${escapeHtmlAttribute(src)}" alt="${escapeHtmlAttribute(alt)}">`;
-      }
-
-      return `<${tag}>`;
-    })
+  return sanitizeHtmlContent(html.substring(0, maxLength), {
+    allowedTags: [
+      'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
+      'ul', 'ol', 'li', 'blockquote', 'code', 'pre',
+      'h1', 'h2', 'h3', 'a', 'img'
+    ],
+    allowedAttributes: {
+      a: ['href', 'target', 'rel'],
+      img: ['src', 'alt']
+    },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    allowedSchemesByTag: {
+      img: ['http', 'https']
+    },
+    transformTags: {
+      a: sanitizeHtmlContent.simpleTransform('a', {
+        target: '_blank',
+        rel: 'noopener noreferrer'
+      }, true)
+    },
+    disallowedTagsMode: 'discard',
+    enforceHtmlBoundary: true
+  })
     .trim()
     .substring(0, maxLength);
 }

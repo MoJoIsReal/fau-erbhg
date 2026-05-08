@@ -7,7 +7,7 @@ import {
 } from '../_shared/middleware.js';
 import Sentry from '../_shared/sentry.js';
 
-const MAX_REMINDERS_PER_RUN = 200;
+const MAX_REMINDERS_PER_RUN = 25;
 
 function isAuthorizedCron(req) {
   if (!process.env.CRON_SECRET) {
@@ -190,4 +190,3 @@ export default async function handler(req, res) {
     return handleError(res, error);
   }
 }
-

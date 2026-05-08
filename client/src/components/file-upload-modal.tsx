@@ -14,6 +14,26 @@ import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { getCookie } from "@/lib/queryClient";
 
+const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
+const ALLOWED_UPLOAD_EXTENSIONS = [
+  ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp",
+  ".doc", ".docx", ".xls", ".xlsx", ".txt"
+];
+const ALLOWED_UPLOAD_MIME_TYPES = [
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain"
+];
+const ACCEPTED_UPLOAD_TYPES = ALLOWED_UPLOAD_EXTENSIONS.join(",");
+
 interface FauBoardMember {
   id: number;
   name: string;
@@ -72,44 +92,82 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         throw new Error('No CSRF token found - please log in again');
       }
 
-      // Convert file to base64
-      const fileBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(data.file);
-      });
+      const extension = `.${data.file.name.split(".").pop()?.toLowerCase() || ""}`;
+      if (!ALLOWED_UPLOAD_EXTENSIONS.includes(extension) || !ALLOWED_UPLOAD_MIME_TYPES.includes(data.file.type)) {
+        throw new Error(language === "no" ? "Filtypen er ikke tillatt" : "File type is not allowed");
+      }
 
-      const payload = {
-        title: data.title,
-        category: data.category,
-        description: data.description || "",
-        uploadedBy: data.uploadedBy,
-        filename: data.file.name,
-        fileData: fileBase64
-      };
+      if (data.file.size > MAX_UPLOAD_SIZE_BYTES) {
+        throw new Error(language === "no" ? "Filen er større enn 10 MB" : "File is larger than 10 MB");
+      }
 
-      // Use upload endpoint specifically
-      const apiUrl = import.meta.env.DEV
-        ? "http://localhost:5000/api/upload"
-        : "/api/upload";
-
-      const response = await fetch(apiUrl, {
+      const signResponse = await fetch("/api/upload-sign", {
         method: "POST",
         headers: {
           "X-CSRF-Token": csrfToken,
           "Content-Type": "application/json"
         },
         credentials: "include",
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          filename: data.file.name,
+          mimeType: data.file.type,
+          size: data.file.size
+        })
       });
 
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(error || "Upload failed");
+      if (!signResponse.ok) {
+        const error = await signResponse.text();
+        throw new Error(error || "Could not prepare upload");
       }
 
-      return response.json();
+      const signatureData = await signResponse.json();
+      const cloudinaryForm = new globalThis.FormData();
+      cloudinaryForm.append("file", data.file);
+      cloudinaryForm.append("api_key", signatureData.apiKey);
+      cloudinaryForm.append("timestamp", String(signatureData.timestamp));
+      cloudinaryForm.append("signature", signatureData.signature);
+      cloudinaryForm.append("folder", signatureData.folder);
+      cloudinaryForm.append("public_id", signatureData.publicId);
+      cloudinaryForm.append("allowed_formats", signatureData.allowedFormats);
+      cloudinaryForm.append("max_file_size", String(signatureData.maxFileSize));
+
+      const cloudinaryResponse = await fetch(signatureData.uploadUrl, {
+        method: "POST",
+        body: cloudinaryForm
+      });
+
+      if (!cloudinaryResponse.ok) {
+        const error = await cloudinaryResponse.text();
+        throw new Error(error || "Cloudinary upload failed");
+      }
+
+      const uploadResult = await cloudinaryResponse.json();
+      const metadataResponse = await fetch("/api/upload", {
+        method: "POST",
+        headers: {
+          "X-CSRF-Token": csrfToken,
+          "Content-Type": "application/json"
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          title: data.title,
+          category: data.category,
+          description: data.description || "",
+          uploadedBy: data.uploadedBy,
+          filename: data.file.name,
+          fileUrl: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
+          fileSize: uploadResult.bytes || data.file.size,
+          mimeType: data.file.type
+        })
+      });
+
+      if (!metadataResponse.ok) {
+        const error = await metadataResponse.text();
+        throw new Error(error || "Could not save uploaded document");
+      }
+
+      return metadataResponse.json();
     },
     onSuccess: () => {
       toast({
@@ -131,6 +189,27 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   });
 
   const handleFileChange = (file: File | null) => {
+    if (file) {
+      const extension = `.${file.name.split(".").pop()?.toLowerCase() || ""}`;
+      if (!ALLOWED_UPLOAD_EXTENSIONS.includes(extension) || !ALLOWED_UPLOAD_MIME_TYPES.includes(file.type)) {
+        toast({
+          title: t.documents.uploadError,
+          description: language === "no" ? "Filtypen er ikke tillatt" : "File type is not allowed",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+        toast({
+          title: t.documents.uploadError,
+          description: language === "no" ? "Filen er større enn 10 MB" : "File is larger than 10 MB",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     setSelectedFile(file);
     if (file) {
       form.setValue("file", file);
@@ -291,7 +370,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                         id="file-input"
                         type="file"
                         className="hidden"
-                        accept=".pdf,.doc,.docx,.xls,.xlsx"
+                        accept={ACCEPTED_UPLOAD_TYPES}
                         onChange={(e) => {
                           const file = e.target.files?.[0];
                           handleFileChange(file || null);
