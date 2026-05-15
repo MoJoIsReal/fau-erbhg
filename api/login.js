@@ -12,7 +12,9 @@ import { checkRateLimit, clearRateLimit, rateLimitKey } from './_shared/rate-lim
 
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_IP_MAX_ATTEMPTS = 30;
+const LOGIN_ACCOUNT_MAX_ATTEMPTS = 20;
 const LOGIN_WINDOW_SECONDS = 15 * 60;
+const LOGIN_ACCOUNT_WINDOW_SECONDS = 60 * 60;
 const DUMMY_PASSWORD_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8b5Fzi/i8rYJO/8qZjU1BkJ1REsHiy';
 
 export default async function handler(req, res) {
@@ -38,7 +40,10 @@ export default async function handler(req, res) {
     const sql = getDb();
     const loginRateLimitKey = rateLimitKey(req, 'login', username);
     const loginIpRateLimitKey = rateLimitKey(req, 'login-ip', '');
-    const [rateLimit, ipRateLimit] = await Promise.all([
+    // IP-agnostic per-account limit so a botnet rotating IPs can't bypass
+    // the per-(IP, account) limit by spreading attempts across IPs.
+    const loginAccountRateLimitKey = `login-account:${String(username).trim().toLowerCase()}`;
+    const [rateLimit, ipRateLimit, accountRateLimit] = await Promise.all([
       checkRateLimit(sql, {
         key: loginRateLimitKey,
         limit: LOGIN_MAX_ATTEMPTS,
@@ -48,10 +53,18 @@ export default async function handler(req, res) {
         key: loginIpRateLimitKey,
         limit: LOGIN_IP_MAX_ATTEMPTS,
         windowSeconds: LOGIN_WINDOW_SECONDS
+      }),
+      checkRateLimit(sql, {
+        key: loginAccountRateLimitKey,
+        limit: LOGIN_ACCOUNT_MAX_ATTEMPTS,
+        windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
       })
     ]);
-    if (!rateLimit.allowed || !ipRateLimit.allowed) {
-      res.setHeader('Retry-After', String(Math.max(rateLimit.retryAfter, ipRateLimit.retryAfter)));
+    if (!rateLimit.allowed || !ipRateLimit.allowed || !accountRateLimit.allowed) {
+      res.setHeader(
+        'Retry-After',
+        String(Math.max(rateLimit.retryAfter, ipRateLimit.retryAfter, accountRateLimit.retryAfter))
+      );
       return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
     }
     
@@ -71,7 +84,10 @@ export default async function handler(req, res) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    await clearRateLimit(sql, loginRateLimitKey);
+    await Promise.all([
+      clearRateLimit(sql, loginRateLimitKey),
+      clearRateLimit(sql, loginAccountRateLimitKey),
+    ]);
 
     // Create JWT token (2 hour expiration for security)
     const token = jwt.sign(
