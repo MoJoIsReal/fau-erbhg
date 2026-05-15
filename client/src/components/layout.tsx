@@ -1,9 +1,17 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, Home, Calendar, CalendarDays, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import { ChevronDown, Menu, Home, Calendar, CalendarDays, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
@@ -52,7 +60,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header */}
       <header className="bg-white dark:bg-neutral-950 border-b border-transparent dark:border-neutral-800 shadow-sm sticky top-0 z-50">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 py-3 min-h-[4rem] min-w-0 min-[1800px]:grid-cols-[minmax(260px,auto)_1fr_auto]">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3 min-h-[4rem] min-w-0 lg:grid-cols-[minmax(220px,auto)_minmax(0,1fr)_auto]">
             {/* Logo */}
             <Link href="/" className="flex min-w-0 items-center space-x-3">
               <div className="w-10 h-10 flex items-center justify-center">
@@ -65,7 +73,7 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="col-span-full row-start-2 hidden min-w-0 flex-nowrap items-center justify-center gap-1 border-t border-neutral-100 pt-2 dark:border-neutral-900 lg:flex min-[1800px]:col-span-1 min-[1800px]:col-start-2 min-[1800px]:row-start-1 min-[1800px]:border-t-0 min-[1800px]:pt-0">
+            <nav className="hidden min-w-0 flex-nowrap items-center justify-center gap-1 lg:flex">
               {navigation.map((item) => {
                 const isActive = location === item.href;
                 const Icon = item.icon;
@@ -87,49 +95,52 @@ export default function Layout({ children }: LayoutProps) {
             </nav>
 
             {/* Language Toggle, Dark Mode & Auth Controls */}
-            <div className="col-start-2 row-start-1 hidden min-w-0 shrink-0 items-center justify-end gap-2 border-l border-neutral-200 pl-4 dark:border-neutral-800 lg:flex min-[1800px]:col-start-3">
+            <div className="hidden min-w-0 shrink-0 items-center justify-end gap-2 border-l border-neutral-200 pl-4 dark:border-neutral-800 lg:flex">
               <LanguageToggle />
               <DarkModeToggle />
               {isAuthenticated ? (
-                <div className="flex min-w-0 items-center gap-2">
-                  <div className="hidden max-w-[150px] items-center gap-2 truncate text-sm text-neutral-600 dark:text-neutral-300 min-[1800px]:flex">
-                    <User className="h-4 w-4" />
-                    <span className="truncate">{user?.name}</span>
-                  </div>
-                  <Link href="/messages">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
-                      title={language === 'no' ? 'Meldinger' : 'Messages'}
+                      className="flex max-w-[220px] items-center gap-2 px-3"
+                      title={user?.name || "FAU"}
                     >
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                      <User className="h-4 w-4 shrink-0" />
+                      <span className="truncate">{user?.name || "FAU"}</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
                     </Button>
-                  </Link>
-                  <Link href="/settings">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
-                      title={language === 'no' ? 'Innstillinger' : 'Settings'}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel className="truncate">{user?.name}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link href="/messages" className="flex w-full items-center gap-2">
+                        <MessageSquare className="h-4 w-4" />
+                        <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/settings" className="flex w-full items-center gap-2">
+                        <SettingsIcon className="h-4 w-4" />
+                        <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      disabled={isLoggingOut}
+                      onSelect={(event) => {
+                        event.preventDefault();
+                        logout();
+                      }}
+                      className="gap-2"
                     >
-                      <SettingsIcon className="h-4 w-4" />
-                      <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
-                    </Button>
-                  </Link>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => logout()}
-                    disabled={isLoggingOut}
-                    className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
-                    title={isLoggingOut ? t.header.loggingOut : t.header.logout}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span className="hidden min-[1800px]:inline">{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
-                  </Button>
-                </div>
+                      <LogOut className="h-4 w-4" />
+                      <span>{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               ) : (
                 <Button
                   variant="outline"
