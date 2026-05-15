@@ -1,5 +1,5 @@
 import { useForm, useWatch } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -8,12 +8,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TimeInput24h } from "@/components/time-input-24h";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertEventSchema, type Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { validateAddress } from "@/lib/location-utils";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { enGB, nb } from "date-fns/locale";
 import { z } from "zod";
 import RichTextEditor from "@/components/RichTextEditor";
 
@@ -47,6 +52,115 @@ function toIsoDateTime(value?: string | null) {
   if (!value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function parseDateValue(value?: string | null) {
+  if (!value) return undefined;
+  const [year, month, day] = value.split("-").map(Number);
+  if (!year || !month || !day) return undefined;
+  return new Date(year, month - 1, day);
+}
+
+function formatDateValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatDisplayDate(value?: string | null, language: "no" | "en" = "no") {
+  const date = parseDateValue(value);
+  if (!date) return "";
+  return date.toLocaleDateString(language === "no" ? "nb-NO" : "en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+}
+
+function splitDateTimeLocal(value?: string | null) {
+  if (!value) return { date: "", time: "" };
+  const [date = "", time = ""] = value.split("T");
+  return { date, time: time.slice(0, 5) };
+}
+
+interface DatePickerInputProps {
+  value?: string | null;
+  onChange: (value: string) => void;
+  language: "no" | "en";
+  placeholder: string;
+}
+
+function DatePickerInput({ value, onChange, language, placeholder }: DatePickerInputProps) {
+  const [open, setOpen] = useState(false);
+  const selectedDate = parseDateValue(value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className={cn("h-10 w-full justify-start px-3 text-left font-normal", !value && "text-muted-foreground")}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          {value ? formatDisplayDate(value, language) : placeholder}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-0">
+        <Calendar
+          mode="single"
+          selected={selectedDate}
+          onSelect={(date) => {
+            if (!date) return;
+            onChange(formatDateValue(date));
+            setOpen(false);
+          }}
+          weekStartsOn={1}
+          locale={language === "no" ? nb : enGB}
+          initialFocus
+        />
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+interface DateTimePicker24hProps {
+  value?: string | null;
+  onChange: (value: string) => void;
+  onBlur?: () => void;
+  language: "no" | "en";
+}
+
+function DateTimePicker24h({ value, onChange, onBlur, language }: DateTimePicker24hProps) {
+  const { date, time } = splitDateTimeLocal(value);
+
+  return (
+    <div className="space-y-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_120px]">
+        <DatePickerInput
+          value={date}
+          onChange={(nextDate) => onChange(`${nextDate}T${time || "23:59"}`)}
+          language={language}
+          placeholder={language === "no" ? "Velg dato" : "Select date"}
+        />
+        <TimeInput24h
+          value={time}
+          onChange={(nextTime) => {
+            if (!date) return;
+            onChange(`${date}T${nextTime}`);
+          }}
+          onBlur={onBlur}
+          disabled={!date}
+        />
+      </div>
+      {value && (
+        <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange("")}>
+          {language === "no" ? "Fjern frist" : "Clear deadline"}
+        </Button>
+      )}
+    </div>
+  );
 }
 
 interface EventCreationModalProps {
@@ -228,7 +342,12 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                     <FormItem>
                       <FormLabel>{t.modals.eventCreation.dateLabel}</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <DatePickerInput
+                          value={field.value}
+                          onChange={field.onChange}
+                          language={language}
+                          placeholder={language === "no" ? "Velg dato" : "Select date"}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -354,10 +473,11 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                   <FormItem>
                     <FormLabel>{t.modals.eventCreation.registrationDeadlineLabel}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="datetime-local"
-                        {...field}
-                        value={field.value || ""}
+                      <DateTimePicker24h
+                        value={field.value}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        language={language}
                       />
                     </FormControl>
                     <p className="text-sm text-muted-foreground">

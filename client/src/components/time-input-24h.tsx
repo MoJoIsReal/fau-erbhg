@@ -46,7 +46,10 @@ export function TimeInput24h({ value, onChange, onBlur, disabled, name }: TimeIn
 
   return (
     <Input
-      type="time"
+      type="text"
+      inputMode="numeric"
+      pattern="[0-2]?[0-9]:[0-5][0-9]"
+      placeholder="HH:MM"
       value={displayValue}
       onChange={handleChange}
       onBlur={handleBlur}
