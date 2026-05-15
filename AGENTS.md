@@ -200,7 +200,13 @@ Production deploys automatically to Vercel on push to `main`. See `docs/DEPLOYME
 
 The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures a daily cron at 07:00 UTC for event reminders + GDPR retention cleanup.
 
-A health endpoint is exposed at `GET /api/health` — it pings the database and verifies required env vars; it returns 200 on success and 503 if degraded.
+**Serverless-function budget:** the Vercel Hobby plan caps the project at 12
+serverless functions. We are at the cap (11 routes in `api/*.js` + 1 cron in
+`api/cron/`). Adding a new endpoint means combining it into an existing
+function via a query-param-routed handler (as `secure-settings.js` does),
+moving to the Vercel Pro plan, or removing an existing function. There is no
+dedicated `/api/health` for this reason — uptime monitors should hit
+`GET /api/events` (DB-backed, public).
 
 ## Component Library
 
