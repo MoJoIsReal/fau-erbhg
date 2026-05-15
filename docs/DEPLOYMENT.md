@@ -166,23 +166,22 @@ If you need an additional index (e.g. for `events(date, time)`), add it to the s
 
 After deployment completes:
 
-#### Check Health Endpoint
+#### Verify the database-backed public endpoints
+
+There is no dedicated `/api/health` endpoint. The Vercel Hobby plan caps the
+project at 12 serverless functions and we are already using all 12 (11 routes
+under `api/*.js` plus the cron in `api/cron/event-reminders.js`). Use one of
+the existing public, DB-backed routes for uptime monitoring instead:
+
 ```bash
-curl https://your-app.vercel.app/api/health
+curl -i https://your-app.vercel.app/api/events
+curl -i https://your-app.vercel.app/api/documents
 ```
 
-Expected response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-...",
-  "environment": "production",
-  "checks": {
-    "database": "ok",
-    "env_vars": "ok"
-  }
-}
-```
+A 200 with a JSON array means the lambda cold-started, env vars resolved, the
+Neon connection cache works, and the DB responded. If we ever move to the
+Vercel Pro plan, a dedicated `/api/health.js` should be added that returns
+`{status, checks: {database, env_vars}}`.
 
 #### Check Frontend
 - Navigate to `https://your-app.vercel.app`
@@ -217,11 +216,12 @@ View analytics at: Vercel Dashboard → Your Project → Analytics
 
 ### Health Checks
 
-Set up monitoring for your health endpoint:
+Point an uptime monitor at one of the existing public, DB-backed endpoints
+(see the post-deployment section for why there is no dedicated `/api/health`):
 
-- **Endpoint:** `https://your-app.vercel.app/api/health`
+- **Endpoint:** `https://your-app.vercel.app/api/events`
 - **Frequency:** Every 5 minutes
-- **Expected Status:** 200
+- **Expected Status:** 200 with a JSON array body
 - **Alert on:** Status ≠ 200 or response time > 5s
 
 Recommended services:
