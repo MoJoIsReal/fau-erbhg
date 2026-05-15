@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, X, Home, Calendar, CalendarDays, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import { Menu, Home, Calendar, CalendarDays, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -52,9 +52,9 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header */}
       <header className="bg-white dark:bg-neutral-950 border-b border-transparent dark:border-neutral-800 shadow-sm sticky top-0 z-50">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center gap-4 py-3 min-h-[4rem] min-w-0">
+          <div className="grid grid-cols-[minmax(220px,auto)_1fr_auto] items-center gap-4 py-3 min-h-[4rem] min-w-0">
             {/* Logo */}
-            <Link href="/" className="flex min-w-0 shrink-0 items-center space-x-3">
+            <Link href="/" className="flex min-w-0 items-center space-x-3">
               <div className="w-10 h-10 flex items-center justify-center">
                 <img src={childIcon} alt="FAU Erdal Barnehage" className="w-10 h-10 object-contain" />
               </div>
@@ -65,8 +65,8 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden 2xl:flex min-w-0 flex-1 items-center justify-end gap-6">
-              <nav className="flex min-w-0 flex-nowrap justify-end gap-x-5">
+            <div className="hidden 2xl:contents">
+              <nav className="flex min-w-0 flex-nowrap items-center justify-center gap-1">
                 {navigation.map((item) => {
                   const isActive = location === item.href;
                   const Icon = item.icon;
@@ -74,13 +74,13 @@ export default function Layout({ children }: LayoutProps) {
                     <Link
                       key={item.name}
                       href={item.href}
-                      className={`font-medium transition-colors pb-1 flex min-w-0 items-center space-x-2 whitespace-nowrap ${
+                      className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors ${
                         isActive
-                          ? "text-primary border-b-2 border-primary"
-                          : "text-neutral-600 dark:text-neutral-300 hover:text-primary"
+                          ? "bg-primary/10 text-primary"
+                          : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-4 w-4 shrink-0" />
                       <span>{item.name}</span>
                     </Link>
                   );
@@ -88,33 +88,35 @@ export default function Layout({ children }: LayoutProps) {
               </nav>
 
               {/* Language Toggle, Dark Mode & Auth Controls */}
-              <div className="flex shrink-0 items-center space-x-4 border-l border-neutral-200 dark:border-neutral-800 pl-6">
+              <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 border-l border-neutral-200 dark:border-neutral-800 pl-4">
                 <LanguageToggle />
                 <DarkModeToggle />
                 {isAuthenticated ? (
-                  <div className="flex items-center space-x-3">
-                    <div className="flex items-center space-x-2 text-sm text-neutral-600 dark:text-neutral-300">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <div className="hidden max-w-[150px] items-center gap-2 truncate text-sm text-neutral-600 dark:text-neutral-300 min-[1800px]:flex">
                       <User className="h-4 w-4" />
-                      <span>{user?.name}</span>
+                      <span className="truncate">{user?.name}</span>
                     </div>
                     <Link href="/messages">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center space-x-2"
+                        className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
+                        title={language === 'no' ? 'Meldinger' : 'Messages'}
                       >
                         <MessageSquare className="h-4 w-4" />
-                        <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                        <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Meldinger' : 'Messages'}</span>
                       </Button>
                     </Link>
                     <Link href="/settings">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="flex items-center space-x-2"
+                        className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
+                        title={language === 'no' ? 'Innstillinger' : 'Settings'}
                       >
                         <SettingsIcon className="h-4 w-4" />
-                        <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                        <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
                       </Button>
                     </Link>
                     <Button
@@ -122,10 +124,11 @@ export default function Layout({ children }: LayoutProps) {
                       size="sm"
                       onClick={() => logout()}
                       disabled={isLoggingOut}
-                      className="flex items-center space-x-2"
+                      className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
+                      title={isLoggingOut ? t.header.loggingOut : t.header.logout}
                     >
                       <LogOut className="h-4 w-4" />
-                      <span>{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
+                      <span className="hidden min-[1800px]:inline">{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
                     </Button>
                   </div>
                 ) : (
@@ -133,7 +136,7 @@ export default function Layout({ children }: LayoutProps) {
                     variant="outline"
                     size="sm"
                     onClick={() => setLoginModalOpen(true)}
-                    className="flex items-center space-x-2"
+                    className="flex items-center gap-2"
                   >
                     <LogIn className="h-4 w-4" />
                     <span>{t.header.login}</span>
@@ -148,7 +151,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="2xl:hidden"
+                  className="justify-self-end 2xl:hidden"
                   aria-label={language === 'no' ? 'Åpne meny' : 'Open menu'}
                 >
                   <Menu className="h-6 w-6" aria-hidden="true" />
