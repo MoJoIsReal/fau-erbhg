@@ -66,12 +66,10 @@ DATABASE_URL=postgresql://user:password@host/database?sslmode=require
 #### Security
 ```
 SESSION_SECRET=<generate-a-secure-random-string-min-32-chars>
-ADMIN_SETUP_KEY=<secure-admin-key-for-initialization>
 CRON_SECRET=<generate-a-secure-random-string-for-vercel-cron>
 ```
 - Generate `SESSION_SECRET` using: `openssl rand -base64 32`
-- Keep `ADMIN_SETUP_KEY` secure - only use once for admin creation
-- Generate `CRON_SECRET` the same way. Vercel Cron requests must include it.
+- Generate `CRON_SECRET` the same way. Vercel Cron requests must include it as `Authorization: Bearer <CRON_SECRET>`; without it the cron endpoint rejects all requests in production.
 
 #### Cloudinary
 ```
@@ -134,20 +132,31 @@ Start with `migrations/0001_production_hardening.sql` before enabling reminders 
 
 ### 3. Initialize Admin User
 
-After migrations, create an admin user through the database setup workflow, then log in via `/api/login`.
+There is no public admin-bootstrap endpoint. Create the first admin user by inserting a row directly via the Neon SQL editor, generating the bcrypt hash locally first:
 
-**Important:** Change the admin password immediately after first login!
-
-### 4. Database Indexes (Recommended)
-
-For better performance, add these indexes:
+```bash
+node -e "console.log(require('bcryptjs').hashSync('PASSWORD-HERE', 10))"
+```
 
 ```sql
-CREATE INDEX IF NOT EXISTS idx_events_date ON events(date, time);
-CREATE INDEX IF NOT EXISTS idx_event_registrations_event ON event_registrations(event_id);
-CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category, uploaded_at);
-CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+INSERT INTO users (username, password, name, role, created_at)
+VALUES ('admin@example.com', '<hash-from-above>', 'Admin', 'admin', NOW()::text);
 ```
+
+Then log in via `/api/login`. Change the password by repeating the same procedure once a self-service flow is needed.
+
+### 4. Database Indexes
+
+Indexes are declared in `shared/schema.ts` and applied via `npm run db:push`:
+
+- `event_registrations_event_id_idx` on `event_registrations(event_id)`
+- `event_registrations_email_idx` on `event_registrations(email)`
+- A unique index on `event_registrations(event_id, lower(email))` from migration `0001_production_hardening.sql`
+- `documents_category_idx` on `documents(category)`
+- `yearly_calendar_school_year_idx` and `yearly_calendar_year_month_idx` on `yearly_calendar_entries`
+- `users.username` is implicitly indexed via its `UNIQUE` constraint.
+
+If you need an additional index (e.g. for `events(date, time)`), add it to the schema and run `npm run db:push`. Do not create indexes ad-hoc in the SQL editor — they will drift from the schema.
 
 ---
 
@@ -157,23 +166,22 @@ CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 
 After deployment completes:
 
-#### Check Health Endpoint
+#### Verify the database-backed public endpoints
+
+There is no dedicated `/api/health` endpoint. The Vercel Hobby plan caps the
+project at 12 serverless functions and we are already using all 12 (11 routes
+under `api/*.js` plus the cron in `api/cron/event-reminders.js`). Use one of
+the existing public, DB-backed routes for uptime monitoring instead:
+
 ```bash
-curl https://your-app.vercel.app/api/health
+curl -i https://your-app.vercel.app/api/events
+curl -i https://your-app.vercel.app/api/documents
 ```
 
-Expected response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2024-...",
-  "environment": "production",
-  "checks": {
-    "database": "ok",
-    "env_vars": "ok"
-  }
-}
-```
+A 200 with a JSON array means the lambda cold-started, env vars resolved, the
+Neon connection cache works, and the DB responded. If we ever move to the
+Vercel Pro plan, a dedicated `/api/health.js` should be added that returns
+`{status, checks: {database, env_vars}}`.
 
 #### Check Frontend
 - Navigate to `https://your-app.vercel.app`
@@ -208,11 +216,12 @@ View analytics at: Vercel Dashboard → Your Project → Analytics
 
 ### Health Checks
 
-Set up monitoring for your health endpoint:
+Point an uptime monitor at one of the existing public, DB-backed endpoints
+(see the post-deployment section for why there is no dedicated `/api/health`):
 
-- **Endpoint:** `https://your-app.vercel.app/api/health`
+- **Endpoint:** `https://your-app.vercel.app/api/events`
 - **Frequency:** Every 5 minutes
-- **Expected Status:** 200
+- **Expected Status:** 200 with a JSON array body
 - **Alert on:** Status ≠ 200 or response time > 5s
 
 Recommended services:
@@ -230,17 +239,12 @@ View logs in Vercel Dashboard:
 
 ### Error Tracking
 
-Consider adding error tracking:
+Sentry is already installed and wired up:
 
-**Option 1: Sentry**
-```bash
-npm install @sentry/react
-```
+- Frontend: `@sentry/react` is initialized in `client/src/main.tsx` when `VITE_SENTRY_DSN` is set. Session Replay is enabled with `maskAllText: true` and `blockAllMedia: true` for privacy.
+- Backend: a lightweight hand-rolled envelope sender in `api/_shared/sentry.js` POSTs events when `SENTRY_DSN` is set in production. It redacts emails and phone numbers before sending.
 
-**Option 2: LogRocket**
-```bash
-npm install logrocket
-```
+To enable, set `SENTRY_DSN` (backend) and `VITE_SENTRY_DSN` (frontend) in Vercel. If you change Sentry projects, update the `connect-src` entry in `vercel.json`'s CSP to match the new ingest host.
 
 ### Performance Monitoring
 
@@ -323,8 +327,9 @@ const allowedOrigins = [
 
 **Causes:**
 - Invalid Cloudinary credentials
-- File size exceeds limit (5MB default)
+- File size exceeds limit (10 MB default; see `api/_shared/upload-validation.js`)
 - Invalid file type
+- Returned upload URL does not match our `CLOUDINARY_CLOUD_NAME` (defense-in-depth check)
 
 **Fix:**
 1. Verify Cloudinary credentials in environment variables

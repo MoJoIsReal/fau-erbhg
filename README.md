@@ -68,9 +68,9 @@ The database schema is managed through `shared/schema.ts` and Drizzle.
 
 ## File Upload Limits
 
-- Maximum file size: 5MB
-- Supported formats: PDF, Word (.doc, .docx), Excel (.xls, .xlsx)
-- Files are securely stored in Cloudinary
+- Maximum file size: 10 MB (`MAX_UPLOAD_SIZE_BYTES` in `api/_shared/upload-validation.js`)
+- Supported formats: PDF, Word (.doc, .docx), Excel (.xls, .xlsx), plain text (.txt), and images (.jpg, .jpeg, .png, .gif, .webp)
+- Files are securely stored in Cloudinary via a signed upload flow that verifies the resulting URL belongs to our `CLOUDINARY_CLOUD_NAME`.
 
 ## Support
 
