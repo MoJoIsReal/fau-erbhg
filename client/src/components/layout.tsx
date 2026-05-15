@@ -52,7 +52,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Header */}
       <header className="bg-white dark:bg-neutral-950 border-b border-transparent dark:border-neutral-800 shadow-sm sticky top-0 z-50">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-[minmax(220px,auto)_1fr_auto] items-center gap-4 py-3 min-h-[4rem] min-w-0">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 py-3 min-h-[4rem] min-w-0 min-[1800px]:grid-cols-[minmax(260px,auto)_1fr_auto]">
             {/* Logo */}
             <Link href="/" className="flex min-w-0 items-center space-x-3">
               <div className="w-10 h-10 flex items-center justify-center">
@@ -65,84 +65,82 @@ export default function Layout({ children }: LayoutProps) {
             </Link>
 
             {/* Desktop Navigation */}
-            <div className="hidden 2xl:contents">
-              <nav className="flex min-w-0 flex-nowrap items-center justify-center gap-1">
-                {navigation.map((item) => {
-                  const isActive = location === item.href;
-                  const Icon = item.icon;
-                  return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
-                      }`}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span>{item.name}</span>
-                    </Link>
-                  );
-                })}
-              </nav>
+            <nav className="col-span-full row-start-2 hidden min-w-0 flex-nowrap items-center justify-center gap-1 border-t border-neutral-100 pt-2 dark:border-neutral-900 lg:flex min-[1800px]:col-span-1 min-[1800px]:col-start-2 min-[1800px]:row-start-1 min-[1800px]:border-t-0 min-[1800px]:pt-0">
+              {navigation.map((item) => {
+                const isActive = location === item.href;
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.name}
+                    href={item.href}
+                    className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{item.name}</span>
+                  </Link>
+                );
+              })}
+            </nav>
 
-              {/* Language Toggle, Dark Mode & Auth Controls */}
-              <div className="flex min-w-0 shrink-0 items-center justify-end gap-2 border-l border-neutral-200 dark:border-neutral-800 pl-4">
-                <LanguageToggle />
-                <DarkModeToggle />
-                {isAuthenticated ? (
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="hidden max-w-[150px] items-center gap-2 truncate text-sm text-neutral-600 dark:text-neutral-300 min-[1800px]:flex">
-                      <User className="h-4 w-4" />
-                      <span className="truncate">{user?.name}</span>
-                    </div>
-                    <Link href="/messages">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
-                        title={language === 'no' ? 'Meldinger' : 'Messages'}
-                      >
-                        <MessageSquare className="h-4 w-4" />
-                        <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Meldinger' : 'Messages'}</span>
-                      </Button>
-                    </Link>
-                    <Link href="/settings">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
-                        title={language === 'no' ? 'Innstillinger' : 'Settings'}
-                      >
-                        <SettingsIcon className="h-4 w-4" />
-                        <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
-                      </Button>
-                    </Link>
+            {/* Language Toggle, Dark Mode & Auth Controls */}
+            <div className="col-start-2 row-start-1 hidden min-w-0 shrink-0 items-center justify-end gap-2 border-l border-neutral-200 pl-4 dark:border-neutral-800 lg:flex min-[1800px]:col-start-3">
+              <LanguageToggle />
+              <DarkModeToggle />
+              {isAuthenticated ? (
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="hidden max-w-[150px] items-center gap-2 truncate text-sm text-neutral-600 dark:text-neutral-300 min-[1800px]:flex">
+                    <User className="h-4 w-4" />
+                    <span className="truncate">{user?.name}</span>
+                  </div>
+                  <Link href="/messages">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => logout()}
-                      disabled={isLoggingOut}
                       className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
-                      title={isLoggingOut ? t.header.loggingOut : t.header.logout}
+                      title={language === 'no' ? 'Meldinger' : 'Messages'}
                     >
-                      <LogOut className="h-4 w-4" />
-                      <span className="hidden min-[1800px]:inline">{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Meldinger' : 'Messages'}</span>
                     </Button>
-                  </div>
-                ) : (
+                  </Link>
+                  <Link href="/settings">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
+                      title={language === 'no' ? 'Innstillinger' : 'Settings'}
+                    >
+                      <SettingsIcon className="h-4 w-4" />
+                      <span className="hidden min-[1800px]:inline">{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                    </Button>
+                  </Link>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setLoginModalOpen(true)}
-                    className="flex items-center gap-2"
+                    onClick={() => logout()}
+                    disabled={isLoggingOut}
+                    className="flex items-center gap-2 px-2.5 min-[1800px]:px-3"
+                    title={isLoggingOut ? t.header.loggingOut : t.header.logout}
                   >
-                    <LogIn className="h-4 w-4" />
-                    <span>{t.header.login}</span>
+                    <LogOut className="h-4 w-4" />
+                    <span className="hidden min-[1800px]:inline">{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
                   </Button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLoginModalOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>{t.header.login}</span>
+                </Button>
+              )}
             </div>
 
             {/* Mobile Menu Button */}
@@ -151,7 +149,7 @@ export default function Layout({ children }: LayoutProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="justify-self-end 2xl:hidden"
+                  className="justify-self-end lg:hidden"
                   aria-label={language === 'no' ? 'Åpne meny' : 'Open menu'}
                 >
                   <Menu className="h-6 w-6" aria-hidden="true" />
