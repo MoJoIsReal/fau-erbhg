@@ -116,6 +116,15 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Uploaded file must be hosted by Cloudinary' });
     }
 
+    // Verify the URL points to our own Cloudinary account, not someone else's.
+    // res.cloudinary.com is shared across all Cloudinary customers — without
+    // this check, an authenticated council member could register a document
+    // pointing at attacker-controlled content in a different cloud.
+    const expectedCloudPrefix = `/${process.env.CLOUDINARY_CLOUD_NAME}/`;
+    if (!parsedUrl.pathname.startsWith(expectedCloudPrefix)) {
+      return res.status(400).json({ error: 'Uploaded file must be hosted in our Cloudinary account' });
+    }
+
     if (!sanitizedPublicId.startsWith('fau-documents/')) {
       return res.status(400).json({ error: 'Invalid uploaded file location' });
     }
