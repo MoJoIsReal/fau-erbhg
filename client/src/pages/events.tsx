@@ -45,6 +45,22 @@ import AttendeeTooltip from "@/components/attendee-tooltip";
 // Lazy load calendar component (only loaded when user switches to calendar view)
 const CalendarView = lazy(() => import("@/components/calendar-view"));
 
+function isRegistrationDeadlinePassed(deadline?: string | null) {
+  if (!deadline) return false;
+  const deadlineDate = new Date(deadline);
+  return !Number.isNaN(deadlineDate.getTime()) && deadlineDate.getTime() < Date.now();
+}
+
+function formatRegistrationDeadline(deadline: string, language: 'no' | 'en') {
+  return new Date(deadline).toLocaleString(language === 'no' ? 'no-NO' : 'en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function Events() {
   const { language, t } = useLanguage();
   const { isAuthenticated } = useAuth();
@@ -132,6 +148,17 @@ export default function Events() {
         title: language === 'no' ? "Ingen påmelding nødvendig" : "No signup required",
         description: language === 'no' ? "Dette arrangementet krever ikke påmelding." : "This event does not require registration.",
         variant: "default",
+      });
+      return;
+    }
+
+    if (isRegistrationDeadlinePassed(event.registrationDeadline)) {
+      toast({
+        title: t.events.registrationClosed,
+        description: language === 'no'
+          ? "Det er ikke lenger mulig å melde seg på dette arrangementet."
+          : "Registration is no longer available for this event.",
+        variant: "destructive",
       });
       return;
     }
@@ -308,6 +335,9 @@ export default function Events() {
               {currentEvents.map((event) => {
                 const IconComponent = getEventIcon(event.type);
                 const colorClass = getEventColor(event.type);
+                const registrationClosed = isRegistrationDeadlinePassed(event.registrationDeadline);
+                const hasCapacityLimit = event.maxAttendees != null;
+                const isFull = hasCapacityLimit && (event.currentAttendees || 0) >= event.maxAttendees!;
                 
                 return (
                   <Card key={event.id} className="overflow-hidden">
@@ -354,7 +384,7 @@ export default function Events() {
                           </div>
 
                           {!event.noSignup && !event.vigiloSignup && (
-                            <div className="flex items-center space-x-4 text-sm">
+                            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
                               <div className="flex items-center text-accent">
                                 <Users className="h-4 w-4 mr-1" />
                                 <span>{(event.currentAttendees || 0)} {t.events.attendees}</span>
@@ -362,6 +392,16 @@ export default function Events() {
                               {event.maxAttendees && (
                                 <div className="flex items-center text-neutral-500 dark:text-neutral-400">
                                   <span>{t.events.maxAttendees}: {event.maxAttendees}</span>
+                                </div>
+                              )}
+                              {event.registrationDeadline && (
+                                <div className={registrationClosed ? "flex items-center text-red-600 dark:text-red-300" : "flex items-center text-neutral-500 dark:text-neutral-400"}>
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  <span>
+                                    {registrationClosed
+                                      ? t.events.registrationClosed
+                                      : `${t.events.registrationDeadline}: ${formatRegistrationDeadline(event.registrationDeadline, language)}`}
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -393,18 +433,21 @@ export default function Events() {
                             <Button
                               onClick={() => handleRegisterClick(event)}
                               className="bg-primary hover:bg-primary/90 text-white"
+                              disabled={registrationClosed}
                             >
                               <Heart className="h-4 w-4 mr-2" />
-                              {language === 'no' ? 'Meld deg som frivillig' : 'Volunteer'}
+                              {registrationClosed ? t.events.registrationClosed : (language === 'no' ? 'Meld deg som frivillig' : 'Volunteer')}
                             </Button>
                           ) : event.type === "foto" ? (
                             <Button
                               onClick={() => handleRegisterClick(event)}
                               className="bg-purple-600 hover:bg-purple-700 text-white"
-                              disabled={event.maxAttendees && event.currentAttendees ? event.currentAttendees >= event.maxAttendees : false}
+                              disabled={registrationClosed || isFull}
                             >
                               <Camera className="h-4 w-4 mr-2" />
-                              {event.maxAttendees && (event.currentAttendees || 0) >= event.maxAttendees
+                              {registrationClosed
+                                ? t.events.registrationClosed
+                                : isFull
                                 ? t.events.full
                                 : (language === 'no' ? 'Meld på til fotografering' : 'Register for photo')
                               }
@@ -413,10 +456,12 @@ export default function Events() {
                             <Button 
                               onClick={() => handleRegisterClick(event)}
                               className="bg-primary hover:bg-primary/90 text-white"
-                              disabled={event.maxAttendees && event.currentAttendees ? event.currentAttendees >= event.maxAttendees : false}
+                              disabled={registrationClosed || isFull}
                             >
                               <UserPlus className="h-4 w-4 mr-2" />
-                              {event.maxAttendees && (event.currentAttendees || 0) >= event.maxAttendees 
+                              {registrationClosed
+                                ? t.events.registrationClosed
+                                : isFull
                                 ? t.events.full 
                                 : t.events.register
                               }

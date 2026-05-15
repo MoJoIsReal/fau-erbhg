@@ -19,6 +19,7 @@ import RichTextEditor from "@/components/RichTextEditor";
 
 const formSchema = insertEventSchema.extend({
   maxAttendees: z.number().min(1).optional().nullable(),
+  registrationDeadline: z.string().optional().nullable(),
   customLocation: z.string().optional().refine(
     (val) => {
       return !val || validateAddress(val);
@@ -32,6 +33,21 @@ const formSchema = insertEventSchema.extend({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+function toDateTimeLocalInputValue(value?: string | null) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return offsetDate.toISOString().slice(0, 16);
+}
+
+function toIsoDateTime(value?: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
 
 interface EventCreationModalProps {
   isOpen: boolean;
@@ -54,6 +70,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       location: event.location || "",
       type: event.type || "meeting",
       maxAttendees: event.maxAttendees || null,
+      registrationDeadline: toDateTimeLocalInputValue(event.registrationDeadline),
       customLocation: event.customLocation || "",
       vigiloSignup: event.vigiloSignup || false,
       noSignup: event.noSignup || false
@@ -65,6 +82,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       location: "",
       type: "meeting",
       maxAttendees: null,
+      registrationDeadline: "",
       customLocation: "",
       vigiloSignup: false,
       noSignup: false
@@ -81,6 +99,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         location: event.location || "",
         type: event.type || "meeting",
         maxAttendees: event.maxAttendees || null,
+        registrationDeadline: toDateTimeLocalInputValue(event.registrationDeadline),
         customLocation: event.customLocation || "",
         vigiloSignup: event.vigiloSignup || false,
         noSignup: event.noSignup || false
@@ -94,6 +113,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         location: "",
         type: "meeting",
         maxAttendees: null,
+        registrationDeadline: "",
         customLocation: "",
         vigiloSignup: false,
         noSignup: false
@@ -110,6 +130,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
     mutationFn: (data: FormData) => {
       const eventData = {
         ...data,
+        registrationDeadline: toIsoDateTime(data.registrationDeadline),
         customLocation: data.location === "Annet" ? data.customLocation : null
       };
 
@@ -321,6 +342,27 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                         onChange={(e) => field.onChange(e.target.value ? parseInt(e.target.value) : null)}
                       />
                     </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="registrationDeadline"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.modals.eventCreation.registrationDeadlineLabel}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="datetime-local"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <p className="text-sm text-muted-foreground">
+                      {t.modals.eventCreation.registrationDeadlineHint}
+                    </p>
                     <FormMessage />
                   </FormItem>
                 )}

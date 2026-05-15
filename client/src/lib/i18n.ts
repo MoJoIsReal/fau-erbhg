@@ -71,6 +71,8 @@ export interface Translations {
     full: string;
     attendees: string;
     maxAttendees: string;
+    registrationDeadline: string;
+    registrationClosed: string;
     unlimited: string;
     location: string;
     time: string;
@@ -188,6 +190,8 @@ export interface Translations {
       typeLabel: string;
       maxAttendeesLabel: string;
       maxAttendeesPlaceholder: string;
+      registrationDeadlineLabel: string;
+      registrationDeadlineHint: string;
       customLocationLabel: string;
       customLocationPlaceholder: string;
       cancel: string;
@@ -434,6 +438,8 @@ export const translations: Record<Language, Translations> = {
       full: "Fullt",
       attendees: "påmeldte",
       maxAttendees: "maks",
+      registrationDeadline: "Påmeldingsfrist",
+      registrationClosed: "Påmeldingsfristen er utløpt",
       unlimited: "ubegrenset",
       location: "Sted",
       time: "Tid", 
@@ -548,6 +554,8 @@ export const translations: Record<Language, Translations> = {
         typeLabel: "Type arrangement",
         maxAttendeesLabel: "Maks deltakere",
         maxAttendeesPlaceholder: "La stå tom for ubegrenset",
+        registrationDeadlineLabel: "Påmeldingsfrist",
+        registrationDeadlineHint: "La stå tomt hvis påmelding skal være åpen fram til arrangementet.",
         customLocationLabel: "Egen adresse",
         customLocationPlaceholder: "Skriv inn adresse...",
         cancel: "Avbryt",
@@ -788,6 +796,8 @@ export const translations: Record<Language, Translations> = {
       full: "Full",
       attendees: "registered",
       maxAttendees: "max",
+      registrationDeadline: "Registration deadline",
+      registrationClosed: "Registration deadline has passed",
       unlimited: "unlimited",
       location: "Location",
       time: "Time",
@@ -902,6 +912,8 @@ export const translations: Record<Language, Translations> = {
         typeLabel: "Event type",
         maxAttendeesLabel: "Max attendees",
         maxAttendeesPlaceholder: "Leave empty for unlimited",
+        registrationDeadlineLabel: "Registration deadline",
+        registrationDeadlineHint: "Leave empty if registration should stay open until the event.",
         customLocationLabel: "Custom address",
         customLocationPlaceholder: "Enter address...",
         cancel: "Cancel",
