@@ -10,6 +10,15 @@ import {
   sanitizeNumber
 } from './_shared/middleware.js';
 
+function normalizeRegistrationDeadline(value) {
+  if (!value) return null;
+  const deadline = new Date(String(value));
+  if (Number.isNaN(deadline.getTime())) {
+    return undefined;
+  }
+  return deadline.toISOString();
+}
+
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
   applySecurityHeaders(res, req.headers.origin);
@@ -26,6 +35,7 @@ export default async function handler(req, res) {
           custom_location as "customLocation",
           max_attendees as "maxAttendees",
           current_attendees as "currentAttendees",
+          registration_deadline as "registrationDeadline",
           type, status, vigilo_signup as "vigiloSignup",
           no_signup as "noSignup"
         FROM events
@@ -51,7 +61,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { title, description, date, time, location, custom_location, customLocation: customLocationCamel, max_attendees, maxAttendees: maxAttendeesCamel, type, vigiloSignup, noSignup } = req.body;
+      const { title, description, date, time, location, custom_location, customLocation: customLocationCamel, max_attendees, maxAttendees: maxAttendeesCamel, registration_deadline, registrationDeadline: registrationDeadlineCamel, type, vigiloSignup, noSignup } = req.body;
 
       // Sanitize inputs (accept both camelCase and snake_case)
       const sanitizedTitle = sanitizeText(title, 200);
@@ -61,6 +71,8 @@ export default async function handler(req, res) {
       const sanitizedCustomLocation = rawCustomLocation ? sanitizeText(rawCustomLocation, 200) : null;
       const rawMaxAttendees = maxAttendeesCamel || max_attendees;
       const sanitizedMaxAttendees = rawMaxAttendees ? sanitizeNumber(rawMaxAttendees, 0, 1000) : null;
+      const rawRegistrationDeadline = registrationDeadlineCamel || registration_deadline;
+      const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(rawRegistrationDeadline);
       const validTypes = ['meeting', 'event', 'activity', 'dugnad', 'foto', 'internal', 'annet', 'other'];
       const sanitizedType = validTypes.includes(type) ? type : 'meeting';
 
@@ -68,9 +80,13 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Valid title, date, and time are required' });
       }
 
+      if (sanitizedRegistrationDeadline === undefined) {
+        return res.status(400).json({ error: 'Valid registration deadline is required' });
+      }
+
       const newEvent = await sql`
-        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, type, vigilo_signup, no_signup)
-        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedType}, ${vigiloSignup || false}, ${noSignup || false})
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup)
+        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${sanitizedType}, ${vigiloSignup || false}, ${noSignup || false})
         RETURNING *
       `;
 
@@ -80,6 +96,7 @@ export default async function handler(req, res) {
         customLocation: newEvent[0].custom_location,
         maxAttendees: newEvent[0].max_attendees,
         currentAttendees: newEvent[0].current_attendees,
+        registrationDeadline: newEvent[0].registration_deadline,
         vigiloSignup: newEvent[0].vigilo_signup,
         noSignup: newEvent[0].no_signup
       };
@@ -89,7 +106,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       const { id } = req.query;
-      const { title, description, date, time, location, customLocation, maxAttendees, type, vigiloSignup, noSignup } = req.body;
+      const { title, description, date, time, location, customLocation, maxAttendees, registrationDeadline, type, vigiloSignup, noSignup } = req.body;
 
       // Sanitize inputs
       const sanitizedTitle = sanitizeText(title, 200);
@@ -97,11 +114,16 @@ export default async function handler(req, res) {
       const sanitizedLocation = sanitizeText(location, 200);
       const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
       const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
+      const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(registrationDeadline);
       const validTypes = ['meeting', 'event', 'activity', 'dugnad', 'foto', 'internal', 'annet', 'other'];
       const sanitizedType = validTypes.includes(type) ? type : 'meeting';
 
       if (!sanitizedTitle || !date || !time) {
         return res.status(400).json({ error: 'Valid title, date, and time are required' });
+      }
+
+      if (sanitizedRegistrationDeadline === undefined) {
+        return res.status(400).json({ error: 'Valid registration deadline is required' });
       }
 
       const updatedEvent = await sql`
@@ -113,6 +135,7 @@ export default async function handler(req, res) {
             location = ${sanitizedLocation},
             custom_location = ${sanitizedCustomLocation},
             max_attendees = ${sanitizedMaxAttendees},
+            registration_deadline = ${sanitizedRegistrationDeadline},
             type = ${sanitizedType},
             vigilo_signup = ${vigiloSignup || false},
             no_signup = ${noSignup || false}
@@ -130,6 +153,7 @@ export default async function handler(req, res) {
         customLocation: updatedEvent[0].custom_location,
         maxAttendees: updatedEvent[0].max_attendees,
         currentAttendees: updatedEvent[0].current_attendees,
+        registrationDeadline: updatedEvent[0].registration_deadline,
         vigiloSignup: updatedEvent[0].vigilo_signup,
         noSignup: updatedEvent[0].no_signup
       };

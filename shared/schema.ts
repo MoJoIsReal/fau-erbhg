@@ -21,6 +21,7 @@ export const events = pgTable("events", {
   customLocation: text("custom_location"), // For "Annet" locations
   maxAttendees: integer("max_attendees"),
   currentAttendees: integer("current_attendees").default(0),
+  registrationDeadline: text("registration_deadline"), // ISO datetime; signup closes after this point
   type: text("type").notNull(), // "meeting", "event", "dugnad", etc.
   status: text("status").default("active").notNull(), // "active", "cancelled"
   vigiloSignup: boolean("vigilo_signup").default(false), // true if signup is through Vigilo platform

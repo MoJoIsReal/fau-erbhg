@@ -157,9 +157,10 @@ export default async function handler(req, res) {
       }
 
       // Check if event exists and is active
+      const nowIso = new Date().toISOString();
       const events = await sql`
         SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees,
-               type, no_signup, vigilo_signup
+               registration_deadline, type, no_signup, vigilo_signup
         FROM events
         WHERE id = ${eventIdNum} AND status = 'active'
       `;
@@ -174,6 +175,14 @@ export default async function handler(req, res) {
           error: sanitizedLanguage === 'no'
             ? 'Påmelding er ikke tillatt for dette arrangementet'
             : 'Registration is not available for this event'
+        });
+      }
+
+      if (event.registration_deadline && event.registration_deadline < nowIso) {
+        return res.status(400).json({
+          error: sanitizedLanguage === 'no'
+            ? 'Påmeldingsfristen har gått ut'
+            : 'The registration deadline has passed'
         });
       }
 
@@ -205,6 +214,7 @@ export default async function handler(req, res) {
             WHERE id = ${eventIdNum} AND status = 'active'
               AND COALESCE(no_signup, false) = false
               AND COALESCE(vigilo_signup, false) = false
+              AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
           ),
           capacity_update AS (
             UPDATE events
@@ -257,6 +267,7 @@ export default async function handler(req, res) {
             WHERE id = ${eventIdNum} AND status = 'active'
               AND COALESCE(no_signup, false) = false
               AND COALESCE(vigilo_signup, false) = false
+              AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
           ),
           capacity_update AS (
             UPDATE events
