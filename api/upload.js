@@ -44,8 +44,13 @@ export default async function handler(req, res) {
       mimeType
     } = req.body;
 
+    // Clients send the file size as either `size` or `fileSize` — accept both
+    // so the size check on the sign step actually catches >10MB uploads
+    // instead of silently letting Cloudinary reject them later.
+    const reportedSize = fileSize ?? req.body.size;
+
     if (req.query.action === 'sign' || req.body.action === 'sign') {
-      const validation = validateUploadFile({ filename, mimeType, size: fileSize });
+      const validation = validateUploadFile({ filename, mimeType, size: reportedSize });
 
       if (!validation.ok) {
         return res.status(400).json({ error: validation.error });
@@ -89,7 +94,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    const validation = validateUploadFile({ filename, mimeType, size: fileSize });
+    const validation = validateUploadFile({ filename, mimeType, size: reportedSize });
     if (!validation.ok) {
       return res.status(400).json({ error: validation.error });
     }
@@ -133,7 +138,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Valid title is required' });
     }
 
-    const safeFileSize = Number.isFinite(Number(fileSize)) ? Math.max(0, Math.floor(Number(fileSize))) : 0;
+    const safeFileSize = Number.isFinite(Number(reportedSize)) ? Math.max(0, Math.floor(Number(reportedSize))) : 0;
 
     const newDocument = await sql`
       INSERT INTO documents (title, filename, cloudinary_url, cloudinary_public_id, file_size, mime_type, category, description, uploaded_by, uploaded_at)
