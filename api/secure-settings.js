@@ -4,13 +4,14 @@ import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
-  requireAuth,
   requireCsrf,
+  requireRole,
   sanitizeText,
   sanitizeHtml,
   sanitizeEmail,
   sanitizeNumber
 } from './_shared/middleware.js';
+import { ADMIN_ONLY, ROLES } from '../shared/constants.js';
 
 // Handle FAU Board Members operations
 async function handleBoardMembers(req, res, sql) {
@@ -25,12 +26,8 @@ async function handleBoardMembers(req, res, sql) {
   }
 
   // All other methods require admin authentication
-  const user = requireAuth(req, res);
+  const user = requireRole(req, res, ADMIN_ONLY);
   if (!user) return;
-
-  if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
 
   // CSRF protection for state-changing requests
   if (!requireCsrf(req, res)) return;
@@ -119,12 +116,8 @@ async function handleBlogPosts(req, res, sql) {
 
     let posts;
     if (includeArchived === 'true') {
-      const user = requireAuth(req, res);
-      if (!user) return;
-
-      if (user.role !== 'admin') {
-        return res.status(403).json({ error: 'Admin access required' });
-      }
+      const adminUser = requireRole(req, res, ADMIN_ONLY);
+      if (!adminUser) return;
 
       // Admin view - show all posts
       posts = await sql`
@@ -146,12 +139,8 @@ async function handleBlogPosts(req, res, sql) {
   }
 
   // All other methods require admin authentication
-  const user = requireAuth(req, res);
+  const user = requireRole(req, res, ADMIN_ONLY);
   if (!user) return;
-
-  if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
 
   // CSRF protection for state-changing requests
   if (!requireCsrf(req, res)) return;
@@ -259,12 +248,8 @@ async function handleKindergartenInfo(req, res, sql) {
   }
 
   // All other methods require admin authentication
-  const user = requireAuth(req, res);
+  const user = requireRole(req, res, ADMIN_ONLY);
   if (!user) return;
-
-  if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
 
   // CSRF protection for state-changing requests
   if (!requireCsrf(req, res)) return;
@@ -318,12 +303,8 @@ async function handleKindergartenInfo(req, res, sql) {
 // Handle Contact Messages operations
 async function handleContactMessages(req, res, sql) {
   // All methods require admin authentication
-  const user = requireAuth(req, res);
+  const user = requireRole(req, res, ADMIN_ONLY);
   if (!user) return;
-
-  if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
 
   const now = new Date().toISOString();
 
@@ -392,18 +373,14 @@ async function handleContactMessages(req, res, sql) {
 
 // Handle Kindergarten staff users (limited to yearly calendar editing)
 async function handleStaffUsers(req, res, sql) {
-  const user = requireAuth(req, res);
+  const user = requireRole(req, res, ADMIN_ONLY);
   if (!user) return;
-
-  if (user.role !== 'admin') {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
 
   if (req.method === 'GET') {
     const rows = await sql`
       SELECT id, username, name, role, created_at as "createdAt"
       FROM users
-      WHERE role = 'staff'
+      WHERE role = ${ROLES.staff}
       ORDER BY created_at DESC
     `;
     return res.status(200).json(rows);
@@ -432,7 +409,7 @@ async function handleStaffUsers(req, res, sql) {
     const now = new Date().toISOString();
     const created = await sql`
       INSERT INTO users (username, password, name, role, created_at)
-      VALUES (${username}, ${hashed}, ${name}, 'staff', ${now})
+      VALUES (${username}, ${hashed}, ${name}, ${ROLES.staff}, ${now})
       RETURNING id, username, name, role
     `;
 
@@ -445,7 +422,7 @@ async function handleStaffUsers(req, res, sql) {
       return res.status(400).json({ error: 'Valid id query parameter required' });
     }
     const deleted = await sql`
-      DELETE FROM users WHERE id = ${id} AND role = 'staff' RETURNING id
+      DELETE FROM users WHERE id = ${id} AND role = ${ROLES.staff} RETURNING id
     `;
     if (deleted.length === 0) {
       return res.status(404).json({ error: 'Staff user not found' });

@@ -1,10 +1,10 @@
-import nodemailer from 'nodemailer';
 import { getDb } from '../_shared/database.js';
 import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
 } from '../_shared/middleware.js';
+import { sendEmail, isEmailConfigured } from '../_shared/email.js';
 import Sentry from '../_shared/sentry.js';
 
 const MAX_REMINDERS_PER_RUN = 25;
@@ -30,20 +30,6 @@ function formatOsloDate(date) {
 
 function tomorrowInOslo() {
   return formatOsloDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
-}
-
-function createTransporter() {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
-    throw new Error('Email configuration not available');
-  }
-
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
 }
 
 function reminderEmail(registration) {
@@ -98,14 +84,9 @@ FAU Erdal Barnehage
   return { subject, text };
 }
 
-async function sendReminder(transporter, registration) {
+async function sendReminder(registration) {
   const { subject, text } = reminderEmail(registration);
-  await transporter.sendMail({
-    from: process.env.GMAIL_USER,
-    to: registration.email,
-    subject,
-    text,
-  });
+  await sendEmail({ to: registration.email, subject, text });
 }
 
 async function cleanupPrivacyRetention(sql) {
@@ -185,13 +166,16 @@ export default async function handler(req, res) {
       return res.status(200).json({ success: true, targetDate, sent: 0, failed: 0, retention });
     }
 
-    const transporter = createTransporter();
+    if (!isEmailConfigured()) {
+      throw new Error('Email configuration not available');
+    }
+
     let sent = 0;
     let failed = 0;
 
     for (const registration of claimed) {
       try {
-        await sendReminder(transporter, registration);
+        await sendReminder(registration);
         sent += 1;
       } catch (emailError) {
         failed += 1;
