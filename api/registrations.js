@@ -1,19 +1,21 @@
 import { getDb } from './_shared/database.js';
-import nodemailer from 'nodemailer';
 import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
   parseAuthToken,
   requireCsrf,
+  requireRole,
   sanitizeText,
   sanitizeEmail,
   sanitizePhone,
   sanitizeNumber
 } from './_shared/middleware.js';
-import { assignPhotoSlots } from './_shared/photo-slots.js';
+import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
+import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import Sentry from './_shared/sentry.js';
+import { COUNCIL_ROLES } from '../shared/constants.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
 const REGISTRATION_MAX_ATTEMPTS = 10;
@@ -39,7 +41,7 @@ export default async function handler(req, res) {
       const user = parseAuthToken(req);
 
       if (user) {
-        if (user.role !== 'admin' && user.role !== 'member') {
+        if (!COUNCIL_ROLES.includes(user.role)) {
           return res.status(403).json({ error: 'Council member access required' });
         }
 
@@ -118,8 +120,12 @@ export default async function handler(req, res) {
             }
           }
         } catch (blacklistError) {
-          // Table may not exist yet or have different schema — skip check, don't block registration
+          // Table may not exist yet or have different schema — skip check, don't block registration.
+          // Surface to Sentry so silent spam-filter degradation is noticed instead of slowly missed.
           console.warn('Email blacklist check failed, skipping:', blacklistError.message);
+          if (process.env.NODE_ENV === 'production') {
+            Sentry.captureException(blacklistError);
+          }
         }
       }
 
@@ -205,113 +211,63 @@ export default async function handler(req, res) {
         photoSlotsJson = JSON.stringify(photoSlots);
       }
 
-      let registrationResult;
-      if (sanitizedChildrenNames !== null || photoSlotsJson !== null) {
-        registrationResult = await sql`
-          WITH target_event AS (
-            SELECT *
-            FROM events
-            WHERE id = ${eventIdNum} AND status = 'active'
-              AND COALESCE(no_signup, false) = false
-              AND COALESCE(vigilo_signup, false) = false
-              AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
-          ),
-          capacity_update AS (
-            UPDATE events
-            SET current_attendees = current_attendees + ${requestedAttendees}
-            WHERE id = ${eventIdNum}
-              AND EXISTS (SELECT 1 FROM target_event)
-              AND (
-                (SELECT type FROM target_event) = 'foto'
-                OR (SELECT max_attendees FROM target_event) IS NULL
-                OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
-              )
-            RETURNING *
-          ),
-          inserted_registration AS (
-            INSERT INTO event_registrations (
-              event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
+      // Always bind children_names and photo_slots — null when this isn't a
+      // foto event so a single CTE handles both cases.
+      const childrenNamesParam = sanitizedChildrenNames ?? null;
+      const photoSlotsParam = photoSlotsJson ?? null;
+
+      const registrationResult = await sql`
+        WITH target_event AS (
+          SELECT *
+          FROM events
+          WHERE id = ${eventIdNum} AND status = 'active'
+            AND COALESCE(no_signup, false) = false
+            AND COALESCE(vigilo_signup, false) = false
+            AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
+        ),
+        capacity_update AS (
+          UPDATE events
+          SET current_attendees = current_attendees + ${requestedAttendees}
+          WHERE id = ${eventIdNum}
+            AND EXISTS (SELECT 1 FROM target_event)
+            AND (
+              (SELECT type FROM target_event) = 'foto'
+              OR (SELECT max_attendees FROM target_event) IS NULL
+              OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
             )
-            SELECT
-              ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-              ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
-              ${sanitizedChildrenNames}, ${photoSlotsJson}
-            WHERE EXISTS (SELECT 1 FROM capacity_update)
-              AND NOT EXISTS (
-                SELECT 1 FROM event_registrations
-                WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
-              )
-            ON CONFLICT DO NOTHING
-            RETURNING *
-          ),
-          rollback_capacity AS (
-            UPDATE events
-            SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
-            WHERE id = ${eventIdNum}
-              AND EXISTS (SELECT 1 FROM capacity_update)
-              AND NOT EXISTS (SELECT 1 FROM inserted_registration)
-            RETURNING id
+          RETURNING *
+        ),
+        inserted_registration AS (
+          INSERT INTO event_registrations (
+            event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
           )
           SELECT
-            (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
-            (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
-            (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
-            (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
-            (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
-        `;
-      } else {
-        registrationResult = await sql`
-          WITH target_event AS (
-            SELECT *
-            FROM events
-            WHERE id = ${eventIdNum} AND status = 'active'
-              AND COALESCE(no_signup, false) = false
-              AND COALESCE(vigilo_signup, false) = false
-              AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
-          ),
-          capacity_update AS (
-            UPDATE events
-            SET current_attendees = current_attendees + ${requestedAttendees}
-            WHERE id = ${eventIdNum}
-              AND EXISTS (SELECT 1 FROM target_event)
-              AND (
-                (SELECT type FROM target_event) = 'foto'
-                OR (SELECT max_attendees FROM target_event) IS NULL
-                OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
-              )
-            RETURNING *
-          ),
-          inserted_registration AS (
-            INSERT INTO event_registrations (
-              event_id, name, email, phone, attendee_count, comments, language
+            ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+            ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
+            ${childrenNamesParam}, ${photoSlotsParam}
+          WHERE EXISTS (SELECT 1 FROM capacity_update)
+            AND NOT EXISTS (
+              SELECT 1 FROM event_registrations
+              WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
             )
-            SELECT
-              ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-              ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage}
-            WHERE EXISTS (SELECT 1 FROM capacity_update)
-              AND NOT EXISTS (
-                SELECT 1 FROM event_registrations
-                WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
-              )
-            ON CONFLICT DO NOTHING
-            RETURNING *
-          ),
-          rollback_capacity AS (
-            UPDATE events
-            SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
-            WHERE id = ${eventIdNum}
-              AND EXISTS (SELECT 1 FROM capacity_update)
-              AND NOT EXISTS (SELECT 1 FROM inserted_registration)
-            RETURNING id
-          )
-          SELECT
-            (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
-            (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
-            (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
-            (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
-            (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
-        `;
-      }
+          ON CONFLICT DO NOTHING
+          RETURNING *
+        ),
+        rollback_capacity AS (
+          UPDATE events
+          SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
+          WHERE id = ${eventIdNum}
+            AND EXISTS (SELECT 1 FROM capacity_update)
+            AND NOT EXISTS (SELECT 1 FROM inserted_registration)
+          RETURNING id
+        )
+        SELECT
+          (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
+          (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
+          (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
+          (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
+          (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
+      `;
 
       const registrationState = registrationResult[0];
       if (!registrationState?.eventExists) {
@@ -355,15 +311,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      // Authenticated access required for deletion
-      const user = parseAuthToken(req);
-      if (!user) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-
-      if (user.role !== 'admin' && user.role !== 'member') {
-        return res.status(403).json({ error: 'Council member access required' });
-      }
+      const user = requireRole(req, res, COUNCIL_ROLES);
+      if (!user) return;
 
       // CSRF protection for state-changing requests
       if (!requireCsrf(req, res)) return;
@@ -403,19 +352,10 @@ export default async function handler(req, res) {
 async function sendEventConfirmationEmail(params) {
   const { registration, event, language, photoSlots } = params;
 
-  // Validate email configuration
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+  if (!isEmailConfigured()) {
     console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
     throw new Error('Email configuration not available');
   }
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
 
   const isNorwegian = language === 'no';
   const locale = isNorwegian ? 'no-NO' : 'en-US';
@@ -456,14 +396,7 @@ async function sendEventConfirmationEmail(params) {
       ? `Bekreftelse: Fotografering ${shortDate}`
       : `Confirmation: Photography ${shortDate}`;
 
-    const fotoMailOptions = {
-      from: process.env.GMAIL_USER,
-      to: registration.email,
-      subject: fotoSubject,
-      text: fotoContent,
-    };
-
-    await transporter.sendMail(fotoMailOptions);
+    await sendEmail({ to: registration.email, subject: fotoSubject, text: fotoContent });
     return;
   }
 
@@ -517,12 +450,5 @@ Best regards,
 FAU Erdal Barnehage
 `;
 
-  const mailOptions = {
-    from: process.env.GMAIL_USER,
-    to: registration.email,
-    subject: subject,
-    text: emailContent,
-  };
-
-  await transporter.sendMail(mailOptions);
+  await sendEmail({ to: registration.email, subject, text: emailContent });
 }

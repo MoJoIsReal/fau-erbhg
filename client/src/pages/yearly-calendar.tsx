@@ -437,13 +437,9 @@ export default function YearlyCalendarPage() {
     useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
   );
 
+  const entriesKey = `/api/yearly-calendar?schoolYear=${schoolYear}`;
   const { data: entries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: ["/api/yearly-calendar", schoolYear],
-    queryFn: async () => {
-      const res = await fetch(`/api/yearly-calendar?schoolYear=${schoolYear}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load yearly calendar");
-      return res.json();
-    },
+    queryKey: [entriesKey],
   });
 
   const moveMutation = useMutation({
@@ -453,17 +449,16 @@ export default function YearlyCalendarPage() {
       return res.json();
     },
     onMutate: async ({ entry, patch }) => {
-      const key = ["/api/yearly-calendar", schoolYear];
-      await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<YearlyCalendarEntry[]>(key);
-      queryClient.setQueryData<YearlyCalendarEntry[]>(key, (old) =>
+      await queryClient.cancelQueries({ queryKey: [entriesKey] });
+      const previous = queryClient.getQueryData<YearlyCalendarEntry[]>([entriesKey]);
+      queryClient.setQueryData<YearlyCalendarEntry[]>([entriesKey], (old) =>
         (old ?? []).map((e) => (e.id === entry.id ? { ...e, ...patch } : e))
       );
       return { previous };
     },
     onError: (err: any, _vars, ctx) => {
       if (ctx?.previous) {
-        queryClient.setQueryData(["/api/yearly-calendar", schoolYear], ctx.previous);
+        queryClient.setQueryData([entriesKey], ctx.previous);
       }
       toast({
         title: t.yearlyCalendar.modal.error,
@@ -472,7 +467,7 @@ export default function YearlyCalendarPage() {
       });
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/yearly-calendar", schoolYear] });
+      queryClient.invalidateQueries({ queryKey: [entriesKey] });
     },
   });
 

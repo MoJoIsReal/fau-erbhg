@@ -130,7 +130,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/yearly-calendar", schoolYear] });
+      queryClient.invalidateQueries({ queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`] });
       toast({ title: t.yearlyCalendar.modal.success });
       onClose();
     },
@@ -152,7 +152,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/yearly-calendar", schoolYear] });
+      queryClient.invalidateQueries({ queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`] });
       onClose();
     },
     onError: (err: any) => {

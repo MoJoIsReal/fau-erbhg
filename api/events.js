@@ -3,12 +3,17 @@ import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
-  parseAuthToken,
   requireCsrf,
+  requireRole,
   sanitizeText,
   sanitizeHtml,
   sanitizeNumber
 } from './_shared/middleware.js';
+import { COUNCIL_ROLES, EVENT_TYPES } from '../shared/constants.js';
+
+// All event endpoints return rows with the same camelCase shape so the
+// client (and any cache merge) sees one schema. The same column list
+// appears in every SELECT below — keep them in sync if columns change.
 
 function normalizeRegistrationDeadline(value) {
   if (!value) return null;
@@ -20,7 +25,6 @@ function normalizeRegistrationDeadline(value) {
 }
 
 export default async function handler(req, res) {
-  // Apply security headers and handle CORS
   applySecurityHeaders(res, req.headers.origin);
   if (handleCorsPreFlight(req, res)) return;
 
@@ -28,16 +32,16 @@ export default async function handler(req, res) {
     const sql = getDb();
 
     if (req.method === 'GET') {
-      // Public access - Get all active and cancelled events
       const events = await sql`
         SELECT
           id, title, description, date, time, location,
-          custom_location as "customLocation",
-          max_attendees as "maxAttendees",
-          current_attendees as "currentAttendees",
-          registration_deadline as "registrationDeadline",
-          type, status, vigilo_signup as "vigiloSignup",
-          no_signup as "noSignup"
+          custom_location AS "customLocation",
+          max_attendees AS "maxAttendees",
+          current_attendees AS "currentAttendees",
+          registration_deadline AS "registrationDeadline",
+          type, status,
+          vigilo_signup AS "vigiloSignup",
+          no_signup AS "noSignup"
         FROM events
         WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
@@ -46,77 +50,33 @@ export default async function handler(req, res) {
       return res.status(200).json(events);
     }
 
-    // All other methods require authentication
-    const user = parseAuthToken(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
+    // All other methods require a council member.
+    const user = requireRole(req, res, COUNCIL_ROLES);
+    if (!user) return;
 
-    // CSRF protection for state-changing requests
     if (!requireCsrf(req, res)) return;
 
-    // All event mutations are council-only.
-    if (user.role !== 'admin' && user.role !== 'member') {
-      return res.status(403).json({ error: 'Council member access required' });
-    }
-
     if (req.method === 'POST') {
-      const { title, description, date, time, location, custom_location, customLocation: customLocationCamel, max_attendees, maxAttendees: maxAttendeesCamel, registration_deadline, registrationDeadline: registrationDeadlineCamel, type, vigiloSignup, noSignup } = req.body;
+      const {
+        title,
+        description,
+        date,
+        time,
+        location,
+        customLocation,
+        maxAttendees,
+        registrationDeadline,
+        type,
+        vigiloSignup,
+        noSignup,
+      } = req.body;
 
-      // Sanitize inputs (accept both camelCase and snake_case)
-      const sanitizedTitle = sanitizeText(title, 200);
-      const sanitizedDescription = sanitizeHtml(description, 5000);
-      const sanitizedLocation = sanitizeText(location, 200);
-      const rawCustomLocation = customLocationCamel || custom_location;
-      const sanitizedCustomLocation = rawCustomLocation ? sanitizeText(rawCustomLocation, 200) : null;
-      const rawMaxAttendees = maxAttendeesCamel || max_attendees;
-      const sanitizedMaxAttendees = rawMaxAttendees ? sanitizeNumber(rawMaxAttendees, 0, 1000) : null;
-      const rawRegistrationDeadline = registrationDeadlineCamel || registration_deadline;
-      const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(rawRegistrationDeadline);
-      const validTypes = ['meeting', 'event', 'activity', 'dugnad', 'foto', 'internal', 'annet', 'other'];
-      const sanitizedType = validTypes.includes(type) ? type : 'meeting';
-
-      if (!sanitizedTitle || !date || !time) {
-        return res.status(400).json({ error: 'Valid title, date, and time are required' });
-      }
-
-      if (sanitizedRegistrationDeadline === undefined) {
-        return res.status(400).json({ error: 'Valid registration deadline is required' });
-      }
-
-      const newEvent = await sql`
-        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup)
-        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${sanitizedType}, ${vigiloSignup || false}, ${noSignup || false})
-        RETURNING *
-      `;
-
-      // Map database fields to frontend camelCase
-      const mappedEvent = {
-        ...newEvent[0],
-        customLocation: newEvent[0].custom_location,
-        maxAttendees: newEvent[0].max_attendees,
-        currentAttendees: newEvent[0].current_attendees,
-        registrationDeadline: newEvent[0].registration_deadline,
-        vigiloSignup: newEvent[0].vigilo_signup,
-        noSignup: newEvent[0].no_signup
-      };
-
-      return res.status(201).json(mappedEvent);
-    }
-
-    if (req.method === 'PUT') {
-      const { id } = req.query;
-      const { title, description, date, time, location, customLocation, maxAttendees, registrationDeadline, type, vigiloSignup, noSignup } = req.body;
-
-      // Sanitize inputs
       const sanitizedTitle = sanitizeText(title, 200);
       const sanitizedDescription = sanitizeHtml(description, 5000);
       const sanitizedLocation = sanitizeText(location, 200);
       const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
       const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
       const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(registrationDeadline);
-      const validTypes = ['meeting', 'event', 'activity', 'dugnad', 'foto', 'internal', 'annet', 'other'];
-      const sanitizedType = validTypes.includes(type) ? type : 'meeting';
 
       if (!sanitizedTitle || !date || !time) {
         return res.status(400).json({ error: 'Valid title, date, and time are required' });
@@ -126,57 +86,130 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Valid registration deadline is required' });
       }
 
-      const updatedEvent = await sql`
-        UPDATE events
-        SET title = ${sanitizedTitle},
-            description = ${sanitizedDescription},
-            date = ${date},
-            time = ${time},
-            location = ${sanitizedLocation},
-            custom_location = ${sanitizedCustomLocation},
-            max_attendees = ${sanitizedMaxAttendees},
-            registration_deadline = ${sanitizedRegistrationDeadline},
-            type = ${sanitizedType},
-            vigilo_signup = ${vigiloSignup || false},
-            no_signup = ${noSignup || false}
-        WHERE id = ${id}
-        RETURNING *
+      if (!EVENT_TYPES.includes(type)) {
+        return res.status(400).json({ error: `Invalid event type: ${type}`, allowed: EVENT_TYPES });
+      }
+
+      const inserted = await sql`
+        WITH inserted AS (
+          INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup)
+          VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${type}, ${vigiloSignup || false}, ${noSignup || false})
+          RETURNING *
+        )
+        SELECT
+          id, title, description, date, time, location,
+          custom_location AS "customLocation",
+          max_attendees AS "maxAttendees",
+          current_attendees AS "currentAttendees",
+          registration_deadline AS "registrationDeadline",
+          type, status,
+          vigilo_signup AS "vigiloSignup",
+          no_signup AS "noSignup"
+        FROM inserted
       `;
 
-      if (updatedEvent.length === 0) {
+      return res.status(201).json(inserted[0]);
+    }
+
+    if (req.method === 'PUT') {
+      const { id } = req.query;
+      const {
+        title,
+        description,
+        date,
+        time,
+        location,
+        customLocation,
+        maxAttendees,
+        registrationDeadline,
+        type,
+        vigiloSignup,
+        noSignup,
+      } = req.body;
+
+      const sanitizedTitle = sanitizeText(title, 200);
+      const sanitizedDescription = sanitizeHtml(description, 5000);
+      const sanitizedLocation = sanitizeText(location, 200);
+      const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
+      const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
+      const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(registrationDeadline);
+
+      if (!sanitizedTitle || !date || !time) {
+        return res.status(400).json({ error: 'Valid title, date, and time are required' });
+      }
+
+      if (sanitizedRegistrationDeadline === undefined) {
+        return res.status(400).json({ error: 'Valid registration deadline is required' });
+      }
+
+      if (!EVENT_TYPES.includes(type)) {
+        return res.status(400).json({ error: `Invalid event type: ${type}`, allowed: EVENT_TYPES });
+      }
+
+      const updated = await sql`
+        WITH updated AS (
+          UPDATE events
+          SET title = ${sanitizedTitle},
+              description = ${sanitizedDescription},
+              date = ${date},
+              time = ${time},
+              location = ${sanitizedLocation},
+              custom_location = ${sanitizedCustomLocation},
+              max_attendees = ${sanitizedMaxAttendees},
+              registration_deadline = ${sanitizedRegistrationDeadline},
+              type = ${type},
+              vigilo_signup = ${vigiloSignup || false},
+              no_signup = ${noSignup || false}
+          WHERE id = ${id}
+          RETURNING *
+        )
+        SELECT
+          id, title, description, date, time, location,
+          custom_location AS "customLocation",
+          max_attendees AS "maxAttendees",
+          current_attendees AS "currentAttendees",
+          registration_deadline AS "registrationDeadline",
+          type, status,
+          vigilo_signup AS "vigiloSignup",
+          no_signup AS "noSignup"
+        FROM updated
+      `;
+
+      if (updated.length === 0) {
         return res.status(404).json({ error: 'Event not found' });
       }
 
-      // Map database fields to frontend camelCase
-      const mappedEvent = {
-        ...updatedEvent[0],
-        customLocation: updatedEvent[0].custom_location,
-        maxAttendees: updatedEvent[0].max_attendees,
-        currentAttendees: updatedEvent[0].current_attendees,
-        registrationDeadline: updatedEvent[0].registration_deadline,
-        vigiloSignup: updatedEvent[0].vigilo_signup,
-        noSignup: updatedEvent[0].no_signup
-      };
-
-      return res.status(200).json(mappedEvent);
+      return res.status(200).json(updated[0]);
     }
 
     if (req.method === 'PATCH') {
       const { id, action } = req.query;
 
       if (action === 'cancel') {
-        const cancelledEvent = await sql`
-          UPDATE events
-          SET status = 'cancelled'
-          WHERE id = ${id}
-          RETURNING *
+        const cancelled = await sql`
+          WITH updated AS (
+            UPDATE events
+            SET status = 'cancelled'
+            WHERE id = ${id}
+            RETURNING *
+          )
+          SELECT
+            id, title, description, date, time, location,
+            custom_location AS "customLocation",
+            max_attendees AS "maxAttendees",
+            current_attendees AS "currentAttendees",
+            registration_deadline AS "registrationDeadline",
+            type, status,
+            vigilo_signup AS "vigiloSignup",
+            no_signup AS "noSignup"
+          FROM updated
         `;
 
-        if (cancelledEvent.length === 0) {
+        if (cancelled.length === 0) {
           return res.status(404).json({ error: 'Event not found' });
         }
 
-        return res.status(200).json(cancelledEvent[0]);
+        return res.status(200).json(cancelled[0]);
       }
 
       return res.status(400).json({ error: 'Invalid action' });
@@ -185,7 +218,6 @@ export default async function handler(req, res) {
     if (req.method === 'DELETE') {
       const { id } = req.query;
 
-      // Check if event has registrations
       const registrations = await sql`
         SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ${id}
       `;

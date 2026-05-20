@@ -4,9 +4,10 @@ import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
-  parseAuthToken,
   requireCsrf,
+  requireRole,
 } from './_shared/middleware.js';
+import { COUNCIL_ROLES } from '../shared/constants.js';
 
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
@@ -38,17 +39,9 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      // Authenticated access required for deletion
-      const user = parseAuthToken(req);
-      if (!user) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
+      const user = requireRole(req, res, COUNCIL_ROLES);
+      if (!user) return;
 
-      if (user.role !== 'admin' && user.role !== 'member') {
-        return res.status(403).json({ error: 'Council member access required' });
-      }
-
-      // CSRF protection for state-changing requests
       if (!requireCsrf(req, res)) return;
 
       const { id } = req.query;
