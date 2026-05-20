@@ -132,6 +132,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       const sig = await signRes.json();
 
       // 2. Upload directly to Cloudinary using that signature.
+      // Only forward parameters that were part of the signed canonical;
+      // sending an extra one (e.g. max_file_size) triggers "Invalid Signature".
       const cloudForm = new globalThis.FormData();
       cloudForm.append('file', file);
       cloudForm.append('api_key', sig.apiKey);
@@ -140,7 +142,6 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       cloudForm.append('folder', sig.folder);
       cloudForm.append('public_id', sig.publicId);
       cloudForm.append('allowed_formats', sig.allowedFormats);
-      cloudForm.append('max_file_size', String(sig.maxFileSize));
 
       const cloudRes = await fetch(sig.uploadUrl, { method: 'POST', body: cloudForm });
       if (!cloudRes.ok) {
