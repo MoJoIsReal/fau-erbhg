@@ -61,12 +61,16 @@ export default async function handler(req, res) {
       const publicId = `${Date.now()}-${validation.sanitizedFilename}`;
       const folder = 'fau-documents';
       const allowedFormats = ALLOWED_UPLOAD_EXTENSIONS.map((ext) => ext.slice(1)).join(',');
+      // Note: don't sign `max_file_size` here. It is not accepted as a per-upload
+      // parameter by Cloudinary's upload endpoint (only on upload presets), so
+      // Cloudinary strips it when re-computing the canonical for signature
+      // verification — including it on our side yields "Invalid Signature".
+      // The 10 MB cap is already enforced by `validateUploadFile` above.
       const paramsToSign = {
         timestamp,
         folder,
         public_id: publicId,
         allowed_formats: allowedFormats,
-        max_file_size: MAX_UPLOAD_SIZE_BYTES,
       };
 
       const signature = cloudinary.utils.api_sign_request(
