@@ -151,9 +151,14 @@ export default function Layout({ children }: LayoutProps) {
                   size="sm"
                   onClick={() => setLoginModalOpen(true)}
                   className="flex items-center gap-2"
+                  title={t.header.login}
+                  aria-label={t.header.login}
                 >
-                  <LogIn className="h-4 w-4" />
-                  <span>{t.header.login}</span>
+                  <LogIn className="h-4 w-4 shrink-0" />
+                  {/* Hide the label at lg (1024-1279) so the six nav items
+                      have room to lay out without overlapping; reveal it
+                      from xl (1280+) where there's space. */}
+                  <span className="hidden xl:inline">{t.header.login}</span>
                 </Button>
               )}
             </div>
