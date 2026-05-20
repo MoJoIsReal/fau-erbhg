@@ -30,7 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useCallback, useRef, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { getCookie } from '@/lib/queryClient';
+import { apiRequest } from '@/lib/queryClient';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 interface RichTextEditorProps {
@@ -44,21 +44,6 @@ const ACTIVE_BUTTON_CLASS = 'bg-neutral-200 dark:bg-neutral-800';
 
 function isSafeLink(url: string) {
   return SAFE_LINK_PROTOCOLS.test(url.trim());
-}
-
-function fileToDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
-      } else {
-        reject(new Error('Invalid file data'));
-      }
-    };
-    reader.onerror = () => reject(reader.error || new Error('Could not read file'));
-    reader.readAsDataURL(file);
-  });
 }
 
 export default function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
@@ -135,31 +120,48 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
 
   const handleImageUpload = async (file: File) => {
     try {
-      const csrfToken = getCookie('csrf-token');
-      const fileData = await fileToDataUrl(file);
       const title = file.name.replace(/\.[^/.]+$/, '') || file.name;
 
-      const response = await fetch('/api/upload', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-Token': csrfToken || '',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          fileData,
-          filename: file.name,
-          title,
-          category: 'editor-image',
-          description: '',
-          uploadedBy: 'Rich text editor',
-        }),
+      // 1. Ask the server for a Cloudinary signature scoped to our cloud.
+      const signRes = await apiRequest('POST', '/api/upload?action=sign', {
+        action: 'sign',
+        filename: file.name,
+        mimeType: file.type,
+        size: file.size,
       });
+      const sig = await signRes.json();
 
-      if (!response.ok) throw new Error('Upload failed');
+      // 2. Upload directly to Cloudinary using that signature.
+      const cloudForm = new globalThis.FormData();
+      cloudForm.append('file', file);
+      cloudForm.append('api_key', sig.apiKey);
+      cloudForm.append('timestamp', String(sig.timestamp));
+      cloudForm.append('signature', sig.signature);
+      cloudForm.append('folder', sig.folder);
+      cloudForm.append('public_id', sig.publicId);
+      cloudForm.append('allowed_formats', sig.allowedFormats);
+      cloudForm.append('max_file_size', String(sig.maxFileSize));
 
-      const data = await response.json();
-      return data.fileUrl || data.document?.fileUrl || data.document?.cloudinary_url || null;
+      const cloudRes = await fetch(sig.uploadUrl, { method: 'POST', body: cloudForm });
+      if (!cloudRes.ok) {
+        throw new Error(await cloudRes.text() || 'Cloudinary upload failed');
+      }
+      const uploadResult = await cloudRes.json();
+
+      // 3. Persist the document metadata server-side (verifies cloud_name).
+      const metaRes = await apiRequest('POST', '/api/upload', {
+        title,
+        category: 'editor-image',
+        description: '',
+        uploadedBy: 'Rich text editor',
+        filename: file.name,
+        fileUrl: uploadResult.secure_url,
+        publicId: uploadResult.public_id,
+        fileSize: uploadResult.bytes || file.size,
+        mimeType: file.type,
+      });
+      const data = await metaRes.json();
+      return data.fileUrl || data.document?.cloudinary_url || null;
     } catch (error) {
       toast({
         variant: 'destructive',

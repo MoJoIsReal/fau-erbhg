@@ -3,11 +3,12 @@ import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
-  parseAuthToken,
   requireCsrf,
+  requireRole,
   sanitizeText,
   sanitizeNumber,
 } from './_shared/middleware.js';
+import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 
 const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note', 'closed'];
 const VALID_COLOR_NAMES = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
@@ -109,13 +110,8 @@ export default async function handler(req, res) {
     }
 
     // All write methods require auth + a yearly-calendar-eligible role
-    const user = parseAuthToken(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    if (user.role !== 'admin' && user.role !== 'member' && user.role !== 'staff') {
-      return res.status(403).json({ error: 'Yearly calendar editor access required' });
-    }
+    const user = requireRole(req, res, YEARLY_CALENDAR_EDITORS);
+    if (!user) return;
     if (!requireCsrf(req, res)) return;
 
     if (req.method === 'POST') {

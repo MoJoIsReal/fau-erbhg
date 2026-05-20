@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
-import { getCookie } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import RichTextEditor from "@/components/RichTextEditor";
 import StaffUsersSection from "@/components/staff-users-section";
 import { useAuth } from "@/hooks/useAuth";
@@ -97,55 +97,24 @@ export default function Settings() {
   // Create member
   const createMutation = useMutation({
     mutationFn: async (member: Partial<FauBoardMember>) => {
-      const csrfToken = getCookie("csrf-token");
-      const response = await fetch("/api/secure-settings?resource=board-members", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken || "",
-        },
-        credentials: "include",
-        body: JSON.stringify(member),
-      });
-
-      if (!response.ok) throw new Error("Failed to create member");
-      return response.json();
+      const res = await apiRequest("POST", "/api/secure-settings?resource=board-members", member);
+      return res.json();
     },
   });
 
   // Update member
   const updateMutation = useMutation({
     mutationFn: async ({ id, member }: { id: number; member: Partial<FauBoardMember> }) => {
-      const csrfToken = getCookie("csrf-token");
-      const response = await fetch(`/api/secure-settings?resource=board-members&id=${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken || "",
-        },
-        credentials: "include",
-        body: JSON.stringify(member),
-      });
-
-      if (!response.ok) throw new Error("Failed to update member");
-      return response.json();
+      const res = await apiRequest("PUT", `/api/secure-settings?resource=board-members&id=${id}`, member);
+      return res.json();
     },
   });
 
   // Delete member
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
-      const csrfToken = getCookie("csrf-token");
-      const response = await fetch(`/api/secure-settings?resource=board-members&id=${id}`, {
-        method: "DELETE",
-        headers: {
-          "X-CSRF-Token": csrfToken || "",
-        },
-        credentials: "include",
-      });
-
-      if (!response.ok) throw new Error("Failed to delete member");
-      return response.json();
+      const res = await apiRequest("DELETE", `/api/secure-settings?resource=board-members&id=${id}`);
+      return res.json();
     },
   });
 
@@ -229,55 +198,24 @@ export default function Settings() {
   // Create blog post mutation
   const createPostMutation = useMutation({
     mutationFn: async (post: Partial<BlogPost>) => {
-      const csrfToken = getCookie("csrf-token");
-      const response = await fetch("/api/secure-settings?resource=blog-posts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken || "",
-        },
-        credentials: "include",
-        body: JSON.stringify(post),
-      });
-
-      if (!response.ok) throw new Error("Failed to create post");
-      return response.json();
+      const res = await apiRequest("POST", "/api/secure-settings?resource=blog-posts", post);
+      return res.json();
     },
   });
 
   // Update blog post mutation
   const updatePostMutation = useMutation({
     mutationFn: async ({ id, post }: { id: number; post: Partial<BlogPost> }) => {
-      const csrfToken = getCookie("csrf-token");
-      const response = await fetch(`/api/secure-settings?resource=blog-posts&id=${id}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken || "",
-        },
-        credentials: "include",
-        body: JSON.stringify(post),
-      });
-
-      if (!response.ok) throw new Error("Failed to update post");
-      return response.json();
+      const res = await apiRequest("PUT", `/api/secure-settings?resource=blog-posts&id=${id}`, post);
+      return res.json();
     },
   });
 
   // Delete blog post mutation
   const deletePostMutation = useMutation({
     mutationFn: async (id: number) => {
-      const csrfToken = getCookie("csrf-token");
-      const response = await fetch(`/api/secure-settings?resource=blog-posts&id=${id}`, {
-        method: "DELETE",
-        headers: {
-          "X-CSRF-Token": csrfToken || "",
-        },
-        credentials: "include",
-      });
-
-      if (!response.ok) throw new Error("Failed to delete post");
-      return response.json();
+      const res = await apiRequest("DELETE", `/api/secure-settings?resource=blog-posts&id=${id}`);
+      return res.json();
     },
   });
 
@@ -439,19 +377,8 @@ export default function Settings() {
   // Update kindergarten info mutation
   const updateKindergartenMutation = useMutation({
     mutationFn: async (info: Partial<KindergartenInfo>) => {
-      const csrfToken = getCookie("csrf-token");
-      const response = await fetch("/api/secure-settings?resource=kindergarten-info", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "X-CSRF-Token": csrfToken || "",
-        },
-        credentials: "include",
-        body: JSON.stringify(info),
-      });
-
-      if (!response.ok) throw new Error("Failed to update kindergarten info");
-      return response.json();
+      const res = await apiRequest("PUT", "/api/secure-settings?resource=kindergarten-info", info);
+      return res.json();
     },
   });
 

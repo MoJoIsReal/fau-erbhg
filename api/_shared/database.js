@@ -1,12 +1,10 @@
-import { neon, neonConfig } from '@neondatabase/serverless';
+import { neon } from '@neondatabase/serverless';
 
 /**
  * Database connection utilities for Vercel serverless functions
  * Implements connection caching to improve performance
+ * (Neon's fetch connection cache is on by default since 0.10.0.)
  */
-
-// Enable connection caching for better performance
-neonConfig.fetchConnectionCache = true;
 
 // Cache the database client across function invocations
 let cachedSql = null;

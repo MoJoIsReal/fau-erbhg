@@ -283,6 +283,24 @@ export function requireAuth(req, res) {
 }
 
 /**
+ * Require an authenticated user with one of the given roles.
+ * Writes a 401 or 403 response and returns null on failure.
+ * @param {Object} req
+ * @param {Object} res
+ * @param {string[]} allowedRoles - Role names from shared/constants.ts (COUNCIL_ROLES, ADMIN_ONLY, etc.)
+ * @returns {Object|null}
+ */
+export function requireRole(req, res, allowedRoles) {
+  const user = requireAuth(req, res);
+  if (!user) return null;
+  if (!allowedRoles.includes(user.role)) {
+    res.status(403).json({ error: 'Forbidden' });
+    return null;
+  }
+  return user;
+}
+
+/**
  * Sanitize text input to prevent XSS attacks
  * @param {string} text - Input text to sanitize
  * @param {number} maxLength - Maximum allowed length (default: 1000)
