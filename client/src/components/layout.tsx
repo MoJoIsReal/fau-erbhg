@@ -106,9 +106,13 @@ export default function Layout({ children }: LayoutProps) {
                       size="sm"
                       className="flex max-w-[220px] items-center gap-2 px-3"
                       title={user?.name || "FAU"}
+                      aria-label={user?.name || "FAU"}
                     >
                       <User className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{user?.name || "FAU"}</span>
+                      {/* Hide username text at lg (1024-1279) to give the
+                          nav row enough room. Show name at xl+ where there's
+                          space. */}
+                      <span className="hidden truncate xl:inline">{user?.name || "FAU"}</span>
                       <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
                     </Button>
                   </DropdownMenuTrigger>
