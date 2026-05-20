@@ -106,6 +106,8 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       const signatureData = await signResponse.json();
 
       // 2. Upload directly to Cloudinary (external host — plain fetch).
+      // Send only the parameters that were signed server-side; otherwise
+      // Cloudinary's canonical-string check fails with "Invalid Signature".
       const cloudinaryForm = new globalThis.FormData();
       cloudinaryForm.append("file", data.file);
       cloudinaryForm.append("api_key", signatureData.apiKey);
@@ -114,7 +116,6 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       cloudinaryForm.append("folder", signatureData.folder);
       cloudinaryForm.append("public_id", signatureData.publicId);
       cloudinaryForm.append("allowed_formats", signatureData.allowedFormats);
-      cloudinaryForm.append("max_file_size", String(signatureData.maxFileSize));
 
       const cloudinaryResponse = await fetch(signatureData.uploadUrl, {
         method: "POST",
