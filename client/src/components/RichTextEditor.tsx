@@ -144,7 +144,15 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
 
       const cloudRes = await fetch(sig.uploadUrl, { method: 'POST', body: cloudForm });
       if (!cloudRes.ok) {
-        throw new Error(await cloudRes.text() || 'Cloudinary upload failed');
+        // Cloudinary returns JSON with { error: { message } } on failure.
+        let cloudErrorMessage = `Cloudinary returned ${cloudRes.status}`;
+        try {
+          const errJson = await cloudRes.json();
+          cloudErrorMessage = errJson?.error?.message || cloudErrorMessage;
+        } catch {
+          // body wasn't JSON
+        }
+        throw new Error(cloudErrorMessage);
       }
       const uploadResult = await cloudRes.json();
 
@@ -163,10 +171,12 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       const data = await metaRes.json();
       return data.fileUrl || data.document?.cloudinary_url || null;
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Image upload failed:', error);
       toast({
         variant: 'destructive',
-        title: 'Upload failed',
-        description: 'Could not upload image',
+        title: language === 'no' ? 'Opplasting feilet' : 'Upload failed',
+        description: message || (language === 'no' ? 'Kunne ikke laste opp bilde' : 'Could not upload image'),
       });
       return null;
     }
