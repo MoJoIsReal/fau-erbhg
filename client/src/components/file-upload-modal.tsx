@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CloudUpload, X } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { getCookie } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_UPLOAD_EXTENSIONS = [
@@ -87,11 +87,6 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
 
   const mutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const csrfToken = getCookie('csrf-token');
-      if (!csrfToken) {
-        throw new Error('No CSRF token found - please log in again');
-      }
-
       const extension = `.${data.file.name.split(".").pop()?.toLowerCase() || ""}`;
       if (!ALLOWED_UPLOAD_EXTENSIONS.includes(extension) || !ALLOWED_UPLOAD_MIME_TYPES.includes(data.file.type)) {
         throw new Error(language === "no" ? "Filtypen er ikke tillatt" : "File type is not allowed");
@@ -101,27 +96,16 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         throw new Error(language === "no" ? "Filen er større enn 10 MB" : "File is larger than 10 MB");
       }
 
-      const signResponse = await fetch("/api/upload?action=sign", {
-        method: "POST",
-        headers: {
-          "X-CSRF-Token": csrfToken,
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          action: "sign",
-          filename: data.file.name,
-          mimeType: data.file.type,
-          size: data.file.size
-        })
+      // 1. Sign — apiRequest handles credentials + CSRF.
+      const signResponse = await apiRequest("POST", "/api/upload?action=sign", {
+        action: "sign",
+        filename: data.file.name,
+        mimeType: data.file.type,
+        size: data.file.size,
       });
-
-      if (!signResponse.ok) {
-        const error = await signResponse.text();
-        throw new Error(error || "Could not prepare upload");
-      }
-
       const signatureData = await signResponse.json();
+
+      // 2. Upload directly to Cloudinary (external host — plain fetch).
       const cloudinaryForm = new globalThis.FormData();
       cloudinaryForm.append("file", data.file);
       cloudinaryForm.append("api_key", signatureData.apiKey);
@@ -143,31 +127,19 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       }
 
       const uploadResult = await cloudinaryResponse.json();
-      const metadataResponse = await fetch("/api/upload", {
-        method: "POST",
-        headers: {
-          "X-CSRF-Token": csrfToken,
-          "Content-Type": "application/json"
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          title: data.title,
-          category: data.category,
-          description: data.description || "",
-          uploadedBy: data.uploadedBy,
-          filename: data.file.name,
-          fileUrl: uploadResult.secure_url,
-          publicId: uploadResult.public_id,
-          fileSize: uploadResult.bytes || data.file.size,
-          mimeType: data.file.type
-        })
+
+      // 3. Persist metadata — server validates the cloud_name on the URL.
+      const metadataResponse = await apiRequest("POST", "/api/upload", {
+        title: data.title,
+        category: data.category,
+        description: data.description || "",
+        uploadedBy: data.uploadedBy,
+        filename: data.file.name,
+        fileUrl: uploadResult.secure_url,
+        publicId: uploadResult.public_id,
+        fileSize: uploadResult.bytes || data.file.size,
+        mimeType: data.file.type,
       });
-
-      if (!metadataResponse.ok) {
-        const error = await metadataResponse.text();
-        throw new Error(error || "Could not save uploaded document");
-      }
-
       return metadataResponse.json();
     },
     onSuccess: () => {

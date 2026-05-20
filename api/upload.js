@@ -4,10 +4,11 @@ import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
-  parseAuthToken,
   requireCsrf,
+  requireRole,
   sanitizeText
 } from './_shared/middleware.js';
+import { COUNCIL_ROLES } from '../shared/constants.js';
 import {
   ALLOWED_UPLOAD_EXTENSIONS,
   ALLOWED_UPLOAD_MIME_TYPES,
@@ -25,17 +26,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // JWT authentication check (from cookies)
-  const decoded = parseAuthToken(req);
-  if (!decoded) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
+  const decoded = requireRole(req, res, COUNCIL_ROLES);
+  if (!decoded) return;
 
-  if (decoded.role !== 'admin' && decoded.role !== 'member') {
-    return res.status(403).json({ error: 'Council member access required' });
-  }
-
-  // CSRF protection for file uploads
   if (!requireCsrf(req, res)) return;
 
   try {

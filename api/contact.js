@@ -1,5 +1,4 @@
 import { getDb } from './_shared/database.js';
-import nodemailer from 'nodemailer';
 import {
   applySecurityHeaders,
   handleCorsPreFlight,
@@ -9,6 +8,7 @@ import {
   sanitizePhone,
 } from './_shared/middleware.js';
 import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
+import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import Sentry from './_shared/sentry.js';
 
 const CONTACT_WINDOW_SECONDS = 10 * 60;
@@ -124,19 +124,10 @@ export default async function handler(req, res) {
 async function sendContactEmail(params) {
   const { name, email, phone, subject, message, isAnonymous } = params;
 
-  // Validate email configuration
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
+  if (!isEmailConfigured()) {
     console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
     throw new Error('Email configuration not available');
   }
-
-  const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
-    },
-  });
 
   const emailContent = `
 Ny henvendelse mottatt:
@@ -152,12 +143,9 @@ ${message}
 ${isAnonymous ? 'Dette er en anonym henvendelse.' : ''}
 `;
 
-  const mailOptions = {
-    from: process.env.GMAIL_USER,
+  await sendEmail({
     to: process.env.GMAIL_USER,
     subject: `Ny henvendelse: ${subject}`,
     text: emailContent,
-  };
-
-  await transporter.sendMail(mailOptions);
+  });
 }

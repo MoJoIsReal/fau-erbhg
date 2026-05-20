@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
+import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
 
 interface FauBoardMember {
@@ -57,20 +58,10 @@ export default function Home() {
   const now = new Date();
   const currentSchoolYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
   const { data: currentYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: ["/api/yearly-calendar", currentSchoolYear],
-    queryFn: async () => {
-      const res = await fetch(`/api/yearly-calendar?schoolYear=${currentSchoolYear}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load yearly calendar");
-      return res.json();
-    },
+    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear}`],
   });
   const { data: nextYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: ["/api/yearly-calendar", currentSchoolYear + 1],
-    queryFn: async () => {
-      const res = await fetch(`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`, { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to load yearly calendar");
-      return res.json();
-    },
+    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`],
   });
 
   type UpcomingItem =
@@ -261,11 +252,11 @@ export default function Home() {
               <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.fauTitle}</h3>
             </div>
             <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
-              <p><strong>{t.home.contact}</strong> <a 
-                href="mailto:fauerdalbarnehage@gmail.com"
+              <p><strong>{t.home.contact}</strong> <a
+                href={`mailto:${FAU_EMAIL}`}
                 className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
               >
-                fauerdalbarnehage@gmail.com
+                {FAU_EMAIL}
               </a></p>
               
               <div className="mt-4">
