@@ -1,4 +1,7 @@
-# AGENTS.md — FAU Erdal Barnehage
+# FAU Erdal Barnehage — Guide for AI-assistenter
+
+> Single source of truth for AI assistants (used by both `AGENTS.md` and
+> `CLAUDE.md`). Edit this file; `CLAUDE.md` only imports it.
 
 This file provides guidance for AI assistants working on this codebase.
 
