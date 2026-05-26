@@ -22,6 +22,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { formatDate, formatFileSize } from "@/lib/i18n";
 import type { Document } from "@shared/schema";
 
 export default function Files() {
@@ -96,23 +97,6 @@ export default function Files() {
     return FileIcon;
   };
 
-  const formatFileSize = (bytes: number | null | undefined) => {
-    if (!bytes) return "Ukjent størrelse";
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
-  const formatDate = (dateString: string) => {
-    const locale = language === 'no' ? 'no-NO' : 'en-US';
-    return new Date(dateString).toLocaleDateString(locale, {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
 
   const getDocumentsByCategory = (categoryId: string) => {
     return allDocuments.filter(doc => doc.category === categoryId);
@@ -252,7 +236,7 @@ export default function Files() {
                             <div className="min-w-0 flex-1">
                               <p className="font-medium text-sm text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
                               <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                {formatDate(doc.uploadedAt)} • {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
+                                {formatDate(doc.uploadedAt, language)} • {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
                               </p>
                               {doc.description && (
                                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">{doc.description}</p>
@@ -313,7 +297,7 @@ export default function Files() {
                       <span className="font-medium">"{activity.document}"</span>
                     </p>
                     <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
-                      {formatDate(activity.date)}
+                      {formatDate(activity.date, language)}
                     </p>
                   </div>
                 </div>
@@ -347,7 +331,7 @@ export default function Files() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
                       <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {formatDate(doc.uploadedAt)} • {formatFileSize(doc.fileSize)}
+                        {formatDate(doc.uploadedAt, language)} • {formatFileSize(doc.fileSize, language)}
                       </p>
                       <p className="text-sm text-neutral-500 dark:text-neutral-400">
                         {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
