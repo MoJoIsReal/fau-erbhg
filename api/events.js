@@ -12,8 +12,27 @@ import {
 import { COUNCIL_ROLES, EVENT_TYPES } from '../shared/constants.js';
 
 // All event endpoints return rows with the same camelCase shape so the
-// client (and any cache merge) sees one schema. The same column list
-// appears in every SELECT below — keep them in sync if columns change.
+// client (and any cache merge) sees one schema. `mapEvent` is the single
+// place that defines that shape; queries select/return raw rows and map here.
+
+function mapEvent(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    date: row.date,
+    time: row.time,
+    location: row.location,
+    customLocation: row.custom_location,
+    maxAttendees: row.max_attendees,
+    currentAttendees: row.current_attendees,
+    registrationDeadline: row.registration_deadline,
+    type: row.type,
+    status: row.status,
+    vigiloSignup: row.vigilo_signup,
+    noSignup: row.no_signup,
+  };
+}
 
 function normalizeRegistrationDeadline(value) {
   if (!value) return null;
@@ -33,21 +52,13 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       const events = await sql`
-        SELECT
-          id, title, description, date, time, location,
-          custom_location AS "customLocation",
-          max_attendees AS "maxAttendees",
-          current_attendees AS "currentAttendees",
-          registration_deadline AS "registrationDeadline",
-          type, status,
-          vigilo_signup AS "vigiloSignup",
-          no_signup AS "noSignup"
+        SELECT *
         FROM events
         WHERE status IN ('active', 'cancelled')
         ORDER BY date ASC, time ASC
       `;
 
-      return res.status(200).json(events);
+      return res.status(200).json(events.map(mapEvent));
     }
 
     // All other methods require a council member.
@@ -91,24 +102,12 @@ export default async function handler(req, res) {
       }
 
       const inserted = await sql`
-        WITH inserted AS (
-          INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup)
-          VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${type}, ${vigiloSignup || false}, ${noSignup || false})
-          RETURNING *
-        )
-        SELECT
-          id, title, description, date, time, location,
-          custom_location AS "customLocation",
-          max_attendees AS "maxAttendees",
-          current_attendees AS "currentAttendees",
-          registration_deadline AS "registrationDeadline",
-          type, status,
-          vigilo_signup AS "vigiloSignup",
-          no_signup AS "noSignup"
-        FROM inserted
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup)
+        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${type}, ${vigiloSignup || false}, ${noSignup || false})
+        RETURNING *
       `;
 
-      return res.status(201).json(inserted[0]);
+      return res.status(201).json(mapEvent(inserted[0]));
     }
 
     if (req.method === 'PUT') {
@@ -150,39 +149,27 @@ export default async function handler(req, res) {
       }
 
       const updated = await sql`
-        WITH updated AS (
-          UPDATE events
-          SET title = ${sanitizedTitle},
-              description = ${sanitizedDescription},
-              date = ${date},
-              time = ${time},
-              location = ${sanitizedLocation},
-              custom_location = ${sanitizedCustomLocation},
-              max_attendees = ${sanitizedMaxAttendees},
-              registration_deadline = ${sanitizedRegistrationDeadline},
-              type = ${type},
-              vigilo_signup = ${vigiloSignup || false},
-              no_signup = ${noSignup || false}
-          WHERE id = ${eventId}
-          RETURNING *
-        )
-        SELECT
-          id, title, description, date, time, location,
-          custom_location AS "customLocation",
-          max_attendees AS "maxAttendees",
-          current_attendees AS "currentAttendees",
-          registration_deadline AS "registrationDeadline",
-          type, status,
-          vigilo_signup AS "vigiloSignup",
-          no_signup AS "noSignup"
-        FROM updated
+        UPDATE events
+        SET title = ${sanitizedTitle},
+            description = ${sanitizedDescription},
+            date = ${date},
+            time = ${time},
+            location = ${sanitizedLocation},
+            custom_location = ${sanitizedCustomLocation},
+            max_attendees = ${sanitizedMaxAttendees},
+            registration_deadline = ${sanitizedRegistrationDeadline},
+            type = ${type},
+            vigilo_signup = ${vigiloSignup || false},
+            no_signup = ${noSignup || false}
+        WHERE id = ${eventId}
+        RETURNING *
       `;
 
       if (updated.length === 0) {
         return res.status(404).json({ error: 'Event not found' });
       }
 
-      return res.status(200).json(updated[0]);
+      return res.status(200).json(mapEvent(updated[0]));
     }
 
     if (req.method === 'PATCH') {
@@ -194,29 +181,17 @@ export default async function handler(req, res) {
 
       if (action === 'cancel') {
         const cancelled = await sql`
-          WITH updated AS (
-            UPDATE events
-            SET status = 'cancelled'
-            WHERE id = ${eventId}
-            RETURNING *
-          )
-          SELECT
-            id, title, description, date, time, location,
-            custom_location AS "customLocation",
-            max_attendees AS "maxAttendees",
-            current_attendees AS "currentAttendees",
-            registration_deadline AS "registrationDeadline",
-            type, status,
-            vigilo_signup AS "vigiloSignup",
-            no_signup AS "noSignup"
-          FROM updated
+          UPDATE events
+          SET status = 'cancelled'
+          WHERE id = ${eventId}
+          RETURNING *
         `;
 
         if (cancelled.length === 0) {
           return res.status(404).json({ error: 'Event not found' });
         }
 
-        return res.status(200).json(cancelled[0]);
+        return res.status(200).json(mapEvent(cancelled[0]));
       }
 
       return res.status(400).json({ error: 'Invalid action' });
