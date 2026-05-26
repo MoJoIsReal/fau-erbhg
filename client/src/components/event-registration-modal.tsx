@@ -185,7 +185,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
           <DialogTitle className="text-base font-semibold sm:text-lg">
             {isFotoEvent
               ? (language === 'no' ? 'Påmelding til fotografering' : 'Register for photo session')
-              : 'Påmelding til arrangement'
+              : (language === 'no' ? 'Påmelding til arrangement' : 'Event registration')
             }
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground mt-1">
@@ -193,7 +193,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               ? (language === 'no'
                 ? 'Oppgi antall barn som skal fotograferes og fornavn på hvert barn.'
                 : 'Enter the number of children to be photographed and the first name of each child.')
-              : 'Fyll ut skjemaet nedenfor for å melde deg på arrangementet.'
+              : (language === 'no'
+                ? 'Fyll ut skjemaet nedenfor for å melde deg på arrangementet.'
+                : 'Fill out the form below to register for the event.')
             }
           </DialogDescription>
         </div>
@@ -204,11 +206,11 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             <div className="p-3 bg-neutral-50 dark:bg-neutral-950 rounded-lg border border-neutral-200 dark:border-neutral-800">
               <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{event.title}</h4>
               <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                {new Date(event.date).toLocaleDateString('no-NO', {
+                {new Date(event.date).toLocaleDateString(language === 'no' ? 'no-NO' : 'en-US', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
-                })} kl. {event.time}
+                })} {language === 'no' ? 'kl.' : 'at'} {event.time}
               </p>
               <p className="text-sm text-neutral-600 dark:text-neutral-400">{event.location}</p>
             </div>

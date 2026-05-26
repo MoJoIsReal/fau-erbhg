@@ -34,6 +34,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate } from "@/lib/i18n";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import type { Event } from "@shared/schema";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import EventCreationModal from "@/components/event-creation-modal";
@@ -63,6 +64,14 @@ function formatRegistrationDeadline(deadline: string, language: 'no' | 'en') {
 
 export default function Events() {
   const { language, t } = useLanguage();
+  usePageMeta({
+    title: language === "no" ? "Arrangementer" : "Events",
+    description:
+      language === "no"
+        ? "Se kommende arrangementer, møter og aktiviteter i FAU Erdal Barnehage, og meld deg på."
+        : "See upcoming events, meetings and activities at FAU Erdal Kindergarten, and register.",
+    path: "/events",
+  });
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -352,11 +361,7 @@ export default function Events() {
                               <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{event.title}</h3>
                               <div className="flex items-center text-neutral-600 dark:text-neutral-400 text-sm mt-1">
                                 <Clock className="h-4 w-4 mr-2" />
-                                <span>{new Date(event.date).toLocaleDateString('no-NO', { 
-                                  day: 'numeric', 
-                                  month: 'long', 
-                                  year: 'numeric' 
-                                })}, kl. {event.time}</span>
+                                <span>{formatDate(event.date, language)}, {language === 'no' ? 'kl.' : 'at'} {event.time}</span>
                               </div>
                             </div>
                           </div>

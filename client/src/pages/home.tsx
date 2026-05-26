@@ -8,6 +8,8 @@ import { Link } from "wouter";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
+import { formatDate } from "@/lib/i18n";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface FauBoardMember {
   id: number;
@@ -39,6 +41,15 @@ interface KindergartenInfo {
 
 export default function Home() {
   const { language, t } = useLanguage();
+
+  usePageMeta({
+    title: language === "no" ? "Hjem" : "Home",
+    description:
+      language === "no"
+        ? "FAU Erdal Barnehage – foreldrenes arbeidsutvalg. Arrangementer, nyheter, dokumenter og kontakt."
+        : "FAU Erdal Kindergarten – the parents' committee. Events, news, documents and contact.",
+    path: "/",
+  });
 
   const features = [
     { icon: Heart, text: t.home.safety },
@@ -145,7 +156,7 @@ export default function Home() {
               />
               <img
                 src={kindergartenImage1280}
-                alt="Barn som leker på lekeplass"
+                alt={language === 'no' ? 'Barn som leker på lekeplass' : 'Children playing on a playground'}
                 className="rounded-xl shadow-lg w-full h-auto"
                 loading="eager"
                 decoding="async"
@@ -170,7 +181,7 @@ export default function Home() {
                       {post.title}
                     </h4>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-                      {new Date(post.publishedDate).toLocaleDateString('no-NO', {
+                      {formatDate(post.publishedDate, language, {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
@@ -312,7 +323,7 @@ export default function Home() {
                         <div className="space-y-1 text-xs text-accent">
                           <div className="flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
-                            <span>{new Date(event.date).toLocaleDateString('no-NO')} kl. {event.time}</span>
+                            <span>{formatDate(event.date, language)} {language === 'no' ? 'kl.' : 'at'} {event.time}</span>
                           </div>
                           {event.location && (
                             <div className="flex items-center">
@@ -371,7 +382,7 @@ export default function Home() {
                       <div className="space-y-1 text-xs text-accent">
                         <div className="flex items-center">
                           <Clock className="h-3 w-3 mr-1" />
-                          <span>{new Date(entry.date as string).toLocaleDateString('no-NO')}</span>
+                          <span>{formatDate(entry.date as string, language)}</span>
                         </div>
                       </div>
                     </div>

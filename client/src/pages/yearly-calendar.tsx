@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -407,6 +408,14 @@ function DroppableRow({ id, data, disabled, className, children }: DroppableProp
 
 export default function YearlyCalendarPage() {
   const { t, language } = useLanguage();
+  usePageMeta({
+    title: language === "no" ? "Årshjul" : "Yearly calendar",
+    description:
+      language === "no"
+        ? "Årshjul for Erdal Barnehage med planleggingsdager, ferier og viktige datoer gjennom barnehageåret."
+        : "Yearly calendar for Erdal Kindergarten with planning days, holidays and key dates through the year.",
+    path: "/arskalender",
+  });
   const { user } = useAuth();
   const { toast } = useToast();
   // Tracks the in-flight PDF generation so we can disable buttons and

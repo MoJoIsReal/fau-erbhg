@@ -15,6 +15,7 @@ import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/cons
 import { Send, UserRoundCheck, User, GraduationCap, MapPin, Phone, Mail, Clock, Calendar, type LucideIcon } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { usePageMeta } from "@/hooks/usePageMeta";
 
 type FormData = z.infer<typeof insertContactMessageSchema> & {
   subject: string;
@@ -34,6 +35,14 @@ type ContactInfo = {
 export default function Contact() {
   const { toast } = useToast();
   const { language, t } = useLanguage();
+  usePageMeta({
+    title: language === "no" ? "Kontakt" : "Contact",
+    description:
+      language === "no"
+        ? "Ta kontakt med FAU Erdal Barnehage. Send en henvendelse, tilbakemelding eller anonym beskjed."
+        : "Get in touch with FAU Erdal Kindergarten. Send a message, feedback or an anonymous note.",
+    path: "/contact",
+  });
   const [isAnonymous, setIsAnonymous] = useState(false);
 
   const formSchema = insertContactMessageSchema.extend({
