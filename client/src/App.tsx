@@ -18,7 +18,11 @@ const Privacy = lazy(() => import("@/pages/privacy"));
 // Loading fallback component
 function PageLoader() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-neutral-50">
+    <div
+      className="min-h-screen w-full flex items-center justify-center bg-neutral-50"
+      role="status"
+      aria-live="polite"
+    >
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
         <p className="text-neutral-600">Laster...</p>

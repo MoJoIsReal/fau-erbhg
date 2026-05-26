@@ -81,7 +81,7 @@ export default function Layout({ children }: LayoutProps) {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors ${
+                    className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
@@ -299,7 +299,7 @@ export default function Layout({ children }: LayoutProps) {
                   href="https://www.facebook.com/groups/1674520382805077"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors"
+                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t.footer.facebook}
                 </a>
@@ -307,7 +307,7 @@ export default function Layout({ children }: LayoutProps) {
                   href="https://askoy.kommune.no/tjenester/barnehagen/barnehagene-pa-askoy/kommunalebarnehager/erdal-barnehage"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors"
+                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t.footer.website}
                 </a>
@@ -315,7 +315,7 @@ export default function Layout({ children }: LayoutProps) {
                   href="https://barnehagefakta.no/barnehage/974600838/erdal-barnehage"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors"
+                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t.footer.barnehageFakta}
                 </a>
@@ -324,7 +324,7 @@ export default function Layout({ children }: LayoutProps) {
                   href="https://foreldreutvalgene.no/fub/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors"
+                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
                 >
                   {t.footer.fubLink}
                 </a>
@@ -338,15 +338,15 @@ export default function Layout({ children }: LayoutProps) {
                   <>
                     <p className="font-medium mb-2">{nextMeeting.title}</p>
                     <p className="text-sm text-neutral-300 mb-1">
-                      {new Date(nextMeeting.date).toLocaleDateString('no-NO', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
+                      {new Date(nextMeeting.date).toLocaleDateString(language === 'no' ? 'no-NO' : 'en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
                       })}
                     </p>
                     <p className="text-sm text-neutral-300 mb-3">
-                      Kl. {nextMeeting.time} - {nextMeeting.location}
+                      {language === 'no' ? 'Kl.' : 'At'} {nextMeeting.time} - {nextMeeting.location}
                     </p>
                     <Link href="/events" className="text-primary hover:text-white text-sm font-medium">
                       {t.home.moreInfo}

@@ -19,6 +19,28 @@ import { COUNCIL_ROLES } from '../shared/constants.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
 const REGISTRATION_MAX_ATTEMPTS = 10;
+const MAX_CHILD_NAME_LENGTH = 100;
+
+// Children names arrive as a JSON-stringified array from the client. Never trust
+// it: parse, enforce it's an array of strings, sanitize each name, and cap both
+// the per-name length and the count so a crafted request can't store malformed
+// JSON or bloat the table.
+function sanitizeChildrenNames(raw, maxCount) {
+  if (!raw) return null;
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parsed)) return null;
+  const cap = Number.isFinite(maxCount) && maxCount > 0 ? Math.min(maxCount, 100) : 100;
+  const cleaned = parsed
+    .slice(0, cap)
+    .map((name) => sanitizeText(String(name ?? ''), MAX_CHILD_NAME_LENGTH))
+    .filter((name) => name.length > 0);
+  return cleaned.length > 0 ? JSON.stringify(cleaned) : null;
+}
 
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
@@ -194,7 +216,7 @@ export default async function handler(req, res) {
 
       const requestedAttendees = sanitizedAttendeeCount;
 
-      const sanitizedChildrenNames = childrenNames || null;
+      const sanitizedChildrenNames = sanitizeChildrenNames(childrenNames, requestedAttendees);
 
       // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
       let photoSlots = undefined;
