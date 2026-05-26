@@ -112,7 +112,10 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PUT') {
-      const { id } = req.query;
+      const eventId = parseInt(req.query.id, 10);
+      if (!eventId || Number.isNaN(eventId)) {
+        return res.status(400).json({ error: 'Valid event ID required' });
+      }
       const {
         title,
         description,
@@ -160,7 +163,7 @@ export default async function handler(req, res) {
               type = ${type},
               vigilo_signup = ${vigiloSignup || false},
               no_signup = ${noSignup || false}
-          WHERE id = ${id}
+          WHERE id = ${eventId}
           RETURNING *
         )
         SELECT
@@ -183,14 +186,18 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'PATCH') {
-      const { id, action } = req.query;
+      const { action } = req.query;
+      const eventId = parseInt(req.query.id, 10);
+      if (!eventId || Number.isNaN(eventId)) {
+        return res.status(400).json({ error: 'Valid event ID required' });
+      }
 
       if (action === 'cancel') {
         const cancelled = await sql`
           WITH updated AS (
             UPDATE events
             SET status = 'cancelled'
-            WHERE id = ${id}
+            WHERE id = ${eventId}
             RETURNING *
           )
           SELECT
@@ -216,10 +223,13 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      const { id } = req.query;
+      const eventId = parseInt(req.query.id, 10);
+      if (!eventId || Number.isNaN(eventId)) {
+        return res.status(400).json({ error: 'Valid event ID required' });
+      }
 
       const registrations = await sql`
-        SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ${id}
+        SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ${eventId}
       `;
 
       if (registrations[0].count > 0) {
@@ -231,7 +241,7 @@ export default async function handler(req, res) {
       }
 
       const deletedEvent = await sql`
-        DELETE FROM events WHERE id = ${id} RETURNING id
+        DELETE FROM events WHERE id = ${eventId} RETURNING id
       `;
 
       if (deletedEvent.length === 0) {
