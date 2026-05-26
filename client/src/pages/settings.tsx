@@ -639,7 +639,7 @@ export default function Settings() {
                     </div>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
                       {post.publishedDate &&
-                        new Date(post.publishedDate).toLocaleDateString("no-NO")}
+                        new Date(post.publishedDate).toLocaleDateString(language === "no" ? "no-NO" : "en-US")}
                       {post.author && (
                         <span className="ml-2">
                           • {language === "no" ? "av" : "by"} {post.author}

@@ -1093,13 +1093,16 @@ export function useTranslation(language: Language) {
   return translations[language];
 }
 
-export function formatDate(dateString: string, language: Language): string {
+export function formatDate(
+  dateString: string | number | Date | null | undefined,
+  language: Language,
+  options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' },
+): string {
+  if (dateString === null || dateString === undefined || dateString === '') return '';
+  const date = dateString instanceof Date ? dateString : new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '';
   const locale = language === 'no' ? 'no-NO' : 'en-US';
-  return new Date(dateString).toLocaleDateString(locale, { 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
-  });
+  return date.toLocaleDateString(locale, options);
 }
 
 export function formatFileSize(bytes: number | null | undefined, language: Language): string {
