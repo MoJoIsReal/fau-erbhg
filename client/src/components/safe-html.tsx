@@ -7,6 +7,26 @@ interface SafeHtmlProps {
   truncate?: number;
 }
 
+// Defense-in-depth: drop the src of any image not hosted in our Cloudinary
+// account so legacy content can't load third-party images (e.g. tracking
+// pixels) in the visitor's browser. The server sanitizer enforces the same on
+// write; this covers content stored before that was in place.
+if (typeof window !== "undefined") {
+  DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+    if (node.tagName === "IMG") {
+      const src = node.getAttribute("src") || "";
+      try {
+        const url = new URL(src, window.location.origin);
+        if (!(url.protocol === "https:" && url.hostname === "res.cloudinary.com")) {
+          node.removeAttribute("src");
+        }
+      } catch {
+        node.removeAttribute("src");
+      }
+    }
+  });
+}
+
 function sanitizeClientHtml(html: string) {
   if (typeof window === "undefined") return "";
 
