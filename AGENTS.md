@@ -1,4 +1,7 @@
-# AGENTS.md — FAU Erdal Barnehage
+# FAU Erdal Barnehage — Guide for AI-assistenter
+
+> Single source of truth for AI assistants (used by both `AGENTS.md` and
+> `CLAUDE.md`). Edit this file; `CLAUDE.md` only imports it.
 
 This file provides guidance for AI assistants working on this codebase.
 
@@ -26,8 +29,7 @@ FAU Erdal Barnehage is a bilingual (Norwegian/English) web application for a Nor
 │   └── _shared/         # Shared serverless utilities (auth, DB, Cloudinary)
 ├── shared/              # Shared code (client + server)
 │   ├── schema.ts        # Drizzle ORM schema + Zod types (source of truth)
-│   ├── env.ts           # Environment variable validation (Zod)
-│   ├── constants.ts     # Cross-tier constants
+│   ├── constants.js     # Cross-tier constants
 │   └── photo-slots.ts   # Photo-event slot assignment (client mirror)
 ├── migrations/          # SQL migrations applied via the Neon SQL editor
 ├── docs/                # Deployment and operations guides
@@ -156,7 +158,8 @@ Throw structured errors with HTTP status codes on the server. The shared `handle
 
 ## Environment Variables
 
-Required at runtime (validated by `shared/env.ts` using Zod):
+Required at runtime (provided via Vercel project env; the serverless functions
+read `process.env` directly):
 
 | Variable | Description |
 |---|---|

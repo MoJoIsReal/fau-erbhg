@@ -13,6 +13,7 @@ import { CloudUpload, X } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest } from "@/lib/queryClient";
+import { formatFileSize } from "@/lib/i18n";
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_UPLOAD_EXTENSIONS = [
@@ -228,14 +229,6 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     onClose();
   };
 
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return "0 Bytes";
-    const k = 1024;
-    const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
@@ -319,7 +312,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                             </Button>
                           </div>
                           <p className="text-xs text-neutral-500 dark:text-neutral-400">
-                            {formatFileSize(selectedFile.size)}
+                            {formatFileSize(selectedFile.size, language)}
                           </p>
                         </div>
                       ) : (

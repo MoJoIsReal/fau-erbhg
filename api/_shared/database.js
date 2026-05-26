@@ -27,26 +27,3 @@ export function getDb() {
   cachedSql = neon(process.env.DATABASE_URL);
   return cachedSql;
 }
-
-/**
- * Execute a database query with error handling
- * @param {Function} queryFn - Function that executes the query
- * @returns {Promise} - Query result
- */
-export async function executeQuery(queryFn) {
-  try {
-    const sql = getDb();
-    return await queryFn(sql);
-  } catch (error) {
-    console.error('Database query error:', error);
-    throw error;
-  }
-}
-
-/**
- * Clear the cached database connection
- * Useful for testing or when connection needs to be refreshed
- */
-export function clearDbCache() {
-  cachedSql = null;
-}
