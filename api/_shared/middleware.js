@@ -216,7 +216,13 @@ export function validateCsrfToken(req) {
     return false;
   }
 
-  return csrfTokenFromCookie === csrfTokenFromHeader;
+  // Constant-time comparison so the check can't be probed via timing.
+  const cookieBuf = Buffer.from(String(csrfTokenFromCookie));
+  const headerBuf = Buffer.from(String(csrfTokenFromHeader));
+  if (cookieBuf.length !== headerBuf.length) {
+    return false;
+  }
+  return crypto.timingSafeEqual(cookieBuf, headerBuf);
 }
 
 /**
@@ -323,6 +329,15 @@ export function sanitizeText(text, maxLength = 1000) {
  * @param {number} maxLength - Maximum allowed length (default: 10000)
  * @returns {string} - Sanitized HTML
  */
+function isCloudinaryImageSrc(src) {
+  try {
+    const url = new URL(src);
+    return url.protocol === 'https:' && url.hostname === 'res.cloudinary.com';
+  } catch {
+    return false;
+  }
+}
+
 export function sanitizeHtml(html, maxLength = 10000) {
   if (!html || typeof html !== 'string') return '';
 
@@ -344,7 +359,16 @@ export function sanitizeHtml(html, maxLength = 10000) {
       a: sanitizeHtmlContent.simpleTransform('a', {
         target: '_blank',
         rel: 'noopener noreferrer'
-      }, true)
+      }, true),
+      // Only allow images hosted in our own Cloudinary account. Stripping the
+      // src of any other image prevents an authenticated editor from embedding
+      // a third-party tracking pixel that would leak visitors' IPs.
+      img: (tagName, attribs) => {
+        if (!isCloudinaryImageSrc(attribs.src || '')) {
+          return { tagName: 'img', attribs: {} };
+        }
+        return { tagName: 'img', attribs: { src: attribs.src, alt: attribs.alt || '' } };
+      }
     },
     disallowedTagsMode: 'discard',
     enforceHtmlBoundary: true
