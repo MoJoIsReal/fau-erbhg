@@ -19,6 +19,7 @@ import { FileText, Gavel, Calendar, Upload, Download, Plus, Edit, FileSpreadshee
 import FileUploadModal from "@/components/file-upload-modal";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Document } from "@shared/schema";
@@ -29,6 +30,14 @@ export default function Files() {
   const { isAuthenticated } = useAuth();
   const { language, t } = useLanguage();
   const { toast } = useToast();
+  usePageMeta({
+    title: language === "no" ? "Dokumenter" : "Documents",
+    description:
+      language === "no"
+        ? "Last ned referater, vedtekter og andre dokumenter fra FAU Erdal Barnehage."
+        : "Download minutes, statutes and other documents from FAU Erdal Kindergarten.",
+    path: "/files",
+  });
   const queryClient = useQueryClient();
 
   const categories = [
@@ -97,10 +106,11 @@ export default function Files() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('no-NO', { 
-      day: 'numeric', 
-      month: 'long', 
-      year: 'numeric' 
+    const locale = language === 'no' ? 'no-NO' : 'en-US';
+    return new Date(dateString).toLocaleDateString(locale, {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
     });
   };
 

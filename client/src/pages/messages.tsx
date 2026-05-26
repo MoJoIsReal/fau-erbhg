@@ -216,7 +216,7 @@ export default function Messages() {
                           )}
                           <p className="flex items-center gap-2">
                             <Clock className="h-4 w-4" />
-                            {new Date(message.createdAt).toLocaleDateString("no-NO", {
+                            {new Date(message.createdAt).toLocaleDateString(language === "no" ? "no-NO" : "en-US", {
                               year: "numeric",
                               month: "long",
                               day: "numeric",
@@ -318,7 +318,7 @@ export default function Messages() {
                     {message.respondedAt && (
                       <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3 italic">
                         {language === "no" ? "Besvart" : "Responded"}{" "}
-                        {new Date(message.respondedAt).toLocaleDateString("no-NO")}
+                        {new Date(message.respondedAt).toLocaleDateString(language === "no" ? "no-NO" : "en-US")}
                         {message.respondedBy && ` ${language === "no" ? "av" : "by"} ${message.respondedBy}`}
                       </p>
                     )}
