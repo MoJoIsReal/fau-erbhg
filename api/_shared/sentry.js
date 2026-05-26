@@ -1,10 +1,5 @@
 import crypto from 'crypto';
-
-function redactSensitiveText(value) {
-  return String(value || '')
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted-email]')
-    .replace(/(?:\+?\d[\d\s().-]{6,}\d)/g, '[redacted-phone]');
-}
+import { redactSensitiveText } from './redact.js';
 
 function getSentryEndpoint(dsn) {
   try {

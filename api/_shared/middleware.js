@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import sanitizeHtmlContent from 'sanitize-html';
 import Sentry from './sentry.js';
+import { redactSensitiveText } from './redact.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -18,12 +19,6 @@ function appendVaryHeader(res, value) {
   if (!values.includes(value.toLowerCase())) {
     res.setHeader('Vary', `${current}, ${value}`);
   }
-}
-
-function redactSensitiveText(value) {
-  return String(value)
-    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, '[redacted-email]')
-    .replace(/(?:\+?\d[\d\s().-]{6,}\d)/g, '[redacted-phone]');
 }
 
 function safeErrorForLog(error) {
@@ -76,24 +71,6 @@ export function handleCorsPreFlight(req, res) {
 }
 
 /**
- * Validate request method
- * @param {Object} req - Request object
- * @param {Object} res - Response object
- * @param {string[]} allowedMethods - Array of allowed HTTP methods
- * @returns {boolean} - True if method is allowed, false otherwise
- */
-export function validateMethod(req, res, allowedMethods) {
-  if (!allowedMethods.includes(req.method)) {
-    res.status(405).json({
-      error: 'Method not allowed',
-      allowed: allowedMethods
-    });
-    return false;
-  }
-  return true;
-}
-
-/**
  * Error response handler
  * @param {Object} res - Response object
  * @param {Error} error - Error object
@@ -116,32 +93,6 @@ export function handleError(res, error, statusCode = 500) {
     error: message,
     ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
   });
-}
-
-/**
- * Validate required environment variables
- * @param {string[]} requiredVars - Array of required environment variable names
- * @throws {Error} - Throws if any required variable is missing
- */
-export function validateEnvVars(requiredVars) {
-  const missing = requiredVars.filter(varName => !process.env[varName]);
-
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
-  }
-}
-
-/**
- * Log API request for monitoring
- * @param {Object} req - Request object
- * @param {number} startTime - Request start time in milliseconds
- */
-export function logRequest(req, startTime) {
-  const duration = Date.now() - startTime;
-  const method = req.method;
-  const url = req.url;
-
-  console.log(`[${method}] ${url} - ${duration}ms`);
 }
 
 /**
