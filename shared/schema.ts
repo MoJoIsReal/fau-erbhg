@@ -26,6 +26,11 @@ export const events = pgTable("events", {
   status: text("status").default("active").notNull(), // "active", "cancelled"
   vigiloSignup: boolean("vigilo_signup").default(false), // true if signup is through Vigilo platform
   noSignup: boolean("no_signup").default(false), // true if event has no signup/registration
+  // When true, the day before this event the daily cron emails a reminder to
+  // every confirmed newsletter subscriber. newsletterSentAt records when that
+  // broadcast went out so it is never sent twice.
+  notifyNewsletter: boolean("notify_newsletter").default(false),
+  newsletterSentAt: text("newsletter_sent_at"),
 });
 
 export const eventRegistrations = pgTable("event_registrations", {
@@ -62,6 +67,23 @@ export const contactMessages = pgTable("contact_messages", {
   message: text("message").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+// Newsletter ("nyhetsbrev") subscribers. Parents opt in via a public form and
+// confirm through a double opt-in email before they receive any reminders.
+export const newsletterSubscribers = pgTable("newsletter_subscribers", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  language: text("language").notNull().default("no"), // "no" or "en"
+  status: text("status").notNull().default("pending"), // "pending", "active", "unsubscribed"
+  confirmToken: text("confirm_token"), // double opt-in token; cleared once confirmed
+  unsubscribeToken: text("unsubscribe_token").notNull(), // stable token embedded in every email
+  createdAt: text("created_at").notNull(),
+  confirmedAt: text("confirmed_at"),
+  unsubscribedAt: text("unsubscribed_at"),
+}, (table) => ({
+  statusIdx: index("newsletter_subscribers_status_idx").on(table.status),
+}));
 
 export const documents = pgTable("documents", {
   id: serial("id").primaryKey(),
@@ -136,6 +158,10 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   // When true (only meaningful for day_event entries), surface this entry in
   // the homepage "Kommende arrangementer" list with a "For foreldre" badge.
   showForParents: boolean("show_for_parents").default(false),
+  // When true (only meaningful for day_event entries), the daily cron emails a
+  // reminder to every confirmed newsletter subscriber the day before `date`.
+  notifyNewsletter: boolean("notify_newsletter").default(false),
+  newsletterSentAt: text("newsletter_sent_at"),
   createdBy: text("created_by"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
@@ -147,6 +173,7 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
 export const insertEventSchema = createInsertSchema(events).omit({ id: true, currentAttendees: true });
 export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
+export const insertNewsletterSubscriberSchema = createInsertSchema(newsletterSubscribers).omit({ id: true, createdAt: true, confirmedAt: true, unsubscribedAt: true, confirmToken: true, unsubscribeToken: true, status: true });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, uploadedAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertSiteSettingSchema = createInsertSchema(siteSettings).omit({ id: true, updatedAt: true });
@@ -157,6 +184,7 @@ export const insertYearlyCalendarEntrySchema = createInsertSchema(yearlyCalendar
 export type InsertEvent = z.infer<typeof insertEventSchema>;
 export type InsertEventRegistration = z.infer<typeof insertEventRegistrationSchema>;
 export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
+export type InsertNewsletterSubscriber = z.infer<typeof insertNewsletterSubscriberSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertSiteSetting = z.infer<typeof insertSiteSettingSchema>;
@@ -166,6 +194,7 @@ export type InsertYearlyCalendarEntry = z.infer<typeof insertYearlyCalendarEntry
 export type Event = typeof events.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
+export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;

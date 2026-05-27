@@ -119,6 +119,48 @@ export interface Translations {
       feedback: string;
     };
   };
+  // Newsletter ("nyhetsbrev")
+  newsletter: {
+    navTitle: string;
+    title: string;
+    subtitle: string;
+    emailLabel: string;
+    emailPlaceholder: string;
+    nameLabel: string;
+    namePlaceholder: string;
+    subscribe: string;
+    subscribing: string;
+    consent: string;
+    successTitle: string;
+    successDesc: string;
+    errorTitle: string;
+    errorDesc: string;
+    confirmPendingTitle: string;
+    confirmSuccessTitle: string;
+    confirmSuccessDesc: string;
+    confirmErrorTitle: string;
+    confirmErrorDesc: string;
+    unsubPendingTitle: string;
+    unsubSuccessTitle: string;
+    unsubSuccessDesc: string;
+    unsubErrorTitle: string;
+    unsubErrorDesc: string;
+    footerLink: string;
+    admin: {
+      title: string;
+      description: string;
+      email: string;
+      status: string;
+      subscribed: string;
+      statusPending: string;
+      statusActive: string;
+      statusUnsubscribed: string;
+      activeCount: string;
+      noSubscribers: string;
+      delete: string;
+      deleteConfirm: string;
+    };
+  };
   // Documents page
   documents: {
     title: string;
@@ -329,6 +371,8 @@ export interface Translations {
       showOnHomepageHint: string;
       showForParents: string;
       showForParentsHint: string;
+      notifyNewsletter: string;
+      notifyNewsletterHint: string;
       save: string;
       saving: string;
       delete: string;
@@ -483,6 +527,47 @@ export const translations: Record<Language, Translations> = {
         general: "Generell Henvendelse",
         concern: "Bekymring",
         feedback: "Tilbakemelding"
+      }
+    },
+    newsletter: {
+      navTitle: "Nyhetsbrev",
+      title: "Meld deg på nyhetsbrevet",
+      subtitle: "Få påminnelser på e-post om kommende arrangementer i barnehagen og aktiviteter for barn og foreldre.",
+      emailLabel: "E-post",
+      emailPlaceholder: "din@epost.no",
+      nameLabel: "Navn (valgfritt)",
+      namePlaceholder: "Navn Navnesen",
+      subscribe: "Meld meg på",
+      subscribing: "Melder på...",
+      consent: "Vi bruker e-postadressen din kun til å sende påminnelser fra FAU. Du kan melde deg av når som helst via lenken nederst i hver e-post.",
+      successTitle: "Sjekk e-posten din",
+      successDesc: "Vi har sendt deg en bekreftelseslenke. Klikk på den for å fullføre påmeldingen.",
+      errorTitle: "Noe gikk galt",
+      errorDesc: "Kunne ikke fullføre påmeldingen. Prøv igjen senere.",
+      confirmPendingTitle: "Bekrefter påmelding...",
+      confirmSuccessTitle: "Påmelding bekreftet!",
+      confirmSuccessDesc: "Takk! Du vil nå motta påminnelser fra FAU Erdal Barnehage.",
+      confirmErrorTitle: "Ugyldig eller utløpt lenke",
+      confirmErrorDesc: "Bekreftelseslenken er ugyldig eller allerede brukt. Prøv å melde deg på på nytt.",
+      unsubPendingTitle: "Melder deg av...",
+      unsubSuccessTitle: "Du er nå avmeldt",
+      unsubSuccessDesc: "Du vil ikke lenger motta nyhetsbrev fra FAU Erdal Barnehage.",
+      unsubErrorTitle: "Noe gikk galt",
+      unsubErrorDesc: "Kunne ikke melde deg av. Prøv igjen senere.",
+      footerLink: "📧 Meld deg på nyhetsbrev",
+      admin: {
+        title: "Nyhetsbrev-abonnenter",
+        description: "Foreldre som har bekreftet påmelding til nyhetsbrevet. Påminnelser sendes automatisk dagen før arrangementer som er huket av.",
+        email: "E-post",
+        status: "Status",
+        subscribed: "Påmeldt",
+        statusPending: "Venter på bekreftelse",
+        statusActive: "Aktiv",
+        statusUnsubscribed: "Avmeldt",
+        activeCount: "aktive abonnenter",
+        noSubscribers: "Ingen abonnenter ennå.",
+        delete: "Slett abonnent",
+        deleteConfirm: "Dette fjerner abonnenten permanent."
       }
     },
     documents: {
@@ -689,6 +774,8 @@ export const translations: Record<Language, Translations> = {
         showOnHomepageHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"I barnehagen\".",
         showForParents: "Vis på hjemmesiden (For foreldre)",
         showForParentsHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"For foreldre\".",
+        notifyNewsletter: "Send påminnelse på nyhetsbrev",
+        notifyNewsletterHint: "Dagen før sendes beskrivelsen som påminnelse på e-post til alle påmeldte nyhetsbrev-abonnenter.",
         save: "Lagre",
         saving: "Lagrer...",
         delete: "Slett",
@@ -841,6 +928,47 @@ export const translations: Record<Language, Translations> = {
         general: "General Inquiry",
         concern: "Concern",
         feedback: "Feedback"
+      }
+    },
+    newsletter: {
+      navTitle: "Newsletter",
+      title: "Subscribe to the newsletter",
+      subtitle: "Get email reminders about upcoming events at the kindergarten and activities for children and parents.",
+      emailLabel: "Email",
+      emailPlaceholder: "you@email.com",
+      nameLabel: "Name (optional)",
+      namePlaceholder: "John Doe",
+      subscribe: "Subscribe",
+      subscribing: "Subscribing...",
+      consent: "We use your email address only to send reminders from FAU. You can unsubscribe at any time via the link at the bottom of every email.",
+      successTitle: "Check your email",
+      successDesc: "We have sent you a confirmation link. Click it to complete your subscription.",
+      errorTitle: "Something went wrong",
+      errorDesc: "Could not complete the subscription. Please try again later.",
+      confirmPendingTitle: "Confirming subscription...",
+      confirmSuccessTitle: "Subscription confirmed!",
+      confirmSuccessDesc: "Thank you! You will now receive reminders from FAU Erdal Kindergarten.",
+      confirmErrorTitle: "Invalid or expired link",
+      confirmErrorDesc: "The confirmation link is invalid or already used. Please try subscribing again.",
+      unsubPendingTitle: "Unsubscribing...",
+      unsubSuccessTitle: "You have been unsubscribed",
+      unsubSuccessDesc: "You will no longer receive newsletters from FAU Erdal Kindergarten.",
+      unsubErrorTitle: "Something went wrong",
+      unsubErrorDesc: "Could not unsubscribe you. Please try again later.",
+      footerLink: "📧 Subscribe to newsletter",
+      admin: {
+        title: "Newsletter subscribers",
+        description: "Parents who have confirmed their newsletter subscription. Reminders are sent automatically the day before flagged events.",
+        email: "Email",
+        status: "Status",
+        subscribed: "Subscribed",
+        statusPending: "Awaiting confirmation",
+        statusActive: "Active",
+        statusUnsubscribed: "Unsubscribed",
+        activeCount: "active subscribers",
+        noSubscribers: "No subscribers yet.",
+        delete: "Delete subscriber",
+        deleteConfirm: "This permanently removes the subscriber."
       }
     },
     documents: {
@@ -1047,6 +1175,8 @@ export const translations: Record<Language, Translations> = {
         showOnHomepageHint: "Appears under \"Upcoming events\" on the front page, marked \"At the kindergarten\".",
         showForParents: "Show on homepage (For parents)",
         showForParentsHint: "Appears under \"Upcoming events\" on the front page, marked \"For parents\".",
+        notifyNewsletter: "Send newsletter reminder",
+        notifyNewsletterHint: "The day before, the description is emailed as a reminder to all confirmed newsletter subscribers.",
         save: "Save",
         saving: "Saving...",
         delete: "Delete",

@@ -34,7 +34,8 @@ const formSchema = insertEventSchema.extend({
     }
   ),
   vigiloSignup: z.boolean().default(false),
-  noSignup: z.boolean().default(false)
+  noSignup: z.boolean().default(false),
+  notifyNewsletter: z.boolean().default(false)
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -187,7 +188,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       registrationDeadline: toDateTimeLocalInputValue(event.registrationDeadline),
       customLocation: event.customLocation || "",
       vigiloSignup: event.vigiloSignup || false,
-      noSignup: event.noSignup || false
+      noSignup: event.noSignup || false,
+      notifyNewsletter: event.notifyNewsletter || false
     } : {
       title: "",
       description: "",
@@ -199,7 +201,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       registrationDeadline: "",
       customLocation: "",
       vigiloSignup: false,
-      noSignup: false
+      noSignup: false,
+      notifyNewsletter: false
     }
   });
 
@@ -216,7 +219,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         registrationDeadline: toDateTimeLocalInputValue(event.registrationDeadline),
         customLocation: event.customLocation || "",
         vigiloSignup: event.vigiloSignup || false,
-        noSignup: event.noSignup || false
+        noSignup: event.noSignup || false,
+        notifyNewsletter: event.notifyNewsletter || false
       });
     } else {
       form.reset({
@@ -230,7 +234,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         registrationDeadline: "",
         customLocation: "",
         vigiloSignup: false,
-        noSignup: false
+        noSignup: false,
+        notifyNewsletter: false
       });
     }
   }, [event, form]);
@@ -533,6 +538,32 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                         {language === 'no'
                           ? 'Dette arrangementet krever ikke påmelding'
                           : 'This event does not require registration'
+                        }
+                      </p>
+                    </div>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="notifyNewsletter"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2 pb-2">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>
+                        {language === 'no' ? 'Send påminnelse på nyhetsbrev' : 'Send newsletter reminder'}
+                      </FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        {language === 'no'
+                          ? 'Dagen før sendes en påminnelse på e-post til alle påmeldte nyhetsbrev-abonnenter'
+                          : 'The day before, a reminder is emailed to all confirmed newsletter subscribers'
                         }
                       </p>
                     </div>

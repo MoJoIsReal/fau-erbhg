@@ -433,6 +433,40 @@ async function handleStaffUsers(req, res, sql) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
+// Handle newsletter subscribers (admin view + removal)
+async function handleNewsletterSubscribers(req, res, sql) {
+  const user = requireRole(req, res, ADMIN_ONLY);
+  if (!user) return;
+
+  if (req.method === 'GET') {
+    const subscribers = await sql`
+      SELECT id, email, name, language, status,
+             created_at as "createdAt", confirmed_at as "confirmedAt", unsubscribed_at as "unsubscribedAt"
+      FROM newsletter_subscribers
+      ORDER BY created_at DESC
+    `;
+    return res.status(200).json(subscribers);
+  }
+
+  if (!requireCsrf(req, res)) return;
+
+  if (req.method === 'DELETE') {
+    const id = parseInt(req.query.id, 10);
+    if (!id || Number.isNaN(id)) {
+      return res.status(400).json({ error: 'Valid id query parameter required' });
+    }
+    const deleted = await sql`
+      DELETE FROM newsletter_subscribers WHERE id = ${id} RETURNING id
+    `;
+    if (deleted.length === 0) {
+      return res.status(404).json({ error: 'Subscriber not found' });
+    }
+    return res.status(200).json({ success: true });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}
+
 // Main handler
 export default async function handler(req, res) {
   applySecurityHeaders(res, req.headers.origin);
@@ -465,6 +499,11 @@ export default async function handler(req, res) {
     // Route to staff-users handler
     if (resource === 'staff-users') {
       return await handleStaffUsers(req, res, sql);
+    }
+
+    // Route to newsletter subscribers handler
+    if (resource === 'newsletter-subscribers') {
+      return await handleNewsletterSubscribers(req, res, sql);
     }
 
     // Default: handle site settings (can be extended in future)

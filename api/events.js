@@ -31,6 +31,8 @@ function mapEvent(row) {
     status: row.status,
     vigiloSignup: row.vigilo_signup,
     noSignup: row.no_signup,
+    notifyNewsletter: row.notify_newsletter ?? false,
+    newsletterSentAt: row.newsletter_sent_at,
   };
 }
 
@@ -80,6 +82,7 @@ export default async function handler(req, res) {
         type,
         vigiloSignup,
         noSignup,
+        notifyNewsletter,
       } = req.body;
 
       const sanitizedTitle = sanitizeText(title, 200);
@@ -102,8 +105,8 @@ export default async function handler(req, res) {
       }
 
       const inserted = await sql`
-        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup)
-        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${type}, ${vigiloSignup || false}, ${noSignup || false})
+        INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup, notify_newsletter)
+        VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${type}, ${vigiloSignup || false}, ${noSignup || false}, ${notifyNewsletter === true})
         RETURNING *
       `;
 
@@ -127,6 +130,7 @@ export default async function handler(req, res) {
         type,
         vigiloSignup,
         noSignup,
+        notifyNewsletter,
       } = req.body;
 
       const sanitizedTitle = sanitizeText(title, 200);
@@ -160,7 +164,8 @@ export default async function handler(req, res) {
             registration_deadline = ${sanitizedRegistrationDeadline},
             type = ${type},
             vigilo_signup = ${vigiloSignup || false},
-            no_signup = ${noSignup || false}
+            no_signup = ${noSignup || false},
+            notify_newsletter = ${notifyNewsletter === true}
         WHERE id = ${eventId}
         RETURNING *
       `;

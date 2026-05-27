@@ -320,7 +320,7 @@ export default function Layout({ children }: LayoutProps) {
                   {t.footer.barnehageFakta}
                 </a>
                 {t.footer.hours && <p>{t.footer.hours}</p>}
-                <a 
+                <a
                   href="https://foreldreutvalgene.no/fub/"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -328,6 +328,12 @@ export default function Layout({ children }: LayoutProps) {
                 >
                   {t.footer.fubLink}
                 </a>
+                <Link
+                  href="/nyhetsbrev"
+                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
+                >
+                  {t.newsletter.footerLink}
+                </Link>
               </div>
             </div>
             
