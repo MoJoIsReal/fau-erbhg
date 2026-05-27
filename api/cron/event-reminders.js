@@ -246,6 +246,14 @@ export default async function handler(req, res) {
     const targetDate = req.query.date || tomorrowInOslo();
     const claimTimestamp = new Date().toISOString();
 
+    // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
+    // for the next day's flagged events. Registration reminders + GDPR cleanup
+    // stay on the morning run (07:00 UTC).
+    if (req.query.task === 'newsletter') {
+      const newsletter = await broadcastNewsletter(sql, targetDate);
+      return res.status(200).json({ success: true, targetDate, task: 'newsletter', newsletter });
+    }
+
     const claimed = await sql`
       WITH due AS (
         SELECT
@@ -307,9 +315,8 @@ export default async function handler(req, res) {
       }
     }
 
-    const newsletter = await broadcastNewsletter(sql, targetDate);
     const retention = await cleanupPrivacyRetention(sql);
-    return res.status(200).json({ success: true, targetDate, sent, failed, newsletter, retention });
+    return res.status(200).json({ success: true, targetDate, sent, failed, retention });
   } catch (error) {
     return handleError(res, error);
   }

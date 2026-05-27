@@ -202,7 +202,7 @@ There is currently no real test suite — only `scripts/smoke-tests.mjs` which i
 
 Production deploys automatically to Vercel on push to `main`. See `docs/DEPLOYMENT.md` for the full guide including environment variable setup, database provisioning, and rollback procedures.
 
-The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures a daily cron at 07:00 UTC for event reminders + GDPR retention cleanup.
+The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures two daily cron triggers (both hitting `api/cron/event-reminders.js`): 07:00 UTC for event-registration reminders + GDPR retention cleanup, and 19:00 UTC (`?task=newsletter`, ≈21:00 Oslo) for the newsletter broadcast of the next day's flagged events. Cron times are fixed UTC and do not follow Norwegian DST.
 
 **Serverless-function budget:** the Vercel Hobby plan caps the project at 12
 serverless functions. We are at the cap (11 routes in `api/*.js` + 1 cron in
