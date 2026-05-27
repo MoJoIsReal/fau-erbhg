@@ -106,7 +106,8 @@ export default async function handler(req, res) {
       const rows = await sql`
         SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
                weekday_start, weekday_end, date, title, description, color,
-               show_on_homepage, show_for_parents, created_by, created_at, updated_at
+               show_on_homepage, show_for_parents, notify_newsletter, newsletter_sent_at,
+               created_by, created_at, updated_at
         FROM yearly_calendar_entries
         WHERE school_year = ${schoolYear}
         ORDER BY year ASC, month ASC, week_number ASC NULLS LAST
