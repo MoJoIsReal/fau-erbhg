@@ -42,6 +42,7 @@ export type EntryDraft = {
   color?: string | null;
   showOnHomepage?: boolean | null;
   showForParents?: boolean | null;
+  notifyNewsletter?: boolean | null;
 };
 
 interface Props {
@@ -86,6 +87,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const [color, setColor] = useState<string>("");
   const [showOnHomepage, setShowOnHomepage] = useState<boolean>(false);
   const [showForParents, setShowForParents] = useState<boolean>(false);
+  const [notifyNewsletter, setNotifyNewsletter] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -101,6 +103,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setColor(seed.color ?? "");
     setShowOnHomepage(seed.showOnHomepage === true);
     setShowForParents(seed.showForParents === true);
+    setNotifyNewsletter(seed.notifyNewsletter === true);
   }, [isOpen, initial, existing]);
 
   const saveMutation = useMutation({
@@ -121,6 +124,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         date: entryType === "day_event" || entryType === "closed" ? (date || null) : null,
         showOnHomepage: entryType === "day_event" ? showOnHomepage : false,
         showForParents: entryType === "day_event" ? showForParents : false,
+        notifyNewsletter: entryType === "day_event" ? notifyNewsletter : false,
       };
       if (isEditing) {
         const res = await apiRequest("PUT", `/api/yearly-calendar?id=${existing!.id}`, body);
@@ -289,6 +293,21 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                   </Label>
                   <p className="text-sm text-muted-foreground">
                     {t.yearlyCalendar.modal.showForParentsHint}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-row items-start space-x-3 space-y-0">
+                <Checkbox
+                  id="notify-newsletter"
+                  checked={notifyNewsletter}
+                  onCheckedChange={(checked) => setNotifyNewsletter(checked === true)}
+                />
+                <div className="space-y-1 leading-none">
+                  <Label htmlFor="notify-newsletter" className="cursor-pointer">
+                    {t.yearlyCalendar.modal.notifyNewsletter}
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t.yearlyCalendar.modal.notifyNewsletterHint}
                   </p>
                 </div>
               </div>

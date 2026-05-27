@@ -16,6 +16,7 @@ import { Send, UserRoundCheck, User, GraduationCap, MapPin, Phone, Mail, Clock, 
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import NewsletterSignup from "@/components/newsletter-signup";
 
 type FormData = z.infer<typeof insertContactMessageSchema> & {
   subject: string;
@@ -306,6 +307,17 @@ export default function Contact() {
                   );
                 })}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Newsletter signup */}
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-2">
+                {t.newsletter.title}
+              </h3>
+              <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">{t.newsletter.subtitle}</p>
+              <NewsletterSignup />
             </CardContent>
           </Card>
         </div>

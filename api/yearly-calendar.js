@@ -39,6 +39,8 @@ function mapEntry(row) {
     color: row.color,
     showOnHomepage: row.show_on_homepage ?? false,
     showForParents: row.show_for_parents ?? false,
+    notifyNewsletter: row.notify_newsletter ?? false,
+    newsletterSentAt: row.newsletter_sent_at,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -66,6 +68,8 @@ function sanitizeEntryPayload(body) {
   // every other type so a stale flag can't survive a type change.
   const showOnHomepage = entryType === 'day_event' ? body.showOnHomepage === true : false;
   const showForParents = entryType === 'day_event' ? body.showForParents === true : false;
+  // Only day_event entries have a concrete date the cron can key a reminder off.
+  const notifyNewsletter = entryType === 'day_event' ? body.notifyNewsletter === true : false;
 
   return {
     entryType,
@@ -82,6 +86,7 @@ function sanitizeEntryPayload(body) {
     date,
     showOnHomepage,
     showForParents,
+    notifyNewsletter,
   };
 }
 
@@ -126,11 +131,11 @@ export default async function handler(req, res) {
         INSERT INTO yearly_calendar_entries (
           school_year, year, month, entry_type, week_number, week_number_end,
           weekday_start, weekday_end, date, title, description, color,
-          show_on_homepage, show_for_parents, created_by, created_at, updated_at
+          show_on_homepage, show_for_parents, notify_newsletter, created_by, created_at, updated_at
         ) VALUES (
           ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber}, ${payload.weekNumberEnd},
           ${payload.weekdayStart}, ${payload.weekdayEnd}, ${payload.date}, ${payload.title}, ${payload.description}, ${payload.color},
-          ${payload.showOnHomepage}, ${payload.showForParents}, ${user.name || user.username || 'ukjent'}, ${now}, ${now}
+          ${payload.showOnHomepage}, ${payload.showForParents}, ${payload.notifyNewsletter}, ${user.name || user.username || 'ukjent'}, ${now}, ${now}
         )
         RETURNING *
       `;
@@ -163,6 +168,7 @@ export default async function handler(req, res) {
             color = ${payload.color},
             show_on_homepage = ${payload.showOnHomepage},
             show_for_parents = ${payload.showForParents},
+            notify_newsletter = ${payload.notifyNewsletter},
             updated_at = ${now}
         WHERE id = ${id}
         RETURNING *

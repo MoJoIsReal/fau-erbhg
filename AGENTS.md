@@ -177,6 +177,7 @@ Optional:
 | `GMAIL_APP_PASSWORD` | Gmail app password for email |
 | `SENDGRID_API_KEY` | SendGrid alternative (not currently wired up in code) |
 | `CRON_SECRET` | Bearer token Vercel Cron must send to `/api/cron/*`. Required in production. |
+| `PUBLIC_BASE_URL` | Public site origin used to build confirm/unsubscribe links in newsletter emails. Defaults to `https://www.erdal-bhg.no`. |
 | `VITE_SENTRY_DSN` | Frontend Sentry DSN |
 | `SENTRY_DSN` | Backend Sentry DSN |
 | `PORT` | Dev server port (default: 5000) |
@@ -188,7 +189,7 @@ Schema changes workflow:
 2. Run `npm run db:push` to push changes via drizzle-kit.
 3. For any data-shape changes that need to be applied to existing rows, add a SQL file under `migrations/` and apply it through the Neon SQL editor (see `migrations/README.md`).
 
-Tables: `users`, `events`, `event_registrations`, `contact_messages`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
+Tables: `users`, `events`, `event_registrations`, `contact_messages`, `newsletter_subscribers`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
 
 > **Note:** `blog_posts` and `kindergarten_info` are referenced by `api/secure-settings.js` but
 > are not yet declared in `shared/schema.ts`. Add them there when next touching the schema.
@@ -201,7 +202,7 @@ There is currently no real test suite — only `scripts/smoke-tests.mjs` which i
 
 Production deploys automatically to Vercel on push to `main`. See `docs/DEPLOYMENT.md` for the full guide including environment variable setup, database provisioning, and rollback procedures.
 
-The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures a daily cron at 07:00 UTC for event reminders + GDPR retention cleanup.
+The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures two daily cron triggers (both hitting `api/cron/event-reminders.js`): 07:00 UTC for event-registration reminders + GDPR retention cleanup, and 19:00 UTC (`?task=newsletter`, ≈21:00 Oslo) for the newsletter broadcast of the next day's flagged events. Cron times are fixed UTC and do not follow Norwegian DST.
 
 **Serverless-function budget:** the Vercel Hobby plan caps the project at 12
 serverless functions. We are at the cap (11 routes in `api/*.js` + 1 cron in

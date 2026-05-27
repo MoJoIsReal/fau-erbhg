@@ -30,6 +30,7 @@ import { FauBoardMember } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import RichTextEditor from "@/components/RichTextEditor";
 import StaffUsersSection from "@/components/staff-users-section";
+import NewsletterSubscribersSection from "@/components/newsletter-subscribers-section";
 import { useAuth } from "@/hooks/useAuth";
 import SafeHtml from "@/components/safe-html";
 
@@ -958,6 +959,7 @@ export default function Settings() {
       </Card>
 
       {user?.role === "admin" && <StaffUsersSection />}
+      {user?.role === "admin" && <NewsletterSubscribersSection />}
     </div>
   );
 }

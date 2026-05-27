@@ -5,9 +5,13 @@ import {
   handleError,
 } from '../_shared/middleware.js';
 import { sendEmail, isEmailConfigured } from '../_shared/email.js';
+import { reminderEmail as newsletterReminderEmail } from '../_shared/newsletter.js';
 import Sentry from '../_shared/sentry.js';
 
 const MAX_REMINDERS_PER_RUN = 25;
+// Upper bound on newsletter emails sent in a single daily run. Comfortably
+// above a kindergarten's subscriber count yet well under Gmail's daily ceiling.
+const MAX_NEWSLETTER_EMAILS_PER_RUN = 400;
 
 function isAuthorizedCron(req) {
   if (!process.env.CRON_SECRET) {
@@ -89,6 +93,121 @@ async function sendReminder(registration) {
   await sendEmail({ to: registration.email, subject, text });
 }
 
+// Event descriptions are stored as sanitized HTML; flatten to readable plain
+// text for the text-only newsletter email. Calendar descriptions are already
+// plain text, so this is a no-op for them.
+function htmlToText(html) {
+  if (!html) return '';
+  return String(html)
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*p\s*>/gi, '\n\n')
+    .replace(/<\/\s*(li|h[1-3])\s*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function formatLongDate(dateStr, language) {
+  const locale = language === 'en' ? 'en-US' : 'no-NO';
+  return new Date(dateStr).toLocaleDateString(locale, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+// Email every confirmed newsletter subscriber about events and day_event
+// calendar entries that are flagged and fall on targetDate. Items are claimed
+// (newsletter_sent_at stamped) atomically so a re-run never double-sends.
+async function broadcastNewsletter(sql, targetDate) {
+  const subscribers = await sql`
+    SELECT email, language, unsubscribe_token as "unsubscribeToken"
+    FROM newsletter_subscribers
+    WHERE status = 'active'
+  `;
+
+  // Nothing to do without recipients — leave items unclaimed.
+  if (subscribers.length === 0) {
+    return { items: 0, sent: 0, failed: 0 };
+  }
+
+  // Don't claim items if we can't actually send; otherwise they'd be marked as
+  // sent while no email went out.
+  if (!isEmailConfigured()) {
+    return { items: 0, sent: 0, failed: 0, skipped: 'email-not-configured' };
+  }
+
+  const now = new Date().toISOString();
+
+  const dueEvents = await sql`
+    UPDATE events
+    SET newsletter_sent_at = ${now}
+    WHERE date = ${targetDate}
+      AND status = 'active'
+      AND notify_newsletter = true
+      AND newsletter_sent_at IS NULL
+    RETURNING id, title, description, date
+  `;
+
+  const dueEntries = await sql`
+    UPDATE yearly_calendar_entries
+    SET newsletter_sent_at = ${now}
+    WHERE date = ${targetDate}
+      AND entry_type = 'day_event'
+      AND notify_newsletter = true
+      AND newsletter_sent_at IS NULL
+    RETURNING id, title, description, date
+  `;
+
+  const dueItems = [...dueEvents, ...dueEntries];
+  if (dueItems.length === 0) {
+    return { items: 0, sent: 0, failed: 0 };
+  }
+
+  let sent = 0;
+  let failed = 0;
+  let capped = false;
+
+  for (const item of dueItems) {
+    const description = htmlToText(item.description);
+    for (const subscriber of subscribers) {
+      if (sent + failed >= MAX_NEWSLETTER_EMAILS_PER_RUN) {
+        capped = true;
+        break;
+      }
+      try {
+        const { subject, text } = newsletterReminderEmail({
+          title: item.title,
+          description,
+          dateText: formatLongDate(item.date, subscriber.language),
+          language: subscriber.language,
+          unsubscribeToken: subscriber.unsubscribeToken,
+        });
+        await sendEmail({ to: subscriber.email, subject, text });
+        sent += 1;
+      } catch (emailError) {
+        failed += 1;
+        console.error('Failed to send newsletter email:', emailError.message);
+        if (process.env.NODE_ENV === 'production') {
+          Sentry.captureException(emailError);
+        }
+      }
+    }
+    if (capped) break;
+  }
+
+  if (capped && process.env.NODE_ENV === 'production') {
+    Sentry.captureMessage(`Newsletter broadcast hit per-run cap of ${MAX_NEWSLETTER_EMAILS_PER_RUN}`);
+  }
+
+  return { items: dueItems.length, sent, failed, capped };
+}
+
 async function cleanupPrivacyRetention(sql) {
   const deletedContactMessages = await sql`
     DELETE FROM contact_messages
@@ -127,6 +246,14 @@ export default async function handler(req, res) {
     const targetDate = req.query.date || tomorrowInOslo();
     const claimTimestamp = new Date().toISOString();
 
+    // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
+    // for the next day's flagged events. Registration reminders + GDPR cleanup
+    // stay on the morning run (07:00 UTC).
+    if (req.query.task === 'newsletter') {
+      const newsletter = await broadcastNewsletter(sql, targetDate);
+      return res.status(200).json({ success: true, targetDate, task: 'newsletter', newsletter });
+    }
+
     const claimed = await sql`
       WITH due AS (
         SELECT
@@ -161,32 +288,29 @@ export default async function handler(req, res) {
       JOIN claimed ON claimed.id = due.id
     `;
 
-    if (claimed.length === 0) {
-      const retention = await cleanupPrivacyRetention(sql);
-      return res.status(200).json({ success: true, targetDate, sent: 0, failed: 0, retention });
-    }
-
-    if (!isEmailConfigured()) {
-      throw new Error('Email configuration not available');
-    }
-
     let sent = 0;
     let failed = 0;
 
-    for (const registration of claimed) {
-      try {
-        await sendReminder(registration);
-        sent += 1;
-      } catch (emailError) {
-        failed += 1;
-        await sql`
-          UPDATE event_registrations
-          SET reminder_sent_at = NULL
-          WHERE id = ${registration.id}
-        `;
-        console.error('Failed to send event reminder:', emailError.message);
-        if (process.env.NODE_ENV === 'production') {
-          Sentry.captureException(emailError);
+    if (claimed.length > 0) {
+      if (!isEmailConfigured()) {
+        throw new Error('Email configuration not available');
+      }
+
+      for (const registration of claimed) {
+        try {
+          await sendReminder(registration);
+          sent += 1;
+        } catch (emailError) {
+          failed += 1;
+          await sql`
+            UPDATE event_registrations
+            SET reminder_sent_at = NULL
+            WHERE id = ${registration.id}
+          `;
+          console.error('Failed to send event reminder:', emailError.message);
+          if (process.env.NODE_ENV === 'production') {
+            Sentry.captureException(emailError);
+          }
         }
       }
     }
