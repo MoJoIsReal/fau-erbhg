@@ -14,6 +14,7 @@ const Settings = lazy(() => import("@/pages/settings"));
 const Messages = lazy(() => import("@/pages/messages"));
 const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 const Privacy = lazy(() => import("@/pages/privacy"));
+const Newsletter = lazy(() => import("@/pages/newsletter"));
 
 // Loading fallback component
 function PageLoader() {
@@ -71,6 +72,8 @@ function Router() {
             </RequireAuth>
           </Route>
           <Route path="/arskalender" component={YearlyCalendar} />
+          <Route path="/nyhetsbrev" component={Newsletter} />
+          <Route path="/newsletter" component={Newsletter} />
           <Route>
             <div className="min-h-screen w-full flex items-center justify-center bg-neutral-50">
               <div className="text-center">

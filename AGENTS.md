@@ -177,6 +177,7 @@ Optional:
 | `GMAIL_APP_PASSWORD` | Gmail app password for email |
 | `SENDGRID_API_KEY` | SendGrid alternative (not currently wired up in code) |
 | `CRON_SECRET` | Bearer token Vercel Cron must send to `/api/cron/*`. Required in production. |
+| `PUBLIC_BASE_URL` | Public site origin used to build confirm/unsubscribe links in newsletter emails. Defaults to `https://www.erdal-bhg.no`. |
 | `VITE_SENTRY_DSN` | Frontend Sentry DSN |
 | `SENTRY_DSN` | Backend Sentry DSN |
 | `PORT` | Dev server port (default: 5000) |
@@ -188,7 +189,7 @@ Schema changes workflow:
 2. Run `npm run db:push` to push changes via drizzle-kit.
 3. For any data-shape changes that need to be applied to existing rows, add a SQL file under `migrations/` and apply it through the Neon SQL editor (see `migrations/README.md`).
 
-Tables: `users`, `events`, `event_registrations`, `contact_messages`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
+Tables: `users`, `events`, `event_registrations`, `contact_messages`, `newsletter_subscribers`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
 
 > **Note:** `blog_posts` and `kindergarten_info` are referenced by `api/secure-settings.js` but
 > are not yet declared in `shared/schema.ts`. Add them there when next touching the schema.
