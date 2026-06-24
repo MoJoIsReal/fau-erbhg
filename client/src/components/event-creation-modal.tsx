@@ -119,7 +119,7 @@ function DatePickerInput({ value, onChange, language, placeholder }: DatePickerI
           }}
           weekStartsOn={1}
           locale={language === "no" ? nb : enGB}
-          initialFocus
+          autoFocus
         />
       </PopoverContent>
     </Popover>
