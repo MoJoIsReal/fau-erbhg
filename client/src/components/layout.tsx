@@ -70,6 +70,17 @@ export default function Layout({ children }: LayoutProps) {
     { name: t.navigation.contact, href: "/contact", icon: Mail },
     { name: t.navigation.documents, href: "/files", icon: Folder },
   ];
+  const primaryNavigation = navigation.slice(0, 4);
+  const secondaryNavigation = navigation.slice(4);
+  const isNavigationItemActive = (item: NavigationItem) =>
+    location === item.href || Boolean(item.children?.some((child) => child.href === location));
+  const secondaryNavigationIsActive = secondaryNavigation.some(isNavigationItemActive);
+  const desktopNavItemClass = (isActive: boolean) =>
+    `flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
+      isActive
+        ? "bg-primary/10 text-primary"
+        : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
+    }`;
 
   return (
     <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col min-w-0">
@@ -90,22 +101,16 @@ export default function Layout({ children }: LayoutProps) {
 
             {/* Desktop Navigation */}
             <nav className="hidden min-w-0 flex-nowrap items-center justify-center gap-1 lg:flex">
-              {navigation.map((item) => {
-                const isActive = location === item.href || item.children?.some((child) => child.href === location);
-                const Icon = item.icon;
+              {primaryNavigation.map((item) => {
+                const isActive = isNavigationItemActive(item);
                 if (item.children) {
                   return (
                     <DropdownMenu key={item.name}>
                       <DropdownMenuTrigger asChild>
                         <Button
                           variant="ghost"
-                          className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
-                            isActive
-                              ? "bg-primary/10 text-primary"
-                              : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
-                          }`}
+                          className={desktopNavItemClass(isActive)}
                         >
-                          <Icon className="h-4 w-4 shrink-0" />
                           <span>{item.name}</span>
                           <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
                         </Button>
@@ -130,17 +135,36 @@ export default function Layout({ children }: LayoutProps) {
                   <Link
                     key={item.name}
                     href={item.href}
-                    className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
-                    }`}
+                    className={desktopNavItemClass(isActive)}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
                     <span>{item.name}</span>
                   </Link>
                 );
               })}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={desktopNavItemClass(secondaryNavigationIsActive)}
+                  >
+                    <span>{t.navigation.more}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-52">
+                  {secondaryNavigation.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <DropdownMenuItem key={item.href} asChild>
+                        <Link href={item.href} className="flex w-full items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span>{item.name}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </nav>
 
             {/* Language Toggle, Dark Mode & Auth Controls */}

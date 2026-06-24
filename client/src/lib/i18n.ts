@@ -10,6 +10,7 @@ export interface Translations {
     events: string;
     contact: string;
     documents: string;
+    more: string;
     yearlyCalendar: string;
   };
   // Header
@@ -426,6 +427,7 @@ export const translations: Record<Language, Translations> = {
       events: "Arrangementer",
       contact: "Kontakt",
       documents: "Dokumenter",
+      more: "Mer",
       yearlyCalendar: "Årskalender"
     },
     header: {
@@ -829,6 +831,7 @@ export const translations: Record<Language, Translations> = {
       events: "Events",
       contact: "Contact",
       documents: "Documents",
+      more: "More",
       yearlyCalendar: "Yearly calendar"
     },
     header: {
