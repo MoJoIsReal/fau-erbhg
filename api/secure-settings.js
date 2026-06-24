@@ -112,7 +112,8 @@ async function handleBoardMembers(req, res, sql) {
 async function handleBlogPosts(req, res, sql) {
   // GET - Public access to view published blog posts
   if (req.method === 'GET') {
-    const { includeArchived } = req.query;
+    const { includeArchived, category } = req.query;
+    const sanitizedCategory = ['news', 'tips'].includes(category) ? category : null;
 
     let posts;
     if (includeArchived === 'true') {
@@ -121,16 +122,18 @@ async function handleBlogPosts(req, res, sql) {
 
       // Admin view - show all posts
       posts = await sql`
-        SELECT id, title, content, status, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
+        SELECT id, title, content, status, category, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
         FROM blog_posts
+        WHERE (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
       `;
     } else {
       // Public view - only show published posts
       posts = await sql`
-        SELECT id, title, content, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage"
+        SELECT id, title, content, category, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage"
         FROM blog_posts
         WHERE status = 'published'
+          AND (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
       `;
     }
@@ -149,11 +152,12 @@ async function handleBlogPosts(req, res, sql) {
 
   // POST - Create new blog post
   if (req.method === 'POST') {
-    const { title, content, publishedDate, author } = req.body;
+    const { title, content, publishedDate, author, category } = req.body;
 
     const sanitizedTitle = sanitizeText(title, 200);
     const sanitizedContent = sanitizeHtml(content, 50000);
     const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
+    const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
     if (!sanitizedTitle || !sanitizedContent) {
       return res.status(400).json({ error: 'Valid title and content are required' });
@@ -162,8 +166,8 @@ async function handleBlogPosts(req, res, sql) {
     const pubDate = publishedDate || now;
 
     const result = await sql`
-      INSERT INTO blog_posts (title, content, status, published_date, author, created_by, created_at, updated_at)
-      VALUES (${sanitizedTitle}, ${sanitizedContent}, 'published', ${pubDate}, ${sanitizedAuthor}, ${user.username}, ${now}, ${now})
+      INSERT INTO blog_posts (title, content, status, category, published_date, author, created_by, created_at, updated_at)
+      VALUES (${sanitizedTitle}, ${sanitizedContent}, 'published', ${sanitizedCategory}, ${pubDate}, ${sanitizedAuthor}, ${user.username}, ${now}, ${now})
       RETURNING *
     `;
 
@@ -173,7 +177,7 @@ async function handleBlogPosts(req, res, sql) {
   // PUT - Update existing blog post
   if (req.method === 'PUT') {
     const { id } = req.query;
-    const { title, content, status, publishedDate, author, showOnHomepage } = req.body;
+    const { title, content, status, publishedDate, author, showOnHomepage, category } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
@@ -183,6 +187,7 @@ async function handleBlogPosts(req, res, sql) {
     const sanitizedContent = sanitizeHtml(content, 50000);
     const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
     const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
+    const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
     if (!sanitizedTitle || !sanitizedContent) {
       return res.status(400).json({ error: 'Valid title and content are required' });
@@ -193,6 +198,7 @@ async function handleBlogPosts(req, res, sql) {
       SET title = ${sanitizedTitle},
           content = ${sanitizedContent},
           status = ${sanitizedStatus},
+          category = ${sanitizedCategory},
           published_date = ${publishedDate || now},
           author = ${sanitizedAuthor},
           show_on_homepage = ${showOnHomepage !== undefined ? showOnHomepage : true},

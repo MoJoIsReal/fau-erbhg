@@ -1,41 +1,81 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
-import { Calendar, Loader2 } from "lucide-react";
+import { Calendar, Lightbulb, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { useLocation } from "wouter";
 
 interface BlogPost {
   id: number;
   title: string;
   content: string;
+  category: "news" | "tips";
   publishedDate: string;
   author?: string;
 }
 
 export default function News() {
   const { language } = useLanguage();
+  const [location] = useLocation();
+  const category = location.includes("tips") ? "tips" : "news";
+  const isTips = category === "tips";
+
+  const pageText = isTips
+    ? {
+        title: language === "no" ? "Tips & triks" : "Tips & Tricks",
+        description:
+          language === "no"
+            ? "Praktiske tips og råd for foreldre i Erdal Barnehage."
+            : "Practical tips and advice for parents at Erdal Kindergarten.",
+        intro:
+          language === "no"
+            ? "Praktiske tips, råd og erfaringer for barnehagehverdagen"
+            : "Practical tips, advice and experience for kindergarten life",
+        emptyTitle: language === "no" ? "Ingen tips ennå" : "No tips yet",
+        emptyDescription:
+          language === "no"
+            ? "Sjekk tilbake senere for tips og nyttige råd."
+            : "Check back later for tips and useful advice.",
+        loading: language === "no" ? "Laster tips..." : "Loading tips...",
+        errorTitle: language === "no" ? "Kunne ikke laste tips" : "Could not load tips",
+      }
+    : {
+        title: language === "no" ? "Nyheter" : "News",
+        description:
+          language === "no"
+            ? "Siste nyheter og informasjon fra FAU Erdal Barnehage."
+            : "Latest news and information from FAU Erdal Kindergarten.",
+        intro:
+          language === "no"
+            ? "Siste nyheter og informasjon fra FAU Erdal Barnehage"
+            : "Latest news and information from FAU Erdal Kindergarten",
+        emptyTitle: language === "no" ? "Ingen nyheter ennå" : "No news yet",
+        emptyDescription:
+          language === "no"
+            ? "Sjekk tilbake senere for oppdateringer og informasjon."
+            : "Check back later for updates and information.",
+        loading: language === "no" ? "Laster nyheter..." : "Loading news...",
+        errorTitle: language === "no" ? "Kunne ikke laste nyheter" : "Could not load news",
+      };
+  const EmptyIcon = isTips ? Lightbulb : Calendar;
 
   usePageMeta({
-    title: language === "no" ? "Nyheter" : "News",
-    description:
-      language === "no"
-        ? "Siste nyheter og informasjon fra FAU Erdal Barnehage."
-        : "Latest news and information from FAU Erdal Kindergarten.",
-    path: "/news",
+    title: pageText.title,
+    description: pageText.description,
+    path: isTips ? "/tips-tricks" : "/news",
   });
 
-  // Fetch all published blog posts
   const { data: blogPosts = [], isLoading, isError } = useQuery<BlogPost[]>({
-    queryKey: ["/api/secure-settings?resource=blog-posts"],
+    queryKey: [`/api/secure-settings?resource=blog-posts&category=${category}`],
   });
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]" role="status" aria-live="polite">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="sr-only">{language === "no" ? "Laster nyheter…" : "Loading news…"}</span>
+        <span className="sr-only">{pageText.loading}</span>
       </div>
     );
   }
@@ -45,9 +85,9 @@ export default function News() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Card>
           <CardContent className="p-12 text-center" role="alert">
-            <Calendar className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
+            <EmptyIcon className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-50 mb-2">
-              {language === "no" ? "Kunne ikke laste nyheter" : "Could not load news"}
+              {pageText.errorTitle}
             </h3>
             <p className="text-neutral-600 dark:text-neutral-300">
               {language === "no"
@@ -64,26 +104,22 @@ export default function News() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
-          {language === "no" ? "Nyheter" : "News"}
+          {pageText.title}
         </h1>
         <p className="text-neutral-600 dark:text-neutral-300 mt-2">
-          {language === "no"
-            ? "Siste nyheter og informasjon fra FAU Erdal Barnehage"
-            : "Latest news and information from FAU Erdal Kindergarten"}
+          {pageText.intro}
         </p>
       </div>
 
       {blogPosts.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <Calendar className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
+            <EmptyIcon className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-50 mb-2">
-              {language === "no" ? "Ingen nyheter ennå" : "No news yet"}
+              {pageText.emptyTitle}
             </h3>
             <p className="text-neutral-600 dark:text-neutral-300">
-              {language === "no"
-                ? "Sjekk tilbake senere for oppdateringer og informasjon."
-                : "Check back later for updates and information."}
+              {pageText.emptyDescription}
             </p>
           </CardContent>
         </Card>
@@ -106,7 +142,7 @@ export default function News() {
                   </time>
                   {post.author && (
                     <span className="ml-2">
-                      • {language === "no" ? "av" : "by"} {post.author}
+                      &bull; {language === "no" ? "av" : "by"} {post.author}
                     </span>
                   )}
                 </div>

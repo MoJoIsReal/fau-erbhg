@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Menu, Home, Calendar, CalendarDays, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import { ChevronDown, Menu, Home, Calendar, CalendarDays, Newspaper, Lightbulb, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -26,6 +27,13 @@ interface LayoutProps {
   children: React.ReactNode;
 }
 
+interface NavigationItem {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  children?: NavigationItem[];
+}
+
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -46,9 +54,17 @@ export default function Layout({ children }: LayoutProps) {
     )
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
-  const navigation = [
+  const navigation: NavigationItem[] = [
     { name: t.navigation.home, href: "/", icon: Home },
-    { name: t.navigation.news, href: "/news", icon: Newspaper },
+    {
+      name: t.navigation.updates,
+      href: "/news",
+      icon: Newspaper,
+      children: [
+        { name: t.navigation.news, href: "/news", icon: Newspaper },
+        { name: t.navigation.tips, href: "/tips-tricks", icon: Lightbulb },
+      ],
+    },
     { name: t.navigation.events, href: "/events", icon: Calendar },
     { name: t.navigation.yearlyCalendar, href: "/arskalender", icon: CalendarDays },
     { name: t.navigation.contact, href: "/contact", icon: Mail },
@@ -75,8 +91,41 @@ export default function Layout({ children }: LayoutProps) {
             {/* Desktop Navigation */}
             <nav className="hidden min-w-0 flex-nowrap items-center justify-center gap-1 lg:flex">
               {navigation.map((item) => {
-                const isActive = location === item.href;
+                const isActive = location === item.href || item.children?.some((child) => child.href === location);
                 const Icon = item.icon;
+                if (item.children) {
+                  return (
+                    <DropdownMenu key={item.name}>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          className={`flex min-w-0 items-center gap-2 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
+                            isActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
+                          }`}
+                        >
+                          <Icon className="h-4 w-4 shrink-0" />
+                          <span>{item.name}</span>
+                          <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start" className="w-48">
+                        {item.children.map((child) => {
+                          const ChildIcon = child.icon;
+                          return (
+                            <DropdownMenuItem key={child.href} asChild>
+                              <Link href={child.href} className="flex w-full items-center gap-2">
+                                <ChildIcon className="h-4 w-4" />
+                                <span>{child.name}</span>
+                              </Link>
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }
                 return (
                   <Link
                     key={item.name}
@@ -187,8 +236,45 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
                 <nav className="space-y-3">
                   {navigation.map((item) => {
-                    const isActive = location === item.href;
+                    const isActive = location === item.href || item.children?.some((child) => child.href === location);
                     const Icon = item.icon;
+                    if (item.children) {
+                      return (
+                        <div key={item.name} className="space-y-2">
+                          <div
+                            className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg ${
+                              isActive
+                                ? "text-primary bg-primary/10"
+                                : "text-neutral-600 dark:text-neutral-300"
+                            }`}
+                          >
+                            <Icon className="h-5 w-5" />
+                            <span className="font-medium">{item.name}</span>
+                          </div>
+                          <div className="ml-6 space-y-2">
+                            {item.children.map((child) => {
+                              const childIsActive = location === child.href;
+                              const ChildIcon = child.icon;
+                              return (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors ${
+                                    childIsActive
+                                      ? "text-primary bg-primary/10"
+                                      : "text-neutral-600 dark:text-neutral-300 hover:text-primary hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                  }`}
+                                >
+                                  <ChildIcon className="h-5 w-5" />
+                                  <span className="font-medium">{child.name}</span>
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    }
                     return (
                       <Link
                         key={item.name}

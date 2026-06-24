@@ -22,6 +22,7 @@ interface BlogPost {
   id: number;
   title: string;
   content: string;
+  category: "news" | "tips";
   publishedDate: string;
   author?: string;
   showOnHomepage?: boolean;
@@ -172,7 +173,7 @@ export default function Home() {
           <Card>
             <CardContent className="p-6">
               <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">
-                {language === 'no' ? 'Nyheter' : 'News'}
+                {language === 'no' ? 'Aktuelt' : 'Updates'}
               </h3>
               <div className="space-y-6">
                 {blogPosts.slice(0, 3).map((post) => (
@@ -181,6 +182,11 @@ export default function Home() {
                       {post.title}
                     </h4>
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
+                      <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                        {post.category === "tips"
+                          ? language === 'no' ? 'Tips & triks' : 'Tips & Tricks'
+                          : language === 'no' ? 'Nyheter' : 'News'}
+                      </span>
                       {formatDate(post.publishedDate, language, {
                         year: 'numeric',
                         month: 'long',
@@ -197,7 +203,7 @@ export default function Home() {
                       truncate={200}
                       className="prose prose-sm prose-neutral max-w-none mb-2 text-neutral-700 dark:text-neutral-300"
                     />
-                    <Link href="/news">
+                    <Link href={post.category === "tips" ? "/tips-tricks" : "/news"}>
                       <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
                         {language === 'no' ? 'Les mer →' : 'Read more →'}
                       </span>

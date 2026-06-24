@@ -4,7 +4,9 @@ export interface Translations {
   // Navigation
   navigation: {
     home: string;
+    updates: string;
     news: string;
+    tips: string;
     events: string;
     contact: string;
     documents: string;
@@ -418,7 +420,9 @@ export const translations: Record<Language, Translations> = {
   no: {
     navigation: {
       home: "Hjem",
+      updates: "Aktuelt",
       news: "Nyheter",
+      tips: "Tips & triks",
       events: "Arrangementer",
       contact: "Kontakt",
       documents: "Dokumenter",
@@ -819,7 +823,9 @@ export const translations: Record<Language, Translations> = {
   en: {
     navigation: {
       home: "Home",
+      updates: "Updates",
       news: "News",
+      tips: "Tips & Tricks",
       events: "Events",
       contact: "Contact",
       documents: "Documents",

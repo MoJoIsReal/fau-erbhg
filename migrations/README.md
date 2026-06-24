@@ -8,6 +8,7 @@ contents of each migration file. The current migrations are:
 1. `0001_production_hardening.sql`
 2. `0002_event_registration_deadline.sql`
 3. `0003_newsletter.sql`
+4. `0004_blog_post_category.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the

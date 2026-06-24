@@ -56,6 +56,7 @@ interface BlogPost {
   title: string;
   content: string;
   status: "published" | "archived";
+  category: "news" | "tips";
   publishedDate: string;
   author?: string;
   showOnHomepage?: boolean;
@@ -184,6 +185,14 @@ export default function Settings() {
   // ===== BLOG POSTS MANAGEMENT =====
   const [posts, setPosts] = useState<Partial<BlogPost>[]>([]);
   const [isEditingPost, setIsEditingPost] = useState<number | null>(null);
+  const invalidateBlogPostQueries = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&category=news"] }),
+      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&category=tips"] }),
+    ]);
+  };
 
   // Fetch blog posts (including archived)
   const { data: blogPosts, isLoading: isLoadingPosts } = useQuery<BlogPost[]>({
@@ -225,6 +234,7 @@ export default function Settings() {
       title: "",
       content: "",
       status: "published" as const,
+      category: "news" as const,
       publishedDate: new Date().toISOString().split("T")[0],
     };
     setPosts([newPost, ...posts]);
@@ -255,7 +265,7 @@ export default function Settings() {
         await createPostMutation.mutateAsync(post);
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"] });
+      await invalidateBlogPostQueries();
       setIsEditingPost(null);
 
       toast({
@@ -281,7 +291,7 @@ export default function Settings() {
         post: { ...post, status: post.status === "archived" ? "published" : "archived" },
       });
 
-      await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"] });
+      await invalidateBlogPostQueries();
 
       toast({
         title: language === "no" ? "Oppdatert!" : "Updated!",
@@ -313,8 +323,7 @@ export default function Settings() {
         post: { ...post, showOnHomepage: !post.showOnHomepage },
       });
 
-      await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"] });
-      await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts"] });
+      await invalidateBlogPostQueries();
 
       toast({
         title: language === "no" ? "Oppdatert!" : "Updated!",
@@ -341,7 +350,7 @@ export default function Settings() {
     if (post.id) {
       try {
         await deletePostMutation.mutateAsync(post.id);
-        await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"] });
+        await invalidateBlogPostQueries();
 
         toast({
           title: language === "no" ? "Slettet!" : "Deleted!",
@@ -433,12 +442,12 @@ export default function Settings() {
       <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
-            {language === "no" ? "Nyheter / Innlegg" : "News / Blog Posts"}
+            {language === "no" ? "Aktuelt / Innlegg" : "Updates / Posts"}
           </h2>
           <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
             {language === "no"
-              ? "Administrer nyheter og informasjon som vises på forsiden. Arkiver gamle innlegg for å skjule dem."
-              : "Manage news and information displayed on the homepage. Archive old posts to hide them."}
+              ? "Administrer nyheter, tips og informasjon som vises på nettsiden. Arkiver gamle innlegg for å skjule dem."
+              : "Manage news, tips and information displayed on the website. Archive old posts to hide them."}
           </p>
 
           <Button onClick={addNewPost} className="mb-6" variant="default">
@@ -473,6 +482,28 @@ export default function Settings() {
                         onChange={(content) => updatePost(index, "content", content)}
                         placeholder={language === "no" ? "Skriv innlegget her..." : "Write your post here..."}
                       />
+                    </div>
+
+                    <div>
+                      <Label htmlFor={`post-category-${index}`}>
+                        {language === "no" ? "Kategori" : "Category"}
+                      </Label>
+                      <Select
+                        value={post.category || "news"}
+                        onValueChange={(value) => updatePost(index, "category", value)}
+                      >
+                        <SelectTrigger id={`post-category-${index}`}>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="news">
+                            {language === "no" ? "Nyheter" : "News"}
+                          </SelectItem>
+                          <SelectItem value="tips">
+                            {language === "no" ? "Tips & triks" : "Tips & Tricks"}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>
@@ -639,6 +670,11 @@ export default function Settings() {
                       </div>
                     </div>
                     <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                      <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                        {(post.category || "news") === "tips"
+                          ? language === "no" ? "Tips & triks" : "Tips & Tricks"
+                          : language === "no" ? "Nyheter" : "News"}
+                      </span>
                       {post.publishedDate &&
                         new Date(post.publishedDate).toLocaleDateString(language === "no" ? "no-NO" : "en-US")}
                       {post.author && (
