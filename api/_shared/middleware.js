@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import sanitizeHtmlContent from 'sanitize-html';
 import Sentry from './sentry.js';
 import { redactSensitiveText } from './redact.js';
+import { getDb } from './database.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -195,7 +196,7 @@ export function requireCsrf(req, res) {
  * @param {Object} req - Request object
  * @returns {Object|null} - Decoded token payload or null
  */
-export function parseAuthToken(req) {
+export async function parseAuthToken(req, sqlClient = null) {
   // First try to get token from HttpOnly cookie
   const cookies = parseCookies(req);
   let token = cookies.jwt;
@@ -213,7 +214,29 @@ export function parseAuthToken(req) {
   }
 
   try {
-    return jwt.verify(token, process.env.SESSION_SECRET);
+    const decoded = jwt.verify(token, process.env.SESSION_SECRET);
+    if (!Number.isInteger(decoded.tokenVersion)) {
+      return null;
+    }
+
+    const sql = sqlClient || getDb();
+    const users = await sql`
+      SELECT username, name, role, token_version as "tokenVersion"
+      FROM users
+      WHERE id = ${decoded.userId}
+      LIMIT 1
+    `;
+    const user = users[0];
+    if (!user || user.tokenVersion !== decoded.tokenVersion) {
+      return null;
+    }
+
+    return {
+      ...decoded,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+    };
   } catch (error) {
     if (error.name !== 'TokenExpiredError') {
       console.error('Token validation error:', redactSensitiveText(error.message));
@@ -228,8 +251,8 @@ export function parseAuthToken(req) {
  * @param {Object} res - Response object
  * @returns {Object|null} - User object if authenticated, null otherwise (also sends 401 response)
  */
-export function requireAuth(req, res) {
-  const user = parseAuthToken(req);
+export async function requireAuth(req, res, sqlClient = null) {
+  const user = await parseAuthToken(req, sqlClient);
 
   if (!user) {
     res.status(401).json({ error: 'Unauthorized' });
@@ -247,8 +270,8 @@ export function requireAuth(req, res) {
  * @param {string[]} allowedRoles - Role names from shared/constants.ts (COUNCIL_ROLES, ADMIN_ONLY, etc.)
  * @returns {Object|null}
  */
-export function requireRole(req, res, allowedRoles) {
-  const user = requireAuth(req, res);
+export async function requireRole(req, res, allowedRoles, sqlClient = null) {
+  const user = await requireAuth(req, res, sqlClient);
   if (!user) return null;
   if (!allowedRoles.includes(user.role)) {
     res.status(403).json({ error: 'Forbidden' });

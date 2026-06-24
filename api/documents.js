@@ -39,7 +39,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      const user = requireRole(req, res, COUNCIL_ROLES);
+      const user = await requireRole(req, res, COUNCIL_ROLES, sql);
       if (!user) return;
 
       if (!requireCsrf(req, res)) return;

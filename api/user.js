@@ -16,15 +16,15 @@ export default async function handler(req, res) {
   }
 
   try {
+    const sql = getDb();
+
     // Use parseAuthToken which reads from cookies (with Bearer token fallback)
-    const decoded = parseAuthToken(req);
+    const decoded = await parseAuthToken(req, sql);
 
     if (!decoded) {
       return res.status(200).json(null);
     }
 
-    const sql = getDb();
-    
     // Get user data
     const users = await sql`
       SELECT id, username, name, role 

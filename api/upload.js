@@ -26,7 +26,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const decoded = requireRole(req, res, COUNCIL_ROLES);
+  const sql = getDb();
+  const decoded = await requireRole(req, res, COUNCIL_ROLES, sql);
   if (!decoded) return;
 
   if (!requireCsrf(req, res)) return;
@@ -91,9 +92,6 @@ export default async function handler(req, res) {
         uploadUrl: `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/auto/upload`,
       });
     }
-
-    const sql = getDb();
-
     if (!filename || !title || !fileUrl || !publicId) {
       return res.status(400).json({ error: 'Missing required fields' });
     }

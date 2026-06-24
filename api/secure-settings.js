@@ -26,7 +26,7 @@ async function handleBoardMembers(req, res, sql) {
   }
 
   // All other methods require admin authentication
-  const user = requireRole(req, res, ADMIN_ONLY);
+  const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
   // CSRF protection for state-changing requests
@@ -117,7 +117,7 @@ async function handleBlogPosts(req, res, sql) {
 
     let posts;
     if (includeArchived === 'true') {
-      const adminUser = requireRole(req, res, ADMIN_ONLY);
+      const adminUser = await requireRole(req, res, ADMIN_ONLY, sql);
       if (!adminUser) return;
 
       // Admin view - show all posts
@@ -142,7 +142,7 @@ async function handleBlogPosts(req, res, sql) {
   }
 
   // All other methods require admin authentication
-  const user = requireRole(req, res, ADMIN_ONLY);
+  const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
   // CSRF protection for state-changing requests
@@ -254,7 +254,7 @@ async function handleKindergartenInfo(req, res, sql) {
   }
 
   // All other methods require admin authentication
-  const user = requireRole(req, res, ADMIN_ONLY);
+  const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
   // CSRF protection for state-changing requests
@@ -309,7 +309,7 @@ async function handleKindergartenInfo(req, res, sql) {
 // Handle Contact Messages operations
 async function handleContactMessages(req, res, sql) {
   // All methods require admin authentication
-  const user = requireRole(req, res, ADMIN_ONLY);
+  const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
   const now = new Date().toISOString();
@@ -379,7 +379,7 @@ async function handleContactMessages(req, res, sql) {
 
 // Handle Kindergarten staff users (limited to yearly calendar editing)
 async function handleStaffUsers(req, res, sql) {
-  const user = requireRole(req, res, ADMIN_ONLY);
+  const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
   if (req.method === 'GET') {
@@ -441,7 +441,7 @@ async function handleStaffUsers(req, res, sql) {
 
 // Handle newsletter subscribers (admin view + removal)
 async function handleNewsletterSubscribers(req, res, sql) {
-  const user = requireRole(req, res, ADMIN_ONLY);
+  const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
   if (req.method === 'GET') {

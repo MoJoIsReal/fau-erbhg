@@ -116,7 +116,7 @@ export default async function handler(req, res) {
     }
 
     // All write methods require auth + a yearly-calendar-eligible role
-    const user = requireRole(req, res, YEARLY_CALENDAR_EDITORS);
+    const user = await requireRole(req, res, YEARLY_CALENDAR_EDITORS, sql);
     if (!user) return;
     if (!requireCsrf(req, res)) return;
 

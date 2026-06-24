@@ -6,7 +6,8 @@ import {
   handleCorsPreFlight,
   handleError,
   setCookie,
-  generateCsrfToken
+  generateCsrfToken,
+  requireCsrf
 } from './_shared/middleware.js';
 import { checkRateLimit, clearRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 
@@ -22,9 +23,22 @@ export default async function handler(req, res) {
   applySecurityHeaders(res, req.headers.origin);
   if (handleCorsPreFlight(req, res)) return;
 
+  if (req.method === 'GET' && req.query?.action === 'csrf') {
+    const csrfToken = generateCsrfToken();
+    setCookie(res, 'csrf-token', csrfToken, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Strict',
+      maxAge: 7200
+    });
+    return res.status(200).json({ csrfToken });
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  if (!requireCsrf(req, res)) return;
 
   try {
     const { username, password } = req.body;
@@ -70,7 +84,7 @@ export default async function handler(req, res) {
     
     // Get user by username (email)
     const users = await sql`
-      SELECT id, username, name, role, password 
+      SELECT id, username, name, role, password, token_version as "tokenVersion"
       FROM users 
       WHERE username = ${username}
     `;
@@ -94,7 +108,8 @@ export default async function handler(req, res) {
       {
         userId: user.id,
         username: user.username,
-        role: user.role
+        role: user.role,
+        tokenVersion: user.tokenVersion
       },
       process.env.SESSION_SECRET,
       { expiresIn: '2h' }

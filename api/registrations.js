@@ -60,7 +60,7 @@ export default async function handler(req, res) {
       const eventIdNum = parseInt(eventId);
 
       // Check if authenticated (for admin view with full details)
-      const user = parseAuthToken(req);
+      const user = await parseAuthToken(req, sql);
 
       if (user) {
         if (!COUNCIL_ROLES.includes(user.role)) {
@@ -333,7 +333,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'DELETE') {
-      const user = requireRole(req, res, COUNCIL_ROLES);
+      const user = await requireRole(req, res, COUNCIL_ROLES, sql);
       if (!user) return;
 
       // CSRF protection for state-changing requests

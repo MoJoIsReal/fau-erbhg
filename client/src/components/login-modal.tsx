@@ -22,6 +22,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
+      await apiRequest('GET', '/api/login?action=csrf');
       const response = await apiRequest('POST', '/api/login', data);
       return response.json();
     },

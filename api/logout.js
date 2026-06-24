@@ -2,8 +2,11 @@ import {
   applySecurityHeaders,
   handleCorsPreFlight,
   handleError,
+  parseAuthToken,
+  requireCsrf,
   setCookie
 } from './_shared/middleware.js';
+import { getDb } from './_shared/database.js';
 
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
@@ -15,6 +18,19 @@ export default async function handler(req, res) {
   }
 
   try {
+    const sql = getDb();
+    const user = await parseAuthToken(req, sql);
+
+    if (!requireCsrf(req, res)) return;
+
+    if (user) {
+      await sql`
+        UPDATE users
+        SET token_version = token_version + 1
+        WHERE id = ${user.userId}
+      `;
+    }
+
     // Clear JWT cookie (HttpOnly)
     setCookie(res, 'jwt', '', {
       httpOnly: true,
