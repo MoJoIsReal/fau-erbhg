@@ -58,9 +58,11 @@ function downloadBlob(blob: Blob, filename: string) {
 
   document.body.appendChild(link);
   link.click();
-  document.body.removeChild(link);
 
-  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, 100);
 }
 
 function buildEntrySheetData(entries: YearlyCalendarEntry[]): WriteSheetData {
