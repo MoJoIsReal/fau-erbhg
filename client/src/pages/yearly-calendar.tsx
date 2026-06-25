@@ -24,6 +24,7 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { YearlyCalendarEntry } from "@shared/schema";
@@ -426,7 +427,7 @@ export default function YearlyCalendarPage() {
   const canEdit = !!user && (user.role === "admin" || user.role === "member" || user.role === "staff");
 
   const now = new Date();
-  const defaultSchoolYear = now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const defaultSchoolYear = getKindergartenSchoolYear(now);
   const currentMonthValue = monthOrderValue({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [schoolYear, setSchoolYear] = useState<number>(defaultSchoolYear);
 
@@ -501,7 +502,12 @@ export default function YearlyCalendarPage() {
     t.yearlyCalendar.friday,
   ];
 
-  const schoolYearOptions = [defaultSchoolYear, defaultSchoolYear + 1];
+  const schoolYearOptions = Array.from(
+    new Set([
+      ...Array.from({ length: 6 }, (_, idx) => defaultSchoolYear - 1 + idx),
+      schoolYear,
+    ])
+  ).sort((a, b) => a - b);
 
   const openCreate = (defaults: Partial<EntryDraft>) => {
     setEditingEntry(null);
