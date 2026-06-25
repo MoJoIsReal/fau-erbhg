@@ -286,6 +286,42 @@ function testYearlyCalendarInvalidRows() {
   });
   assert.equal(emptyColor.ok, true);
   assert.equal(emptyColor.payload.color, null);
+
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({
+      rowNumber: 12,
+      schoolYear: 2027,
+      row: validDayRow({ tittel: 'T'.repeat(201) }),
+    }),
+    'Tittel',
+  );
+
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({
+      rowNumber: 12,
+      schoolYear: 2027,
+      row: validDayRow({ beskrivelse: 'B'.repeat(1001) }),
+    }),
+    'Beskrivelse',
+  );
+
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({
+      rowNumber: 12,
+      schoolYear: 2027,
+      row: validDayRow({ [HOMEPAGE_COLUMN]: 'sure' }),
+    }),
+    'vis_p\u00e5_forside',
+  );
+
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({
+      rowNumber: 12,
+      schoolYear: 2027,
+      row: validDayRow({ for_foreldre: 'maybe' }),
+    }),
+    'for_foreldre',
+  );
 }
 
 function testYearlyCalendarWeekNumberRules() {
@@ -525,6 +561,42 @@ function testYearlyCalendarImportPreviewFiltersDbShapedSchoolYear() {
   });
 }
 
+function testYearlyCalendarImportPreviewNormalizesDbShapedMatch() {
+  const preview = buildImportPreview({
+    schoolYear: 2027,
+    existingEntries: [
+      {
+        id: 21,
+        school_year: 2027,
+        year: 2028,
+        month: 6,
+        entry_type: 'day_event',
+        week_number: null,
+        week_number_end: null,
+        date: '2028-06-04',
+        title: 'Sommerfest',
+        description: '',
+        color: 'green',
+        show_on_homepage: true,
+        show_for_parents: false,
+      },
+    ],
+    rows: [
+      {
+        rowNumber: 2,
+        ...validDayRow({ beskrivelse: '', dato: '2028-06-04' }),
+      },
+    ],
+  });
+
+  assert.equal(preview.rows[0].status, 'unchanged');
+  assert.equal(preview.rows[0].existing.schoolYear, 2027);
+  assert.equal(preview.rows[0].existing.entryType, 'day_event');
+  assert.equal(preview.rows[0].existing.weekNumber, null);
+  assert.equal(preview.rows[0].existing.showOnHomepage, true);
+  assert.equal(preview.rows[0].existing.showForParents, false);
+}
+
 function testYearlyCalendarImportDecisionMatrix() {
   const allowed = [
     ['new', 'create'],
@@ -573,6 +645,7 @@ testYearlyCalendarHomepageFlags();
 testYearlyCalendarDiff();
 testYearlyCalendarImportPreview();
 testYearlyCalendarImportPreviewFiltersDbShapedSchoolYear();
+testYearlyCalendarImportPreviewNormalizesDbShapedMatch();
 testYearlyCalendarImportDecisionMatrix();
 
 console.log('Smoke tests passed');

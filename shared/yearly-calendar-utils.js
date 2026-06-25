@@ -57,17 +57,22 @@ export function isMonthInSchoolYear(year, month, schoolYear) {
   return false;
 }
 
-function readAlias(row, aliases) {
+function readAliasEntry(row, aliases) {
   for (const alias of aliases) {
-    if (Object.prototype.hasOwnProperty.call(row, alias)) return row[alias];
+    if (Object.prototype.hasOwnProperty.call(row, alias)) {
+      return { found: true, alias, value: row[alias] };
+    }
   }
-  return undefined;
+  return { found: false, alias: aliases[0], value: undefined };
 }
 
-function readText(row, aliases, maxLength) {
+function readAlias(row, aliases) {
+  return readAliasEntry(row, aliases).value;
+}
+
+function readText(row, aliases) {
   const value = readAlias(row, aliases);
-  const normalized = String(value ?? '').trim().replace(/\s+/g, ' ');
-  return maxLength && normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
+  return String(value ?? '').trim();
 }
 
 function readInteger(row, aliases) {
@@ -88,13 +93,23 @@ function readInteger(row, aliases) {
 }
 
 function readBoolean(row, aliases) {
-  const value = readAlias(row, aliases);
-  if (value === true || value === false) return value;
-  if (typeof value === 'number') return value === 1;
-  if (typeof value !== 'string') return false;
+  const { found, alias, value } = readAliasEntry(row, aliases);
+  if (!found || value === null || value === undefined) return { ok: true, value: false };
+  if (value === true || value === false) return { ok: true, value };
+  if (typeof value === 'number') {
+    if (value === 1) return { ok: true, value: true };
+    if (value === 0) return { ok: true, value: false };
+    return { ok: false, alias, value };
+  }
+  if (typeof value !== 'string') return { ok: false, alias, value };
 
-  const normalized = value.trim().toLocaleLowerCase('nb-NO');
-  return ['true', '1', 'ja', 'yes'].includes(normalized);
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: true, value: false };
+
+  const normalized = trimmed.toLocaleLowerCase('nb-NO');
+  if (['true', '1', 'ja', 'yes'].includes(normalized)) return { ok: true, value: true };
+  if (['false', '0', 'nei', 'no'].includes(normalized)) return { ok: true, value: false };
+  return { ok: false, alias, value };
 }
 
 function isValidIsoDate(value) {
@@ -158,20 +173,28 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
   const source = row ?? {};
   const errors = [];
 
-  const entryType = readText(source, ['entry_type', 'entryType'], 50);
-  const title = readText(source, ['tittel', 'title'], 200);
-  const date = readText(source, ['dato', 'date'], 20);
+  const entryType = readText(source, ['entry_type', 'entryType']);
+  const title = readText(source, ['tittel', 'title']);
+  const date = readText(source, ['dato', 'date']);
   const year = readInteger(source, [YEAR_COLUMN, 'year']);
   const month = readInteger(source, [MONTH_COLUMN, 'month']);
   const weekNumber = readInteger(source, ['uke_fra', 'weekNumber']);
   const weekNumberEnd = readInteger(source, ['uke_til', 'weekNumberEnd']);
-  const description = readText(source, ['beskrivelse', 'description'], 1000);
-  const color = readText(source, ['farge', 'color'], 30);
+  const description = readText(source, ['beskrivelse', 'description']);
+  const color = readText(source, ['farge', 'color']);
   const showOnHomepage = readBoolean(source, [HOMEPAGE_COLUMN, 'showOnHomepage']);
   const showForParents = readBoolean(source, ['for_foreldre', 'showForParents']);
 
   if (!title) {
     addError(errors, rowNumber, 'Mangler tittel.');
+  }
+
+  if (title.length > 200) {
+    addError(errors, rowNumber, 'Tittel kan maksimalt v\u00e6re 200 tegn.');
+  }
+
+  if (description.length > 1000) {
+    addError(errors, rowNumber, 'Beskrivelse kan maksimalt v\u00e6re 1000 tegn.');
   }
 
   if (!VALID_YEARLY_CALENDAR_ENTRY_TYPES.includes(entryType)) {
@@ -200,6 +223,14 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
       rowNumber,
       `Fargen "${color}" er ikke tillatt. Bruk en av: ${VALID_YEARLY_CALENDAR_COLORS.join(', ')}.`,
     );
+  }
+
+  if (!showOnHomepage.ok) {
+    addError(errors, rowNumber, `${showOnHomepage.alias} m\u00e5 v\u00e6re true/false, ja/nei, yes/no eller 1/0.`);
+  }
+
+  if (!showForParents.ok) {
+    addError(errors, rowNumber, `${showForParents.alias} m\u00e5 v\u00e6re true/false, ja/nei, yes/no eller 1/0.`);
   }
 
   if (entryType === 'day_event' || entryType === 'closed') {
@@ -252,21 +283,54 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
       weekNumber,
       weekNumberEnd,
       date,
-      showOnHomepage,
-      showForParents,
+      showOnHomepage: showOnHomepage.value,
+      showForParents: showForParents.value,
     }),
   };
 }
 
 function getEntryField(entry, field) {
+  if (field === 'id') return entry.id ?? null;
   if (field === 'schoolYear') return entry.schoolYear ?? entry.school_year ?? null;
   if (field === 'entryType') return entry.entryType ?? entry.entry_type ?? null;
   if (field === 'weekNumber') return entry.weekNumber ?? entry.week_number ?? null;
   if (field === 'weekNumberEnd') return entry.weekNumberEnd ?? entry.week_number_end ?? null;
+  if (field === 'weekdayStart') return entry.weekdayStart ?? entry.weekday_start ?? null;
+  if (field === 'weekdayEnd') return entry.weekdayEnd ?? entry.weekday_end ?? null;
   if (field === 'showOnHomepage') return entry.showOnHomepage ?? entry.show_on_homepage ?? false;
   if (field === 'showForParents') return entry.showForParents ?? entry.show_for_parents ?? false;
+  if (field === 'notifyNewsletter') return entry.notifyNewsletter ?? entry.notify_newsletter ?? false;
+  if (field === 'newsletterSentAt') return entry.newsletterSentAt ?? entry.newsletter_sent_at ?? null;
+  if (field === 'createdBy') return entry.createdBy ?? entry.created_by ?? null;
+  if (field === 'createdAt') return entry.createdAt ?? entry.created_at ?? null;
+  if (field === 'updatedAt') return entry.updatedAt ?? entry.updated_at ?? null;
   if (field === 'description' || field === 'color' || field === 'date') return entry[field] || null;
   return entry[field] ?? null;
+}
+
+function normalizeExistingEntry(entry) {
+  return {
+    id: getEntryField(entry, 'id'),
+    schoolYear: getEntryField(entry, 'schoolYear'),
+    year: getEntryField(entry, 'year'),
+    month: getEntryField(entry, 'month'),
+    entryType: getEntryField(entry, 'entryType'),
+    weekNumber: getEntryField(entry, 'weekNumber'),
+    weekNumberEnd: getEntryField(entry, 'weekNumberEnd'),
+    weekdayStart: getEntryField(entry, 'weekdayStart'),
+    weekdayEnd: getEntryField(entry, 'weekdayEnd'),
+    date: getEntryField(entry, 'date'),
+    title: getEntryField(entry, 'title'),
+    description: getEntryField(entry, 'description'),
+    color: getEntryField(entry, 'color'),
+    showOnHomepage: getEntryField(entry, 'showOnHomepage'),
+    showForParents: getEntryField(entry, 'showForParents'),
+    notifyNewsletter: getEntryField(entry, 'notifyNewsletter'),
+    newsletterSentAt: getEntryField(entry, 'newsletterSentAt'),
+    createdBy: getEntryField(entry, 'createdBy'),
+    createdAt: getEntryField(entry, 'createdAt'),
+    updatedAt: getEntryField(entry, 'updatedAt'),
+  };
 }
 
 export function diffYearlyCalendarEntry(existingEntry, payload) {
@@ -297,9 +361,10 @@ export function buildImportPreview({ schoolYear, existingEntries, rows }) {
     const entrySchoolYear = getEntryField(entry, 'schoolYear');
     if (entrySchoolYear !== null && entrySchoolYear !== schoolYear) continue;
 
-    const normalizedTitle = normalizeYearlyCalendarTitle(entry.title);
+    const normalizedEntry = normalizeExistingEntry(entry);
+    const normalizedTitle = normalizeYearlyCalendarTitle(normalizedEntry.title);
     const entries = entriesByTitle.get(normalizedTitle) ?? [];
-    entries.push(entry);
+    entries.push(normalizedEntry);
     entriesByTitle.set(normalizedTitle, entries);
   }
 

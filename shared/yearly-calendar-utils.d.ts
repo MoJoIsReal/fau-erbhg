@@ -82,6 +82,29 @@ export type YearlyCalendarEntryDiff = {
   newValue: unknown;
 };
 
+export type YearlyCalendarPreviewEntry = {
+  id: number | null;
+  schoolYear: number | null;
+  year: number | null;
+  month: number | null;
+  entryType: YearlyCalendarEntryType | string | null;
+  weekNumber: number | null;
+  weekNumberEnd: number | null;
+  weekdayStart: number | null;
+  weekdayEnd: number | null;
+  date: string | null;
+  title: string | null;
+  description: string | null;
+  color: string | null;
+  showOnHomepage: boolean;
+  showForParents: boolean;
+  notifyNewsletter: boolean;
+  newsletterSentAt: string | null;
+  createdBy: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
+
 export type ImportPreviewRow =
   | {
       rowNumber: number;
@@ -94,7 +117,7 @@ export type ImportPreviewRow =
       rowNumber: number;
       status: 'unchanged';
       payload: YearlyCalendarImportPayload;
-      existing: YearlyCalendarEntry;
+      existing: YearlyCalendarPreviewEntry;
       original: YearlyCalendarRawImportRow;
       defaultAction: 'ignore';
     }
@@ -102,7 +125,7 @@ export type ImportPreviewRow =
       rowNumber: number;
       status: 'changed';
       payload: YearlyCalendarImportPayload;
-      existing: YearlyCalendarEntry;
+      existing: YearlyCalendarPreviewEntry;
       changes: YearlyCalendarEntryDiff[];
       original: YearlyCalendarRawImportRow;
       defaultAction: 'ignore';
@@ -118,7 +141,7 @@ export type ImportPreviewRow =
       rowNumber: number;
       status: 'ambiguous';
       payload: YearlyCalendarImportPayload;
-      matches: YearlyCalendarEntry[];
+      matches: YearlyCalendarPreviewEntry[];
       original: YearlyCalendarRawImportRow;
       defaultAction: 'ignore';
     };
