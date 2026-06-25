@@ -193,19 +193,32 @@ export default async function handler(req, res) {
           const existingId = decision?.existingId != null
             ? sanitizeInteger(decision.existingId, 1, 2147483647)
             : null;
+          const decisionValidation = validateImportDecision({ status, action });
+          if (!decisionValidation.ok) {
+            summary.errors.push({ rowNumber, errors: [decisionValidation.error] });
+            continue;
+          }
+
+          if (action === 'ignore') {
+            summary.ignored.push({ rowNumber });
+            continue;
+          }
+
           const row = { ...(decision?.row || {}), rowNumber };
-          const validation = validateYearlyCalendarImportRow({ rowNumber, schoolYear, row });
           const previewRow = buildImportPreview({
             schoolYear,
             existingEntries,
             rows: [row],
           }).rows[0];
-          const serverStatus = previewRow?.status || status;
-          const decisionValidation = validateImportDecision({ status: serverStatus, action });
+          const validation = validateYearlyCalendarImportRow({ rowNumber, schoolYear, row });
+          const serverDecisionValidation = validateImportDecision({
+            status: previewRow?.status || status,
+            action,
+          });
           const errors = [];
 
-          if (!decisionValidation.ok) {
-            errors.push(decisionValidation.error);
+          if (!serverDecisionValidation.ok) {
+            errors.push(serverDecisionValidation.error);
           }
           if (!validation.ok) {
             errors.push(...validation.errors);
@@ -213,11 +226,6 @@ export default async function handler(req, res) {
 
           if (errors.length > 0) {
             summary.errors.push({ rowNumber, errors });
-            continue;
-          }
-
-          if (action === 'ignore') {
-            summary.ignored.push({ rowNumber });
             continue;
           }
 
