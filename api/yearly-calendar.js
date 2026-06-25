@@ -259,7 +259,6 @@ export default async function handler(req, res) {
                     color = ${payload.color},
                     show_on_homepage = ${payload.showOnHomepage},
                     show_for_parents = ${payload.showForParents},
-                    notify_newsletter = ${false},
                     updated_at = ${now}
                 WHERE id = ${existingId}
                   AND school_year = ${schoolYear}
