@@ -23,6 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest } from "@/lib/queryClient";
 import { parseYearlyCalendarWorkbook } from "@/lib/yearly-calendar-excel";
+import type { Language, useTranslation } from "@/lib/i18n";
 import type {
   ImportDecisionAction,
   ImportPreview,
@@ -32,6 +33,9 @@ import type {
   YearlyCalendarImportPayload,
 } from "@shared/yearly-calendar-utils";
 
+type Translation = ReturnType<typeof useTranslation>;
+type ValidationMessageKey = keyof Translation["yearlyCalendar"]["importModal"]["validation"];
+
 interface YearlyCalendarImportModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -39,10 +43,10 @@ interface YearlyCalendarImportModalProps {
 }
 
 type ImportSummary = {
-  created?: unknown[];
-  updated?: unknown[];
-  ignored?: unknown[];
-  errors?: Array<{ rowNumber: number; errors: string[] }>;
+  created: unknown[];
+  updated: unknown[];
+  ignored: Array<{ rowNumber: number }>;
+  errors: Array<{ rowNumber: number; errors: string[] }>;
 };
 
 type Decision = {
@@ -57,6 +61,14 @@ type Decision = {
 };
 
 const STATUS_ORDER: ImportPreviewStatus[] = ["new", "changed", "ambiguous", "invalid", "unchanged"];
+
+const ENTRY_TYPE_LABEL_KEYS: Record<YearlyCalendarEntryType, keyof Translation["yearlyCalendar"]["entryTypes"]> = {
+  week_event: "weekEvent",
+  day_event: "dayEvent",
+  food: "food",
+  closed: "closed",
+  note: "note",
+};
 
 function rowKey(row: ImportPreviewRow, index: number) {
   return `${row.rowNumber}-${index}`;
@@ -81,6 +93,167 @@ function formatValue(value: unknown): string {
 function existingIdFor(row: ImportPreviewRow): number | null {
   if (row.status === "changed" || row.status === "unchanged") return row.existing.id;
   return null;
+}
+
+function interpolate(template: string, values: Record<string, string>) {
+  return template.replace(/\{(\w+)\}/g, (_, key: string) => values[key] ?? "");
+}
+
+function entryTypeLabelFor(t: Translation, entryType: unknown) {
+  if (typeof entryType === "string" && entryType in ENTRY_TYPE_LABEL_KEYS) {
+    return t.yearlyCalendar.entryTypes[ENTRY_TYPE_LABEL_KEYS[entryType as YearlyCalendarEntryType]];
+  }
+  return formatValue(entryType);
+}
+
+function fieldAliasLabel(alias: string, t: Translation) {
+  const fields = t.yearlyCalendar.importModal.fields;
+  const fieldByAlias: Record<string, string> = {
+    "år": fields.year,
+    year: fields.year,
+    "måned": fields.month,
+    month: fields.month,
+    entry_type: fields.entryType,
+    entryType: fields.entryType,
+    tittel: fields.title,
+    title: fields.title,
+    beskrivelse: fields.description,
+    description: fields.description,
+    farge: fields.color,
+    color: fields.color,
+    uke_fra: fields.weekNumber,
+    weekNumber: fields.weekNumber,
+    uke_til: fields.weekNumberEnd,
+    weekNumberEnd: fields.weekNumberEnd,
+    dato: fields.date,
+    date: fields.date,
+    "vis_på_forside": fields.showOnHomepage,
+    showOnHomepage: fields.showOnHomepage,
+    for_foreldre: fields.showForParents,
+    showForParents: fields.showForParents,
+  };
+  return fieldByAlias[alias] ?? alias;
+}
+
+function colorLabelFor(t: Translation, color: string) {
+  const colors = t.yearlyCalendar.colors as Record<string, string>;
+  return colors[color] ?? color;
+}
+
+function allowedEntryTypesLabel(t: Translation, allowed: string) {
+  return allowed.split(",").map((entryType) => entryTypeLabelFor(t, entryType.trim())).join(", ");
+}
+
+function allowedColorsLabel(t: Translation, allowed: string) {
+  return allowed.split(",").map((color) => colorLabelFor(t, color.trim())).join(", ");
+}
+
+function validationValueLabel(t: Translation, value: string) {
+  return value === "(tom)" ? t.yearlyCalendar.importModal.emptyValue : value;
+}
+
+function validationMessage(
+  t: Translation,
+  key: ValidationMessageKey,
+  values: Record<string, string>,
+) {
+  return interpolate(t.yearlyCalendar.importModal.validation[key], values);
+}
+
+function formatValidationError(error: string, language: Language, t: Translation) {
+  if (language === "no") return error;
+
+  const rowMatch = /^Rad (\d+): (.*)$/.exec(error);
+  if (!rowMatch) return `${t.yearlyCalendar.importModal.unknownValidationError} ${error}`;
+
+  const row = rowMatch[1];
+  const message = rowMatch[2];
+  const values = { row };
+
+  if (message === "Mangler tittel.") {
+    return validationMessage(t, "missingTitle", values);
+  }
+  if (message === "Tittel kan maksimalt være 200 tegn.") {
+    return validationMessage(t, "titleTooLong", values);
+  }
+  if (message === "Beskrivelse kan maksimalt være 1000 tegn.") {
+    return validationMessage(t, "descriptionTooLong", values);
+  }
+  if (/^(?:år|År) må være et heltall\.$/.test(message)) {
+    return validationMessage(t, "invalidYear", values);
+  }
+  if (/^(?:måned|Måned) må være et heltall mellom 1 og 12\.$/.test(message)) {
+    return validationMessage(t, "invalidMonth", values);
+  }
+
+  const invalidEntryType = /^Ugyldig entry_type "([^"]*)"\. Bruk en av: (.+)\.$/.exec(message);
+  if (invalidEntryType) {
+    return validationMessage(t, "invalidEntryType", {
+      ...values,
+      value: validationValueLabel(t, invalidEntryType[1]),
+      allowed: allowedEntryTypesLabel(t, invalidEntryType[2]),
+    });
+  }
+
+  const outsideSchoolYear = /^(\d{4}-\d{2}) ligger utenfor barnehageåret (\d{4}\/\d{4})\.$/.exec(message);
+  if (outsideSchoolYear) {
+    return validationMessage(t, "monthOutsideSchoolYear", {
+      ...values,
+      month: outsideSchoolYear[1],
+      schoolYear: outsideSchoolYear[2],
+    });
+  }
+
+  const invalidColor = /^Fargen "([^"]*)" er ikke tillatt\. Bruk en av: (.+)\.$/.exec(message);
+  if (invalidColor) {
+    return validationMessage(t, "invalidColor", {
+      ...values,
+      value: invalidColor[1],
+      allowed: allowedColorsLabel(t, invalidColor[2]),
+    });
+  }
+
+  const invalidBoolean = /^(.+) må være true\/false, ja\/nei, yes\/no eller 1\/0\.$/.exec(message);
+  if (invalidBoolean) {
+    return validationMessage(t, "invalidBoolean", {
+      ...values,
+      field: fieldAliasLabel(invalidBoolean[1], t),
+    });
+  }
+
+  const dateRequired = /^(.+) krever dato i format YYYY-MM-DD innenfor barnehageåret (.+)\.$/.exec(message);
+  if (dateRequired) {
+    return validationMessage(t, "dateRequired", {
+      ...values,
+      type: entryTypeLabelFor(t, dateRequired[1]),
+      schoolYear: dateRequired[2],
+    });
+  }
+
+  const dateMismatch = /^Dato (.+) samsvarer ikke med år\/måned\.$/.exec(message);
+  if (dateMismatch) {
+    return validationMessage(t, "dateMismatch", {
+      ...values,
+      date: dateMismatch[1],
+    });
+  }
+
+  const weekRequired = /^(.+) krever uke_fra mellom 1 og 53\.$/.exec(message);
+  if (weekRequired) {
+    return validationMessage(t, "weekRequired", {
+      ...values,
+      type: entryTypeLabelFor(t, weekRequired[1]),
+    });
+  }
+
+  if (message === "uke_til må være mellom 1 og 53.") {
+    return validationMessage(t, "weekEndRange", values);
+  }
+  if (message === "uke_til må være høyere enn uke_fra.") {
+    return validationMessage(t, "weekEndAfterStart", values);
+  }
+
+  return `${t.yearlyCalendar.importModal.unknownValidationError} ${error}`;
 }
 
 export default function YearlyCalendarImportModal({
@@ -174,16 +347,24 @@ export default function YearlyCalendarImportModal({
     onSuccess: (summary) => {
       void queryClient.invalidateQueries({ queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`] });
 
-      if (summary.errors && summary.errors.length > 0) {
+      const errors = summary.errors ?? [];
+      if (errors.length > 0) {
+        const successfulWrites = (summary.created?.length ?? 0) + (summary.updated?.length ?? 0);
+        const formattedErrors = errors.flatMap((error) => (
+          error.errors.map((message) => formatValidationError(message, language, t))
+        ));
+
         toast({
-          title: t.yearlyCalendar.importModal.importError,
-          description: summary.errors.map((error) => (
-            language === "en"
-              ? `#${error.rowNumber}: ${t.yearlyCalendar.importModal.validationErrorsFromServer} ${error.errors.join(" ")}`
-              : `#${error.rowNumber}: ${error.errors.join(" ")}`
-          )).join("\n"),
+          title: successfulWrites > 0
+            ? t.yearlyCalendar.importModal.partialImportTitle
+            : t.yearlyCalendar.importModal.importError,
+          description: [
+            successfulWrites > 0 ? t.yearlyCalendar.importModal.partialImportDescription : null,
+            ...formattedErrors,
+          ].filter(Boolean).join("\n"),
           variant: "destructive",
         });
+        onClose();
         return;
       }
 
@@ -219,19 +400,8 @@ export default function YearlyCalendarImportModal({
     return t.yearlyCalendar.importModal.ambiguousRows;
   };
 
-  const entryTypeLabels: Record<YearlyCalendarEntryType, string> = {
-    week_event: t.yearlyCalendar.entryTypes.weekEvent,
-    day_event: t.yearlyCalendar.entryTypes.dayEvent,
-    food: t.yearlyCalendar.entryTypes.food,
-    closed: t.yearlyCalendar.entryTypes.closed,
-    note: t.yearlyCalendar.entryTypes.note,
-  };
-
   const entryTypeLabel = (entryType: unknown) => {
-    if (typeof entryType === "string" && entryType in entryTypeLabels) {
-      return entryTypeLabels[entryType as YearlyCalendarEntryType];
-    }
-    return formatValue(entryType);
+    return entryTypeLabelFor(t, entryType);
   };
 
   const fieldLabel = (field: keyof YearlyCalendarImportPayload, fallback: string) => (
@@ -245,12 +415,9 @@ export default function YearlyCalendarImportModal({
 
   const renderServerErrors = (errors: string[]) => (
     <div className="space-y-1 text-sm text-red-700 dark:text-red-300">
-      {language === "en" && (
-        <p>{t.yearlyCalendar.importModal.validationErrorsFromServer}</p>
-      )}
       <ul className="space-y-1">
         {errors.map((error) => (
-          <li key={error}>{error}</li>
+          <li key={error}>{formatValidationError(error, language, t)}</li>
         ))}
       </ul>
     </div>

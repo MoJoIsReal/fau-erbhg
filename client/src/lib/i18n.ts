@@ -408,7 +408,27 @@ export interface Translations {
       previewError: string;
       importSuccess: string;
       importError: string;
+      partialImportTitle: string;
+      partialImportDescription: string;
       validationErrorsFromServer: string;
+      unknownValidationError: string;
+      emptyValue: string;
+      validation: {
+        missingTitle: string;
+        titleTooLong: string;
+        descriptionTooLong: string;
+        invalidEntryType: string;
+        invalidYear: string;
+        invalidMonth: string;
+        monthOutsideSchoolYear: string;
+        invalidColor: string;
+        invalidBoolean: string;
+        dateRequired: string;
+        dateMismatch: string;
+        weekRequired: string;
+        weekEndRange: string;
+        weekEndAfterStart: string;
+      };
       fields: {
         schoolYear: string;
         year: string;
@@ -854,7 +874,27 @@ export const translations: Record<Language, Translations> = {
         previewError: "Kunne ikke forhåndsvise importen",
         importSuccess: "Importen er fullført",
         importError: "Kunne ikke importere årskalenderen",
+        partialImportTitle: "Importen ble delvis fullført",
+        partialImportDescription: "Noen rader kan være importert, mens andre feilet. Åpne importen på nytt og forhåndsvis filen igjen før du prøver på nytt.",
         validationErrorsFromServer: "Raden har valideringsfeil fra serveren:",
+        unknownValidationError: "Raden har en valideringsfeil fra serveren:",
+        emptyValue: "(tom)",
+        validation: {
+          missingTitle: "Rad {row}: Mangler tittel.",
+          titleTooLong: "Rad {row}: Tittel kan maksimalt være 200 tegn.",
+          descriptionTooLong: "Rad {row}: Beskrivelse kan maksimalt være 1000 tegn.",
+          invalidEntryType: "Rad {row}: Ugyldig type \"{value}\". Bruk en av: {allowed}.",
+          invalidYear: "Rad {row}: År må være et heltall.",
+          invalidMonth: "Rad {row}: Måned må være et heltall mellom 1 og 12.",
+          monthOutsideSchoolYear: "Rad {row}: {month} ligger utenfor barnehageåret {schoolYear}.",
+          invalidColor: "Rad {row}: Fargen \"{value}\" er ikke tillatt. Bruk en av: {allowed}.",
+          invalidBoolean: "Rad {row}: {field} må være true/false, ja/nei, yes/no eller 1/0.",
+          dateRequired: "Rad {row}: {type} krever dato i format YYYY-MM-DD innenfor barnehageåret {schoolYear}.",
+          dateMismatch: "Rad {row}: Dato {date} samsvarer ikke med år/måned.",
+          weekRequired: "Rad {row}: {type} krever uke_fra mellom 1 og 53.",
+          weekEndRange: "Rad {row}: uke_til må være mellom 1 og 53.",
+          weekEndAfterStart: "Rad {row}: uke_til må være høyere enn uke_fra."
+        },
         fields: {
           schoolYear: "Barnehageår",
           year: "År",
@@ -1298,7 +1338,27 @@ export const translations: Record<Language, Translations> = {
         previewError: "Could not preview the import",
         importSuccess: "Import completed",
         importError: "Could not import yearly calendar",
+        partialImportTitle: "Import partially completed",
+        partialImportDescription: "Some rows may have been imported while others failed. Reopen import and preview the file again before retrying.",
         validationErrorsFromServer: "Row has validation errors from the server. Detailed server message:",
+        unknownValidationError: "Row has a validation error from the server:",
+        emptyValue: "(empty)",
+        validation: {
+          missingTitle: "Row {row}: Missing title.",
+          titleTooLong: "Row {row}: Title can be at most 200 characters.",
+          descriptionTooLong: "Row {row}: Description can be at most 1000 characters.",
+          invalidEntryType: "Row {row}: Invalid type \"{value}\". Use one of: {allowed}.",
+          invalidYear: "Row {row}: Year must be an integer.",
+          invalidMonth: "Row {row}: Month must be an integer between 1 and 12.",
+          monthOutsideSchoolYear: "Row {row}: {month} is outside kindergarten year {schoolYear}.",
+          invalidColor: "Row {row}: Color \"{value}\" is not allowed. Use one of: {allowed}.",
+          invalidBoolean: "Row {row}: {field} must be true/false, yes/no, ja/nei, or 1/0.",
+          dateRequired: "Row {row}: {type} requires a date in YYYY-MM-DD format within kindergarten year {schoolYear}.",
+          dateMismatch: "Row {row}: Date {date} does not match year/month.",
+          weekRequired: "Row {row}: {type} requires uke_fra between 1 and 53.",
+          weekEndRange: "Row {row}: uke_til must be between 1 and 53.",
+          weekEndAfterStart: "Row {row}: uke_til must be higher than uke_fra."
+        },
         fields: {
           schoolYear: "Kindergarten year",
           year: "Year",
