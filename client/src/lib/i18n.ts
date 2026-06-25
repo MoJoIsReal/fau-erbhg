@@ -324,6 +324,8 @@ export interface Translations {
     schoolYearLabel: string;
     downloadAllPdf: string;
     downloadMonthPdf: string;
+    downloadTemplate: string;
+    importExcel: string;
     pdfGenerating: string;
     pdfErrorTitle: string;
     pdfErrorDescription: string;
@@ -383,6 +385,29 @@ export interface Translations {
       deleteConfirm: string;
       success: string;
       error: string;
+    };
+    importModal: {
+      title: string;
+      chooseFile: string;
+      preview: string;
+      commit: string;
+      commitValidRows: string;
+      committing: string;
+      cancel: string;
+      newEntries: string;
+      unchangedEntries: string;
+      changedEntries: string;
+      invalidRows: string;
+      ambiguousRows: string;
+      updateExisting: string;
+      createNew: string;
+      ignore: string;
+      oldValue: string;
+      newValue: string;
+      noFile: string;
+      previewError: string;
+      importSuccess: string;
+      importError: string;
     };
     inKindergartenBadge: string;
     forParentsBadge: string;
@@ -730,6 +755,8 @@ export const translations: Record<Language, Translations> = {
       schoolYearLabel: "Barnehageår",
       downloadAllPdf: "Last ned PDF (hele året)",
       downloadMonthPdf: "Last ned måned",
+      downloadTemplate: "Last ned Excel-mal",
+      importExcel: "Importer Excel",
       pdfGenerating: "Genererer PDF…",
       pdfErrorTitle: "Klarte ikke å lage PDF",
       pdfErrorDescription: "Noe gikk galt under generering av PDF-en. Prøv igjen om litt.",
@@ -789,6 +816,29 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "Er du sikker på at du vil slette denne oppføringen?",
         success: "Oppføring lagret",
         error: "Kunne ikke lagre oppføringen"
+      },
+      importModal: {
+        title: "Importer årskalender fra Excel",
+        chooseFile: "Velg Excel-fil",
+        preview: "Forhåndsvis",
+        commit: "Importer",
+        commitValidRows: "Importer gyldige rader",
+        committing: "Importerer...",
+        cancel: "Avbryt",
+        newEntries: "Nye oppføringer",
+        unchangedEntries: "Uendrede oppføringer",
+        changedEntries: "Endrede oppføringer",
+        invalidRows: "Ugyldige rader",
+        ambiguousRows: "Usikre treff",
+        updateExisting: "Oppdater eksisterende",
+        createNew: "Opprett ny",
+        ignore: "Ignorer",
+        oldValue: "Gammel verdi",
+        newValue: "Ny verdi",
+        noFile: "Velg en Excel-fil først.",
+        previewError: "Kunne ikke forhåndsvise importen",
+        importSuccess: "Importen er fullført",
+        importError: "Kunne ikke importere årskalenderen"
       },
       inKindergartenBadge: "I barnehagen",
       forParentsBadge: "For foreldre",
@@ -1134,6 +1184,8 @@ export const translations: Record<Language, Translations> = {
       schoolYearLabel: "Kindergarten year",
       downloadAllPdf: "Download PDF (whole year)",
       downloadMonthPdf: "Download month",
+      downloadTemplate: "Download Excel template",
+      importExcel: "Import Excel",
       pdfGenerating: "Generating PDF…",
       pdfErrorTitle: "Could not generate PDF",
       pdfErrorDescription: "Something went wrong while generating the PDF. Please try again in a moment.",
@@ -1193,6 +1245,29 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "Are you sure you want to delete this entry?",
         success: "Entry saved",
         error: "Could not save the entry"
+      },
+      importModal: {
+        title: "Import yearly calendar from Excel",
+        chooseFile: "Choose Excel file",
+        preview: "Preview",
+        commit: "Import",
+        commitValidRows: "Import valid rows",
+        committing: "Importing...",
+        cancel: "Cancel",
+        newEntries: "New entries",
+        unchangedEntries: "Unchanged entries",
+        changedEntries: "Changed entries",
+        invalidRows: "Invalid rows",
+        ambiguousRows: "Ambiguous rows",
+        updateExisting: "Update existing",
+        createNew: "Create new",
+        ignore: "Ignore",
+        oldValue: "Old value",
+        newValue: "New value",
+        noFile: "Choose an Excel file first.",
+        previewError: "Could not preview the import",
+        importSuccess: "Import completed",
+        importError: "Could not import yearly calendar"
       },
       inKindergartenBadge: "At the kindergarten",
       forParentsBadge: "For parents",
