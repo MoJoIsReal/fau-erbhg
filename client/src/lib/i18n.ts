@@ -408,6 +408,21 @@ export interface Translations {
       previewError: string;
       importSuccess: string;
       importError: string;
+      validationErrorsFromServer: string;
+      fields: {
+        schoolYear: string;
+        year: string;
+        month: string;
+        entryType: string;
+        title: string;
+        description: string;
+        color: string;
+        weekNumber: string;
+        weekNumberEnd: string;
+        date: string;
+        showOnHomepage: string;
+        showForParents: string;
+      };
     };
     inKindergartenBadge: string;
     forParentsBadge: string;
@@ -838,7 +853,22 @@ export const translations: Record<Language, Translations> = {
         noFile: "Velg en Excel-fil først.",
         previewError: "Kunne ikke forhåndsvise importen",
         importSuccess: "Importen er fullført",
-        importError: "Kunne ikke importere årskalenderen"
+        importError: "Kunne ikke importere årskalenderen",
+        validationErrorsFromServer: "Raden har valideringsfeil fra serveren:",
+        fields: {
+          schoolYear: "Barnehageår",
+          year: "År",
+          month: "Måned",
+          entryType: "Type",
+          title: "Tittel",
+          description: "Beskrivelse",
+          color: "Farge",
+          weekNumber: "Fra uke",
+          weekNumberEnd: "Til uke",
+          date: "Dato",
+          showOnHomepage: "Vis på hjemmesiden",
+          showForParents: "For foreldre"
+        }
       },
       inKindergartenBadge: "I barnehagen",
       forParentsBadge: "For foreldre",
@@ -1267,7 +1297,22 @@ export const translations: Record<Language, Translations> = {
         noFile: "Choose an Excel file first.",
         previewError: "Could not preview the import",
         importSuccess: "Import completed",
-        importError: "Could not import yearly calendar"
+        importError: "Could not import yearly calendar",
+        validationErrorsFromServer: "Row has validation errors from the server. Detailed server message:",
+        fields: {
+          schoolYear: "Kindergarten year",
+          year: "Year",
+          month: "Month",
+          entryType: "Type",
+          title: "Title",
+          description: "Description",
+          color: "Color",
+          weekNumber: "From week",
+          weekNumberEnd: "To week",
+          date: "Date",
+          showOnHomepage: "Show on homepage",
+          showForParents: "For parents"
+        }
       },
       inKindergartenBadge: "At the kindergarten",
       forParentsBadge: "For parents",

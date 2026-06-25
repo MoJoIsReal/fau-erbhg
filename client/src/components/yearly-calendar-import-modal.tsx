@@ -28,6 +28,7 @@ import type {
   ImportPreview,
   ImportPreviewRow,
   ImportPreviewStatus,
+  YearlyCalendarEntryType,
   YearlyCalendarImportPayload,
 } from "@shared/yearly-calendar-utils";
 
@@ -87,7 +88,7 @@ export default function YearlyCalendarImportModal({
   onClose,
   schoolYear,
 }: YearlyCalendarImportModalProps) {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputId = useId();
@@ -176,9 +177,11 @@ export default function YearlyCalendarImportModal({
       if (summary.errors && summary.errors.length > 0) {
         toast({
           title: t.yearlyCalendar.importModal.importError,
-          description: summary.errors
-            .map((error) => `#${error.rowNumber}: ${error.errors.join(" ")}`)
-            .join("\n"),
+          description: summary.errors.map((error) => (
+            language === "en"
+              ? `#${error.rowNumber}: ${t.yearlyCalendar.importModal.validationErrorsFromServer} ${error.errors.join(" ")}`
+              : `#${error.rowNumber}: ${error.errors.join(" ")}`
+          )).join("\n"),
           variant: "destructive",
         });
         return;
@@ -216,22 +219,59 @@ export default function YearlyCalendarImportModal({
     return t.yearlyCalendar.importModal.ambiguousRows;
   };
 
+  const entryTypeLabels: Record<YearlyCalendarEntryType, string> = {
+    week_event: t.yearlyCalendar.entryTypes.weekEvent,
+    day_event: t.yearlyCalendar.entryTypes.dayEvent,
+    food: t.yearlyCalendar.entryTypes.food,
+    closed: t.yearlyCalendar.entryTypes.closed,
+    note: t.yearlyCalendar.entryTypes.note,
+  };
+
+  const entryTypeLabel = (entryType: unknown) => {
+    if (typeof entryType === "string" && entryType in entryTypeLabels) {
+      return entryTypeLabels[entryType as YearlyCalendarEntryType];
+    }
+    return formatValue(entryType);
+  };
+
+  const fieldLabel = (field: keyof YearlyCalendarImportPayload, fallback: string) => (
+    t.yearlyCalendar.importModal.fields[field] ?? fallback
+  );
+
+  const formatFieldValue = (field: keyof YearlyCalendarImportPayload, value: unknown) => {
+    if (field === "entryType") return entryTypeLabel(value);
+    return formatValue(value);
+  };
+
+  const renderServerErrors = (errors: string[]) => (
+    <div className="space-y-1 text-sm text-red-700 dark:text-red-300">
+      {language === "en" && (
+        <p>{t.yearlyCalendar.importModal.validationErrorsFromServer}</p>
+      )}
+      <ul className="space-y-1">
+        {errors.map((error) => (
+          <li key={error}>{error}</li>
+        ))}
+      </ul>
+    </div>
+  );
+
   const renderPayload = (payload: YearlyCalendarImportPayload) => (
     <dl className="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-2">
       <div className="min-w-0">
-        <dt className="text-muted-foreground">{t.yearlyCalendar.modal.type}</dt>
-        <dd className="truncate font-medium">{payload.entryType}</dd>
+        <dt className="text-muted-foreground">{t.yearlyCalendar.importModal.fields.entryType}</dt>
+        <dd className="truncate font-medium">{entryTypeLabel(payload.entryType)}</dd>
       </div>
       <div className="min-w-0">
-        <dt className="text-muted-foreground">{t.yearlyCalendar.modal.title}</dt>
+        <dt className="text-muted-foreground">{t.yearlyCalendar.importModal.fields.title}</dt>
         <dd className="truncate font-medium">{payload.title}</dd>
       </div>
       <div>
-        <dt className="text-muted-foreground">{t.yearlyCalendar.modal.date}</dt>
+        <dt className="text-muted-foreground">{t.yearlyCalendar.importModal.fields.date}</dt>
         <dd>{formatValue(payload.date)}</dd>
       </div>
       <div>
-        <dt className="text-muted-foreground">{t.yearlyCalendar.modal.weekNumber}</dt>
+        <dt className="text-muted-foreground">{t.yearlyCalendar.importModal.fields.weekNumber}</dt>
         <dd>{formatValue(payload.weekNumber)}</dd>
       </div>
     </dl>
@@ -280,25 +320,21 @@ export default function YearlyCalendarImportModal({
           {hasPayload(row) && renderPayload(row.payload)}
 
           {row.status === "invalid" && (
-            <ul className="space-y-1 text-sm text-red-700 dark:text-red-300">
-              {row.errors.map((error) => (
-                <li key={error}>{error}</li>
-              ))}
-            </ul>
+            renderServerErrors(row.errors)
           )}
 
           {row.status === "changed" && (
             <div className="space-y-2">
               {row.changes.map((change) => (
                 <div key={change.field} className="grid gap-2 rounded-md bg-neutral-50 p-2 text-sm dark:bg-neutral-950 sm:grid-cols-[9rem_1fr_1fr]">
-                  <div className="font-medium">{change.label}</div>
+                  <div className="font-medium">{fieldLabel(change.field, change.label)}</div>
                   <div>
                     <span className="text-muted-foreground">{t.yearlyCalendar.importModal.oldValue}: </span>
-                    {formatValue(change.oldValue)}
+                    {formatFieldValue(change.field, change.oldValue)}
                   </div>
                   <div>
                     <span className="text-muted-foreground">{t.yearlyCalendar.importModal.newValue}: </span>
-                    {formatValue(change.newValue)}
+                    {formatFieldValue(change.field, change.newValue)}
                   </div>
                 </div>
               ))}
