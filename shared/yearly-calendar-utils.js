@@ -259,6 +259,7 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
 }
 
 function getEntryField(entry, field) {
+  if (field === 'schoolYear') return entry.schoolYear ?? entry.school_year ?? null;
   if (field === 'entryType') return entry.entryType ?? entry.entry_type ?? null;
   if (field === 'weekNumber') return entry.weekNumber ?? entry.week_number ?? null;
   if (field === 'weekNumberEnd') return entry.weekNumberEnd ?? entry.week_number_end ?? null;
@@ -293,7 +294,8 @@ export function buildImportPreview({ schoolYear, existingEntries, rows }) {
   const entriesByTitle = new Map();
 
   for (const entry of existingEntries ?? []) {
-    if (entry.schoolYear !== undefined && entry.schoolYear !== schoolYear) continue;
+    const entrySchoolYear = getEntryField(entry, 'schoolYear');
+    if (entrySchoolYear !== null && entrySchoolYear !== schoolYear) continue;
 
     const normalizedTitle = normalizeYearlyCalendarTitle(entry.title);
     const entries = entriesByTitle.get(normalizedTitle) ?? [];

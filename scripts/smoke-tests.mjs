@@ -135,8 +135,10 @@ function assertInvalidContains(result, expected) {
 }
 
 function testYearlyCalendarDateHelpers() {
+  assert.equal(getKindergartenSchoolYear(new Date('2026-01-15T12:00:00Z')), 2025);
   assert.equal(getKindergartenSchoolYear(new Date('2026-07-31T12:00:00Z')), 2025);
   assert.equal(getKindergartenSchoolYear(new Date('2026-08-01T12:00:00Z')), 2026);
+  assert.equal(getKindergartenSchoolYear(new Date('2026-12-31T12:00:00Z')), 2026);
   assert.equal(isMonthInSchoolYear(2027, 8, 2027), true);
   assert.equal(isMonthInSchoolYear(2028, 7, 2027), true);
   assert.equal(isMonthInSchoolYear(2028, 8, 2027), false);
@@ -258,6 +260,32 @@ function testYearlyCalendarInvalidRows() {
     }),
     'utenfor barnehage\u00e5ret 2027/2028',
   );
+
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({
+      rowNumber: 12,
+      schoolYear: 2027,
+      row: validDayRow({ dato: '2028-02-31', [YEAR_COLUMN]: 2028, [MONTH_COLUMN]: 2 }),
+    }),
+    'YYYY-MM-DD',
+  );
+
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({
+      rowNumber: 12,
+      schoolYear: 2027,
+      row: validDayRow({ entry_type: 'closed', dato: '' }),
+    }),
+    'closed krever dato',
+  );
+
+  const emptyColor = validateYearlyCalendarImportRow({
+    rowNumber: 16,
+    schoolYear: 2027,
+    row: validDayRow({ farge: '   ' }),
+  });
+  assert.equal(emptyColor.ok, true);
+  assert.equal(emptyColor.payload.color, null);
 }
 
 function testYearlyCalendarWeekNumberRules() {
@@ -269,6 +297,26 @@ function testYearlyCalendarWeekNumberRules() {
     }),
     'uke_til',
   );
+
+  for (const entryType of ['week_event', 'food', 'note']) {
+    assertInvalidContains(
+      validateYearlyCalendarImportRow({
+        rowNumber: 12,
+        schoolYear: 2027,
+        row: validWeekRow({ entry_type: entryType, uke_fra: '' }),
+      }),
+      `${entryType} krever uke_fra`,
+    );
+
+    assertInvalidContains(
+      validateYearlyCalendarImportRow({
+        rowNumber: 12,
+        schoolYear: 2027,
+        row: validWeekRow({ entry_type: entryType, uke_fra: 54 }),
+      }),
+      `${entryType} krever uke_fra`,
+    );
+  }
 
   const food = validateYearlyCalendarImportRow({
     rowNumber: 13,
@@ -439,6 +487,44 @@ function testYearlyCalendarImportPreview() {
   });
 }
 
+function testYearlyCalendarImportPreviewFiltersDbShapedSchoolYear() {
+  const preview = buildImportPreview({
+    schoolYear: 2027,
+    existingEntries: [
+      {
+        id: 20,
+        school_year: 2026,
+        year: 2027,
+        month: 6,
+        entry_type: 'day_event',
+        week_number: null,
+        week_number_end: null,
+        date: '2027-06-04',
+        title: 'Sommerfest',
+        description: null,
+        color: 'green',
+        show_on_homepage: true,
+        show_for_parents: false,
+      },
+    ],
+    rows: [
+      {
+        rowNumber: 2,
+        ...validDayRow({ beskrivelse: '', dato: '2028-06-04' }),
+      },
+    ],
+  });
+
+  assert.equal(preview.rows[0].status, 'new');
+  assert.deepEqual(preview.counts, {
+    new: 1,
+    unchanged: 0,
+    changed: 0,
+    invalid: 0,
+    ambiguous: 0,
+  });
+}
+
 function testYearlyCalendarImportDecisionMatrix() {
   const allowed = [
     ['new', 'create'],
@@ -486,6 +572,7 @@ testYearlyCalendarWeekNumberRules();
 testYearlyCalendarHomepageFlags();
 testYearlyCalendarDiff();
 testYearlyCalendarImportPreview();
+testYearlyCalendarImportPreviewFiltersDbShapedSchoolYear();
 testYearlyCalendarImportDecisionMatrix();
 
 console.log('Smoke tests passed');
