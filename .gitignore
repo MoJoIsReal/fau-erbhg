@@ -33,6 +33,7 @@ logs
 tmp/
 temp/
 uploads/
+.worktrees/
 attached_assets/image_*.png
 test.pdf
 
