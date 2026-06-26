@@ -22,7 +22,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest } from "@/lib/queryClient";
-import { parseYearlyCalendarWorkbook } from "@/lib/yearly-calendar-excel";
 import type { Language, useTranslation } from "@/lib/i18n";
 import type {
   ImportDecisionAction,
@@ -322,6 +321,7 @@ export default function YearlyCalendarImportModal({
   const previewMutation = useMutation({
     mutationFn: async () => {
       if (!file) throw new Error(t.yearlyCalendar.importModal.noFile);
+      const { parseYearlyCalendarWorkbook } = await import("@/lib/yearly-calendar-excel");
       const rows = await parseYearlyCalendarWorkbook(file);
       const response = await apiRequest("POST", "/api/yearly-calendar?action=preview-import", {
         schoolYear,
