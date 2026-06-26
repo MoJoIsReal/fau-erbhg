@@ -6,9 +6,10 @@ import {
   type YearlyCalendarRawImportRow,
 } from "@shared/yearly-calendar-utils";
 import type { SheetData as ReadSheetData } from "read-excel-file/browser";
-import type { Cell, SheetData as WriteSheetData } from "write-excel-file/browser";
+import type { Cell, Feature, SheetData as WriteSheetData } from "write-excel-file/browser";
 
 type SpreadsheetValue = string | number | boolean | Date | null;
+type WriteFileContent = File | Blob | ArrayBuffer;
 
 const ENTRY_HEADERS = [
   "entry_type",
@@ -27,6 +28,7 @@ const ENTRY_HEADERS = [
 type EntryHeader = (typeof ENTRY_HEADERS)[number];
 
 const COLOR_GUIDE = `${VALID_YEARLY_CALENDAR_COLORS.join(", ")} eller eksisterende hex-farge som #3b82f6 / or an existing hex colour such as #3b82f6`;
+const TEMPLATE_VALIDATION_MIN_ROWS = 500;
 
 function entryToRow(entry: YearlyCalendarEntry): Record<EntryHeader, SpreadsheetValue> {
   return {
@@ -76,6 +78,74 @@ function buildEntrySheetData(entries: YearlyCalendarEntry[]): WriteSheetData {
       return ENTRY_HEADERS.map((header) => row[header]);
     }),
   ];
+}
+
+function escapeXmlAttribute(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function escapeXmlText(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function listValidationXml({ range, values }: { range: string; values: readonly string[] }) {
+  const csv = values.join(",");
+  return [
+    `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="${escapeXmlAttribute(range)}">`,
+    `<formula1>"${escapeXmlText(csv)}"</formula1>`,
+    "</dataValidation>",
+  ].join("");
+}
+
+function buildDataValidationsXml(rowCount: number) {
+  const lastRow = Math.max(TEMPLATE_VALIDATION_MIN_ROWS + 1, rowCount + 1);
+  const booleanValues = ["true", "false"];
+  const validations = [
+    listValidationXml({ range: `A2:A${lastRow}`, values: VALID_YEARLY_CALENDAR_ENTRY_TYPES }),
+    listValidationXml({ range: `I2:I${lastRow}`, values: VALID_YEARLY_CALENDAR_COLORS }),
+    listValidationXml({ range: `J2:J${lastRow}`, values: booleanValues }),
+    listValidationXml({ range: `K2:K${lastRow}`, values: booleanValues }),
+  ];
+
+  return `<dataValidations count="${validations.length}">${validations.join("")}</dataValidations>`;
+}
+
+function findWorksheetAppendixIndex(xml: string) {
+  const candidateIndexes = ["<pageMargins", "<pageSetup", "<headerFooter", "<drawing"]
+    .map((tag) => xml.indexOf(tag))
+    .filter((index) => index >= 0);
+
+  if (candidateIndexes.length > 0) return Math.min(...candidateIndexes);
+  return xml.indexOf("</worksheet>");
+}
+
+function yearlyCalendarDataValidationFeature(rowCount: number): Feature<WriteFileContent> {
+  return {
+    files: {
+      transform: {
+        "xl/worksheets/sheet{id}.xml": {
+          transform(xml, sheetOptions) {
+            if (sheetOptions.sheet !== "Oppføringer") return xml;
+
+            const dataValidationsXml = buildDataValidationsXml(rowCount);
+            const insertBefore = findWorksheetAppendixIndex(xml);
+            if (insertBefore >= 0) {
+              return `${xml.slice(0, insertBefore)}${dataValidationsXml}${xml.slice(insertBefore)}`;
+            }
+
+            return xml;
+          },
+        },
+      },
+    },
+  };
 }
 
 function buildGuideSheetData(schoolYear: number): WriteSheetData {
@@ -148,7 +218,9 @@ export async function downloadYearlyCalendarTemplate(opts: {
       data: buildGuideSheetData(opts.schoolYear),
       columns: [{ width: 28 }, { width: 90 }],
     },
-  ]);
+  ], {
+    features: [yearlyCalendarDataValidationFeature(opts.entries.length)],
+  });
   const blob = await workbook.toBlob();
 
   downloadBlob(blob, `arskalender-mal-${opts.schoolYear}-${opts.schoolYear + 1}.xlsx`);
