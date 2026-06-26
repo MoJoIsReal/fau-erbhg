@@ -9,6 +9,11 @@ import {
   sanitizeNumber,
 } from './_shared/middleware.js';
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
+import {
+  buildImportPreview,
+  validateImportDecision,
+  validateYearlyCalendarImportRow,
+} from '../shared/yearly-calendar-utils.js';
 
 const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note', 'closed'];
 const VALID_COLOR_NAMES = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
@@ -90,6 +95,51 @@ function sanitizeEntryPayload(body) {
   };
 }
 
+function sanitizeInteger(value, min, max) {
+  const num = sanitizeNumber(value, min, max);
+  return Number.isInteger(num) ? num : null;
+}
+
+function sanitizeImportTextValue(value, maxLength) {
+  if (value === null || value === undefined || value === '') return value;
+  return sanitizeText(String(value), maxLength);
+}
+
+function sanitizeImportRowText(row) {
+  const sanitized = { ...(row || {}) };
+  for (const titleKey of ['tittel', 'title']) {
+    if (Object.prototype.hasOwnProperty.call(sanitized, titleKey)) {
+      sanitized[titleKey] = sanitizeImportTextValue(sanitized[titleKey], 200);
+    }
+  }
+  for (const descriptionKey of ['beskrivelse', 'description']) {
+    if (Object.prototype.hasOwnProperty.call(sanitized, descriptionKey)) {
+      sanitized[descriptionKey] = sanitizeImportTextValue(sanitized[descriptionKey], 1000);
+    }
+  }
+  return sanitized;
+}
+
+function normalizeImportRows(rows) {
+  return rows.map((row, index) => {
+    const rowNumber = sanitizeInteger(row?.rowNumber, 1, 100000) ?? index + 2;
+    return { ...sanitizeImportRowText(row), rowNumber };
+  });
+}
+
+async function getEntriesForSchoolYear(sql, schoolYear) {
+  const rows = await sql`
+    SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
+           weekday_start, weekday_end, date, title, description, color,
+           show_on_homepage, show_for_parents, notify_newsletter, newsletter_sent_at,
+           created_by, created_at, updated_at
+    FROM yearly_calendar_entries
+    WHERE school_year = ${schoolYear}
+    ORDER BY year ASC, month ASC, week_number ASC NULLS LAST
+  `;
+  return rows.map(mapEntry);
+}
+
 export default async function handler(req, res) {
   applySecurityHeaders(res, req.headers.origin);
   if (handleCorsPreFlight(req, res)) return;
@@ -103,16 +153,8 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Valid schoolYear query parameter required' });
       }
 
-      const rows = await sql`
-        SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
-               weekday_start, weekday_end, date, title, description, color,
-               show_on_homepage, show_for_parents, notify_newsletter, newsletter_sent_at,
-               created_by, created_at, updated_at
-        FROM yearly_calendar_entries
-        WHERE school_year = ${schoolYear}
-        ORDER BY year ASC, month ASC, week_number ASC NULLS LAST
-      `;
-      return res.status(200).json(rows.map(mapEntry));
+      const entries = await getEntriesForSchoolYear(sql, schoolYear);
+      return res.status(200).json(entries);
     }
 
     // All write methods require auth + a yearly-calendar-eligible role
@@ -121,6 +163,172 @@ export default async function handler(req, res) {
     if (!requireCsrf(req, res)) return;
 
     if (req.method === 'POST') {
+      if (req.query.action === 'preview-import') {
+        const schoolYear = sanitizeInteger(req.body?.schoolYear, 2020, 2100);
+        const rows = Array.isArray(req.body?.rows) ? req.body.rows : null;
+
+        if (!schoolYear) {
+          return res.status(400).json({ error: 'Valid schoolYear is required' });
+        }
+        if (!rows) {
+          return res.status(400).json({ error: 'Rows must be an array' });
+        }
+        if (rows.length > 500) {
+          return res.status(400).json({ error: 'Import cannot contain more than 500 rows' });
+        }
+
+        const existingEntries = await getEntriesForSchoolYear(sql, schoolYear);
+        const preview = buildImportPreview({
+          schoolYear,
+          existingEntries,
+          rows: normalizeImportRows(rows),
+        });
+        return res.status(200).json(preview);
+      }
+
+      if (req.query.action === 'commit-import') {
+        const schoolYear = sanitizeInteger(req.body?.schoolYear, 2020, 2100);
+        const decisions = Array.isArray(req.body?.decisions) ? req.body.decisions : null;
+
+        if (!schoolYear) {
+          return res.status(400).json({ error: 'Valid schoolYear is required' });
+        }
+        if (!decisions) {
+          return res.status(400).json({ error: 'Decisions must be an array' });
+        }
+        if (decisions.length > 500) {
+          return res.status(400).json({ error: 'Import cannot contain more than 500 decisions' });
+        }
+
+        const existingEntries = await getEntriesForSchoolYear(sql, schoolYear);
+        const existingById = new Map(existingEntries.map((entry) => [entry.id, entry]));
+        const now = new Date().toISOString();
+        const createdBy = user.name || user.username || 'ukjent';
+        const summary = { created: [], updated: [], ignored: [], errors: [] };
+
+        for (const [index, decision] of decisions.entries()) {
+          const rowNumber = sanitizeInteger(decision?.rowNumber, 1, 100000) ?? index + 2;
+          const status = sanitizeText(decision?.status, 20);
+          const action = sanitizeText(decision?.action, 20);
+          const existingId = decision?.existingId != null
+            ? sanitizeInteger(decision.existingId, 1, 2147483647)
+            : null;
+          const decisionValidation = validateImportDecision({ status, action });
+          if (!decisionValidation.ok) {
+            summary.errors.push({ rowNumber, errors: [decisionValidation.error] });
+            continue;
+          }
+
+          if (action === 'ignore') {
+            summary.ignored.push({ rowNumber });
+            continue;
+          }
+
+          const row = { ...sanitizeImportRowText(decision?.row), rowNumber };
+          const previewRow = buildImportPreview({
+            schoolYear,
+            existingEntries,
+            rows: [row],
+          }).rows[0];
+          const validation = validateYearlyCalendarImportRow({ rowNumber, schoolYear, row });
+          const serverDecisionValidation = validateImportDecision({
+            status: previewRow?.status || status,
+            action,
+          });
+          const errors = [];
+
+          if (!serverDecisionValidation.ok) {
+            errors.push(serverDecisionValidation.error);
+          }
+          if (!validation.ok) {
+            errors.push(...validation.errors);
+          }
+
+          if (errors.length > 0) {
+            summary.errors.push({ rowNumber, errors });
+            continue;
+          }
+
+          const payload = validation.payload;
+
+          if (action === 'update') {
+            const matchedExistingId = previewRow?.status === 'changed' ? previewRow.existing?.id : null;
+
+            if (!existingId || !existingById.has(existingId) || existingId !== matchedExistingId) {
+              summary.errors.push({
+                rowNumber,
+                errors: ['Existing entry was not found for the selected school year.'],
+              });
+              continue;
+            }
+
+            try {
+              const updated = await sql`
+                UPDATE yearly_calendar_entries
+                SET school_year = ${payload.schoolYear},
+                    year = ${payload.year},
+                    month = ${payload.month},
+                    entry_type = ${payload.entryType},
+                    week_number = ${payload.weekNumber},
+                    week_number_end = ${payload.weekNumberEnd},
+                    weekday_start = ${null},
+                    weekday_end = ${null},
+                    date = ${payload.date},
+                    title = ${payload.title},
+                    description = ${payload.description},
+                    color = ${payload.color},
+                    show_on_homepage = ${payload.showOnHomepage},
+                    show_for_parents = ${payload.showForParents},
+                    updated_at = ${now}
+                WHERE id = ${existingId}
+                  AND school_year = ${schoolYear}
+                RETURNING *
+              `;
+
+              if (updated.length === 0) {
+                summary.errors.push({
+                  rowNumber,
+                  errors: ['Existing entry was not found for the selected school year.'],
+                });
+              } else {
+                summary.updated.push(mapEntry(updated[0]));
+              }
+            } catch (error) {
+              summary.errors.push({
+                rowNumber,
+                errors: ['Failed to update row.'],
+              });
+            }
+            continue;
+          }
+
+          if (action === 'create') {
+            try {
+              const created = await sql`
+                INSERT INTO yearly_calendar_entries (
+                  school_year, year, month, entry_type, week_number, week_number_end,
+                  weekday_start, weekday_end, date, title, description, color,
+                  show_on_homepage, show_for_parents, notify_newsletter, created_by, created_at, updated_at
+                ) VALUES (
+                  ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber}, ${payload.weekNumberEnd},
+                  ${null}, ${null}, ${payload.date}, ${payload.title}, ${payload.description}, ${payload.color},
+                  ${payload.showOnHomepage}, ${payload.showForParents}, ${false}, ${createdBy}, ${now}, ${now}
+                )
+                RETURNING *
+              `;
+              summary.created.push(mapEntry(created[0]));
+            } catch (error) {
+              summary.errors.push({
+                rowNumber,
+                errors: ['Failed to create row.'],
+              });
+            }
+          }
+        }
+
+        return res.status(200).json(summary);
+      }
+
       const payload = sanitizeEntryPayload(req.body || {});
       if (!payload.entryType || !payload.title || !payload.schoolYear || !payload.year || !payload.month) {
         return res.status(400).json({

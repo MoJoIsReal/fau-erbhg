@@ -324,9 +324,13 @@ export interface Translations {
     schoolYearLabel: string;
     downloadAllPdf: string;
     downloadMonthPdf: string;
+    downloadTemplate: string;
+    importExcel: string;
     pdfGenerating: string;
     pdfErrorTitle: string;
     pdfErrorDescription: string;
+    excelTemplateErrorTitle: string;
+    excelTemplateErrorDescription: string;
     addEntry: string;
     noEntries: string;
     week: string;
@@ -383,6 +387,64 @@ export interface Translations {
       deleteConfirm: string;
       success: string;
       error: string;
+    };
+    importModal: {
+      title: string;
+      chooseFile: string;
+      preview: string;
+      commit: string;
+      commitValidRows: string;
+      committing: string;
+      cancel: string;
+      newEntries: string;
+      unchangedEntries: string;
+      changedEntries: string;
+      invalidRows: string;
+      ambiguousRows: string;
+      updateExisting: string;
+      createNew: string;
+      ignore: string;
+      oldValue: string;
+      newValue: string;
+      noFile: string;
+      previewError: string;
+      importSuccess: string;
+      importError: string;
+      partialImportTitle: string;
+      partialImportDescription: string;
+      validationErrorsFromServer: string;
+      unknownValidationError: string;
+      emptyValue: string;
+      validation: {
+        missingTitle: string;
+        titleTooLong: string;
+        descriptionTooLong: string;
+        invalidEntryType: string;
+        invalidYear: string;
+        invalidMonth: string;
+        monthOutsideSchoolYear: string;
+        invalidColor: string;
+        invalidBoolean: string;
+        dateRequired: string;
+        dateMismatch: string;
+        weekRequired: string;
+        weekEndRange: string;
+        weekEndAfterStart: string;
+      };
+      fields: {
+        schoolYear: string;
+        year: string;
+        month: string;
+        entryType: string;
+        title: string;
+        description: string;
+        color: string;
+        weekNumber: string;
+        weekNumberEnd: string;
+        date: string;
+        showOnHomepage: string;
+        showForParents: string;
+      };
     };
     inKindergartenBadge: string;
     forParentsBadge: string;
@@ -730,9 +792,13 @@ export const translations: Record<Language, Translations> = {
       schoolYearLabel: "Barnehageår",
       downloadAllPdf: "Last ned PDF (hele året)",
       downloadMonthPdf: "Last ned måned",
+      downloadTemplate: "Last ned Excel-mal",
+      importExcel: "Importer Excel",
       pdfGenerating: "Genererer PDF…",
       pdfErrorTitle: "Klarte ikke å lage PDF",
       pdfErrorDescription: "Noe gikk galt under generering av PDF-en. Prøv igjen om litt.",
+      excelTemplateErrorTitle: "Klarte ikke å laste ned Excel-mal",
+      excelTemplateErrorDescription: "Noe gikk galt under nedlasting av Excel-malen. Prøv igjen om litt.",
       addEntry: "Legg til",
       noEntries: "Ingenting registrert ennå.",
       week: "Uke",
@@ -789,6 +855,64 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "Er du sikker på at du vil slette denne oppføringen?",
         success: "Oppføring lagret",
         error: "Kunne ikke lagre oppføringen"
+      },
+      importModal: {
+        title: "Importer årskalender fra Excel",
+        chooseFile: "Velg Excel-fil",
+        preview: "Forhåndsvis",
+        commit: "Importer",
+        commitValidRows: "Importer gyldige rader",
+        committing: "Importerer...",
+        cancel: "Avbryt",
+        newEntries: "Nye oppføringer",
+        unchangedEntries: "Uendrede oppføringer",
+        changedEntries: "Endrede oppføringer",
+        invalidRows: "Ugyldige rader",
+        ambiguousRows: "Usikre treff",
+        updateExisting: "Oppdater eksisterende",
+        createNew: "Opprett ny",
+        ignore: "Ignorer",
+        oldValue: "Gammel verdi",
+        newValue: "Ny verdi",
+        noFile: "Velg en Excel-fil først.",
+        previewError: "Kunne ikke forhåndsvise importen",
+        importSuccess: "Importen er fullført",
+        importError: "Kunne ikke importere årskalenderen",
+        partialImportTitle: "Importen ble delvis fullført",
+        partialImportDescription: "Noen rader kan være importert, mens andre feilet. Åpne importen på nytt og forhåndsvis filen igjen før du prøver på nytt.",
+        validationErrorsFromServer: "Raden har valideringsfeil fra serveren:",
+        unknownValidationError: "Raden har en valideringsfeil fra serveren:",
+        emptyValue: "(tom)",
+        validation: {
+          missingTitle: "Rad {row}: Mangler tittel.",
+          titleTooLong: "Rad {row}: Tittel kan maksimalt være 200 tegn.",
+          descriptionTooLong: "Rad {row}: Beskrivelse kan maksimalt være 1000 tegn.",
+          invalidEntryType: "Rad {row}: Ugyldig type \"{value}\". Bruk en av: {allowed}.",
+          invalidYear: "Rad {row}: År må være et heltall.",
+          invalidMonth: "Rad {row}: Måned må være et heltall mellom 1 og 12.",
+          monthOutsideSchoolYear: "Rad {row}: {month} ligger utenfor barnehageåret {schoolYear}.",
+          invalidColor: "Rad {row}: Fargen \"{value}\" er ikke tillatt. Bruk en av: {allowed}.",
+          invalidBoolean: "Rad {row}: {field} må være true/false, ja/nei, yes/no eller 1/0.",
+          dateRequired: "Rad {row}: {type} krever dato i format YYYY-MM-DD innenfor barnehageåret {schoolYear}.",
+          dateMismatch: "Rad {row}: Dato {date} samsvarer ikke med år/måned.",
+          weekRequired: "Rad {row}: {type} krever uke_fra mellom 1 og 53.",
+          weekEndRange: "Rad {row}: uke_til må være mellom 1 og 53.",
+          weekEndAfterStart: "Rad {row}: uke_til må være høyere enn uke_fra."
+        },
+        fields: {
+          schoolYear: "Barnehageår",
+          year: "År",
+          month: "Måned",
+          entryType: "Type",
+          title: "Tittel",
+          description: "Beskrivelse",
+          color: "Farge",
+          weekNumber: "Fra uke",
+          weekNumberEnd: "Til uke",
+          date: "Dato",
+          showOnHomepage: "Vis på hjemmesiden",
+          showForParents: "For foreldre"
+        }
       },
       inKindergartenBadge: "I barnehagen",
       forParentsBadge: "For foreldre",
@@ -1134,9 +1258,13 @@ export const translations: Record<Language, Translations> = {
       schoolYearLabel: "Kindergarten year",
       downloadAllPdf: "Download PDF (whole year)",
       downloadMonthPdf: "Download month",
+      downloadTemplate: "Download Excel template",
+      importExcel: "Import Excel",
       pdfGenerating: "Generating PDF…",
       pdfErrorTitle: "Could not generate PDF",
       pdfErrorDescription: "Something went wrong while generating the PDF. Please try again in a moment.",
+      excelTemplateErrorTitle: "Could not download Excel template",
+      excelTemplateErrorDescription: "Something went wrong while downloading the Excel template. Please try again in a moment.",
       addEntry: "Add entry",
       noEntries: "Nothing scheduled yet.",
       week: "Week",
@@ -1193,6 +1321,64 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "Are you sure you want to delete this entry?",
         success: "Entry saved",
         error: "Could not save the entry"
+      },
+      importModal: {
+        title: "Import yearly calendar from Excel",
+        chooseFile: "Choose Excel file",
+        preview: "Preview",
+        commit: "Import",
+        commitValidRows: "Import valid rows",
+        committing: "Importing...",
+        cancel: "Cancel",
+        newEntries: "New entries",
+        unchangedEntries: "Unchanged entries",
+        changedEntries: "Changed entries",
+        invalidRows: "Invalid rows",
+        ambiguousRows: "Ambiguous rows",
+        updateExisting: "Update existing",
+        createNew: "Create new",
+        ignore: "Ignore",
+        oldValue: "Old value",
+        newValue: "New value",
+        noFile: "Choose an Excel file first.",
+        previewError: "Could not preview the import",
+        importSuccess: "Import completed",
+        importError: "Could not import yearly calendar",
+        partialImportTitle: "Import partially completed",
+        partialImportDescription: "Some rows may have been imported while others failed. Reopen import and preview the file again before retrying.",
+        validationErrorsFromServer: "Row has validation errors from the server. Detailed server message:",
+        unknownValidationError: "Row has a validation error from the server:",
+        emptyValue: "(empty)",
+        validation: {
+          missingTitle: "Row {row}: Missing title.",
+          titleTooLong: "Row {row}: Title can be at most 200 characters.",
+          descriptionTooLong: "Row {row}: Description can be at most 1000 characters.",
+          invalidEntryType: "Row {row}: Invalid type \"{value}\". Use one of: {allowed}.",
+          invalidYear: "Row {row}: Year must be an integer.",
+          invalidMonth: "Row {row}: Month must be an integer between 1 and 12.",
+          monthOutsideSchoolYear: "Row {row}: {month} is outside kindergarten year {schoolYear}.",
+          invalidColor: "Row {row}: Color \"{value}\" is not allowed. Use one of: {allowed}.",
+          invalidBoolean: "Row {row}: {field} must be true/false, yes/no, ja/nei, or 1/0.",
+          dateRequired: "Row {row}: {type} requires a date in YYYY-MM-DD format within kindergarten year {schoolYear}.",
+          dateMismatch: "Row {row}: Date {date} does not match year/month.",
+          weekRequired: "Row {row}: {type} requires uke_fra between 1 and 53.",
+          weekEndRange: "Row {row}: uke_til must be between 1 and 53.",
+          weekEndAfterStart: "Row {row}: uke_til must be higher than uke_fra."
+        },
+        fields: {
+          schoolYear: "Kindergarten year",
+          year: "Year",
+          month: "Month",
+          entryType: "Type",
+          title: "Title",
+          description: "Description",
+          color: "Color",
+          weekNumber: "From week",
+          weekNumberEnd: "To week",
+          date: "Date",
+          showOnHomepage: "Show on homepage",
+          showForParents: "For parents"
+        }
       },
       inKindergartenBadge: "At the kindergarten",
       forParentsBadge: "For parents",

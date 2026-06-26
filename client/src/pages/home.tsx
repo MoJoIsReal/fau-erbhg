@@ -9,6 +9,7 @@ import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
+import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface FauBoardMember {
@@ -65,10 +66,9 @@ export default function Home() {
 
   // Fetch yearly calendar day-events for the current and next school year so
   // the homepage stays correct around the August transition. The kindergarten
-  // year starts in August (month index 7), so before August we're still in
-  // last year's school year.
+  // year starts in August, so before August we're still in last year's school year.
   const now = new Date();
-  const currentSchoolYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+  const currentSchoolYear = getKindergartenSchoolYear(now);
   const { data: currentYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
     queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear}`],
   });

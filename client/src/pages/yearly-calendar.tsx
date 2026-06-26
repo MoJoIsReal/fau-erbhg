@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Download, Loader2 } from "lucide-react";
+import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Download, Loader2, FileSpreadsheet, Upload } from "lucide-react";
 import {
   DndContext,
   type DragEndEvent,
@@ -24,10 +24,12 @@ import {
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useAuth } from "@/hooks/useAuth";
+import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
+import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
 
 type ColorStyle = { className: string; style?: React.CSSProperties };
 
@@ -426,11 +428,12 @@ export default function YearlyCalendarPage() {
   const canEdit = !!user && (user.role === "admin" || user.role === "member" || user.role === "staff");
 
   const now = new Date();
-  const defaultSchoolYear = now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1;
+  const defaultSchoolYear = getKindergartenSchoolYear(now);
   const currentMonthValue = monthOrderValue({ year: now.getFullYear(), month: now.getMonth() + 1 });
   const [schoolYear, setSchoolYear] = useState<number>(defaultSchoolYear);
 
   const [modalOpen, setModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<YearlyCalendarEntry | null>(null);
   const [draftDefaults, setDraftDefaults] = useState<Partial<EntryDraft>>({
     schoolYear,
@@ -501,7 +504,12 @@ export default function YearlyCalendarPage() {
     t.yearlyCalendar.friday,
   ];
 
-  const schoolYearOptions = [defaultSchoolYear, defaultSchoolYear + 1];
+  const schoolYearOptions = Array.from(
+    new Set([
+      ...Array.from({ length: 6 }, (_, idx) => defaultSchoolYear - 1 + idx),
+      schoolYear,
+    ])
+  ).sort((a, b) => a - b);
 
   const openCreate = (defaults: Partial<EntryDraft>) => {
     setEditingEntry(null);
@@ -545,6 +553,20 @@ export default function YearlyCalendarPage() {
       console.error("Yearly calendar PDF download failed", err);
     } finally {
       setPdfDownloading(null);
+    }
+  };
+
+  const downloadTemplate = async () => {
+    try {
+      const { downloadYearlyCalendarTemplate } = await import("@/lib/yearly-calendar-excel");
+      await downloadYearlyCalendarTemplate({ schoolYear, entries });
+    } catch (err) {
+      toast({
+        title: t.yearlyCalendar.excelTemplateErrorTitle,
+        description: t.yearlyCalendar.excelTemplateErrorDescription,
+        variant: "destructive",
+      });
+      console.error("Yearly calendar Excel template download failed", err);
     }
   };
 
@@ -615,13 +637,33 @@ export default function YearlyCalendarPage() {
             </Select>
 
             {canEdit && (
-              <Button
-                onClick={() => openCreate({ year: months[0].year, month: months[0].month, entryType: "week_event" })}
-                className="bg-white dark:bg-neutral-950 text-[#FF6B35] hover:bg-yellow-100 dark:hover:bg-neutral-900 print:hidden"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                {t.yearlyCalendar.addEntry}
-              </Button>
+              <>
+                <Button
+                  onClick={() => openCreate({ year: months[0].year, month: months[0].month, entryType: "week_event" })}
+                  className="bg-white dark:bg-neutral-950 text-[#FF6B35] hover:bg-yellow-100 dark:hover:bg-neutral-900 print:hidden"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  {t.yearlyCalendar.addEntry}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={downloadTemplate}
+                  variant="outline"
+                  className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
+                >
+                  <FileSpreadsheet className="h-4 w-4 mr-1" />
+                  {t.yearlyCalendar.downloadTemplate}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setImportModalOpen(true)}
+                  variant="outline"
+                  className="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
+                >
+                  <Upload className="h-4 w-4 mr-1" />
+                  {t.yearlyCalendar.importExcel}
+                </Button>
+              </>
             )}
 
             <Button
@@ -1128,6 +1170,11 @@ export default function YearlyCalendarPage() {
           schoolYear={schoolYear}
           existing={editingEntry}
           initial={draftDefaults}
+        />
+        <YearlyCalendarImportModal
+          isOpen={importModalOpen}
+          onClose={() => setImportModalOpen(false)}
+          schoolYear={schoolYear}
         />
       </div>
     </DndContext>

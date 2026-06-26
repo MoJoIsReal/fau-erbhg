@@ -6,7 +6,7 @@
 
 **Architecture:** Put reusable validation, normalization, matching, diffing, and kindergarten-year logic in small shared modules. Keep Excel workbook generation/parsing in a lazy-loaded browser-only client module. Extend the existing `api/yearly-calendar.js` serverless function with import preview and commit actions so the Vercel function count does not increase.
 
-**Tech Stack:** React 18, TypeScript, Vite, TanStack Query, shadcn/ui, Vercel serverless functions, Neon SQL tagged templates, `exceljs` for `.xlsx` generation/parsing, existing smoke tests in `scripts/smoke-tests.mjs`.
+**Tech Stack:** React 18, TypeScript, Vite, TanStack Query, shadcn/ui, Vercel serverless functions, Neon SQL tagged templates, `write-excel-file` for `.xlsx` generation, `read-excel-file` for `.xlsx` parsing, existing smoke tests in `scripts/smoke-tests.mjs`.
 
 ---
 
@@ -38,7 +38,7 @@ This plan covers one cohesive subsystem: Excel export/import for yearly-calendar
   - Keeps page imports clear and avoids duplicating the date rule.
 
 - Create `client/src/lib/yearly-calendar-excel.ts`
-  - Browser-only Excel helpers using dynamically imported `exceljs`.
+  - Browser-only Excel helpers using dynamically imported `write-excel-file/browser` and `read-excel-file/browser`.
   - Exports `downloadYearlyCalendarTemplate()` and `parseYearlyCalendarWorkbook()`.
 
 - Create `client/src/components/yearly-calendar-import-modal.tsx`
@@ -65,7 +65,7 @@ This plan covers one cohesive subsystem: Excel export/import for yearly-calendar
   - Add tests for default-year calculation, row validation, title matching, diffing, and commit action validation.
 
 - Modify `package.json` and `package-lock.json`
-  - Add `exceljs`.
+  - Add `read-excel-file` and `write-excel-file`.
 
 ---
 
@@ -704,27 +704,37 @@ Expected: commit succeeds.
 
 ---
 
-### Task 3: Add ExcelJS Dependency
+### Task 3: Add Lightweight Excel Dependencies
 
 **Files:**
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
-- [ ] **Step 1: Install ExcelJS**
+- [ ] **Step 1: Install Excel packages**
 
 Run:
 
 ```bash
-npm install exceljs
+npm install read-excel-file write-excel-file
 ```
 
 Expected:
 
-- `exceljs` appears in `dependencies` in `package.json`.
+- `read-excel-file` and `write-excel-file` appear in `dependencies` in `package.json`.
 - `package-lock.json` updates.
 - Command exits with code 0.
 
-- [ ] **Step 2: Verify dependency tree installs cleanly**
+- [ ] **Step 2: Verify production dependency audit**
+
+Run:
+
+```bash
+npm audit --omit=dev
+```
+
+Expected: PASS with 0 production vulnerabilities. If this fails, stop and resolve dependency hygiene before proceeding.
+
+- [ ] **Step 3: Verify dependency tree installs cleanly**
 
 Run:
 
@@ -735,13 +745,13 @@ npm test
 
 Expected: both pass.
 
-- [ ] **Step 3: Commit dependency update**
+- [ ] **Step 4: Commit dependency update**
 
 Run:
 
 ```bash
 git add package.json package-lock.json
-git commit -m "chore: add Excel workbook support"
+git commit -m "chore: add lightweight Excel workbook support"
 ```
 
 Expected: commit succeeds.
@@ -764,8 +774,9 @@ import {
   VALID_YEARLY_CALENDAR_ENTRY_TYPES,
   type YearlyCalendarRawImportRow,
 } from "@shared/yearly-calendar-utils";
+import type { SheetData } from "write-excel-file/browser";
 
-type ExcelWorkbook = import("exceljs").Workbook;
+type SpreadsheetValue = string | number | boolean | Date | null;
 
 const ENTRY_HEADERS = [
   "entry_type",
@@ -781,7 +792,7 @@ const ENTRY_HEADERS = [
   "for_foreldre",
 ] as const;
 
-function entryToRow(entry: YearlyCalendarEntry): Record<(typeof ENTRY_HEADERS)[number], string | number | boolean> {
+function entryToRow(entry: YearlyCalendarEntry): Record<(typeof ENTRY_HEADERS)[number], SpreadsheetValue> {
   return {
     entry_type: entry.entryType,
     tittel: entry.title,
@@ -809,97 +820,57 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
-function addEntrySheet(workbook: ExcelWorkbook, entries: YearlyCalendarEntry[]) {
-  const worksheet = workbook.addWorksheet("Oppføringer");
-  worksheet.addRow([...ENTRY_HEADERS]);
-  for (const entry of entries) {
-    const row = entryToRow(entry);
-    worksheet.addRow(ENTRY_HEADERS.map((header) => row[header]));
-  }
-
-  worksheet.getRow(1).font = { bold: true };
-  worksheet.views = [{ state: "frozen", ySplit: 1 }];
-  worksheet.columns = ENTRY_HEADERS.map((header) => ({
-    header,
-    key: header,
-    width: header === "beskrivelse" ? 36 : 18,
-  }));
-
-  const entryTypeFormula = `"${VALID_YEARLY_CALENDAR_ENTRY_TYPES.join(",")}"`;
-  const colorFormula = `"${VALID_YEARLY_CALENDAR_COLORS.join(",")}"`;
-  const booleanFormula = '"true,false"';
-
-  for (let rowNumber = 2; rowNumber <= 500; rowNumber += 1) {
-    worksheet.getCell(`A${rowNumber}`).dataValidation = {
-      type: "list",
-      allowBlank: false,
-      formulae: [entryTypeFormula],
-    };
-    worksheet.getCell(`I${rowNumber}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [colorFormula],
-    };
-    worksheet.getCell(`J${rowNumber}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [booleanFormula],
-    };
-    worksheet.getCell(`K${rowNumber}`).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: [booleanFormula],
-    };
-  }
+function buildEntrySheetData(entries: YearlyCalendarEntry[]): SheetData {
+  return [
+    ENTRY_HEADERS.map((header) => ({ value: header, fontWeight: "bold" as const })),
+    ...entries.map((entry) => {
+      const row = entryToRow(entry);
+      return ENTRY_HEADERS.map((header) => row[header]);
+    }),
+  ];
 }
 
-function addGuideSheet(workbook: ExcelWorkbook, schoolYear: number) {
-  const worksheet = workbook.addWorksheet("Veiledning");
-  const rows = [
-    ["Årskalender Excel-mal"],
-    [""],
+function buildGuideSheetData(schoolYear: number): SheetData {
+  return [
+    [{ value: "Årskalender Excel-mal", fontWeight: "bold" as const }],
+    [],
     ["Barnehageår", `${schoolYear}/${schoolYear + 1}`],
-    [""],
-    ["Gyldige entry_type-verdier"],
+    [],
+    [{ value: "Gyldige entry_type-verdier", fontWeight: "bold" as const }],
     ["week_event", "Aktivitet eller periode som ligger på uke, eventuelt ukeintervall."],
     ["day_event", "Hendelse på én bestemt dato. Kan vises på forsiden."],
     ["food", "Ukens varmmat. Bruk uke_fra."],
     ["closed", "Barnehagen er stengt. Krever dato."],
     ["note", "Merknad knyttet til uke, eventuelt ukeintervall."],
-    [""],
-    ["Gyldige farger", VALID_YEARLY_CALENDAR_COLORS.join(", ")],
-    [""],
+    [],
+    [{ value: "Gyldige farger", fontWeight: "bold" as const }, VALID_YEARLY_CALENDAR_COLORS.join(", ")],
+    [],
     ["Datoformat", "YYYY-MM-DD"],
     ["Boolean-format", "true eller false"],
-    [""],
-    ["Påkrevde felt"],
+    [],
+    [{ value: "Påkrevde felt", fontWeight: "bold" as const }],
     ["day_event", "entry_type, tittel, dato, år, måned"],
     ["closed", "entry_type, tittel, dato, år, måned"],
     ["week_event", "entry_type, tittel, år, måned, uke_fra"],
     ["food", "entry_type, tittel, år, måned, uke_fra"],
     ["note", "entry_type, tittel, år, måned, uke_fra"],
-    [""],
-    ["Eksempel"],
+    [],
+    [{ value: "Tillatte verdier", fontWeight: "bold" as const }],
+    ["entry_type", VALID_YEARLY_CALENDAR_ENTRY_TYPES.join(", ")],
+    ["farge", VALID_YEARLY_CALENDAR_COLORS.join(", ")],
+    ["vis_på_forside / for_foreldre", "true, false"],
+    [],
+    ["Merk", "Dropdowns/data validation are intentionally omitted for dependency hygiene unless write-excel-file supports them without adding vulnerable dependencies."],
+    [],
+    [{ value: "Eksempel", fontWeight: "bold" as const }],
     ["day_event", "Sommerfest", "2028-06-04", "2028", "6", "", "", "Sommerfest for familier", "green", "true", "true"],
     ["closed", "Planleggingsdag", "2027-11-10", "2027", "11", "", "", "", "red", "false", "false"],
   ];
-
-  rows.forEach((row) => worksheet.addRow(row));
-  worksheet.getColumn(1).width = 22;
-  worksheet.getColumn(2).width = 80;
-  worksheet.getRow(1).font = { bold: true, size: 16 };
-  worksheet.getRow(5).font = { bold: true };
-  worksheet.getRow(12).font = { bold: true };
-  worksheet.getRow(17).font = { bold: true };
-  worksheet.getRow(24).font = { bold: true };
 }
 
 function normalizeCellValue(value: unknown): string | number | boolean {
   if (value == null) return "";
   if (value instanceof Date) return value.toISOString().slice(0, 10);
-  if (typeof value === "object" && "text" in (value as { text?: unknown })) {
-    return String((value as { text?: unknown }).text ?? "");
-  }
   return value as string | number | boolean;
 }
 
@@ -907,43 +878,45 @@ export async function downloadYearlyCalendarTemplate(opts: {
   schoolYear: number;
   entries: YearlyCalendarEntry[];
 }) {
-  const ExcelJS = await import("exceljs");
-  const workbook = new ExcelJS.Workbook();
-  workbook.creator = "FAU Erdal Barnehage";
-  workbook.created = new Date();
-  addEntrySheet(workbook, opts.entries);
-  addGuideSheet(workbook, opts.schoolYear);
+  const { default: writeXlsxFile } = await import("write-excel-file/browser");
+  const blob = await writeXlsxFile([
+    {
+      sheet: "Oppføringer",
+      data: buildEntrySheetData(opts.entries),
+      stickyRowsCount: 1,
+    },
+    {
+      sheet: "Veiledning",
+      data: buildGuideSheetData(opts.schoolYear),
+    },
+  ]).toBlob();
 
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  });
   downloadBlob(blob, `arskalender-mal-${opts.schoolYear}-${opts.schoolYear + 1}.xlsx`);
 }
 
 export async function parseYearlyCalendarWorkbook(file: File): Promise<YearlyCalendarRawImportRow[]> {
-  const ExcelJS = await import("exceljs");
-  const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(await file.arrayBuffer());
-  const worksheet = workbook.getWorksheet("Oppføringer") ?? workbook.worksheets[0];
-  if (!worksheet) return [];
+  const { readSheet } = await import("read-excel-file/browser");
+  let sheetData: Awaited<ReturnType<typeof readSheet>>;
+  try {
+    sheetData = await readSheet(file, "Oppføringer");
+  } catch {
+    sheetData = await readSheet(file);
+  }
 
-  const headerRow = worksheet.getRow(1);
-  const headers = headerRow.values as unknown[];
+  const headerRow = sheetData[0] ?? [];
   const headerByColumn = new Map<number, string>();
-  headers.forEach((value, index) => {
-    if (index > 0 && value) headerByColumn.set(index, String(value).trim());
+  headerRow.forEach((value, index) => {
+    if (value) headerByColumn.set(index, String(value).trim());
   });
 
   const rows: YearlyCalendarRawImportRow[] = [];
-  worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
-    const out: YearlyCalendarRawImportRow = { rowNumber };
+  sheetData.slice(1).forEach((row, rowIndex) => {
+    const out: YearlyCalendarRawImportRow = { rowNumber: rowIndex + 2 };
     let hasValue = false;
-    row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+    row.forEach((cellValue, colNumber) => {
       const header = headerByColumn.get(colNumber);
       if (!header) return;
-      const value = normalizeCellValue(cell.value);
+      const value = normalizeCellValue(cellValue);
       if (value !== "") hasValue = true;
       (out as Record<string, unknown>)[header] = value;
     });
@@ -953,7 +926,6 @@ export async function parseYearlyCalendarWorkbook(file: File): Promise<YearlyCal
   return rows;
 }
 ```
-
 - [ ] **Step 2: Run type check**
 
 Run:
@@ -962,7 +934,7 @@ Run:
 npm run check
 ```
 
-Expected: PASS. If TypeScript reports that `exceljs` import types are too broad for `BlobPart`, wrap the buffer in `new Uint8Array(buffer as ArrayBuffer)`.
+Expected: PASS. If `write-excel-file/browser` or `read-excel-file/browser` types differ from the sketch, adjust the helper to the installed package types without adding new Excel dependencies.
 
 - [ ] **Step 3: Commit Excel helper**
 
