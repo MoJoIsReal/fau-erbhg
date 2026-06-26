@@ -504,12 +504,7 @@ export default function YearlyCalendarPage() {
     t.yearlyCalendar.friday,
   ];
 
-  const schoolYearOptions = Array.from(
-    new Set([
-      ...Array.from({ length: 6 }, (_, idx) => defaultSchoolYear - 1 + idx),
-      schoolYear,
-    ])
-  ).sort((a, b) => a - b);
+  const schoolYearOptions = [defaultSchoolYear - 1, defaultSchoolYear, defaultSchoolYear + 1];
 
   const openCreate = (defaults: Partial<EntryDraft>) => {
     setEditingEntry(null);
