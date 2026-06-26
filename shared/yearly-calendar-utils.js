@@ -1,5 +1,8 @@
 export const VALID_YEARLY_CALENDAR_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'closed', 'note'];
 export const VALID_YEARLY_CALENDAR_COLORS = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
+export const YEARLY_CALENDAR_HEX_COLOR_PATTERN = '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$';
+
+const HEX_COLOR_RE = new RegExp(YEARLY_CALENDAR_HEX_COLOR_PATTERN);
 
 const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
@@ -145,7 +148,18 @@ function normalizeDescription(value) {
 }
 
 function normalizeColor(value) {
-  return value || null;
+  if (!value) return null;
+  return HEX_COLOR_RE.test(value) ? value.toLowerCase() : value;
+}
+
+export function isValidYearlyCalendarColor(value) {
+  return (
+    value === '' ||
+    value === null ||
+    value === undefined ||
+    VALID_YEARLY_CALENDAR_COLORS.includes(value) ||
+    HEX_COLOR_RE.test(value)
+  );
 }
 
 function canonicalPayload(payload) {
@@ -181,7 +195,8 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
   const weekNumber = readInteger(source, ['uke_fra', 'weekNumber']);
   const weekNumberEnd = readInteger(source, ['uke_til', 'weekNumberEnd']);
   const description = readText(source, ['beskrivelse', 'description']);
-  const color = readText(source, ['farge', 'color']);
+  const colorInput = readText(source, ['farge', 'color']);
+  const color = normalizeColor(colorInput);
   const showOnHomepage = readBoolean(source, [HOMEPAGE_COLUMN, 'showOnHomepage']);
   const showForParents = readBoolean(source, ['for_foreldre', 'showForParents']);
 
@@ -217,11 +232,11 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
     addError(errors, rowNumber, `${year}-${String(month).padStart(2, '0')} ligger utenfor barnehage\u00e5ret ${schoolYear}/${schoolYear + 1}.`);
   }
 
-  if (color && !VALID_YEARLY_CALENDAR_COLORS.includes(color)) {
+  if (!isValidYearlyCalendarColor(colorInput)) {
     addError(
       errors,
       rowNumber,
-      `Fargen "${color}" er ikke tillatt. Bruk en av: ${VALID_YEARLY_CALENDAR_COLORS.join(', ')}.`,
+      `Fargen "${colorInput}" er ikke tillatt. Bruk en av: ${VALID_YEARLY_CALENDAR_COLORS.join(', ')} eller en eksisterende hex-farge som #3b82f6.`,
     );
   }
 

@@ -287,6 +287,14 @@ function testYearlyCalendarInvalidRows() {
   assert.equal(emptyColor.ok, true);
   assert.equal(emptyColor.payload.color, null);
 
+  const hexColor = validateYearlyCalendarImportRow({
+    rowNumber: 17,
+    schoolYear: 2027,
+    row: validDayRow({ farge: '#3B82F6' }),
+  });
+  assert.equal(hexColor.ok, true);
+  assert.equal(hexColor.payload.color, '#3b82f6');
+
   assertInvalidContains(
     validateYearlyCalendarImportRow({
       rowNumber: 12,

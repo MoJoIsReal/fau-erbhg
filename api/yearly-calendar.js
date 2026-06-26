@@ -100,10 +100,30 @@ function sanitizeInteger(value, min, max) {
   return Number.isInteger(num) ? num : null;
 }
 
+function sanitizeImportTextValue(value, maxLength) {
+  if (value === null || value === undefined || value === '') return value;
+  return sanitizeText(String(value), maxLength);
+}
+
+function sanitizeImportRowText(row) {
+  const sanitized = { ...(row || {}) };
+  for (const titleKey of ['tittel', 'title']) {
+    if (Object.prototype.hasOwnProperty.call(sanitized, titleKey)) {
+      sanitized[titleKey] = sanitizeImportTextValue(sanitized[titleKey], 200);
+    }
+  }
+  for (const descriptionKey of ['beskrivelse', 'description']) {
+    if (Object.prototype.hasOwnProperty.call(sanitized, descriptionKey)) {
+      sanitized[descriptionKey] = sanitizeImportTextValue(sanitized[descriptionKey], 1000);
+    }
+  }
+  return sanitized;
+}
+
 function normalizeImportRows(rows) {
   return rows.map((row, index) => {
     const rowNumber = sanitizeInteger(row?.rowNumber, 1, 100000) ?? index + 2;
-    return { ...(row || {}), rowNumber };
+    return { ...sanitizeImportRowText(row), rowNumber };
   });
 }
 
@@ -204,7 +224,7 @@ export default async function handler(req, res) {
             continue;
           }
 
-          const row = { ...(decision?.row || {}), rowNumber };
+          const row = { ...sanitizeImportRowText(decision?.row), rowNumber };
           const previewRow = buildImportPreview({
             schoolYear,
             existingEntries,

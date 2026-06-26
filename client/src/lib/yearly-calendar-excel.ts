@@ -2,6 +2,7 @@ import type { YearlyCalendarEntry } from "@shared/schema";
 import {
   VALID_YEARLY_CALENDAR_COLORS,
   VALID_YEARLY_CALENDAR_ENTRY_TYPES,
+  YEARLY_CALENDAR_HEX_COLOR_PATTERN,
   type YearlyCalendarRawImportRow,
 } from "@shared/yearly-calendar-utils";
 import type { SheetData as ReadSheetData } from "read-excel-file/browser";
@@ -24,6 +25,8 @@ const ENTRY_HEADERS = [
 ] as const;
 
 type EntryHeader = (typeof ENTRY_HEADERS)[number];
+
+const COLOR_GUIDE = `${VALID_YEARLY_CALENDAR_COLORS.join(", ")} eller eksisterende hex-farge som #3b82f6 / or an existing hex colour such as #3b82f6`;
 
 function entryToRow(entry: YearlyCalendarEntry): Record<EntryHeader, SpreadsheetValue> {
   return {
@@ -77,42 +80,43 @@ function buildEntrySheetData(entries: YearlyCalendarEntry[]): WriteSheetData {
 
 function buildGuideSheetData(schoolYear: number): WriteSheetData {
   return [
-    [boldCell("Årskalender Excel-mal")],
+    [boldCell("Årskalender Excel-mal / Yearly calendar Excel template")],
     [],
-    [boldCell("Barnehageår"), `${schoolYear}/${schoolYear + 1}`],
+    [boldCell("Barnehageår / Kindergarten year"), `${schoolYear}/${schoolYear + 1}`],
     [],
-    [boldCell("Gyldige entry_type-verdier")],
-    ["week_event", textCell("Aktivitet eller periode som ligger på uke, eventuelt ukeintervall.")],
-    ["day_event", textCell("Hendelse på én bestemt dato. Kan vises på forsiden.")],
-    ["food", textCell("Ukens varmmat. Bruk uke_fra.")],
-    ["closed", textCell("Barnehagen er stengt. Krever dato.")],
-    ["note", textCell("Merknad knyttet til uke, eventuelt ukeintervall.")],
+    [boldCell("Gyldige entry_type-verdier / Valid entry_type values")],
+    ["week_event", textCell("Aktivitet eller periode som ligger på uke, eventuelt ukeintervall. / Activity or period tied to a week, optionally a week range.")],
+    ["day_event", textCell("Hendelse på én bestemt dato. Kan vises på forsiden. / Event on one specific date. Can be shown on the front page.")],
+    ["food", textCell("Ukens varmmat. Bruk uke_fra. / Weekly hot meal. Use uke_fra.")],
+    ["closed", textCell("Barnehagen er stengt. Krever dato. / Kindergarten is closed. Requires dato.")],
+    ["note", textCell("Merknad knyttet til uke, eventuelt ukeintervall. / Note tied to a week, optionally a week range.")],
     [],
-    [boldCell("Gyldige farger"), VALID_YEARLY_CALENDAR_COLORS.join(", ")],
+    [boldCell("Gyldige farger / Valid colours"), textCell(COLOR_GUIDE)],
+    [boldCell("Hex-format / Hex format"), YEARLY_CALENDAR_HEX_COLOR_PATTERN],
     [],
-    [boldCell("Datoformat"), "YYYY-MM-DD"],
-    [boldCell("Boolean-format"), "true eller false"],
+    [boldCell("Datoformat / Date format"), "YYYY-MM-DD"],
+    [boldCell("Boolean-format / Boolean format"), "true/false, ja/nei, yes/no eller/or 1/0"],
     [],
-    [boldCell("Påkrevde felt")],
+    [boldCell("Påkrevde felt / Required fields")],
     ["day_event", "entry_type, tittel, dato, år, måned"],
     ["closed", "entry_type, tittel, dato, år, måned"],
     ["week_event", "entry_type, tittel, år, måned, uke_fra"],
     ["food", "entry_type, tittel, år, måned, uke_fra"],
     ["note", "entry_type, tittel, år, måned, uke_fra"],
     [],
-    [boldCell("Tillatte verdier")],
+    [boldCell("Tillatte verdier / Allowed values")],
     ["entry_type", VALID_YEARLY_CALENDAR_ENTRY_TYPES.join(", ")],
-    ["farge", VALID_YEARLY_CALENDAR_COLORS.join(", ")],
-    ["vis_på_forside / for_foreldre", "true, false"],
+    ["farge / color", COLOR_GUIDE],
+    ["vis_på_forside / for_foreldre", "true, false, ja, nei, yes, no, 1, 0"],
     [],
     [
-      boldCell("Merk"),
+      boldCell("Merk / Note"),
       textCell(
-        "Dropdowns/data validation are intentionally omitted for dependency hygiene. Use the allowed values listed in this sheet.",
+        "Dropdowns/data validation are intentionally omitted for dependency hygiene. Use the allowed values listed in this sheet. / Nedtrekkslister er utelatt for å holde Excel-støtten lett. Bruk verdiene som er listet her.",
       ),
     ],
     [],
-    [boldCell("Eksempler")],
+    [boldCell("Eksempler / Examples")],
     ENTRY_HEADERS.map((header) => boldCell(header)),
     ["day_event", "Sommerfest", "2028-06-04", 2028, 6, "", "", "Sommerfest for familier", "green", true, true],
     ["closed", "Planleggingsdag", "2027-11-10", 2027, 11, "", "", "", "red", false, false],

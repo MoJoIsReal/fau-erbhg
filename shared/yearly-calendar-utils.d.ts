@@ -21,6 +21,7 @@ export const VALID_YEARLY_CALENDAR_COLORS: readonly [
   'pink',
   'purple',
 ];
+export const YEARLY_CALENDAR_HEX_COLOR_PATTERN: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$';
 
 export type YearlyCalendarImportPayload = {
   schoolYear: number;
@@ -162,6 +163,7 @@ export type ImportDecisionValidationResult =
 export function getKindergartenSchoolYear(date?: Date): number;
 export function normalizeYearlyCalendarTitle(value: unknown): string;
 export function isMonthInSchoolYear(year: number, month: number, schoolYear: number): boolean;
+export function isValidYearlyCalendarColor(value: unknown): boolean;
 export function validateYearlyCalendarImportRow(args: {
   rowNumber: number;
   schoolYear: number;
