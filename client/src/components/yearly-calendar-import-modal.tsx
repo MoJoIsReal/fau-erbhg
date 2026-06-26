@@ -78,6 +78,26 @@ function hasPayload(row: ImportPreviewRow): row is Extract<ImportPreviewRow, { p
   return "payload" in row;
 }
 
+function titleValue(value: unknown): string | null {
+  const title = String(value ?? "").trim();
+  return title || null;
+}
+
+function originalTitleFor(row: ImportPreviewRow): string | null {
+  const exactTitle = titleValue(row.original.tittel) ?? titleValue(row.original.title);
+  if (exactTitle) return exactTitle;
+
+  for (const [key, value] of Object.entries(row.original)) {
+    const normalizedKey = key.trim().toLocaleLowerCase("nb-NO");
+    if (normalizedKey === "tittel" || normalizedKey === "title") {
+      const title = titleValue(value);
+      if (title) return title;
+    }
+  }
+
+  return null;
+}
+
 function availableActions(row: ImportPreviewRow): ImportDecisionAction[] {
   if (row.status === "new" || row.status === "ambiguous") return ["create", "ignore"];
   if (row.status === "changed") return ["update", "create", "ignore"];
@@ -413,6 +433,11 @@ export default function YearlyCalendarImportModal({
     return formatValue(value);
   };
 
+  const rowTitle = (row: ImportPreviewRow) => {
+    if (hasPayload(row)) return row.payload.title;
+    return originalTitleFor(row) ?? statusLabel(row.status);
+  };
+
   const renderServerErrors = (errors: string[]) => (
     <div className="space-y-1 text-sm text-red-700 dark:text-red-300">
       <ul className="space-y-1">
@@ -480,7 +505,7 @@ export default function YearlyCalendarImportModal({
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">#{row.rowNumber}</Badge>
             <span className="truncate text-sm font-semibold">
-              {hasPayload(row) ? row.payload.title : statusLabel(row.status)}
+              {rowTitle(row)}
             </span>
           </div>
 
