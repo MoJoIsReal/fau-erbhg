@@ -329,6 +329,8 @@ export interface Translations {
     pdfGenerating: string;
     pdfErrorTitle: string;
     pdfErrorDescription: string;
+    excelTemplateErrorTitle: string;
+    excelTemplateErrorDescription: string;
     addEntry: string;
     noEntries: string;
     week: string;
@@ -795,6 +797,8 @@ export const translations: Record<Language, Translations> = {
       pdfGenerating: "Genererer PDF…",
       pdfErrorTitle: "Klarte ikke å lage PDF",
       pdfErrorDescription: "Noe gikk galt under generering av PDF-en. Prøv igjen om litt.",
+      excelTemplateErrorTitle: "Klarte ikke å laste ned Excel-mal",
+      excelTemplateErrorDescription: "Noe gikk galt under nedlasting av Excel-malen. Prøv igjen om litt.",
       addEntry: "Legg til",
       noEntries: "Ingenting registrert ennå.",
       week: "Uke",
@@ -1259,6 +1263,8 @@ export const translations: Record<Language, Translations> = {
       pdfGenerating: "Generating PDF…",
       pdfErrorTitle: "Could not generate PDF",
       pdfErrorDescription: "Something went wrong while generating the PDF. Please try again in a moment.",
+      excelTemplateErrorTitle: "Could not download Excel template",
+      excelTemplateErrorDescription: "Something went wrong while downloading the Excel template. Please try again in a moment.",
       addEntry: "Add entry",
       noEntries: "Nothing scheduled yet.",
       week: "Week",

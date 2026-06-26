@@ -562,8 +562,8 @@ export default function YearlyCalendarPage() {
       await downloadYearlyCalendarTemplate({ schoolYear, entries });
     } catch (err) {
       toast({
-        title: t.yearlyCalendar.modal.error,
-        description: t.yearlyCalendar.pdfErrorDescription,
+        title: t.yearlyCalendar.excelTemplateErrorTitle,
+        description: t.yearlyCalendar.excelTemplateErrorDescription,
         variant: "destructive",
       });
       console.error("Yearly calendar Excel template download failed", err);
