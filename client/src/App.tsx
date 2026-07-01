@@ -32,17 +32,17 @@ function PageLoader() {
   );
 }
 
-function RequireAuth({ children }: { children: ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+function RequireAuth({ children, roles }: { children: ReactNode; roles?: string[] }) {
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!isLoading && (!isAuthenticated || (roles && user && !roles.includes(user.role)))) {
       setLocation("/");
     }
-  }, [isAuthenticated, isLoading, setLocation]);
+  }, [isAuthenticated, isLoading, roles, setLocation, user]);
 
-  if (isLoading || !isAuthenticated) {
+  if (isLoading || !isAuthenticated || (roles && user && !roles.includes(user.role))) {
     return <PageLoader />;
   }
 
@@ -64,12 +64,17 @@ function Router() {
           <Route path="/personvern" component={Privacy} />
           <Route path="/privacy" component={Privacy} />
           <Route path="/settings">
-            <RequireAuth>
+            <RequireAuth roles={["admin"]}>
+              <Settings />
+            </RequireAuth>
+          </Route>
+          <Route path="/content">
+            <RequireAuth roles={["admin", "member"]}>
               <Settings />
             </RequireAuth>
           </Route>
           <Route path="/messages">
-            <RequireAuth>
+            <RequireAuth roles={["admin", "member"]}>
               <Messages />
             </RequireAuth>
           </Route>

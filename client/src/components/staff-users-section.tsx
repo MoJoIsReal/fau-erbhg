@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,9 +36,9 @@ export default function StaffUsersSection() {
 
   const [username, setUsername] = useState("");
   const [name, setName] = useState("");
-  const [password, setPassword] = useState("");
+  const [role, setRole] = useState<"member" | "staff">("staff");
 
-  const STAFF_KEY = "/api/secure-settings?resource=staff-users";
+  const STAFF_KEY = "/api/secure-settings?resource=users";
 
   const { data: staff = [], isLoading } = useQuery<StaffUser[]>({
     queryKey: [STAFF_KEY],
@@ -45,15 +46,18 @@ export default function StaffUsersSection() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      const res = await apiRequest("POST", STAFF_KEY, { username, name, password });
+      const res = await apiRequest("POST", STAFF_KEY, { username, name, role });
       return res.json();
     },
     onSuccess: () => {
-      toast({ title: t.yearlyCalendar.staff.successCreate });
+      toast({
+        title: t.yearlyCalendar.staff.successCreate,
+        description: t.yearlyCalendar.staff.emailSent,
+      });
       queryClient.invalidateQueries({ queryKey: [STAFF_KEY] });
       setUsername("");
       setName("");
-      setPassword("");
+      setRole("staff");
     },
     onError: (err: any) => {
       toast({
@@ -63,6 +67,10 @@ export default function StaffUsersSection() {
       });
     },
   });
+
+  const roleName = (value: string) => (
+    value === "member" ? t.yearlyCalendar.staff.roleFau : t.yearlyCalendar.staff.roleKindergarten
+  );
 
   const deleteMutation = useMutation({
     mutationFn: async (id: number) => {
@@ -104,20 +112,22 @@ export default function StaffUsersSection() {
           />
         </div>
         <div>
-          <Label htmlFor="staff-password">{t.yearlyCalendar.staff.password}</Label>
-          <Input
-            id="staff-password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t.yearlyCalendar.staff.passwordHint}
-          />
+          <Label htmlFor="staff-role">{t.yearlyCalendar.staff.role}</Label>
+          <Select value={role} onValueChange={(value) => setRole(value as "member" | "staff")}>
+            <SelectTrigger id="staff-role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="member">{t.yearlyCalendar.staff.roleFau}</SelectItem>
+              <SelectItem value="staff">{t.yearlyCalendar.staff.roleKindergarten}</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
       <Button
         type="button"
         className="mt-4"
-        disabled={createMutation.isPending || !username || !name || password.length < 8}
+        disabled={createMutation.isPending || !username || !name || !role}
         onClick={() => createMutation.mutate()}
       >
         <UserPlus className="h-4 w-4 mr-2" />
@@ -136,7 +146,9 @@ export default function StaffUsersSection() {
               <li key={u.id} className="flex items-center justify-between px-3 py-2">
                 <div>
                   <div className="font-medium text-neutral-900 dark:text-neutral-50">{u.name}</div>
-                  <div className="text-xs text-neutral-500 dark:text-neutral-400">{u.username}</div>
+                  <div className="text-xs text-neutral-500 dark:text-neutral-400">
+                    {u.username} - {roleName(u.role)}
+                  </div>
                 </div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

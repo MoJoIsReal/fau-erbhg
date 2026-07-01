@@ -72,7 +72,8 @@ export default function Events() {
         : "See upcoming events, meetings and activities at FAU Erdal Kindergarten, and register.",
     path: "/events",
   });
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const canManageEvents = user?.role === "admin" || user?.role === "member";
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -301,7 +302,7 @@ export default function Events() {
             </Button>
           </div>
           
-          {isAuthenticated && (
+          {canManageEvents && (
             <Button 
               onClick={() => setIsCreationModalOpen(true)}
               className="bg-primary hover:bg-primary/90 text-white"
@@ -473,7 +474,7 @@ export default function Events() {
                             </Button>
                           )}
                           
-                          {isAuthenticated && (
+                          {canManageEvents && (
                             <>
                               {!event.vigiloSignup && event.type !== "internal" && !event.noSignup && (
                                 <Button 
@@ -615,7 +616,7 @@ export default function Events() {
                                     <span>{(event.currentAttendees || 0)} {language === 'no' ? 'deltok' : 'attended'}</span>
                                   </div>
                                 )}
-                                {isAuthenticated && !event.noSignup && !event.vigiloSignup && (event.currentAttendees || 0) > 0 && (
+                                {canManageEvents && !event.noSignup && !event.vigiloSignup && (event.currentAttendees || 0) > 0 && (
                                   <Button
                                     variant="outline"
                                     size="sm"

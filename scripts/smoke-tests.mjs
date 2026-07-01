@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import { sanitizeHtml } from '../api/_shared/middleware.js';
 import { rateLimitKey } from '../api/_shared/rate-limit.js';
+import {
+  PASSWORD_EXPIRY_DAYS,
+  generateTemporaryPassword,
+  isPasswordChangeRequired,
+} from '../api/_shared/password-policy.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { COUNCIL_ROLES, EVENT_TYPES, ROLES } from '../shared/constants.js';
 import {
@@ -93,6 +98,21 @@ function testSharedConstants() {
   assert.ok(EVENT_TYPES.includes('meeting'));
   assert.ok(EVENT_TYPES.includes('foto'));
   assert.ok(!EVENT_TYPES.includes('not-a-real-type'));
+}
+
+function testPasswordPolicy() {
+  const password = generateTemporaryPassword();
+  assert.equal(password.length, 16);
+  assert.match(password, /[A-Z]/);
+  assert.match(password, /[a-z]/);
+  assert.match(password, /[0-9]/);
+
+  const now = new Date('2026-07-01T12:00:00Z');
+  assert.equal(PASSWORD_EXPIRY_DAYS, 365);
+  assert.equal(isPasswordChangeRequired({ mustChangePassword: true, passwordChangedAt: now.toISOString() }, now), true);
+  assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: null }, now), true);
+  assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: '2025-06-30T11:59:59Z' }, now), true);
+  assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: '2025-07-02T12:00:00Z' }, now), false);
 }
 
 function validDayRow(overrides = {}) {
@@ -642,6 +662,7 @@ testSanitizeHtml();
 testRateLimitKeys();
 testAssignPhotoSlots();
 testSharedConstants();
+testPasswordPolicy();
 testYearlyCalendarDateHelpers();
 testYearlyCalendarConstants();
 testYearlyCalendarTitleNormalization();

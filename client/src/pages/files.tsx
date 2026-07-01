@@ -28,7 +28,8 @@ import type { Document } from "@shared/schema";
 export default function Files() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const { isAuthenticated } = useAuth();
+  const { user } = useAuth();
+  const canManageDocuments = user?.role === "admin" || user?.role === "member";
   const { language, t } = useLanguage();
   const { toast } = useToast();
   usePageMeta({
@@ -194,7 +195,7 @@ export default function Files() {
           <h2 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.documents.title}</h2>
           <p className="text-neutral-600 dark:text-neutral-300">{t.documents.subtitle}</p>
         </div>
-        {isAuthenticated && (
+        {canManageDocuments && (
           <div className="mt-4 md:mt-0">
             <Button 
               onClick={() => setIsUploadModalOpen(true)}
@@ -252,7 +253,7 @@ export default function Files() {
                             >
                               <Download className="h-4 w-4" />
                             </Button>
-                            {isAuthenticated && renderDeleteDocumentButton(doc, {
+                            {canManageDocuments && renderDeleteDocumentButton(doc, {
                                 className: "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30",
                               })}
                           </div>
@@ -352,7 +353,7 @@ export default function Files() {
                       <Download className="h-4 w-4 sm:mr-2" />
                       <span className="hidden sm:inline">{language === 'no' ? 'Last ned' : 'Download'}</span>
                     </Button>
-                    {isAuthenticated && renderDeleteDocumentButton(doc, {
+                    {canManageDocuments && renderDeleteDocumentButton(doc, {
                         variant: "outline",
                         className: "text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10",
                       })}

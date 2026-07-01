@@ -63,6 +63,9 @@ export default async function handler(req, res) {
       const user = await parseAuthToken(req, sql);
 
       if (user) {
+        if (user.passwordChangeRequired) {
+          return res.status(403).json({ error: 'Password change required', code: 'PASSWORD_CHANGE_REQUIRED' });
+        }
         if (!COUNCIL_ROLES.includes(user.role)) {
           return res.status(403).json({ error: 'Council member access required' });
         }

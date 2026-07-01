@@ -10,6 +10,7 @@ import {
   requireCsrf
 } from './_shared/middleware.js';
 import { checkRateLimit, clearRateLimit, rateLimitKey } from './_shared/rate-limit.js';
+import { isPasswordChangeRequired } from './_shared/password-policy.js';
 
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_IP_MAX_ATTEMPTS = 30;
@@ -84,7 +85,9 @@ export default async function handler(req, res) {
     
     // Get user by username (email)
     const users = await sql`
-      SELECT id, username, name, role, password, token_version as "tokenVersion"
+      SELECT id, username, name, role, password, token_version as "tokenVersion",
+             must_change_password as "mustChangePassword",
+             password_changed_at as "passwordChangedAt"
       FROM users 
       WHERE username = ${username}
     `;
@@ -139,7 +142,8 @@ export default async function handler(req, res) {
         id: user.id,
         username: user.username,
         name: user.name,
-        role: user.role
+        role: user.role,
+        passwordChangeRequired: isPasswordChangeRequired(user),
       },
       csrfToken // Return CSRF token in response for immediate use
     });

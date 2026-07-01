@@ -82,6 +82,7 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [members, setMembers] = useState<Partial<FauBoardMember>[]>([]);
 
   // Fetch FAU board members
@@ -429,12 +430,18 @@ export default function Settings() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
-          {language === "no" ? "Innstillinger" : "Settings"}
+          {isAdmin
+            ? language === "no" ? "Innstillinger" : "Settings"
+            : language === "no" ? "Innhold" : "Content"}
         </h1>
         <p className="text-neutral-600 dark:text-neutral-300 mt-2">
-          {language === "no"
-            ? "Administrer FAU-styret og annet innhold på siden"
-            : "Manage FAU board and other site content"}
+          {isAdmin
+            ? language === "no"
+              ? "Administrer FAU-styret og annet innhold på siden"
+              : "Manage FAU board and other site content"
+            : language === "no"
+            ? "Administrer nyheter, aktuelt og tips som vises på siden"
+            : "Manage news, updates and tips displayed on the site"}
         </p>
       </div>
 
@@ -708,6 +715,8 @@ export default function Settings() {
         </div>
       </Card>
 
+      {isAdmin && (
+      <>
       {/* FAU Board Section */}
       <Card className="p-6 mt-8">
         <div className="mb-6">
@@ -994,8 +1003,10 @@ export default function Settings() {
         </div>
       </Card>
 
-      {user?.role === "admin" && <StaffUsersSection />}
-      {user?.role === "admin" && <NewsletterSubscribersSection />}
+      <StaffUsersSection />
+      <NewsletterSubscribersSection />
+      </>
+      )}
     </div>
   );
 }

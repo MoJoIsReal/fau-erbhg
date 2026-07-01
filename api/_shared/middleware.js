@@ -8,6 +8,7 @@ import sanitizeHtmlContent from 'sanitize-html';
 import Sentry from './sentry.js';
 import { redactSensitiveText } from './redact.js';
 import { getDb } from './database.js';
+import { isPasswordChangeRequired } from './password-policy.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -221,7 +222,9 @@ export async function parseAuthToken(req, sqlClient = null) {
 
     const sql = sqlClient || getDb();
     const users = await sql`
-      SELECT username, name, role, token_version as "tokenVersion"
+      SELECT username, name, role, token_version as "tokenVersion",
+             must_change_password as "mustChangePassword",
+             password_changed_at as "passwordChangedAt"
       FROM users
       WHERE id = ${decoded.userId}
       LIMIT 1
@@ -236,6 +239,9 @@ export async function parseAuthToken(req, sqlClient = null) {
       username: user.username,
       name: user.name,
       role: user.role,
+      mustChangePassword: user.mustChangePassword,
+      passwordChangedAt: user.passwordChangedAt,
+      passwordChangeRequired: isPasswordChangeRequired(user),
     };
   } catch (error) {
     if (error.name !== 'TokenExpiredError') {
@@ -251,11 +257,19 @@ export async function parseAuthToken(req, sqlClient = null) {
  * @param {Object} res - Response object
  * @returns {Object|null} - User object if authenticated, null otherwise (also sends 401 response)
  */
-export async function requireAuth(req, res, sqlClient = null) {
+export async function requireAuth(req, res, sqlClient = null, options = {}) {
   const user = await parseAuthToken(req, sqlClient);
 
   if (!user) {
     res.status(401).json({ error: 'Unauthorized' });
+    return null;
+  }
+
+  if (user.passwordChangeRequired && !options.allowPasswordChangeRequired) {
+    res.status(403).json({
+      error: 'Password change required',
+      code: 'PASSWORD_CHANGE_REQUIRED',
+    });
     return null;
   }
 
@@ -270,8 +284,8 @@ export async function requireAuth(req, res, sqlClient = null) {
  * @param {string[]} allowedRoles - Role names from shared/constants.ts (COUNCIL_ROLES, ADMIN_ONLY, etc.)
  * @returns {Object|null}
  */
-export async function requireRole(req, res, allowedRoles, sqlClient = null) {
-  const user = await requireAuth(req, res, sqlClient);
+export async function requireRole(req, res, allowedRoles, sqlClient = null, options = {}) {
+  const user = await requireAuth(req, res, sqlClient, options);
   if (!user) return null;
   if (!allowedRoles.includes(user.role)) {
     res.status(403).json({ error: 'Forbidden' });

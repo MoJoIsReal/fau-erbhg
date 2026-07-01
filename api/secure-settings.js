@@ -1,5 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDb } from './_shared/database.js';
+import { sendEmail, isEmailConfigured } from './_shared/email.js';
+import { generateTemporaryPassword } from './_shared/password-policy.js';
 import {
   applySecurityHeaders,
   handleCorsPreFlight,
@@ -11,7 +13,13 @@ import {
   sanitizeEmail,
   sanitizeNumber
 } from './_shared/middleware.js';
-import { ADMIN_ONLY, ROLES } from '../shared/constants.js';
+import { ADMIN_ONLY, COUNCIL_ROLES, ROLES } from '../shared/constants.js';
+
+function roleLabel(role) {
+  if (role === ROLES.member) return 'FAU';
+  if (role === ROLES.staff) return 'Barnehage';
+  return role;
+}
 
 // Handle FAU Board Members operations
 async function handleBoardMembers(req, res, sql) {
@@ -117,7 +125,7 @@ async function handleBlogPosts(req, res, sql) {
 
     let posts;
     if (includeArchived === 'true') {
-      const adminUser = await requireRole(req, res, ADMIN_ONLY, sql);
+      const adminUser = await requireRole(req, res, COUNCIL_ROLES, sql);
       if (!adminUser) return;
 
       // Admin view - show all posts
@@ -141,8 +149,8 @@ async function handleBlogPosts(req, res, sql) {
     return res.status(200).json(posts);
   }
 
-  // All other methods require admin authentication
-  const user = await requireRole(req, res, ADMIN_ONLY, sql);
+  // All other methods require a council member.
+  const user = await requireRole(req, res, COUNCIL_ROLES, sql);
   if (!user) return;
 
   // CSRF protection for state-changing requests
@@ -308,8 +316,8 @@ async function handleKindergartenInfo(req, res, sql) {
 
 // Handle Contact Messages operations
 async function handleContactMessages(req, res, sql) {
-  // All methods require admin authentication
-  const user = await requireRole(req, res, ADMIN_ONLY, sql);
+  // All methods require a council member.
+  const user = await requireRole(req, res, COUNCIL_ROLES, sql);
   if (!user) return;
 
   const now = new Date().toISOString();
@@ -377,8 +385,8 @@ async function handleContactMessages(req, res, sql) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
-// Handle Kindergarten staff users (limited to yearly calendar editing)
-async function handleStaffUsers(req, res, sql) {
+// Handle managed users (FAU members and kindergarten staff)
+async function handleUsers(req, res, sql) {
   const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
@@ -386,7 +394,7 @@ async function handleStaffUsers(req, res, sql) {
     const rows = await sql`
       SELECT id, username, name, role, created_at as "createdAt"
       FROM users
-      WHERE role = ${ROLES.staff}
+      WHERE role IN (${ROLES.member}, ${ROLES.staff})
       ORDER BY created_at DESC
     `;
     return res.status(200).json(rows);
@@ -395,15 +403,15 @@ async function handleStaffUsers(req, res, sql) {
   if (!requireCsrf(req, res)) return;
 
   if (req.method === 'POST') {
-    const username = sanitizeText(req.body?.username, 80);
+    const username = sanitizeEmail(req.body?.username);
     const name = sanitizeText(req.body?.name, 120);
-    const password = typeof req.body?.password === 'string' ? req.body.password : '';
+    const role = [ROLES.member, ROLES.staff].includes(req.body?.role) ? req.body.role : null;
 
-    if (!username || !name || !password) {
-      return res.status(400).json({ error: 'username, name and password are required' });
+    if (!username || !name || !role) {
+      return res.status(400).json({ error: 'username, name and role are required' });
     }
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (!isEmailConfigured()) {
+      return res.status(500).json({ error: 'Email is not configured; cannot send login details' });
     }
 
     const existing = await sql`SELECT id FROM users WHERE username = ${username} LIMIT 1`;
@@ -411,13 +419,38 @@ async function handleStaffUsers(req, res, sql) {
       return res.status(400).json({ error: 'Brukernavnet er allerede i bruk' });
     }
 
-    const hashed = await bcrypt.hash(password, 10);
+    const temporaryPassword = generateTemporaryPassword();
+    const hashed = await bcrypt.hash(temporaryPassword, 10);
     const now = new Date().toISOString();
     const created = await sql`
-      INSERT INTO users (username, password, name, role, created_at)
-      VALUES (${username}, ${hashed}, ${name}, ${ROLES.staff}, ${now})
+      INSERT INTO users (username, password, name, role, must_change_password, password_changed_at, created_at)
+      VALUES (${username}, ${hashed}, ${name}, ${role}, true, ${null}, ${now})
       RETURNING id, username, name, role
     `;
+
+    try {
+      await sendEmail({
+        to: username,
+        subject: 'Konto opprettet for FAU Erdal Barnehage',
+        text: [
+          `Hei ${name},`,
+          '',
+          `Det er opprettet en konto for deg på FAU Erdal Barnehage.`,
+          `Rolle: ${roleLabel(role)}`,
+          '',
+          `Brukernavn: ${username}`,
+          `Midlertidig passord: ${temporaryPassword}`,
+          '',
+          'Du blir bedt om å endre passordet første gang du logger inn. Passord må også oppdateres minst én gang i året.',
+          '',
+          'Vennlig hilsen',
+          'FAU Erdal Barnehage',
+        ].join('\n'),
+      });
+    } catch (error) {
+      await sql`DELETE FROM users WHERE id = ${created[0].id}`;
+      throw error;
+    }
 
     return res.status(201).json(created[0]);
   }
@@ -428,10 +461,10 @@ async function handleStaffUsers(req, res, sql) {
       return res.status(400).json({ error: 'Valid id query parameter required' });
     }
     const deleted = await sql`
-      DELETE FROM users WHERE id = ${id} AND role = ${ROLES.staff} RETURNING id
+      DELETE FROM users WHERE id = ${id} AND role IN (${ROLES.member}, ${ROLES.staff}) RETURNING id
     `;
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Staff user not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
     return res.status(200).json({ success: true });
   }
@@ -502,9 +535,9 @@ export default async function handler(req, res) {
       return await handleContactMessages(req, res, sql);
     }
 
-    // Route to staff-users handler
-    if (resource === 'staff-users') {
-      return await handleStaffUsers(req, res, sql);
+    // Route to users handler
+    if (resource === 'users' || resource === 'staff-users') {
+      return await handleUsers(req, res, sql);
     }
 
     // Route to newsletter subscribers handler

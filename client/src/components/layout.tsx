@@ -18,6 +18,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
 import { type Event } from "@shared/schema";
 import LoginModal from "./login-modal";
+import PasswordChangeModal from "./password-change-modal";
 import LanguageToggle from "./language-toggle";
 import DarkModeToggle from "./dark-mode-toggle";
 
@@ -40,6 +41,8 @@ export default function Layout({ children }: LayoutProps) {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const { user, isAuthenticated, logout, isLoggingOut } = useAuth();
   const { t, language } = useLanguage();
+  const isAdmin = user?.role === "admin";
+  const isCouncil = user?.role === "admin" || user?.role === "member";
 
   // Fetch events to find next meeting
   const { data: events = [] } = useQuery<Event[]>({
@@ -192,19 +195,31 @@ export default function Layout({ children }: LayoutProps) {
                   <DropdownMenuContent align="end" className="w-56">
                     <DropdownMenuLabel className="truncate">{user?.name}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link href="/messages" className="flex w-full items-center gap-2">
-                        <MessageSquare className="h-4 w-4" />
-                        <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link href="/settings" className="flex w-full items-center gap-2">
-                        <SettingsIcon className="h-4 w-4" />
-                        <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
+                    {isCouncil && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/content" className="flex w-full items-center gap-2">
+                          <Newspaper className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Innhold' : 'Content'}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {isCouncil && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/messages" className="flex w-full items-center gap-2">
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {isAdmin && (
+                      <DropdownMenuItem asChild>
+                        <Link href="/settings" className="flex w-full items-center gap-2">
+                          <SettingsIcon className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {(isCouncil || isAdmin) && <DropdownMenuSeparator />}
                     <DropdownMenuItem
                       disabled={isLoggingOut}
                       onSelect={(event) => {
@@ -329,26 +344,42 @@ export default function Layout({ children }: LayoutProps) {
                         <User className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
                         <span className="font-medium text-neutral-900 dark:text-neutral-50">{user?.name}</span>
                       </div>
-                      <Link href="/messages">
-                        <Button
-                          variant="outline"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="w-full flex items-center space-x-2"
-                        >
-                          <MessageSquare className="h-4 w-4" />
-                          <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
-                        </Button>
-                      </Link>
-                      <Link href="/settings">
-                        <Button
-                          variant="outline"
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="w-full flex items-center space-x-2"
-                        >
-                          <SettingsIcon className="h-4 w-4" />
-                          <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
-                        </Button>
-                      </Link>
+                      {isCouncil && (
+                        <Link href="/content">
+                          <Button
+                            variant="outline"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="w-full flex items-center space-x-2"
+                          >
+                            <Newspaper className="h-4 w-4" />
+                            <span>{language === 'no' ? 'Innhold' : 'Content'}</span>
+                          </Button>
+                        </Link>
+                      )}
+                      {isCouncil && (
+                        <Link href="/messages">
+                          <Button
+                            variant="outline"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="w-full flex items-center space-x-2"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                          </Button>
+                        </Link>
+                      )}
+                      {isAdmin && (
+                        <Link href="/settings">
+                          <Button
+                            variant="outline"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="w-full flex items-center space-x-2"
+                          >
+                            <SettingsIcon className="h-4 w-4" />
+                            <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                          </Button>
+                        </Link>
+                      )}
                       <Button
                         variant="outline"
                         onClick={() => logout()}
@@ -489,6 +520,7 @@ export default function Layout({ children }: LayoutProps) {
         isOpen={loginModalOpen} 
         onClose={() => setLoginModalOpen(false)} 
       />
+      {user?.passwordChangeRequired && <PasswordChangeModal />}
     </div>
   );
 }

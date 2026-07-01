@@ -220,6 +220,19 @@ export interface Translations {
       error: string;
       invalidCredentials: string;
     };
+    passwordChange: {
+      title: string;
+      description: string;
+      currentPassword: string;
+      newPassword: string;
+      confirmPassword: string;
+      save: string;
+      saving: string;
+      success: string;
+      error: string;
+      mismatch: string;
+      tooShort: string;
+    };
 
     eventCreation: {
       title: string;
@@ -465,8 +478,9 @@ export interface Translations {
       addStaff: string;
       username: string;
       name: string;
-      password: string;
-      passwordHint: string;
+      role: string;
+      roleFau: string;
+      roleKindergarten: string;
       create: string;
       creating: string;
       existingStaff: string;
@@ -475,6 +489,7 @@ export interface Translations {
       deleteConfirm: string;
       successCreate: string;
       errorCreate: string;
+      emailSent: string;
     };
   };
 }
@@ -691,6 +706,19 @@ export const translations: Record<Language, Translations> = {
         successDesc: "Du er nå logget inn som FAU-medlem",
         error: "Innlogging feilet",
         invalidCredentials: "Ugyldig brukernavn eller passord"
+      },
+      passwordChange: {
+        title: "Endre passord",
+        description: "Passordet ditt må endres før du kan bruke innloggede funksjoner. Passord må oppdateres minst en gang i året.",
+        currentPassword: "Nåværende passord",
+        newPassword: "Nytt passord",
+        confirmPassword: "Gjenta nytt passord",
+        save: "Lagre passord",
+        saving: "Lagrer...",
+        success: "Passordet er oppdatert",
+        error: "Kunne ikke endre passord",
+        mismatch: "Passordene er ikke like",
+        tooShort: "Passordet må være minst 12 tegn"
       },
 
       eventCreation: {
@@ -928,21 +956,23 @@ export const translations: Record<Language, Translations> = {
         none: "Ingen"
       },
       staff: {
-        manageTitle: "Brukere for barnehage-ansatte",
-        manageDescription: "Disse brukerne kan kun redigere Årskalenderen, ikke andre admin-funksjoner.",
-        addStaff: "Opprett ansatt-bruker",
+        manageTitle: "Brukere",
+        manageDescription: "Opprett FAU- og barnehagebrukere. Systemet sender midlertidig passord på e-post og brukeren må endre passord ved første innlogging.",
+        addStaff: "Opprett bruker",
         username: "Brukernavn (e-post)",
         name: "Navn",
-        password: "Passord",
-        passwordHint: "Minst 8 tegn",
+        role: "Rolle",
+        roleFau: "FAU",
+        roleKindergarten: "Barnehage",
         create: "Opprett",
         creating: "Oppretter...",
-        existingStaff: "Eksisterende ansatt-brukere",
-        noStaff: "Ingen ansatt-brukere ennå.",
+        existingStaff: "Eksisterende brukere",
+        noStaff: "Ingen brukere ennå.",
         delete: "Slett",
         deleteConfirm: "Slette denne brukeren?",
         successCreate: "Bruker opprettet",
-        errorCreate: "Kunne ikke opprette bruker"
+        errorCreate: "Kunne ikke opprette bruker",
+        emailSent: "Innloggingsdetaljer er sendt på e-post"
       }
     }
   },
@@ -1157,6 +1187,19 @@ export const translations: Record<Language, Translations> = {
         successDesc: "You are now logged in as a council member",
         error: "Login failed",
         invalidCredentials: "Invalid username or password"
+      },
+      passwordChange: {
+        title: "Change password",
+        description: "You must change your password before using signed-in features. Passwords must be updated at least once a year.",
+        currentPassword: "Current password",
+        newPassword: "New password",
+        confirmPassword: "Confirm new password",
+        save: "Save password",
+        saving: "Saving...",
+        success: "Password updated",
+        error: "Could not change password",
+        mismatch: "Passwords do not match",
+        tooShort: "Password must be at least 12 characters"
       },
 
       eventCreation: {
@@ -1394,21 +1437,23 @@ export const translations: Record<Language, Translations> = {
         none: "None"
       },
       staff: {
-        manageTitle: "Kindergarten staff users",
-        manageDescription: "These users can only edit the Yearly Calendar, not other admin features.",
-        addStaff: "Create staff user",
+        manageTitle: "Users",
+        manageDescription: "Create FAU and kindergarten users. The system emails a temporary password and the user must change it on first login.",
+        addStaff: "Create user",
         username: "Username (email)",
         name: "Name",
-        password: "Password",
-        passwordHint: "At least 8 characters",
+        role: "Role",
+        roleFau: "FAU",
+        roleKindergarten: "Kindergarten",
         create: "Create",
         creating: "Creating...",
-        existingStaff: "Existing staff users",
-        noStaff: "No staff users yet.",
+        existingStaff: "Existing users",
+        noStaff: "No users yet.",
         delete: "Delete",
         deleteConfirm: "Delete this user?",
         successCreate: "User created",
-        errorCreate: "Could not create user"
+        errorCreate: "Could not create user",
+        emailSent: "Login details were sent by email"
       }
     }
   }

@@ -6,6 +6,7 @@ interface AuthUser {
   username: string;
   name: string;
   role: string;
+  passwordChangeRequired?: boolean;
 }
 
 export function useAuth() {
