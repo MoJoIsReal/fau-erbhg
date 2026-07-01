@@ -254,6 +254,37 @@ function testClientRegressionGuards() {
     /entry\.entryType === "closed"/,
     'Footer next meeting should include closed yearly calendar entries',
   );
+  assert.match(
+    layout,
+    /SheetContent[^>]+overflow-y-auto/,
+    'Mobile menu sheet content should be scrollable so signed-in actions remain reachable',
+  );
+
+  const toastComponent = readFileSync(new URL('../client/src/components/ui/toast.tsx', import.meta.url), 'utf8');
+  assert.match(
+    toastComponent,
+    /pointer-events-none/,
+    'Toast viewport should not block mobile header/menu taps outside the toast card',
+  );
+  assert.match(
+    toastComponent,
+    /top-20/,
+    'Mobile toast viewport should sit below the sticky header instead of covering the menu button',
+  );
+
+  const secureSettingsApi = readFileSync(new URL('../api/secure-settings.js', import.meta.url), 'utf8');
+  assert.match(
+    secureSettingsApi,
+    /Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside\./,
+    'New-user email should say the account was created on the FAU Erdal Barnehage website',
+  );
+
+  const loginModal = readFileSync(new URL('../client/src/components/login-modal.tsx', import.meta.url), 'utf8');
+  assert.match(
+    loginModal,
+    /duration:\s*2500/,
+    'Successful login toast should auto-dismiss quickly on mobile',
+  );
 }
 
 function validDayRow(overrides = {}) {

@@ -32,6 +32,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       toast({
         title: t.modals.login.success,
         description: t.modals.login.successDesc,
+        duration: 2500,
       });
       // Force refresh authentication state
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });

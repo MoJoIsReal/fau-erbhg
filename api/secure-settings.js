@@ -447,7 +447,7 @@ async function handleUsers(req, res, sql) {
         text: [
           `Hei ${name},`,
           '',
-          `Det er opprettet en konto for deg på FAU Erdal Barnehage.`,
+          `Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside.`,
           `Rolle: ${roleLabel(role)}`,
           '',
           roleDescription(role),

@@ -291,7 +291,7 @@ export default function Layout({ children }: LayoutProps) {
                   <Menu className="h-6 w-6" aria-hidden="true" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[300px] sm:w-[400px]">
+              <SheetContent side="right" className="h-[100dvh] w-[300px] overflow-y-auto overscroll-contain pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:w-[400px]">
                 <div className="flex items-center space-x-3 mb-8">
                   <div className="w-8 h-8 flex items-center justify-center">
                     <img src={childIcon} alt="FAU Erdal Barnehage" className="w-8 h-8 object-contain" />
