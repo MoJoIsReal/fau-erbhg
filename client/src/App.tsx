@@ -75,7 +75,7 @@ function Router() {
             </RequireAuth>
           </Route>
           <Route path="/messages">
-            <RequireAuth roles={["admin", "member"]}>
+            <RequireAuth roles={["admin"]}>
               <Messages />
             </RequireAuth>
           </Route>

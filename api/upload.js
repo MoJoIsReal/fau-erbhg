@@ -17,6 +17,23 @@ import {
   validateUploadFile
 } from './_shared/upload-validation.js';
 
+function parseCloudinaryDeliveryUrl(parsedUrl) {
+  const parts = parsedUrl.pathname.split('/').filter(Boolean);
+  const [cloudName, resourceType, deliveryType, ...rest] = parts;
+  const publicIdParts = [...rest];
+
+  if (publicIdParts[0] && /^v\d+$/.test(publicIdParts[0])) {
+    publicIdParts.shift();
+  }
+
+  return {
+    cloudName,
+    resourceType,
+    deliveryType,
+    publicId: decodeURIComponent(publicIdParts.join('/')),
+  };
+}
+
 export default async function handler(req, res) {
   // Apply security headers and handle CORS
   applySecurityHeaders(res, req.headers.origin);
@@ -120,13 +137,39 @@ export default async function handler(req, res) {
     // res.cloudinary.com is shared across all Cloudinary customers — without
     // this check, an authenticated council member could register a document
     // pointing at attacker-controlled content in a different cloud.
-    const expectedCloudPrefix = `/${process.env.CLOUDINARY_CLOUD_NAME}/`;
-    if (!parsedUrl.pathname.startsWith(expectedCloudPrefix)) {
+    const delivery = parseCloudinaryDeliveryUrl(parsedUrl);
+    if (
+      delivery.cloudName !== process.env.CLOUDINARY_CLOUD_NAME ||
+      !['image', 'raw'].includes(delivery.resourceType) ||
+      delivery.deliveryType !== 'upload'
+    ) {
       return res.status(400).json({ error: 'Uploaded file must be hosted in our Cloudinary account' });
     }
 
     if (!sanitizedPublicId.startsWith('fau-documents/')) {
       return res.status(400).json({ error: 'Invalid uploaded file location' });
+    }
+
+    if (delivery.publicId !== sanitizedPublicId) {
+      return res.status(400).json({ error: 'Uploaded file URL does not match uploaded asset' });
+    }
+
+    let uploadedAsset;
+    try {
+      const cloudinary = configureCloudinary();
+      uploadedAsset = await cloudinary.api.resource(sanitizedPublicId, {
+        resource_type: delivery.resourceType,
+      });
+    } catch {
+      return res.status(400).json({ error: 'Uploaded asset could not be verified' });
+    }
+
+    if (uploadedAsset.public_id !== sanitizedPublicId) {
+      return res.status(400).json({ error: 'Uploaded asset could not be verified' });
+    }
+
+    if (Number(uploadedAsset.bytes) > MAX_UPLOAD_SIZE_BYTES) {
+      return res.status(400).json({ error: 'File size exceeds maximum allowed size of 10MB' });
     }
 
     // Sanitize text inputs to prevent XSS
@@ -140,7 +183,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Valid title is required' });
     }
 
-    const safeFileSize = Number.isFinite(Number(reportedSize)) ? Math.max(0, Math.floor(Number(reportedSize))) : 0;
+    const safeFileSize = Number.isFinite(Number(uploadedAsset.bytes)) ? Math.max(0, Math.floor(Number(uploadedAsset.bytes))) : 0;
 
     const newDocument = await sql`
       INSERT INTO documents (title, filename, cloudinary_url, cloudinary_public_id, file_size, mime_type, category, description, uploaded_by, uploaded_at)

@@ -7,6 +7,7 @@ import {
 import { sendEmail, isEmailConfigured } from '../_shared/email.js';
 import { reminderEmail as newsletterReminderEmail } from '../_shared/newsletter.js';
 import Sentry from '../_shared/sentry.js';
+import { redactSensitiveText } from '../_shared/redact.js';
 
 const MAX_REMINDERS_PER_RUN = 25;
 // Upper bound on newsletter emails sent in a single daily run. Comfortably
@@ -192,7 +193,7 @@ async function broadcastNewsletter(sql, targetDate) {
         sent += 1;
       } catch (emailError) {
         failed += 1;
-        console.error('Failed to send newsletter email:', emailError.message);
+        console.error('Failed to send newsletter email:', redactSensitiveText(emailError.message));
         if (process.env.NODE_ENV === 'production') {
           Sentry.captureException(emailError);
         }
@@ -307,7 +308,7 @@ export default async function handler(req, res) {
             SET reminder_sent_at = NULL
             WHERE id = ${registration.id}
           `;
-          console.error('Failed to send event reminder:', emailError.message);
+          console.error('Failed to send event reminder:', redactSensitiveText(emailError.message));
           if (process.env.NODE_ENV === 'production') {
             Sentry.captureException(emailError);
           }

@@ -326,8 +326,10 @@ async function handleKindergartenInfo(req, res, sql) {
 
 // Handle Contact Messages operations
 async function handleContactMessages(req, res, sql) {
-  // All methods require a council member.
-  const user = await requireRole(req, res, COUNCIL_ROLES, sql);
+  // Contact messages can contain parent PII and sensitive concerns.
+  // Keep this surface admin-only; council members have narrower write access
+  // to events, documents, and calendar entries.
+  const user = await requireRole(req, res, ADMIN_ONLY, sql);
   if (!user) return;
 
   const now = new Date().toISOString();
