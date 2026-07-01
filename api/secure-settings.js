@@ -16,9 +16,19 @@ import {
 import { ADMIN_ONLY, COUNCIL_ROLES, ROLES } from '../shared/constants.js';
 
 function roleLabel(role) {
-  if (role === ROLES.member) return 'FAU';
-  if (role === ROLES.staff) return 'Barnehage';
+  if (role === ROLES.member) return 'FAU-Medlem';
+  if (role === ROLES.staff) return 'Barnehageansatt';
   return role;
+}
+
+function roleDescription(role) {
+  if (role === ROLES.member) {
+    return 'Som FAU-Medlem kan du administrere innhold, meldinger, arrangementer, dokumenter og årskalenderen. Du har ikke tilgang til innstillinger eller brukeradministrasjon.';
+  }
+  if (role === ROLES.staff) {
+    return 'Som Barnehageansatt kan du laste ned Excel-mal til årskalenderen, importere årskalender fra Excel og legge til eller redigere oppføringer manuelt i årskalenderen. Du har ikke tilgang til meldinger, innstillinger, arrangement-administrasjon eller innholdsredigering.';
+  }
+  return '';
 }
 
 // Handle FAU Board Members operations
@@ -437,6 +447,8 @@ async function handleUsers(req, res, sql) {
           '',
           `Det er opprettet en konto for deg på FAU Erdal Barnehage.`,
           `Rolle: ${roleLabel(role)}`,
+          '',
+          roleDescription(role),
           '',
           `Brukernavn: ${username}`,
           `Midlertidig passord: ${temporaryPassword}`,

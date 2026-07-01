@@ -6,3 +6,7 @@ export function isPasswordChangeRequired(
   user: { mustChangePassword?: boolean | null; passwordChangedAt?: string | null },
   now?: Date,
 ): boolean;
+
+export function isUndefinedColumnError(error: unknown): boolean;
+
+export function ensureUserPasswordPolicyColumns(sql: unknown): Promise<void>;

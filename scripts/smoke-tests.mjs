@@ -5,6 +5,7 @@ import {
   PASSWORD_EXPIRY_DAYS,
   generateTemporaryPassword,
   isPasswordChangeRequired,
+  isUndefinedColumnError,
 } from '../api/_shared/password-policy.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { COUNCIL_ROLES, EVENT_TYPES, ROLES } from '../shared/constants.js';
@@ -113,6 +114,9 @@ function testPasswordPolicy() {
   assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: null }, now), true);
   assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: '2025-06-30T11:59:59Z' }, now), true);
   assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: '2025-07-02T12:00:00Z' }, now), false);
+  assert.equal(isUndefinedColumnError({ code: '42703' }), true);
+  assert.equal(isUndefinedColumnError({ message: 'column "must_change_password" does not exist' }), true);
+  assert.equal(isUndefinedColumnError({ code: '23505' }), false);
 }
 
 function validDayRow(overrides = {}) {

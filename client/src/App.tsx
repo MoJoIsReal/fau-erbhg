@@ -11,6 +11,7 @@ const News = lazy(() => import("@/pages/news"));
 const Contact = lazy(() => import("@/pages/contact"));
 const Files = lazy(() => import("@/pages/files"));
 const Settings = lazy(() => import("@/pages/settings"));
+const Content = lazy(() => import("@/pages/content"));
 const Messages = lazy(() => import("@/pages/messages"));
 const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 const Privacy = lazy(() => import("@/pages/privacy"));
@@ -70,7 +71,7 @@ function Router() {
           </Route>
           <Route path="/content">
             <RequireAuth roles={["admin", "member"]}>
-              <Settings />
+              <Content />
             </RequireAuth>
           </Route>
           <Route path="/messages">
