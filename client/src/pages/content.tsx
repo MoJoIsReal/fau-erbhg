@@ -248,17 +248,6 @@ export default function Content() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
-          {language === "no" ? "Innhold" : "Content"}
-        </h1>
-        <p className="text-neutral-600 dark:text-neutral-300 mt-2">
-          {language === "no"
-            ? "Administrer nyheter, aktuelt og tips som vises på siden"
-            : "Manage news, updates and tips displayed on the site"}
-        </p>
-      </div>
-
       <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
