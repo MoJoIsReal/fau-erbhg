@@ -32,7 +32,7 @@ import {
 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/hooks/useAuth";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiErrorBody, getApiErrorMessage } from "@/lib/queryClient";
 import { formatDate } from "@/lib/i18n";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import type { Event } from "@shared/schema";
@@ -97,10 +97,10 @@ export default function Events() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
-    onError: (error: any) => {
-      const errorData = error?.response?.data || error;
+    onError: (error: unknown) => {
+      const errorData = getApiErrorBody(error);
       
-      if (errorData.hasRegistrations) {
+      if (errorData?.hasRegistrations) {
         toast({
           title: language === 'no' ? "Kan ikke slette" : "Cannot delete",
           description: language === 'no' ? "Dette arrangementet har påmeldinger og kan ikke slettes. Du kan avlyse det i stedet." : "This event has registrations and cannot be deleted. You can cancel it instead.",
@@ -109,7 +109,7 @@ export default function Events() {
       } else {
         toast({
           title: language === 'no' ? "Kunne ikke slette" : "Could not delete",
-          description: errorData.message || (language === 'no' ? "En feil oppstod ved sletting av arrangementet." : "An error occurred while deleting the event."),
+          description: getApiErrorMessage(error, language === 'no' ? "En feil oppstod ved sletting av arrangementet." : "An error occurred while deleting the event."),
           variant: "destructive",
         });
       }
@@ -123,7 +123,7 @@ export default function Events() {
         title: language === 'no' ? "Arrangement avlyst" : "Event cancelled",
         description: language === 'no' ? "Arrangementet har blitt avlyst og e-poster er sendt til alle påmeldte." : "The event has been cancelled and emails have been sent to all attendees.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/secure/events"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
     onError: () => {
       toast({

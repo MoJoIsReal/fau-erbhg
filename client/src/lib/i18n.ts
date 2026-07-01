@@ -346,6 +346,12 @@ export interface Translations {
     excelTemplateErrorDescription: string;
     addEntry: string;
     noEntries: string;
+    currentAndUpcomingMonths: string;
+    currentAndUpcomingMonthsDescription: string;
+    pastMonths: string;
+    pastMonthsDescription: string;
+    currentMonthBadge: string;
+    pastMonthBadge: string;
     week: string;
     weekHeader: string;
     monday: string;
@@ -829,6 +835,12 @@ export const translations: Record<Language, Translations> = {
       excelTemplateErrorDescription: "Noe gikk galt under nedlasting av Excel-malen. Prøv igjen om litt.",
       addEntry: "Legg til",
       noEntries: "Ingenting registrert ennå.",
+      currentAndUpcomingMonths: "Denne og kommende måneder",
+      currentAndUpcomingMonthsDescription: "Her ligger måneden vi er i nå og resten av barnehageåret fremover.",
+      pastMonths: "Måneder som er forbi",
+      pastMonthsDescription: "Tidligere måneder er samlet her, med den nyeste først.",
+      currentMonthBadge: "Denne måneden",
+      pastMonthBadge: "Forbi",
       week: "Uke",
       weekHeader: "Uke",
       monday: "Mandag",
@@ -1310,6 +1322,12 @@ export const translations: Record<Language, Translations> = {
       excelTemplateErrorDescription: "Something went wrong while downloading the Excel template. Please try again in a moment.",
       addEntry: "Add entry",
       noEntries: "Nothing scheduled yet.",
+      currentAndUpcomingMonths: "This and upcoming months",
+      currentAndUpcomingMonthsDescription: "This section starts with the current month and continues through the rest of the kindergarten year.",
+      pastMonths: "Past months",
+      pastMonthsDescription: "Earlier months are collected here, with the most recent first.",
+      currentMonthBadge: "This month",
+      pastMonthBadge: "Past",
       week: "Week",
       weekHeader: "Week",
       monday: "Monday",

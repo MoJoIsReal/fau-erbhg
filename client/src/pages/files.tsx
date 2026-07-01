@@ -249,7 +249,8 @@ export default function Files() {
                               variant="ghost" 
                               size="sm" 
                               className="text-primary hover:text-primary/90"
-                              onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
+                              onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank', 'noopener,noreferrer')}
+                              aria-label={language === 'no' ? `Last ned ${doc.title}` : `Download ${doc.title}`}
                             >
                               <Download className="h-4 w-4" />
                             </Button>
@@ -348,7 +349,8 @@ export default function Files() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank')}
+                      onClick={() => window.open(`/api/download?id=${doc.id}`, '_blank', 'noopener,noreferrer')}
+                      aria-label={language === 'no' ? `Last ned ${doc.title}` : `Download ${doc.title}`}
                     >
                       <Download className="h-4 w-4 sm:mr-2" />
                       <span className="hidden sm:inline">{language === 'no' ? 'Last ned' : 'Download'}</span>

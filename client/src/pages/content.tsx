@@ -48,6 +48,7 @@ export default function Content() {
   const queryClient = useQueryClient();
   const [posts, setPosts] = useState<Partial<BlogPost>[]>([]);
   const [isEditingPost, setIsEditingPost] = useState<number | null>(null);
+  const [postDraft, setPostDraft] = useState<Partial<BlogPost> | null>(null);
 
   usePageMeta({
     title: language === "no" ? "Innhold" : "Content",
@@ -103,27 +104,43 @@ export default function Content() {
   });
 
   const addNewPost = () => {
+    const draft: Partial<BlogPost> = {
+      title: "",
+      content: "",
+      status: "published",
+      category: "news",
+      publishedDate: new Date().toISOString().split("T")[0],
+    };
     setPosts([
-      {
-        title: "",
-        content: "",
-        status: "published",
-        category: "news",
-        publishedDate: new Date().toISOString().split("T")[0],
-      },
+      draft,
       ...posts,
     ]);
     setIsEditingPost(0);
+    setPostDraft({ ...draft });
   };
 
   const updatePost = (index: number, field: keyof BlogPost, value: string) => {
-    const updated = [...posts];
-    updated[index] = { ...updated[index], [field]: value };
-    setPosts(updated);
+    setPostDraft((current) => ({
+      ...(current ?? posts[index] ?? {}),
+      [field]: value,
+    }));
+  };
+
+  const startEditingPost = (index: number) => {
+    setIsEditingPost(index);
+    setPostDraft({ ...(posts[index] ?? {}) });
+  };
+
+  const cancelEditingPost = () => {
+    if (isEditingPost !== null && !posts[isEditingPost]?.id) {
+      setPosts((current) => current.filter((_, index) => index !== isEditingPost));
+    }
+    setIsEditingPost(null);
+    setPostDraft(null);
   };
 
   const savePost = async (index: number) => {
-    const post = posts[index];
+    const post = postDraft ?? posts[index];
     if (!post.title || !post.content) {
       toast({
         variant: "destructive",
@@ -134,14 +151,17 @@ export default function Content() {
     }
 
     try {
+      let savedPost: BlogPost;
       if (post.id) {
-        await updatePostMutation.mutateAsync({ id: post.id, post });
+        savedPost = await updatePostMutation.mutateAsync({ id: post.id, post });
       } else {
-        await createPostMutation.mutateAsync(post);
+        savedPost = await createPostMutation.mutateAsync(post);
       }
 
+      setPosts((current) => current.map((item, itemIndex) => itemIndex === index ? savedPost : item));
       await invalidateBlogPostQueries();
       setIsEditingPost(null);
+      setPostDraft(null);
       toast({
         title: language === "no" ? "Lagret!" : "Saved!",
         description: language === "no" ? "Innlegget er lagret" : "Post has been saved",
@@ -235,6 +255,7 @@ export default function Content() {
     } else {
       setPosts(posts.filter((_, i) => i !== index));
       setIsEditingPost(null);
+      setPostDraft(null);
     }
   };
 
@@ -265,7 +286,9 @@ export default function Content() {
           </Button>
 
           <div className="space-y-6">
-            {posts.map((post, index) => (
+            {posts.map((post, index) => {
+              const editablePost = isEditingPost === index && postDraft ? postDraft : post;
+              return (
               <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-gray-50 dark:bg-neutral-900/70 opacity-75" : ""}`}>
                 {isEditingPost === index ? (
                   <div className="space-y-4">
@@ -273,7 +296,7 @@ export default function Content() {
                       <Label htmlFor={`post-title-${index}`}>{language === "no" ? "Tittel" : "Title"}</Label>
                       <Input
                         id={`post-title-${index}`}
-                        value={post.title || ""}
+                        value={editablePost.title || ""}
                         onChange={(e) => updatePost(index, "title", e.target.value)}
                         placeholder={language === "no" ? "Tittel på innlegget" : "Post title"}
                       />
@@ -282,7 +305,7 @@ export default function Content() {
                     <div>
                       <Label htmlFor={`post-content-${index}`}>{language === "no" ? "Innhold" : "Content"}</Label>
                       <RichTextEditor
-                        content={post.content || ""}
+                        content={editablePost.content || ""}
                         onChange={(content) => updatePost(index, "content", content)}
                         placeholder={language === "no" ? "Skriv innlegget her..." : "Write your post here..."}
                       />
@@ -290,7 +313,7 @@ export default function Content() {
 
                     <div>
                       <Label htmlFor={`post-category-${index}`}>{language === "no" ? "Kategori" : "Category"}</Label>
-                      <Select value={post.category || "news"} onValueChange={(value) => updatePost(index, "category", value)}>
+                      <Select value={editablePost.category || "news"} onValueChange={(value) => updatePost(index, "category", value)}>
                         <SelectTrigger id={`post-category-${index}`}>
                           <SelectValue />
                         </SelectTrigger>
@@ -306,14 +329,14 @@ export default function Content() {
                       <Input
                         id={`post-date-${index}`}
                         type="date"
-                        value={post.publishedDate || ""}
+                        value={editablePost.publishedDate || ""}
                         onChange={(e) => updatePost(index, "publishedDate", e.target.value)}
                       />
                     </div>
 
                     <div>
                       <Label htmlFor={`post-author-${index}`}>{language === "no" ? "Skrevet av" : "Written by"}</Label>
-                      <Select value={post.author || ""} onValueChange={(value) => updatePost(index, "author", value)}>
+                      <Select value={editablePost.author || ""} onValueChange={(value) => updatePost(index, "author", value)}>
                         <SelectTrigger id={`post-author-${index}`}>
                           <SelectValue placeholder={language === "no" ? "Velg forfatter" : "Select author"} />
                         </SelectTrigger>
@@ -332,7 +355,7 @@ export default function Content() {
                         <Save className="h-4 w-4 mr-2" />
                         {language === "no" ? "Lagre" : "Save"}
                       </Button>
-                      <Button onClick={() => setIsEditingPost(null)} variant="outline" size="sm">
+                      <Button onClick={cancelEditingPost} variant="outline" size="sm">
                         {language === "no" ? "Avbryt" : "Cancel"}
                       </Button>
                       <AlertDialog>
@@ -347,8 +370,8 @@ export default function Content() {
                             <AlertDialogTitle>{language === "no" ? "Slette blogginnlegg?" : "Delete blog post?"}</AlertDialogTitle>
                             <AlertDialogDescription>
                               {language === "no"
-                                ? `Dette sletter "${post.title || "innlegget"}" permanent.`
-                                : `This permanently deletes "${post.title || "this post"}".`}
+                                ? `Dette sletter "${editablePost.title || "innlegget"}" permanent.`
+                                : `This permanently deletes "${editablePost.title || "this post"}".`}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -372,7 +395,7 @@ export default function Content() {
                       </h3>
 
                       <div className="hidden sm:flex gap-2 flex-shrink-0">
-                        <Button onClick={() => setIsEditingPost(index)} variant="outline" size="sm">
+                        <Button onClick={() => startEditingPost(index)} variant="outline" size="sm">
                           {language === "no" ? "Rediger" : "Edit"}
                         </Button>
                         {post.id && post.status === "published" && (
@@ -401,7 +424,7 @@ export default function Content() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
-                            <DropdownMenuItem onClick={() => setIsEditingPost(index)}>
+                            <DropdownMenuItem onClick={() => startEditingPost(index)}>
                               {language === "no" ? "Rediger" : "Edit"}
                             </DropdownMenuItem>
                             {post.id && post.status === "published" && (
@@ -446,7 +469,8 @@ export default function Content() {
                   </div>
                 )}
               </Card>
-            ))}
+              );
+            })}
 
             {posts.length === 0 && (
               <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">

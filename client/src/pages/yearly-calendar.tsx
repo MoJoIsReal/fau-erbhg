@@ -28,6 +28,11 @@ import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { YearlyCalendarEntry } from "@shared/schema";
+import {
+  getYearlyCalendarMonthGroups,
+  monthOrderValue,
+  type YearlyCalendarMonthRef,
+} from "@shared/yearly-calendar-display";
 import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
 import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
 
@@ -143,30 +148,6 @@ function isoWeek(date: Date): number {
   d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-}
-
-function monthsForSchoolYear(schoolYear: number): { year: number; month: number }[] {
-  const out: { year: number; month: number }[] = [];
-  for (let m = 8; m <= 12; m++) out.push({ year: schoolYear, month: m });
-  for (let m = 1; m <= 7; m++) out.push({ year: schoolYear + 1, month: m });
-  return out;
-}
-
-function monthOrderValue(monthRef: { year: number; month: number }): number {
-  return monthRef.year * 12 + monthRef.month;
-}
-
-function monthsForDisplay(
-  schoolYear: number,
-  currentMonthValue: number
-): { year: number; month: number }[] {
-  const months = monthsForSchoolYear(schoolYear);
-  const currentAndUpcoming = months.filter((monthRef) => monthOrderValue(monthRef) >= currentMonthValue);
-  const historical = months
-    .filter((monthRef) => monthOrderValue(monthRef) < currentMonthValue)
-    .sort((a, b) => monthOrderValue(b) - monthOrderValue(a));
-
-  return [...currentAndUpcoming, ...historical];
 }
 
 function weeksOfMonth(year: number, month: number): { weekNumber: number; days: { date: Date; inMonth: boolean }[] }[] {
@@ -483,10 +464,12 @@ export default function YearlyCalendarPage() {
     },
   });
 
-  const months = useMemo(
-    () => monthsForDisplay(schoolYear, currentMonthValue),
+  const monthGroups = useMemo(
+    () => getYearlyCalendarMonthGroups(schoolYear, now),
     [schoolYear, currentMonthValue]
   );
+  const firstDisplayMonth: YearlyCalendarMonthRef =
+    monthGroups.currentAndUpcoming[0] ?? monthGroups.past[0] ?? { year: schoolYear, month: 8 };
 
   const monthName = (m: number) => {
     const keys = [
@@ -505,6 +488,24 @@ export default function YearlyCalendarPage() {
   ];
 
   const schoolYearOptions = [defaultSchoolYear - 1, defaultSchoolYear, defaultSchoolYear + 1];
+  const displayMonthGroups = [
+    {
+      key: "current-and-upcoming",
+      title: t.yearlyCalendar.currentAndUpcomingMonths,
+      description: t.yearlyCalendar.currentAndUpcomingMonthsDescription,
+      months: monthGroups.currentAndUpcoming,
+      isPast: false,
+      headingClass: "border-[#4A8C5F]/30 bg-[#F3FBF5] text-[#1f4530] dark:border-green-800/60 dark:bg-green-950/30 dark:text-green-100",
+    },
+    {
+      key: "past",
+      title: t.yearlyCalendar.pastMonths,
+      description: t.yearlyCalendar.pastMonthsDescription,
+      months: monthGroups.past,
+      isPast: true,
+      headingClass: "border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200",
+    },
+  ].filter((group) => group.months.length > 0);
 
   const openCreate = (defaults: Partial<EntryDraft>) => {
     setEditingEntry(null);
@@ -634,7 +635,7 @@ export default function YearlyCalendarPage() {
             {canEdit && (
               <>
                 <Button
-                  onClick={() => openCreate({ year: months[0].year, month: months[0].month, entryType: "week_event" })}
+                  onClick={() => openCreate({ year: firstDisplayMonth.year, month: firstDisplayMonth.month, entryType: "week_event" })}
                   className="bg-white dark:bg-neutral-950 text-[#FF6B35] hover:bg-yellow-100 dark:hover:bg-neutral-900 print:hidden"
                 >
                   <Plus className="h-4 w-4 mr-1" />
@@ -679,8 +680,24 @@ export default function YearlyCalendarPage() {
           </div>
         </div>
 
-        <div className="space-y-12">
-          {months.map(({ year, month }) => {
+        <div className="space-y-14">
+          {displayMonthGroups.map((group) => (
+            <section
+              key={group.key}
+              aria-labelledby={`${group.key}-months-heading`}
+              className="space-y-6"
+            >
+              <div className={`rounded-lg border px-4 py-3 shadow-sm print:hidden ${group.headingClass}`}>
+                <h2 id={`${group.key}-months-heading`} className="font-heading text-xl font-bold">
+                  {group.title}
+                </h2>
+                <p className="mt-1 text-sm opacity-80">{group.description}</p>
+              </div>
+
+              <div className={group.isPast ? "space-y-8" : "space-y-12"}>
+          {group.months.map(({ year, month }) => {
+            const isPast = group.isPast;
+            const isCurrentMonth = monthOrderValue({ year, month }) === currentMonthValue;
             const monthEntries = entries.filter((e) => e.year === year && e.month === month);
             const weeks = weeksOfMonth(year, month);
             // Single-week notes stay in the sidebar; multi-week notes are
@@ -696,7 +713,7 @@ export default function YearlyCalendarPage() {
               <section
                 key={`${year}-${month}`}
                 id={`month-${year}-${month}`}
-                className={`yearly-month-section rounded-3xl bg-[#2C5F41]/95 dark:bg-neutral-900 text-white shadow-xl overflow-hidden border-4 ${theme.ring}`}
+                className={`yearly-month-section rounded-3xl bg-[#2C5F41]/95 dark:bg-neutral-900 text-white shadow-xl overflow-hidden border-4 ${theme.ring} ${isPast ? "opacity-80 saturate-[.85]" : ""}`}
               >
                 <div className={`relative px-6 py-5 bg-gradient-to-br ${theme.gradient} overflow-hidden`}>
                   <span
@@ -723,6 +740,20 @@ export default function YearlyCalendarPage() {
                         <span aria-hidden className="text-3xl sm:text-4xl">{theme.titleIcon}</span>
                         {monthName(month)} {year}
                       </h2>
+                      {(isCurrentMonth || isPast) && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {isCurrentMonth && (
+                            <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#2C5F41] shadow-sm">
+                              {t.yearlyCalendar.currentMonthBadge}
+                            </span>
+                          )}
+                          {isPast && (
+                            <span className="rounded-full bg-neutral-900/35 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white/80 ring-1 ring-white/20">
+                              {t.yearlyCalendar.pastMonthBadge}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <p className="text-yellow-100 italic text-sm mt-1 drop-shadow">
                         {t.yearlyCalendar.tagline}
                       </p>
@@ -1157,6 +1188,9 @@ export default function YearlyCalendarPage() {
               </section>
             );
           })}
+              </div>
+            </section>
+          ))}
         </div>
 
         <YearlyCalendarEntryModal

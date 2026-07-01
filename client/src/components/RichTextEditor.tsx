@@ -52,6 +52,26 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const toolbarLabels = {
+    bold: language === 'no' ? 'Fet' : 'Bold',
+    italic: language === 'no' ? 'Kursiv' : 'Italic',
+    underline: language === 'no' ? 'Understrek' : 'Underline',
+    strike: language === 'no' ? 'Gjennomstrek' : 'Strikethrough',
+    heading1: language === 'no' ? 'Overskrift 1' : 'Heading 1',
+    heading2: language === 'no' ? 'Overskrift 2' : 'Heading 2',
+    heading3: language === 'no' ? 'Overskrift 3' : 'Heading 3',
+    bulletList: language === 'no' ? 'Punktliste' : 'Bullet list',
+    orderedList: language === 'no' ? 'Nummerert liste' : 'Numbered list',
+    alignLeft: language === 'no' ? 'Venstrejuster' : 'Align left',
+    alignCenter: language === 'no' ? 'Midtstill' : 'Align center',
+    alignRight: language === 'no' ? 'Høyrejuster' : 'Align right',
+    quote: language === 'no' ? 'Sitat' : 'Quote',
+    codeBlock: language === 'no' ? 'Kodeblokk' : 'Code block',
+    link: language === 'no' ? 'Lenke' : 'Link',
+    image: language === 'no' ? 'Bilde' : 'Image',
+    undo: language === 'no' ? 'Angre' : 'Undo',
+    redo: language === 'no' ? 'Gjør om' : 'Redo',
+  };
 
   const editor = useEditor({
     extensions: [
@@ -229,6 +249,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleBold().run()}
+          aria-label={toolbarLabels.bold}
+          aria-pressed={editor.isActive('bold')}
           className={editor.isActive('bold') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Bold className="h-4 w-4" />
@@ -238,6 +260,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleItalic().run()}
+          aria-label={toolbarLabels.italic}
+          aria-pressed={editor.isActive('italic')}
           className={editor.isActive('italic') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Italic className="h-4 w-4" />
@@ -247,6 +271,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleUnderline().run()}
+          aria-label={toolbarLabels.underline}
+          aria-pressed={editor.isActive('underline')}
           className={editor.isActive('underline') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <UnderlineIcon className="h-4 w-4" />
@@ -256,6 +282,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleStrike().run()}
+          aria-label={toolbarLabels.strike}
+          aria-pressed={editor.isActive('strike')}
           className={editor.isActive('strike') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Strikethrough className="h-4 w-4" />
@@ -269,6 +297,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          aria-label={toolbarLabels.heading1}
+          aria-pressed={editor.isActive('heading', { level: 1 })}
           className={editor.isActive('heading', { level: 1 }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Heading1 className="h-4 w-4" />
@@ -278,6 +308,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          aria-label={toolbarLabels.heading2}
+          aria-pressed={editor.isActive('heading', { level: 2 })}
           className={editor.isActive('heading', { level: 2 }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Heading2 className="h-4 w-4" />
@@ -287,6 +319,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          aria-label={toolbarLabels.heading3}
+          aria-pressed={editor.isActive('heading', { level: 3 })}
           className={editor.isActive('heading', { level: 3 }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Heading3 className="h-4 w-4" />
@@ -300,6 +334,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleBulletList().run()}
+          aria-label={toolbarLabels.bulletList}
+          aria-pressed={editor.isActive('bulletList')}
           className={editor.isActive('bulletList') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <List className="h-4 w-4" />
@@ -309,6 +345,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          aria-label={toolbarLabels.orderedList}
+          aria-pressed={editor.isActive('orderedList')}
           className={editor.isActive('orderedList') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <ListOrdered className="h-4 w-4" />
@@ -322,6 +360,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
+          aria-label={toolbarLabels.alignLeft}
+          aria-pressed={editor.isActive({ textAlign: 'left' })}
           className={editor.isActive({ textAlign: 'left' }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <AlignLeft className="h-4 w-4" />
@@ -331,6 +371,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().setTextAlign('center').run()}
+          aria-label={toolbarLabels.alignCenter}
+          aria-pressed={editor.isActive({ textAlign: 'center' })}
           className={editor.isActive({ textAlign: 'center' }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <AlignCenter className="h-4 w-4" />
@@ -340,6 +382,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
+          aria-label={toolbarLabels.alignRight}
+          aria-pressed={editor.isActive({ textAlign: 'right' })}
           className={editor.isActive({ textAlign: 'right' }) ? ACTIVE_BUTTON_CLASS : ''}
         >
           <AlignRight className="h-4 w-4" />
@@ -353,6 +397,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          aria-label={toolbarLabels.quote}
+          aria-pressed={editor.isActive('blockquote')}
           className={editor.isActive('blockquote') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Quote className="h-4 w-4" />
@@ -362,6 +408,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+          aria-label={toolbarLabels.codeBlock}
+          aria-pressed={editor.isActive('codeBlock')}
           className={editor.isActive('codeBlock') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <Code className="h-4 w-4" />
@@ -375,6 +423,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={setLink}
+          aria-label={toolbarLabels.link}
+          aria-pressed={editor.isActive('link')}
           className={editor.isActive('link') ? ACTIVE_BUTTON_CLASS : ''}
         >
           <LinkIcon className="h-4 w-4" />
@@ -384,6 +434,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           variant="ghost"
           size="sm"
           onClick={addImage}
+          aria-label={toolbarLabels.image}
         >
           <ImageIcon className="h-4 w-4" />
         </Button>
@@ -397,6 +448,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           size="sm"
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().undo()}
+          aria-label={toolbarLabels.undo}
         >
           <Undo className="h-4 w-4" />
         </Button>
@@ -406,6 +458,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           size="sm"
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().redo()}
+          aria-label={toolbarLabels.redo}
         >
           <Redo className="h-4 w-4" />
         </Button>

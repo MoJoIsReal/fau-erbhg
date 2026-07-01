@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { sanitizeHtml } from '../api/_shared/middleware.js';
 import { rateLimitKey } from '../api/_shared/rate-limit.js';
 import {
@@ -20,6 +21,7 @@ import {
   validateImportDecision,
   validateYearlyCalendarImportRow,
 } from '../shared/yearly-calendar-utils.js';
+import { getYearlyCalendarMonthGroups } from '../shared/yearly-calendar-display.js';
 
 const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
@@ -119,6 +121,99 @@ function testPasswordPolicy() {
   assert.equal(isUndefinedColumnError({ code: '23505' }), false);
 }
 
+function testClientRegressionGuards() {
+  const queryClient = readFileSync(new URL('../client/src/lib/queryClient.ts', import.meta.url), 'utf8');
+  assert.match(
+    queryClient,
+    /export class ApiError extends Error/,
+    'API requests should throw a structured ApiError with status and body',
+  );
+  assert.match(
+    queryClient,
+    /export function getApiErrorBody/,
+    'UI code should have a typed helper for reading structured API error bodies',
+  );
+  assert.match(
+    queryClient,
+    /JSON\.parse/,
+    'API error handling should parse JSON response bodies instead of throwing raw text only',
+  );
+
+  const eventsPage = readFileSync(new URL('../client/src/pages/events.tsx', import.meta.url), 'utf8');
+  const cancelMutationBlock = eventsPage.slice(
+    eventsPage.indexOf('const cancelMutation'),
+    eventsPage.indexOf('const handleRegisterClick'),
+  );
+  assert.match(
+    cancelMutationBlock,
+    /invalidateQueries\(\{\s*queryKey:\s*\["\/api\/events"\]\s*\}\)/s,
+    'Cancelling an event must invalidate the public events query used by the page',
+  );
+  assert.equal(
+    cancelMutationBlock.includes('queryKey: ["/api/secure/events"]'),
+    false,
+    'Cancelling an event must not invalidate the unused /api/secure/events key',
+  );
+  assert.match(
+    eventsPage,
+    /getApiErrorBody\(error\)/,
+    'Event delete errors should read structured API error bodies',
+  );
+
+  const contentPage = readFileSync(new URL('../client/src/pages/content.tsx', import.meta.url), 'utf8');
+  assert.match(
+    contentPage,
+    /const \[postDraft, setPostDraft\]/,
+    'Content editor should keep edits in a draft so Cancel can discard them',
+  );
+  assert.match(
+    contentPage,
+    /const startEditingPost = \(index: number\)/,
+    'Content editor should start editing from a copied draft',
+  );
+  assert.match(
+    contentPage,
+    /const cancelEditingPost = \(\)/,
+    'Content editor should have an explicit cancel path that discards drafts',
+  );
+
+  const calendarView = readFileSync(new URL('../client/src/components/calendar-view.tsx', import.meta.url), 'utf8');
+  assert.match(
+    calendarView,
+    /aria-label=\{language === 'no' \? 'Forrige måned' : 'Previous month'\}/,
+    'Calendar previous-month icon button must have an accessible name',
+  );
+  assert.match(
+    calendarView,
+    /aria-label=\{language === 'no' \? 'Neste måned' : 'Next month'\}/,
+    'Calendar next-month icon button must have an accessible name',
+  );
+
+  const filesPage = readFileSync(new URL('../client/src/pages/files.tsx', import.meta.url), 'utf8');
+  assert.match(
+    filesPage,
+    /aria-label=\{language === 'no' \? `Last ned \$\{doc\.title\}` : `Download \$\{doc\.title\}`\}/,
+    'Document download icon buttons must have accessible names',
+  );
+
+  const richTextEditor = readFileSync(new URL('../client/src/components/RichTextEditor.tsx', import.meta.url), 'utf8');
+  assert.match(
+    richTextEditor,
+    /const toolbarLabels/,
+    'Rich text editor toolbar should centralize translated accessible labels',
+  );
+  assert.match(
+    richTextEditor,
+    /aria-label=\{toolbarLabels\.bold\}/,
+    'Rich text editor bold button must have an accessible name',
+  );
+  assert.match(
+    richTextEditor,
+    /aria-pressed=\{editor\.isActive\('bold'\)\}/,
+    'Rich text editor active formatting buttons should expose pressed state',
+  );
+}
+
 function validDayRow(overrides = {}) {
   return {
     entry_type: 'day_event',
@@ -167,6 +262,18 @@ function testYearlyCalendarDateHelpers() {
   assert.equal(isMonthInSchoolYear(2028, 7, 2027), true);
   assert.equal(isMonthInSchoolYear(2028, 8, 2027), false);
   assert.equal(isMonthInSchoolYear(2027, 7, 2027), false);
+}
+
+function testYearlyCalendarMonthGroups() {
+  const groups = getYearlyCalendarMonthGroups(2025, new Date('2026-07-01T12:00:00Z'));
+
+  assert.deepEqual(groups.currentAndUpcoming, [{ year: 2026, month: 7 }]);
+  assert.deepEqual(groups.past.slice(0, 3), [
+    { year: 2026, month: 6 },
+    { year: 2026, month: 5 },
+    { year: 2026, month: 4 },
+  ]);
+  assert.deepEqual(groups.past.at(-1), { year: 2025, month: 8 });
 }
 
 function testYearlyCalendarTitleNormalization() {
@@ -667,7 +774,9 @@ testRateLimitKeys();
 testAssignPhotoSlots();
 testSharedConstants();
 testPasswordPolicy();
+testClientRegressionGuards();
 testYearlyCalendarDateHelpers();
+testYearlyCalendarMonthGroups();
 testYearlyCalendarConstants();
 testYearlyCalendarTitleNormalization();
 testYearlyCalendarValidNorwegianRow();

@@ -1,9 +1,64 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+export type ApiErrorBody = {
+  error?: string;
+  message?: string;
+  [key: string]: unknown;
+};
+
+export class ApiError extends Error {
+  status: number;
+  body: ApiErrorBody | string | null;
+  responseText: string;
+
+  constructor(status: number, body: ApiErrorBody | string | null, responseText: string, statusText: string) {
+    const message = getApiErrorMessageFromBody(body) || responseText || statusText || `Request failed with ${status}`;
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.body = body;
+    this.responseText = responseText;
+  }
+}
+
+function getApiErrorMessageFromBody(body: ApiErrorBody | string | null): string | null {
+  if (!body) return null;
+  if (typeof body === "string") return body;
+  const message = body.error || body.message;
+  return typeof message === "string" && message.trim() ? message : null;
+}
+
+export function getApiErrorBody(error: unknown): ApiErrorBody | null {
+  if (error instanceof ApiError && error.body && typeof error.body === "object") {
+    return error.body;
+  }
+  return null;
+}
+
+export function getApiErrorMessage(error: unknown, fallback = "An unexpected error occurred"): string {
+  if (error instanceof ApiError) {
+    return error.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  return fallback;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const text = await res.text();
+    let body: ApiErrorBody | string | null = text || null;
+
+    if (text) {
+      try {
+        body = JSON.parse(text) as ApiErrorBody;
+      } catch {
+        body = text;
+      }
+    }
+
+    throw new ApiError(res.status, body, text, res.statusText);
   }
 }
 

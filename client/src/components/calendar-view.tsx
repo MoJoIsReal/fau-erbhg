@@ -130,14 +130,24 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
       <CardContent className="p-4">
         {/* Calendar Header */}
         <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" size="sm" onClick={() => navigateMonth('prev')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigateMonth('prev')}
+            aria-label={language === 'no' ? 'Forrige måned' : 'Previous month'}
+          >
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <h3 className="text-lg font-semibold flex items-center space-x-2 text-neutral-900 dark:text-neutral-50">
             <CalendarIcon className="h-5 w-5" />
             <span>{getMonthYearText()}</span>
           </h3>
-          <Button variant="ghost" size="sm" onClick={() => navigateMonth('next')}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigateMonth('next')}
+            aria-label={language === 'no' ? 'Neste måned' : 'Next month'}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
