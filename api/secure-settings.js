@@ -440,6 +440,8 @@ async function handleUsers(req, res, sql) {
       RETURNING id, username, name, role
     `;
 
+    const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://www.erdal-bhg.no';
+
     try {
       await sendEmail({
         to: username,
@@ -448,6 +450,7 @@ async function handleUsers(req, res, sql) {
           `Hei ${name},`,
           '',
           `Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside.`,
+          `Nettside: ${publicBaseUrl}`,
           `Rolle: ${roleLabel(role)}`,
           '',
           roleDescription(role),

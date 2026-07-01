@@ -278,6 +278,11 @@ function testClientRegressionGuards() {
     /Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside\./,
     'New-user email should say the account was created on the FAU Erdal Barnehage website',
   );
+  assert.match(
+    secureSettingsApi,
+    /Nettside: \$\{publicBaseUrl\}/,
+    'New-user email should include a link to the website',
+  );
 
   const loginModal = readFileSync(new URL('../client/src/components/login-modal.tsx', import.meta.url), 'utf8');
   assert.match(
