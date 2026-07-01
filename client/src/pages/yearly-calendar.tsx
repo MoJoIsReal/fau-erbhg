@@ -30,6 +30,8 @@ import { useToast } from "@/hooks/use-toast";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import {
   getYearlyCalendarMonthGroups,
+  getYearlyCalendarTodayMarker,
+  isoWeek,
   monthOrderValue,
   type YearlyCalendarMonthRef,
 } from "@shared/yearly-calendar-display";
@@ -140,14 +142,6 @@ function sortByTypeAndColor(entries: YearlyCalendarEntry[]): YearlyCalendarEntry
     if (aColor !== bColor) return aColor.localeCompare(bColor);
     return a.id - b.id;
   });
-}
-
-function isoWeek(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
 }
 
 function weeksOfMonth(year: number, month: number): { weekNumber: number; days: { date: Date; inMonth: boolean }[] }[] {
@@ -468,6 +462,7 @@ export default function YearlyCalendarPage() {
     () => getYearlyCalendarMonthGroups(schoolYear, now),
     [schoolYear, currentMonthValue]
   );
+  const todayMarker = useMemo(() => getYearlyCalendarTodayMarker(now), [currentMonthValue]);
   const firstDisplayMonth: YearlyCalendarMonthRef =
     monthGroups.currentAndUpcoming[0] ?? monthGroups.past[0] ?? { year: schoolYear, month: 8 };
 
@@ -871,10 +866,14 @@ export default function YearlyCalendarPage() {
                       const mLast = week.days[4].date;
                       const range = `${mFirst.getDate()}.${mFirst.getMonth() + 1}–${mLast.getDate()}.${mLast.getMonth() + 1}`;
                       const weekRowId = `m-wkrow-${year}-${month}-${week.weekNumber}`;
+                      const isCurrentWeek =
+                        isCurrentMonth &&
+                        week.weekNumber === todayMarker.weekNumber &&
+                        week.days.some((d) => toIsoDate(d.date) === todayMarker.date);
                       return (
                         <div
                           key={week.weekNumber}
-                          className="rounded-lg bg-[#1f4530] border border-white/10 overflow-hidden"
+                          className={`rounded-lg bg-[#1f4530] border overflow-hidden ${isCurrentWeek ? "border-yellow-200/80 ring-2 ring-yellow-200/80 shadow-lg shadow-yellow-900/20" : "border-white/10"}`}
                         >
                           <DroppableRow
                             id={weekRowId}
@@ -890,6 +889,11 @@ export default function YearlyCalendarPage() {
                                 <span className="text-yellow-100/80 text-xs uppercase">
                                   {t.yearlyCalendar.weekHeader}
                                 </span>
+                                {isCurrentWeek && (
+                                  <span className="rounded-full bg-yellow-200 px-2 py-0.5 text-[10px] font-bold uppercase text-[#1f4530] shadow-sm">
+                                    {t.yearlyCalendar.thisWeekBadge}
+                                  </span>
+                                )}
                               </div>
                               <span className="text-yellow-100/60 text-xs">{range}</span>
                             </div>
@@ -944,6 +948,7 @@ export default function YearlyCalendarPage() {
                           <ul className="divide-y divide-white/5 bg-[#2C5F41]/40">
                             {week.days.map((d) => {
                               const dateStr = toIsoDate(d.date);
+                              const isToday = isCurrentMonth && d.inMonth && dateStr === todayMarker.date;
                               const dayEntries = sortByTypeAndColor(
                                 monthEntries.filter(
                                   (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr
@@ -956,13 +961,18 @@ export default function YearlyCalendarPage() {
                                     id={`m-day-${dateStr}`}
                                     data={{ kind: "day", year, month, weekNumber: week.weekNumber, date: dateStr }}
                                     disabled={!canEdit || !d.inMonth}
-                                    className={`flex items-start gap-3 px-3 py-2 ${d.inMonth ? "" : "opacity-40"}`}
+                                    className={`flex items-start gap-3 px-3 py-2 ${d.inMonth ? "" : "opacity-40"} ${isToday ? "bg-yellow-200/20 ring-1 ring-inset ring-yellow-200/70" : ""}`}
                                   >
                                     <div className="flex flex-col items-center w-12 shrink-0">
                                       <span className="text-yellow-100/70 text-[10px] uppercase">{dayShort}</span>
-                                      <span className="text-yellow-200 font-bold text-base leading-tight">
+                                      <span className={`${isToday ? "text-white" : "text-yellow-200"} font-bold text-base leading-tight`}>
                                         {d.date.getDate()}
                                       </span>
+                                      {isToday && (
+                                        <span className="mt-1 rounded-full bg-yellow-200 px-2 py-0.5 text-[10px] font-bold uppercase text-[#1f4530] shadow-sm">
+                                          {t.yearlyCalendar.todayBadge}
+                                        </span>
+                                      )}
                                     </div>
                                     <div className="flex-1 flex flex-wrap gap-1.5 min-w-0">
                                       {dayEntries.map((entry) => {
@@ -1027,10 +1037,14 @@ export default function YearlyCalendarPage() {
                       const dFirst = week.days[0].date;
                       const dLast = week.days[4].date;
                       const range = `${dFirst.getDate()}.${dFirst.getMonth() + 1}–${dLast.getDate()}.${dLast.getMonth() + 1}`;
+                      const isCurrentWeek =
+                        isCurrentMonth &&
+                        week.weekNumber === todayMarker.weekNumber &&
+                        week.days.some((d) => toIsoDate(d.date) === todayMarker.date);
                       return (
                         <div
                           key={week.weekNumber}
-                          className="rounded-lg bg-[#1f4530] border border-white/10 overflow-hidden"
+                          className={`rounded-lg bg-[#1f4530] border overflow-hidden ${isCurrentWeek ? "border-yellow-200/80 ring-2 ring-yellow-200/80 shadow-lg shadow-yellow-900/20" : "border-white/10"}`}
                         >
                           {/* Week header: number + range + week-level badges */}
                           <DroppableRow
@@ -1064,6 +1078,11 @@ export default function YearlyCalendarPage() {
                                 <span className="text-yellow-100/80 text-xs uppercase">
                                   {t.yearlyCalendar.weekHeader}
                                 </span>
+                                {isCurrentWeek && (
+                                  <span className="rounded-full bg-yellow-200 px-2 py-0.5 text-[10px] font-bold uppercase text-[#1f4530] shadow-sm">
+                                    {t.yearlyCalendar.thisWeekBadge}
+                                  </span>
+                                )}
                               </div>
                               <span className="text-yellow-100/60 text-xs">{range}</span>
                             </div>
@@ -1119,6 +1138,7 @@ export default function YearlyCalendarPage() {
                           <div className="grid grid-cols-5 divide-x divide-white/10 border-t border-white/10 bg-[#2C5F41]/40">
                             {week.days.map((d) => {
                               const dateStr = toIsoDate(d.date);
+                              const isToday = isCurrentMonth && d.inMonth && dateStr === todayMarker.date;
                               const dayEntries = sortByTypeAndColor(
                                 monthEntries.filter(
                                   (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr
@@ -1131,13 +1151,18 @@ export default function YearlyCalendarPage() {
                                   id={`day-${dateStr}`}
                                   data={{ kind: "day", year, month, weekNumber: week.weekNumber, date: dateStr }}
                                   disabled={!canEdit || !d.inMonth}
-                                  className={`px-2 py-2 min-h-[64px] ${d.inMonth ? "" : "opacity-40"}`}
+                                  className={`px-2 py-2 min-h-[64px] ${d.inMonth ? "" : "opacity-40"} ${isToday ? "bg-yellow-200/20 ring-1 ring-inset ring-yellow-200/70" : ""}`}
                                 >
-                                  <div className="flex items-baseline gap-1.5 mb-1">
+                                  <div className="flex flex-wrap items-baseline gap-1.5 mb-1">
                                     <span className="text-yellow-100/70 text-[10px] uppercase">{dayShort}</span>
-                                    <span className="text-yellow-200 font-bold text-base leading-none">
+                                    <span className={`${isToday ? "text-white" : "text-yellow-200"} font-bold text-base leading-none`}>
                                       {d.date.getDate()}
                                     </span>
+                                    {isToday && (
+                                      <span className="rounded-full bg-yellow-200 px-2 py-0.5 text-[10px] font-bold uppercase text-[#1f4530] shadow-sm">
+                                        {t.yearlyCalendar.todayBadge}
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="space-y-1">
                                     {dayEntries.map((entry) => {

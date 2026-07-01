@@ -21,7 +21,10 @@ import {
   validateImportDecision,
   validateYearlyCalendarImportRow,
 } from '../shared/yearly-calendar-utils.js';
-import { getYearlyCalendarMonthGroups } from '../shared/yearly-calendar-display.js';
+import {
+  getYearlyCalendarMonthGroups,
+  getYearlyCalendarTodayMarker,
+} from '../shared/yearly-calendar-display.js';
 
 const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
@@ -274,6 +277,14 @@ function testYearlyCalendarMonthGroups() {
     { year: 2026, month: 4 },
   ]);
   assert.deepEqual(groups.past.at(-1), { year: 2025, month: 8 });
+}
+
+function testYearlyCalendarTodayMarker() {
+  assert.deepEqual(getYearlyCalendarTodayMarker(new Date('2026-07-01T12:00:00Z')), {
+    date: '2026-07-01',
+    weekNumber: 27,
+    monthValue: 2026 * 12 + 7,
+  });
 }
 
 function testYearlyCalendarTitleNormalization() {
@@ -777,6 +788,7 @@ testPasswordPolicy();
 testClientRegressionGuards();
 testYearlyCalendarDateHelpers();
 testYearlyCalendarMonthGroups();
+testYearlyCalendarTodayMarker();
 testYearlyCalendarConstants();
 testYearlyCalendarTitleNormalization();
 testYearlyCalendarValidNorwegianRow();

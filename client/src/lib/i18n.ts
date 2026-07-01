@@ -352,6 +352,8 @@ export interface Translations {
     pastMonthsDescription: string;
     currentMonthBadge: string;
     pastMonthBadge: string;
+    thisWeekBadge: string;
+    todayBadge: string;
     week: string;
     weekHeader: string;
     monday: string;
@@ -841,6 +843,8 @@ export const translations: Record<Language, Translations> = {
       pastMonthsDescription: "Tidligere måneder er samlet her, med den nyeste først.",
       currentMonthBadge: "Denne måneden",
       pastMonthBadge: "Forbi",
+      thisWeekBadge: "Denne uken",
+      todayBadge: "I dag",
       week: "Uke",
       weekHeader: "Uke",
       monday: "Mandag",
@@ -1328,6 +1332,8 @@ export const translations: Record<Language, Translations> = {
       pastMonthsDescription: "Earlier months are collected here, with the most recent first.",
       currentMonthBadge: "This month",
       pastMonthBadge: "Past",
+      thisWeekBadge: "This week",
+      todayBadge: "Today",
       week: "Week",
       weekHeader: "Week",
       monday: "Monday",
