@@ -23,6 +23,8 @@ export const VALID_YEARLY_CALENDAR_COLORS: readonly [
 ];
 export const YEARLY_CALENDAR_HEX_COLOR_PATTERN: '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$';
 
+export function supportsYearlyCalendarNewsletter(entryType: unknown): boolean;
+
 export type YearlyCalendarImportPayload = {
   schoolYear: number;
   year: number;

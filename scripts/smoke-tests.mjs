@@ -18,6 +18,7 @@ import {
   getKindergartenSchoolYear,
   isMonthInSchoolYear,
   normalizeYearlyCalendarTitle,
+  supportsYearlyCalendarNewsletter,
   validateImportDecision,
   validateYearlyCalendarImportRow,
 } from '../shared/yearly-calendar-utils.js';
@@ -215,6 +216,44 @@ function testClientRegressionGuards() {
     /aria-pressed=\{editor\.isActive\('bold'\)\}/,
     'Rich text editor active formatting buttons should expose pressed state',
   );
+
+  const yearlyCalendarModal = readFileSync(new URL('../client/src/components/yearly-calendar-entry-modal.tsx', import.meta.url), 'utf8');
+  assert.match(
+    yearlyCalendarModal,
+    /supportsYearlyCalendarNewsletter\(entryType\)/,
+    'Yearly calendar modal should show newsletter reminders for every supported dated entry type',
+  );
+  assert.match(
+    yearlyCalendarModal,
+    /notifyNewsletter:\s*supportsNewsletter\s*\?\s*notifyNewsletter\s*:\s*false/,
+    'Yearly calendar modal should preserve newsletter choice for supported dated entry types',
+  );
+
+  const yearlyCalendarApi = readFileSync(new URL('../api/yearly-calendar.js', import.meta.url), 'utf8');
+  assert.match(
+    yearlyCalendarApi,
+    /supportsYearlyCalendarNewsletter\(entryType\)/,
+    'Yearly calendar API should accept newsletter flags for every supported dated entry type',
+  );
+
+  const eventReminders = readFileSync(new URL('../api/cron/event-reminders.js', import.meta.url), 'utf8');
+  assert.match(
+    eventReminders,
+    /entry_type IN \('day_event', 'closed'\)/,
+    'Newsletter cron should include closed yearly calendar entries',
+  );
+
+  const layout = readFileSync(new URL('../client/src/components/layout.tsx', import.meta.url), 'utf8');
+  assert.match(
+    layout,
+    /\/api\/yearly-calendar\?schoolYear=/,
+    'Footer next meeting should consider yearly calendar entries shown on the homepage',
+  );
+  assert.match(
+    layout,
+    /entry\.entryType === "closed"/,
+    'Footer next meeting should include closed yearly calendar entries',
+  );
 }
 
 function validDayRow(overrides = {}) {
@@ -296,6 +335,15 @@ function testYearlyCalendarTitleNormalization() {
 function testYearlyCalendarConstants() {
   assert.deepEqual(VALID_YEARLY_CALENDAR_ENTRY_TYPES, ['week_event', 'day_event', 'food', 'closed', 'note']);
   assert.deepEqual(VALID_YEARLY_CALENDAR_COLORS, ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple']);
+}
+
+function testYearlyCalendarNewsletterSupport() {
+  assert.equal(supportsYearlyCalendarNewsletter('day_event'), true);
+  assert.equal(supportsYearlyCalendarNewsletter('closed'), true);
+  assert.equal(supportsYearlyCalendarNewsletter('week_event'), false);
+  assert.equal(supportsYearlyCalendarNewsletter('food'), false);
+  assert.equal(supportsYearlyCalendarNewsletter('note'), false);
+  assert.equal(supportsYearlyCalendarNewsletter('not-real'), false);
 }
 
 function testYearlyCalendarValidNorwegianRow() {
@@ -790,6 +838,7 @@ testYearlyCalendarDateHelpers();
 testYearlyCalendarMonthGroups();
 testYearlyCalendarTodayMarker();
 testYearlyCalendarConstants();
+testYearlyCalendarNewsletterSupport();
 testYearlyCalendarTitleNormalization();
 testYearlyCalendarValidNorwegianRow();
 testYearlyCalendarValidCamelCaseRow();

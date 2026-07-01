@@ -4,6 +4,10 @@ export const YEARLY_CALENDAR_HEX_COLOR_PATTERN = '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{
 
 const HEX_COLOR_RE = new RegExp(YEARLY_CALENDAR_HEX_COLOR_PATTERN);
 
+export function supportsYearlyCalendarNewsletter(entryType) {
+  return entryType === 'day_event' || entryType === 'closed';
+}
+
 const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
 const HOMEPAGE_COLUMN = 'vis_p\u00e5_forside';

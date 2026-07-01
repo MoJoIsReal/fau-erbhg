@@ -122,8 +122,8 @@ function formatLongDate(dateStr, language) {
   });
 }
 
-// Email every confirmed newsletter subscriber about events and day_event
-// calendar entries that are flagged and fall on targetDate. Items are claimed
+// Email every confirmed newsletter subscriber about events and dated calendar
+// entries that are flagged and fall on targetDate. Items are claimed
 // (newsletter_sent_at stamped) atomically so a re-run never double-sends.
 async function broadcastNewsletter(sql, targetDate) {
   const subscribers = await sql`
@@ -159,7 +159,7 @@ async function broadcastNewsletter(sql, targetDate) {
     UPDATE yearly_calendar_entries
     SET newsletter_sent_at = ${now}
     WHERE date = ${targetDate}
-      AND entry_type = 'day_event'
+      AND entry_type IN ('day_event', 'closed')
       AND notify_newsletter = true
       AND newsletter_sent_at IS NULL
     RETURNING id, title, description, date

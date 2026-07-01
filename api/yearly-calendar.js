@@ -11,6 +11,7 @@ import {
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 import {
   buildImportPreview,
+  supportsYearlyCalendarNewsletter,
   validateImportDecision,
   validateYearlyCalendarImportRow,
 } from '../shared/yearly-calendar-utils.js';
@@ -73,8 +74,8 @@ function sanitizeEntryPayload(body) {
   // every other type so a stale flag can't survive a type change.
   const showOnHomepage = entryType === 'day_event' ? body.showOnHomepage === true : false;
   const showForParents = entryType === 'day_event' ? body.showForParents === true : false;
-  // Only day_event entries have a concrete date the cron can key a reminder off.
-  const notifyNewsletter = entryType === 'day_event' ? body.notifyNewsletter === true : false;
+  // Only dated entries can be keyed by the newsletter cron.
+  const notifyNewsletter = supportsYearlyCalendarNewsletter(entryType) ? body.notifyNewsletter === true : false;
 
   return {
     entryType,

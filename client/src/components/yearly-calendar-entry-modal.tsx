@@ -28,6 +28,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { YearlyCalendarEntry } from "@shared/schema";
+import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
 
 export type EntryDraft = {
   schoolYear: number;
@@ -111,6 +112,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
       // Multi-week spans are only meaningful for week_event and note. Food is
       // always a single week, day_event uses date instead.
       const supportsSpan = entryType === "week_event" || entryType === "note";
+      const supportsNewsletter = supportsYearlyCalendarNewsletter(entryType);
       const body: any = {
         schoolYear,
         year,
@@ -124,7 +126,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         date: entryType === "day_event" || entryType === "closed" ? (date || null) : null,
         showOnHomepage: entryType === "day_event" ? showOnHomepage : false,
         showForParents: entryType === "day_event" ? showForParents : false,
-        notifyNewsletter: entryType === "day_event" ? notifyNewsletter : false,
+        notifyNewsletter: supportsNewsletter ? notifyNewsletter : false,
       };
       if (isEditing) {
         const res = await apiRequest("PUT", `/api/yearly-calendar?id=${existing!.id}`, body);
@@ -264,38 +266,42 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             </div>
           )}
 
-          {entryType === "day_event" && (
+          {supportsYearlyCalendarNewsletter(entryType) && (
             <div className="space-y-3 rounded-md border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 p-3">
-              <div className="flex flex-row items-start space-x-3 space-y-0">
-                <Checkbox
-                  id="show-on-homepage"
-                  checked={showOnHomepage}
-                  onCheckedChange={(checked) => setShowOnHomepage(checked === true)}
-                />
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor="show-on-homepage" className="cursor-pointer">
-                    {t.yearlyCalendar.modal.showOnHomepage}
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t.yearlyCalendar.modal.showOnHomepageHint}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-row items-start space-x-3 space-y-0">
-                <Checkbox
-                  id="show-for-parents"
-                  checked={showForParents}
-                  onCheckedChange={(checked) => setShowForParents(checked === true)}
-                />
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor="show-for-parents" className="cursor-pointer">
-                    {t.yearlyCalendar.modal.showForParents}
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t.yearlyCalendar.modal.showForParentsHint}
-                  </p>
-                </div>
-              </div>
+              {entryType === "day_event" && (
+                <>
+                  <div className="flex flex-row items-start space-x-3 space-y-0">
+                    <Checkbox
+                      id="show-on-homepage"
+                      checked={showOnHomepage}
+                      onCheckedChange={(checked) => setShowOnHomepage(checked === true)}
+                    />
+                    <div className="space-y-1 leading-none">
+                      <Label htmlFor="show-on-homepage" className="cursor-pointer">
+                        {t.yearlyCalendar.modal.showOnHomepage}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t.yearlyCalendar.modal.showOnHomepageHint}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-row items-start space-x-3 space-y-0">
+                    <Checkbox
+                      id="show-for-parents"
+                      checked={showForParents}
+                      onCheckedChange={(checked) => setShowForParents(checked === true)}
+                    />
+                    <div className="space-y-1 leading-none">
+                      <Label htmlFor="show-for-parents" className="cursor-pointer">
+                        {t.yearlyCalendar.modal.showForParents}
+                      </Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t.yearlyCalendar.modal.showForParentsHint}
+                      </p>
+                    </div>
+                  </div>
+                </>
+              )}
               <div className="flex flex-row items-start space-x-3 space-y-0">
                 <Checkbox
                   id="notify-newsletter"

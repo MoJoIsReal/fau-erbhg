@@ -16,7 +16,9 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useQuery } from "@tanstack/react-query";
-import { type Event } from "@shared/schema";
+import { type Event, type YearlyCalendarEntry } from "@shared/schema";
+import { formatDate } from "@/lib/i18n";
+import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import LoginModal from "./login-modal";
 import PasswordChangeModal from "./password-change-modal";
 import LanguageToggle from "./language-toggle";
@@ -44,17 +46,43 @@ export default function Layout({ children }: LayoutProps) {
   const isAdmin = user?.role === "admin";
   const isCouncil = user?.role === "admin" || user?.role === "member";
 
-  // Fetch events to find next meeting
+  // Fetch events and dated yearly calendar entries to find the next visible item.
   const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events"],
   });
+  const now = new Date();
+  const currentSchoolYear = getKindergartenSchoolYear(now);
+  const { data: currentYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
+    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear}`],
+  });
+  const { data: nextYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
+    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`],
+  });
 
-  // Find next meeting (including internal events)
-  const nextMeeting = events
-    .filter(event =>
-      event.status === 'active' &&
-      new Date(event.date) >= new Date()
-    )
+  type FooterNextItem =
+    | { kind: "event"; date: string; event: Event }
+    | { kind: "yearly"; date: string; entry: YearlyCalendarEntry };
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayMs = today.getTime();
+
+  const eventItems: FooterNextItem[] = events
+    .filter((event) => event.status === "active" && new Date(event.date).getTime() >= todayMs)
+    .map((event) => ({ kind: "event" as const, date: event.date, event }));
+
+  const yearlyItems: FooterNextItem[] = [...currentYearEntries, ...nextYearEntries]
+    .filter((entry) => {
+      if (!entry.date || new Date(entry.date).getTime() < todayMs) return false;
+      if (entry.entryType === "closed") return true;
+      if (entry.entryType === "day_event") {
+        return entry.showOnHomepage === true || entry.showForParents === true;
+      }
+      return false;
+    })
+    .map((entry) => ({ kind: "yearly" as const, date: entry.date as string, entry }));
+
+  const nextMeeting = [...eventItems, ...yearlyItems]
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
 
   const navigation: NavigationItem[] = [
@@ -482,23 +510,42 @@ export default function Layout({ children }: LayoutProps) {
               <h4 className="font-heading font-semibold mb-4">{t.footer.nextMeeting}</h4>
               <div className="bg-neutral-800 rounded-lg p-4">
                 {nextMeeting ? (
-                  <>
-                    <p className="font-medium mb-2">{nextMeeting.title}</p>
-                    <p className="text-sm text-neutral-300 mb-1">
-                      {new Date(nextMeeting.date).toLocaleDateString(language === 'no' ? 'no-NO' : 'en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </p>
-                    <p className="text-sm text-neutral-300 mb-3">
-                      {language === 'no' ? 'Kl.' : 'At'} {nextMeeting.time} - {nextMeeting.location}
-                    </p>
-                    <Link href="/events" className="text-primary hover:text-white text-sm font-medium">
-                      {t.home.moreInfo}
-                    </Link>
-                  </>
+                  nextMeeting.kind === "event" ? (
+                    <>
+                      <p className="font-medium mb-2">{nextMeeting.event.title}</p>
+                      <p className="text-sm text-neutral-300 mb-1">
+                        {new Date(nextMeeting.event.date).toLocaleDateString(language === 'no' ? 'no-NO' : 'en-US', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                      <p className="text-sm text-neutral-300 mb-3">
+                        {language === 'no' ? 'Kl.' : 'At'} {nextMeeting.event.time} - {nextMeeting.event.location}
+                      </p>
+                      <Link href="/events" className="text-primary hover:text-white text-sm font-medium">
+                        {t.home.moreInfo}
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <p className="font-medium">{nextMeeting.entry.title}</p>
+                        {nextMeeting.entry.entryType === "closed" && (
+                          <span className="inline-flex items-center rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] font-medium text-red-200">
+                            {t.yearlyCalendar.closedBadge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-neutral-300 mb-3">
+                        {formatDate(nextMeeting.entry.date as string, language)}
+                      </p>
+                      <Link href="/arskalender" className="text-primary hover:text-white text-sm font-medium">
+                        {t.home.moreInfo}
+                      </Link>
+                    </>
+                  )
                 ) : (
                   <p className="text-sm text-neutral-300">{t.home.noEvents}</p>
                 )}
