@@ -44,13 +44,19 @@ When adding or modifying API endpoints, update the relevant Vercel function and
 any shared serverless utility it uses.
 
 Database queries use the Neon serverless SQL tagged-template client (`api/_shared/database.js`),
-not Drizzle at runtime. Drizzle is used only for schema declaration and type generation.
+not Drizzle's query builder — API handlers never call `db.select()`/`db.insert()` etc.
+Drizzle itself is still very much in use, just for schema declaration rather than
+querying: `shared/schema.ts` is the single source of truth for table shape, and
+from it Drizzle generates both the shared TypeScript types (`Event`, `Document`, ...)
+used across 20+ client files and the `drizzle-zod` validation schemas
+(`insertEventSchema`, `insertContactMessageSchema`, `insertEventRegistrationSchema`)
+wired into real `zodResolver` form validation at runtime in the browser.
 
 ## Technology Stack
 
 - **Frontend:** React 18, TypeScript, Wouter (routing), TanStack Query v5, Tailwind CSS, shadcn/ui, Recharts, TipTap (rich text), DOMPurify (client-side HTML sanitization)
 - **Backend:** Vercel serverless functions, Neon PostgreSQL via `@neondatabase/serverless`
-- **Schema/migrations:** Drizzle ORM + drizzle-kit (build-time only)
+- **Schema/migrations:** Drizzle ORM (schema declaration, shared types, `drizzle-zod` form-validation schemas) + drizzle-kit (`db:push`, build-time only — not used to run queries)
 - **Auth:** JWT in HttpOnly cookies + CSRF double-submit, bcryptjs, role-based (admin/member/staff)
 - **Storage:** Cloudinary (files/images), signed upload flow
 - **Email:** Nodemailer over Gmail (SendGrid SDK is declared but not currently used)
