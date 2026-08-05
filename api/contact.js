@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import { getDb } from './_shared/database.js';
 import {
   withApiHandler,
@@ -101,24 +102,26 @@ export default withApiHandler(async function handler(req, res) {
 
     const contactMessage = contactMessages[0];
 
-    // Send email notification (if configured)
-    try {
-      await sendContactEmail({
+    // Send email notification (if configured). Never fails the request, so
+    // there's no reason to make the caller wait on Gmail's response time —
+    // waitUntil() lets it finish after the response is already sent.
+    waitUntil(
+      sendContactEmail({
         name: isAnonymous ? 'Anonym' : sanitizedName,
         email: isAnonymous ? 'noreply@example.com' : sanitizedEmail,
         phone: sanitizedPhone,
         subject,
         message: sanitizedMessage,
         isAnonymous
-      });
-      console.log('Contact email sent successfully');
-    } catch (emailError) {
-      console.error('Failed to send contact email:', emailError);
-      // Don't fail the request if email fails, just log to Sentry
-      if (process.env.NODE_ENV === 'production') {
-        Sentry.captureException(emailError);
-      }
-    }
+      })
+        .then(() => console.log('Contact email sent successfully'))
+        .catch((emailError) => {
+          console.error('Failed to send contact email:', emailError);
+          if (process.env.NODE_ENV === 'production') {
+            Sentry.captureException(emailError);
+          }
+        })
+    );
 
     return res.status(201).json(contactMessage);
   } catch (error) {
@@ -225,15 +228,15 @@ async function handleNewsletterSubscribe(req, res) {
     }
 
     if (isEmailConfigured()) {
-      try {
-        const { subject, text } = confirmationEmail({ language: lang, confirmToken });
-        await sendEmail({ to: sanitizedEmail, subject, text });
-      } catch (emailError) {
-        console.error('Failed to send newsletter confirmation:', emailError.message);
-        if (process.env.NODE_ENV === 'production') {
-          Sentry.captureException(emailError);
-        }
-      }
+      const { subject, text } = confirmationEmail({ language: lang, confirmToken });
+      waitUntil(
+        sendEmail({ to: sanitizedEmail, subject, text }).catch((emailError) => {
+          console.error('Failed to send newsletter confirmation:', emailError.message);
+          if (process.env.NODE_ENV === 'production') {
+            Sentry.captureException(emailError);
+          }
+        })
+      );
     }
 
     return res.status(200).json({ success: true });

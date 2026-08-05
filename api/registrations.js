@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import { getDb } from './_shared/database.js';
 import {
   withApiHandler,
@@ -304,22 +305,24 @@ export default withApiHandler(async function handler(req, res) {
     const newRegistration = [registrationState.registration];
     const updatedEvent = registrationState.event || event;
 
-    // Send confirmation email (if configured)
-    try {
-      await sendEventConfirmationEmail({
+    // Send confirmation email (if configured). Never fails the request, so
+    // there's no reason to make the caller wait on Gmail's response time —
+    // waitUntil() lets it finish after the response is already sent.
+    waitUntil(
+      sendEventConfirmationEmail({
         registration: newRegistration[0],
         event: updatedEvent,
         language: sanitizedLanguage,
         photoSlots: photoSlots
-      });
-      console.log('Event confirmation email sent successfully');
-    } catch (emailError) {
-      console.error('Failed to send event confirmation email:', emailError);
-      // Don't fail the request if email fails, just log to Sentry
-      if (process.env.NODE_ENV === 'production') {
-        Sentry.captureException(emailError);
-      }
-    }
+      })
+        .then(() => console.log('Event confirmation email sent successfully'))
+        .catch((emailError) => {
+          console.error('Failed to send event confirmation email:', emailError);
+          if (process.env.NODE_ENV === 'production') {
+            Sentry.captureException(emailError);
+          }
+        })
+    );
 
     return res.status(201).json(newRegistration[0]);
   }
