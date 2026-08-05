@@ -60,6 +60,7 @@ export default withApiHandler(async function handler(req, res) {
         uploaded_at as "uploadedAt"
       FROM documents
       ORDER BY uploaded_at DESC
+      LIMIT 500
     `;
 
     return res.status(200).json(documents);

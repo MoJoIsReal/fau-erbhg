@@ -52,18 +52,14 @@ export default withApiHandler(async function handler(req, res) {
 
     const eventIdNum = parseInt(eventId);
 
-    // Check if authenticated (for admin view with full details)
+    // Council members (with a valid session, no pending password change) get
+    // full registration details. Everyone else — anonymous visitors, or an
+    // authenticated non-council user like staff — gets the same public
+    // aggregate. Authentication must never make a public endpoint stricter.
     const user = await parseAuthToken(req, sql);
+    const isCouncilMember = user && !user.passwordChangeRequired && COUNCIL_ROLES.includes(user.role);
 
-    if (user) {
-      if (user.passwordChangeRequired) {
-        return res.status(403).json({ error: 'Password change required', code: 'PASSWORD_CHANGE_REQUIRED' });
-      }
-      if (!COUNCIL_ROLES.includes(user.role)) {
-        return res.status(403).json({ error: 'Council member access required' });
-      }
-
-      // Council view - return full registration details
+    if (isCouncilMember) {
       const registrations = await sql`
         SELECT id, event_id as "eventId", name, email, phone,
                attendee_count as "attendeeCount", comments,

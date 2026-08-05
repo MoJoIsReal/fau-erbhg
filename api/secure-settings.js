@@ -142,6 +142,7 @@ async function handleBlogPosts(req, res, sql) {
         FROM blog_posts
         WHERE (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
+        LIMIT 500
       `;
     } else {
       // Public view - only show published posts
@@ -151,6 +152,7 @@ async function handleBlogPosts(req, res, sql) {
         WHERE status = 'published'
           AND (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
+        LIMIT 500
       `;
     }
 

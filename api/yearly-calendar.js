@@ -126,6 +126,10 @@ function normalizeImportRows(rows) {
   });
 }
 
+function pushImportFailure(summary, rowNumber, message) {
+  summary.errors.push({ rowNumber, errors: [message] });
+}
+
 async function getEntriesForSchoolYear(sql, schoolYear) {
   const rows = await sql`
     SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
@@ -210,7 +214,7 @@ export default withApiHandler(async function handler(req, res) {
           : null;
         const decisionValidation = validateImportDecision({ status, action });
         if (!decisionValidation.ok) {
-          summary.errors.push({ rowNumber, errors: [decisionValidation.error] });
+          pushImportFailure(summary, rowNumber, decisionValidation.error);
           continue;
         }
 
@@ -250,10 +254,7 @@ export default withApiHandler(async function handler(req, res) {
           const matchedExistingId = previewRow?.status === 'changed' ? previewRow.existing?.id : null;
 
           if (!existingId || !existingById.has(existingId) || existingId !== matchedExistingId) {
-            summary.errors.push({
-              rowNumber,
-              errors: ['Existing entry was not found for the selected school year.'],
-            });
+            pushImportFailure(summary, rowNumber, 'Existing entry was not found for the selected school year.');
             continue;
           }
 
@@ -281,18 +282,12 @@ export default withApiHandler(async function handler(req, res) {
             `;
 
             if (updated.length === 0) {
-              summary.errors.push({
-                rowNumber,
-                errors: ['Existing entry was not found for the selected school year.'],
-              });
+              pushImportFailure(summary, rowNumber, 'Existing entry was not found for the selected school year.');
             } else {
               summary.updated.push(mapEntry(updated[0]));
             }
           } catch (error) {
-            summary.errors.push({
-              rowNumber,
-              errors: ['Failed to update row.'],
-            });
+            pushImportFailure(summary, rowNumber, 'Failed to update row.');
           }
           continue;
         }
@@ -313,10 +308,7 @@ export default withApiHandler(async function handler(req, res) {
             `;
             summary.created.push(mapEntry(created[0]));
           } catch (error) {
-            summary.errors.push({
-              rowNumber,
-              errors: ['Failed to create row.'],
-            });
+            pushImportFailure(summary, rowNumber, 'Failed to create row.');
           }
         }
       }

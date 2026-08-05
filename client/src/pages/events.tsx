@@ -272,7 +272,7 @@ export default function Events() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.events.title}</h2>
+          <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.events.title}</h1>
           <p className="text-neutral-600 dark:text-neutral-300">{t.events.subtitle}</p>
         </div>
         <div className="mt-4 md:mt-0 flex items-center space-x-3">

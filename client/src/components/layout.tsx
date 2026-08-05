@@ -125,7 +125,9 @@ export default function Layout({ children }: LayoutProps) {
                 <img src={childIcon} alt="FAU Erdal Barnehage" className="w-10 h-10 object-contain" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="font-heading font-bold text-lg text-neutral-900 dark:text-neutral-50 leading-tight">{t.header.title}</h1>
+                {/* Site name, not a heading: it's identical on every page, so the
+                    page's own <h1> (in main content) is what should describe that page. */}
+                <p className="font-heading font-bold text-lg text-neutral-900 dark:text-neutral-50 leading-tight">{t.header.title}</p>
                 <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-tight">{t.header.subtitle}</p>
               </div>
             </Link>
