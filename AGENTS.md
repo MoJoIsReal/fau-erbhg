@@ -191,9 +191,6 @@ Schema changes workflow:
 
 Tables: `users`, `events`, `event_registrations`, `contact_messages`, `newsletter_subscribers`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
 
-> **Note:** `blog_posts` and `kindergarten_info` are referenced by `api/secure-settings.js` but
-> are not yet declared in `shared/schema.ts`. Add them there when next touching the schema.
-
 ## Testing
 
 There is currently no real test suite — only `scripts/smoke-tests.mjs` which is invoked by `npm test`. When adding complex business logic, manually verify via the dev server. This is a known gap.

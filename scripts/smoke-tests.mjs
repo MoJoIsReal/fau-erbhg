@@ -8,7 +8,7 @@ import {
   isPasswordChangeRequired,
   isUndefinedColumnError,
 } from '../api/_shared/password-policy.js';
-import { assignPhotoSlots } from '../shared/photo-slots.js';
+import { assignPhotoSlots, resolvePhotoSlotsForRegistration } from '../shared/photo-slots.js';
 import { COUNCIL_ROLES, EVENT_TYPES, ROLES } from '../shared/constants.js';
 import {
   VALID_YEARLY_CALENDAR_COLORS,
@@ -94,6 +94,34 @@ function testAssignPhotoSlots() {
   assert.deepEqual(
     assignPhotoSlots(event, legacy, 1),
     ['10:10'],
+  );
+}
+
+function testResolvePhotoSlotsForRegistration() {
+  const event = { time: '10:00' };
+
+  // Registration with stored slots: returned directly, without replaying the
+  // legacy sequence (the rest of allRegistrations is irrelevant here).
+  const withStored = { id: 5, photoSlots: '["10:15","10:20"]', childrenNames: '["A","B"]' };
+  assert.deepEqual(
+    resolvePhotoSlotsForRegistration(event, withStored, [withStored]),
+    ['10:15', '10:20'],
+  );
+
+  // Legacy registrations (no stored slots): replay the 10-min/child sequential
+  // assignment in registration-id order among the other legacy rows for the event.
+  const legacyA = { id: 1, attendeeCount: 1, childrenNames: '["A"]', photoSlots: null };
+  const legacyB = { id: 2, attendeeCount: 2, childrenNames: '["B","C"]', photoSlots: null };
+  const all = [legacyA, legacyB];
+  assert.deepEqual(resolvePhotoSlotsForRegistration(event, legacyA, all), ['10:00']);
+  assert.deepEqual(resolvePhotoSlotsForRegistration(event, legacyB, all), ['10:10', '10:20']);
+
+  // A registration with no children (excluded from the legacy set entirely)
+  // never matches, so it resolves to no slots.
+  const noChildren = { id: 3, attendeeCount: 1, childrenNames: null, photoSlots: null };
+  assert.deepEqual(
+    resolvePhotoSlotsForRegistration(event, noChildren, [legacyA, legacyB, noChildren]),
+    [],
   );
 }
 
@@ -867,6 +895,7 @@ function testYearlyCalendarImportDecisionMatrix() {
 testSanitizeHtml();
 testRateLimitKeys();
 testAssignPhotoSlots();
+testResolvePhotoSlotsForRegistration();
 testSharedConstants();
 testPasswordPolicy();
 testClientRegressionGuards();

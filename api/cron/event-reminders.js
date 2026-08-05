@@ -205,6 +205,17 @@ async function broadcastNewsletter(sql, targetDate) {
   return { items: dueItems.length, sent, failed, capped };
 }
 
+// api_rate_limits rows are useless once their window has passed; without this
+// the table would grow forever since nothing else ever deletes from it.
+async function cleanupExpiredRateLimits(sql) {
+  const deleted = await sql`
+    DELETE FROM api_rate_limits
+    WHERE reset_at < NOW() - INTERVAL '7 days'
+    RETURNING key
+  `;
+  return deleted.length;
+}
+
 async function cleanupPrivacyRetention(sql) {
   const deletedContactMessages = await sql`
     DELETE FROM contact_messages
@@ -309,5 +320,6 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   const retention = await cleanupPrivacyRetention(sql);
-  return res.status(200).json({ success: true, targetDate, sent, failed, retention });
+  const expiredRateLimitsDeleted = await cleanupExpiredRateLimits(sql);
+  return res.status(200).json({ success: true, targetDate, sent, failed, retention, expiredRateLimitsDeleted });
 });

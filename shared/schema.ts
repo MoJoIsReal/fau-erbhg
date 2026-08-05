@@ -128,6 +128,20 @@ export const blogPosts = pgTable("blog_posts", {
   categoryStatusIdx: index("blog_posts_category_status_idx").on(table.category, table.status),
 }));
 
+// Single-row table (no insert endpoint; seeded once, then only read/updated).
+export const kindergartenInfo = pgTable("kindergarten_info", {
+  id: serial("id").primaryKey(),
+  contactEmail: text("contact_email").notNull(),
+  address: text("address").notNull(),
+  openingHours: text("opening_hours").notNull(),
+  numberOfChildren: integer("number_of_children").notNull(),
+  owner: text("owner").notNull(),
+  description: text("description").notNull(),
+  styrerName: text("styrer_name"),
+  styrerEmail: text("styrer_email"),
+  updatedAt: text("updated_at").notNull(),
+});
+
 // Table exists in production DB for blocking spam registrations
 export const emailDomainBlacklist = pgTable("email_domain_blacklist", {
   id: serial("id").primaryKey(),
@@ -197,6 +211,7 @@ export const insertDocumentSchema = createInsertSchema(documents).omit({ id: tru
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertSiteSettingSchema = createInsertSchema(siteSettings).omit({ id: true, updatedAt: true });
 export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertKindergartenInfoSchema = createInsertSchema(kindergartenInfo).omit({ id: true, updatedAt: true });
 export const insertFauBoardMemberSchema = createInsertSchema(fauBoardMembers).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertEmailDomainBlacklistSchema = createInsertSchema(emailDomainBlacklist).omit({ id: true });
 export const insertYearlyCalendarEntrySchema = createInsertSchema(yearlyCalendarEntries).omit({ id: true, createdAt: true, updatedAt: true });
@@ -209,6 +224,7 @@ export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertSiteSetting = z.infer<typeof insertSiteSettingSchema>;
 export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
+export type InsertKindergartenInfo = z.infer<typeof insertKindergartenInfoSchema>;
 export type InsertFauBoardMember = z.infer<typeof insertFauBoardMemberSchema>;
 export type InsertYearlyCalendarEntry = z.infer<typeof insertYearlyCalendarEntrySchema>;
 
@@ -220,6 +236,7 @@ export type Document = typeof documents.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;
 export type BlogPost = typeof blogPosts.$inferSelect;
+export type KindergartenInfo = typeof kindergartenInfo.$inferSelect;
 export type FauBoardMember = typeof fauBoardMembers.$inferSelect;
 export type EmailDomainBlacklist = typeof emailDomainBlacklist.$inferSelect;
 export type YearlyCalendarEntry = typeof yearlyCalendarEntries.$inferSelect;
