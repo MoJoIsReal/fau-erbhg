@@ -22,8 +22,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   const loginMutation = useMutation({
     mutationFn: async (data: { username: string; password: string }) => {
-      await apiRequest('GET', '/api/login?action=csrf');
-      const response = await apiRequest('POST', '/api/login', data);
+      await apiRequest('GET', '/api/auth?action=csrf');
+      const response = await apiRequest('POST', '/api/auth?action=login', data);
       return response.json();
     },
     onSuccess: (data) => {
@@ -35,8 +35,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         duration: 2500,
       });
       // Force refresh authentication state
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      queryClient.refetchQueries({ queryKey: ['/api/user'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/auth'] });
+      queryClient.refetchQueries({ queryKey: ['/api/auth'] });
       onClose();
       setUsername('');
       setPassword('');

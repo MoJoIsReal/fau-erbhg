@@ -130,7 +130,7 @@ const form = useForm<FormValues>({ resolver: zodResolver(formSchema) });
   - `admin` — full CRUD on all resources (settings, blog, board members, staff users, contact messages, etc.).
   - `member` — write access to events, event registrations (delete), document uploads, and yearly calendar entries. Not allowed on `secure-settings` (admin-only).
   - `staff` — kindergarten staff with write access limited to yearly calendar entries.
-- Login rate limits: per-(IP, username) 5/15min, per-IP 30/15min, per-account 20/60min. The dummy bcrypt hash in `api/login.js` keeps timing constant for non-existent users.
+- Login rate limits: per-(IP, username) 5/15min, per-IP 30/15min, per-account 20/60min. The dummy bcrypt hash in `api/auth.js` keeps timing constant for non-existent users.
 
 Protect routes with the auth helpers in `api/_shared/middleware.js`
 (`parseAuthToken`, `requireAuth`, `requireCsrf`).
@@ -205,10 +205,16 @@ Production deploys automatically to Vercel on push to `main`. See `docs/DEPLOYME
 The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures two daily cron triggers (both hitting `api/cron/event-reminders.js`): 07:00 UTC for event-registration reminders + GDPR retention cleanup, and 19:00 UTC (`?task=newsletter`, ≈21:00 Oslo) for the newsletter broadcast of the next day's flagged events. Cron times are fixed UTC and do not follow Norwegian DST.
 
 **Serverless-function budget:** the Vercel Hobby plan caps the project at 12
-serverless functions. We are at the cap (11 routes in `api/*.js` + 1 cron in
-`api/cron/`). Adding a new endpoint means combining it into an existing
-function via a query-param-routed handler (as `secure-settings.js` does),
-moving to the Vercel Pro plan, or removing an existing function. There is no
+serverless functions. We currently use 9 (8 routes in `api/*.js` + 1 cron in
+`api/cron/`), keeping 3 slots of headroom. Several routes are already
+query-param-routed handlers that multiplex more than one logical resource
+onto a single function — `api/auth.js` (`?action=csrf|login|logout|me|change-password`,
+replacing what used to be separate `login.js`/`logout.js`/`user.js`),
+`api/documents.js` (`?action=download` folds in what used to be `download.js`),
+`api/contact.js` (`?action=newsletter-subscribe|newsletter-confirm|newsletter-unsubscribe`),
+and `api/secure-settings.js` (`?resource=...`). Prefer extending an existing
+query-param handler over adding a new file when it's a small addition; add a
+new file when there's budget and it's a distinct resource. There is no
 dedicated `/api/health` for this reason — uptime monitors should hit
 `GET /api/events` (DB-backed, public).
 

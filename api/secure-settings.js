@@ -3,9 +3,7 @@ import { getDb } from './_shared/database.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { generateTemporaryPassword } from './_shared/password-policy.js';
 import {
-  applySecurityHeaders,
-  handleCorsPreFlight,
-  handleError,
+  withApiHandler,
   requireCsrf,
   requireRole,
   sanitizeText,
@@ -524,48 +522,40 @@ async function handleNewsletterSubscribers(req, res, sql) {
 }
 
 // Main handler
-export default async function handler(req, res) {
-  applySecurityHeaders(res, req.headers.origin);
-  if (handleCorsPreFlight(req, res)) return;
+export default withApiHandler(async function handler(req, res) {
+  const sql = getDb();
+  const { resource } = req.query;
 
-  try {
-    const sql = getDb();
-    const { resource } = req.query;
-
-    // Route to board members handler
-    if (resource === 'board-members') {
-      return await handleBoardMembers(req, res, sql);
-    }
-
-    // Route to blog posts handler
-    if (resource === 'blog-posts') {
-      return await handleBlogPosts(req, res, sql);
-    }
-
-    // Route to kindergarten info handler
-    if (resource === 'kindergarten-info') {
-      return await handleKindergartenInfo(req, res, sql);
-    }
-
-    // Route to contact messages handler
-    if (resource === 'contact-messages') {
-      return await handleContactMessages(req, res, sql);
-    }
-
-    // Route to users handler
-    if (resource === 'users' || resource === 'staff-users') {
-      return await handleUsers(req, res, sql);
-    }
-
-    // Route to newsletter subscribers handler
-    if (resource === 'newsletter-subscribers') {
-      return await handleNewsletterSubscribers(req, res, sql);
-    }
-
-    // Default: handle site settings (can be extended in future)
-    return res.status(400).json({ error: 'Invalid resource' });
-
-  } catch (error) {
-    return handleError(res, error);
+  // Route to board members handler
+  if (resource === 'board-members') {
+    return await handleBoardMembers(req, res, sql);
   }
-}
+
+  // Route to blog posts handler
+  if (resource === 'blog-posts') {
+    return await handleBlogPosts(req, res, sql);
+  }
+
+  // Route to kindergarten info handler
+  if (resource === 'kindergarten-info') {
+    return await handleKindergartenInfo(req, res, sql);
+  }
+
+  // Route to contact messages handler
+  if (resource === 'contact-messages') {
+    return await handleContactMessages(req, res, sql);
+  }
+
+  // Route to users handler
+  if (resource === 'users' || resource === 'staff-users') {
+    return await handleUsers(req, res, sql);
+  }
+
+  // Route to newsletter subscribers handler
+  if (resource === 'newsletter-subscribers') {
+    return await handleNewsletterSubscribers(req, res, sql);
+  }
+
+  // Default: handle site settings (can be extended in future)
+  return res.status(400).json({ error: 'Invalid resource' });
+});

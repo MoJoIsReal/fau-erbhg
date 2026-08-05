@@ -13,18 +13,18 @@ export function useAuth() {
   const queryClient = useQueryClient();
 
   const { data: user, isLoading } = useQuery({
-    queryKey: ['/api/user'],
+    queryKey: ['/api/auth'],
     retry: false,
   });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
       // Call logout API to clear HttpOnly cookies properly
-      await apiRequest('POST', '/api/logout');
+      await apiRequest('POST', '/api/auth?action=logout');
     },
     onSuccess: () => {
-      queryClient.setQueryData(['/api/user'], null);
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      queryClient.setQueryData(['/api/auth'], null);
+      queryClient.invalidateQueries({ queryKey: ['/api/auth'] });
       // Force page reload to clear all cached data
       window.location.href = '/';
     },

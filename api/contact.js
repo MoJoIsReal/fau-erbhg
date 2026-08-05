@@ -1,7 +1,6 @@
 import { getDb } from './_shared/database.js';
 import {
-  applySecurityHeaders,
-  handleCorsPreFlight,
+  withApiHandler,
   handleError,
   sanitizeText,
   sanitizeEmail,
@@ -16,11 +15,7 @@ const CONTACT_WINDOW_SECONDS = 10 * 60;
 const CONTACT_MAX_ATTEMPTS = 3;
 const TOKEN_RE = /^[a-f0-9]{64}$/;
 
-export default async function handler(req, res) {
-  // Apply security headers and handle CORS
-  applySecurityHeaders(res, req.headers.origin);
-  if (handleCorsPreFlight(req, res)) return;
-
+export default withApiHandler(async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -129,7 +124,7 @@ export default async function handler(req, res) {
   } catch (error) {
     return handleError(res, error);
   }
-}
+});
 
 async function sendContactEmail(params) {
   const { name, email, phone, subject, message, isAnonymous } = params;
