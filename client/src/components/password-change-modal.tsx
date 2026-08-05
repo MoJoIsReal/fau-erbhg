@@ -25,15 +25,15 @@ export default function PasswordChangeModal() {
         throw new Error(t.modals.passwordChange.mismatch);
       }
 
-      const response = await apiRequest("POST", "/api/user?action=change-password", {
+      const response = await apiRequest("POST", "/api/auth?action=change-password", {
         currentPassword,
         newPassword,
       });
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(["/api/user"], data.user);
-      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+      queryClient.setQueryData(["/api/auth"], data.user);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth"] });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");

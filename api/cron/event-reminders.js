@@ -1,9 +1,5 @@
 import { getDb } from '../_shared/database.js';
-import {
-  applySecurityHeaders,
-  handleCorsPreFlight,
-  handleError,
-} from '../_shared/middleware.js';
+import { withApiHandler } from '../_shared/middleware.js';
 import { sendEmail, isEmailConfigured } from '../_shared/email.js';
 import { reminderEmail as newsletterReminderEmail } from '../_shared/newsletter.js';
 import Sentry from '../_shared/sentry.js';
@@ -230,10 +226,7 @@ async function cleanupPrivacyRetention(sql) {
   };
 }
 
-export default async function handler(req, res) {
-  applySecurityHeaders(res, req.headers.origin);
-  if (handleCorsPreFlight(req, res)) return;
-
+export default withApiHandler(async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -242,83 +235,79 @@ export default async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  try {
-    const sql = getDb();
-    const targetDate = req.query.date || tomorrowInOslo();
-    const claimTimestamp = new Date().toISOString();
+  const sql = getDb();
+  const targetDate = req.query.date || tomorrowInOslo();
+  const claimTimestamp = new Date().toISOString();
 
-    // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
-    // for the next day's flagged events. Registration reminders + GDPR cleanup
-    // stay on the morning run (07:00 UTC).
-    if (req.query.task === 'newsletter') {
-      const newsletter = await broadcastNewsletter(sql, targetDate);
-      return res.status(200).json({ success: true, targetDate, task: 'newsletter', newsletter });
+  // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
+  // for the next day's flagged events. Registration reminders + GDPR cleanup
+  // stay on the morning run (07:00 UTC).
+  if (req.query.task === 'newsletter') {
+    const newsletter = await broadcastNewsletter(sql, targetDate);
+    return res.status(200).json({ success: true, targetDate, task: 'newsletter', newsletter });
+  }
+
+  const claimed = await sql`
+    WITH due AS (
+      SELECT
+        r.id,
+        r.name,
+        r.email,
+        r.language,
+        r.attendee_count as "attendeeCount",
+        r.photo_slots as "photoSlots",
+        e.title as "eventTitle",
+        e.date as "eventDate",
+        e.time as "eventTime",
+        e.location,
+        e.custom_location as "customLocation"
+      FROM event_registrations r
+      JOIN events e ON e.id = r.event_id
+      WHERE e.status = 'active'
+        AND e.date = ${targetDate}
+        AND r.reminder_sent_at IS NULL
+      ORDER BY e.time ASC, r.id ASC
+      LIMIT ${MAX_REMINDERS_PER_RUN}
+    ),
+    claimed AS (
+      UPDATE event_registrations r
+      SET reminder_sent_at = ${claimTimestamp}
+      FROM due
+      WHERE r.id = due.id
+      RETURNING r.id
+    )
+    SELECT due.*
+    FROM due
+    JOIN claimed ON claimed.id = due.id
+  `;
+
+  let sent = 0;
+  let failed = 0;
+
+  if (claimed.length > 0) {
+    if (!isEmailConfigured()) {
+      throw new Error('Email configuration not available');
     }
 
-    const claimed = await sql`
-      WITH due AS (
-        SELECT
-          r.id,
-          r.name,
-          r.email,
-          r.language,
-          r.attendee_count as "attendeeCount",
-          r.photo_slots as "photoSlots",
-          e.title as "eventTitle",
-          e.date as "eventDate",
-          e.time as "eventTime",
-          e.location,
-          e.custom_location as "customLocation"
-        FROM event_registrations r
-        JOIN events e ON e.id = r.event_id
-        WHERE e.status = 'active'
-          AND e.date = ${targetDate}
-          AND r.reminder_sent_at IS NULL
-        ORDER BY e.time ASC, r.id ASC
-        LIMIT ${MAX_REMINDERS_PER_RUN}
-      ),
-      claimed AS (
-        UPDATE event_registrations r
-        SET reminder_sent_at = ${claimTimestamp}
-        FROM due
-        WHERE r.id = due.id
-        RETURNING r.id
-      )
-      SELECT due.*
-      FROM due
-      JOIN claimed ON claimed.id = due.id
-    `;
-
-    let sent = 0;
-    let failed = 0;
-
-    if (claimed.length > 0) {
-      if (!isEmailConfigured()) {
-        throw new Error('Email configuration not available');
-      }
-
-      for (const registration of claimed) {
-        try {
-          await sendReminder(registration);
-          sent += 1;
-        } catch (emailError) {
-          failed += 1;
-          await sql`
-            UPDATE event_registrations
-            SET reminder_sent_at = NULL
-            WHERE id = ${registration.id}
-          `;
-          console.error('Failed to send event reminder:', redactSensitiveText(emailError.message));
-          if (process.env.NODE_ENV === 'production') {
-            Sentry.captureException(emailError);
-          }
+    for (const registration of claimed) {
+      try {
+        await sendReminder(registration);
+        sent += 1;
+      } catch (emailError) {
+        failed += 1;
+        await sql`
+          UPDATE event_registrations
+          SET reminder_sent_at = NULL
+          WHERE id = ${registration.id}
+        `;
+        console.error('Failed to send event reminder:', redactSensitiveText(emailError.message));
+        if (process.env.NODE_ENV === 'production') {
+          Sentry.captureException(emailError);
         }
       }
     }
-
-    const retention = await cleanupPrivacyRetention(sql);
-    return res.status(200).json({ success: true, targetDate, sent, failed, retention });
-  } catch (error) {
-    return handleError(res, error);
   }
-}
+
+  const retention = await cleanupPrivacyRetention(sql);
+  return res.status(200).json({ success: true, targetDate, sent, failed, retention });
+});

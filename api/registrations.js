@@ -1,8 +1,6 @@
 import { getDb } from './_shared/database.js';
 import {
-  applySecurityHeaders,
-  handleCorsPreFlight,
-  handleError,
+  withApiHandler,
   parseAuthToken,
   requireCsrf,
   requireRole,
@@ -42,337 +40,328 @@ function sanitizeChildrenNames(raw, maxCount) {
   return cleaned.length > 0 ? JSON.stringify(cleaned) : null;
 }
 
-export default async function handler(req, res) {
-  // Apply security headers and handle CORS
-  applySecurityHeaders(res, req.headers.origin);
-  if (handleCorsPreFlight(req, res)) return;
+export default withApiHandler(async function handler(req, res) {
+  const sql = getDb();
 
-  try {
-    const sql = getDb();
+  if (req.method === 'GET') {
+    const { eventId } = req.query;
 
-    if (req.method === 'GET') {
-      const { eventId } = req.query;
+    if (!eventId || isNaN(parseInt(eventId))) {
+      return res.status(400).json({ error: 'Valid event ID required' });
+    }
 
-      if (!eventId || isNaN(parseInt(eventId))) {
-        return res.status(400).json({ error: 'Valid event ID required' });
+    const eventIdNum = parseInt(eventId);
+
+    // Check if authenticated (for admin view with full details)
+    const user = await parseAuthToken(req, sql);
+
+    if (user) {
+      if (user.passwordChangeRequired) {
+        return res.status(403).json({ error: 'Password change required', code: 'PASSWORD_CHANGE_REQUIRED' });
+      }
+      if (!COUNCIL_ROLES.includes(user.role)) {
+        return res.status(403).json({ error: 'Council member access required' });
       }
 
-      const eventIdNum = parseInt(eventId);
+      // Council view - return full registration details
+      const registrations = await sql`
+        SELECT id, event_id as "eventId", name, email, phone,
+               attendee_count as "attendeeCount", comments,
+               registered_at as "registeredAt",
+               children_names as "childrenNames",
+               photo_slots as "photoSlots"
+        FROM event_registrations
+        WHERE event_id = ${eventIdNum}
+        ORDER BY registered_at DESC
+      `;
+      return res.status(200).json(registrations);
+    } else {
+      // Public access - return aggregate only. Never expose registration PII.
+      const totals = await sql`
+        SELECT COALESCE(SUM(attendee_count), 0)::int as count
+        FROM event_registrations
+        WHERE event_id = ${eventIdNum}
+      `;
+      return res.status(200).json({ count: totals[0]?.count || 0 });
+    }
+  }
 
-      // Check if authenticated (for admin view with full details)
-      const user = await parseAuthToken(req, sql);
+  if (req.method === 'POST') {
+    // Public access - Create new registration
+    const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames } = req.body;
 
-      if (user) {
-        if (user.passwordChangeRequired) {
-          return res.status(403).json({ error: 'Password change required', code: 'PASSWORD_CHANGE_REQUIRED' });
-        }
-        if (!COUNCIL_ROLES.includes(user.role)) {
-          return res.status(403).json({ error: 'Council member access required' });
-        }
+    // Sanitize inputs
+    const sanitizedName = sanitizeText(name, 100);
+    const sanitizedEmail = sanitizeEmail(email);
+    const sanitizedPhone = sanitizePhone(phone);
+    const sanitizedComments = comments ? sanitizeText(comments, 1000) : null;
+    const sanitizedAttendeeCount = sanitizeNumber(attendeeCount, 1, 100) || 1;
+    const sanitizedLanguage = ['no', 'en'].includes(language) ? language : 'no';
 
-        // Council view - return full registration details
-        const registrations = await sql`
-          SELECT id, event_id as "eventId", name, email, phone,
-                 attendee_count as "attendeeCount", comments,
-                 registered_at as "registeredAt",
-                 children_names as "childrenNames",
-                 photo_slots as "photoSlots"
-          FROM event_registrations
-          WHERE event_id = ${eventIdNum}
-          ORDER BY registered_at DESC
+    if (!eventId || !sanitizedName || !sanitizedEmail) {
+      return res.status(400).json({ error: 'Event ID, valid name and email are required' });
+    }
+
+    // Check email domain against database blacklist
+    const emailDomain = sanitizedEmail.split('@')[1]?.toLowerCase();
+
+    if (emailDomain) {
+      try {
+        const blacklistedDomains = await sql`
+          SELECT domain, category, action, suggested_fix, description
+          FROM email_domain_blacklist
+          WHERE domain = ${emailDomain}
         `;
-        return res.status(200).json(registrations);
-      } else {
-        // Public access - return aggregate only. Never expose registration PII.
-        const totals = await sql`
-          SELECT COALESCE(SUM(attendee_count), 0)::int as count
-          FROM event_registrations
-          WHERE event_id = ${eventIdNum}
-        `;
-        return res.status(200).json({ count: totals[0]?.count || 0 });
+
+        if (blacklistedDomains.length > 0) {
+          const entry = blacklistedDomains[0];
+
+          if (entry.action === 'block') {
+            // Hard block for categories A, B, C, D
+            const errorMessage = sanitizedLanguage === 'no'
+              ? 'Ugyldig e-postadresse. Bruk en ekte e-post.'
+              : 'Invalid email address. Please use a real email.';
+            return res.status(400).json({
+              error: errorMessage,
+              category: entry.category
+            });
+          } else if (entry.action === 'suggest' && entry.suggested_fix) {
+            // Suggest correction for category F (typos)
+            const errorMessage = sanitizedLanguage === 'no'
+              ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`
+              : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`;
+            return res.status(400).json({
+              error: errorMessage,
+              suggestion: `${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}`,
+              category: entry.category
+            });
+          }
+        }
+      } catch (blacklistError) {
+        // Table may not exist yet or have different schema — skip check, don't block registration.
+        // Surface to Sentry so silent spam-filter degradation is noticed instead of slowly missed.
+        console.warn('Email blacklist check failed, skipping:', blacklistError.message);
+        if (process.env.NODE_ENV === 'production') {
+          Sentry.captureException(blacklistError);
+        }
       }
     }
 
-    if (req.method === 'POST') {
-      // Public access - Create new registration
-      const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames } = req.body;
+    const eventIdNum = parseInt(eventId);
 
-      // Sanitize inputs
-      const sanitizedName = sanitizeText(name, 100);
-      const sanitizedEmail = sanitizeEmail(email);
-      const sanitizedPhone = sanitizePhone(phone);
-      const sanitizedComments = comments ? sanitizeText(comments, 1000) : null;
-      const sanitizedAttendeeCount = sanitizeNumber(attendeeCount, 1, 100) || 1;
-      const sanitizedLanguage = ['no', 'en'].includes(language) ? language : 'no';
+    if (isNaN(eventIdNum)) {
+      return res.status(400).json({ error: 'Valid event ID required' });
+    }
 
-      if (!eventId || !sanitizedName || !sanitizedEmail) {
-        return res.status(400).json({ error: 'Event ID, valid name and email are required' });
-      }
+    const registrationRateLimitKey = rateLimitKey(req, 'register', `${eventIdNum}:${sanitizedEmail}`);
+    const registrationIpRateLimitKey = rateLimitKey(req, 'register-ip', '');
+    const [registrationRateLimit, registrationIpRateLimit] = await Promise.all([
+      checkRateLimit(sql, {
+        key: registrationRateLimitKey,
+        limit: REGISTRATION_MAX_ATTEMPTS,
+        windowSeconds: REGISTRATION_WINDOW_SECONDS
+      }),
+      checkRateLimit(sql, {
+        key: registrationIpRateLimitKey,
+        limit: REGISTRATION_MAX_ATTEMPTS,
+        windowSeconds: REGISTRATION_WINDOW_SECONDS
+      })
+    ]);
 
-      // Check email domain against database blacklist
-      const emailDomain = sanitizedEmail.split('@')[1]?.toLowerCase();
+    if (!registrationRateLimit.allowed || !registrationIpRateLimit.allowed) {
+      res.setHeader(
+        'Retry-After',
+        String(Math.max(registrationRateLimit.retryAfter, registrationIpRateLimit.retryAfter))
+      );
+      return res.status(429).json({
+        error: sanitizedLanguage === 'no'
+          ? 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
+          : 'Too many registrations from this device. Try again later.'
+      });
+    }
 
-      if (emailDomain) {
-        try {
-          const blacklistedDomains = await sql`
-            SELECT domain, category, action, suggested_fix, description
-            FROM email_domain_blacklist
-            WHERE domain = ${emailDomain}
-          `;
+    // Check if event exists and is active
+    const nowIso = new Date().toISOString();
+    const events = await sql`
+      SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees,
+             registration_deadline, type, no_signup, vigilo_signup
+      FROM events
+      WHERE id = ${eventIdNum} AND status = 'active'
+    `;
 
-          if (blacklistedDomains.length > 0) {
-            const entry = blacklistedDomains[0];
+    if (events.length === 0) {
+      return res.status(404).json({ error: 'Event not found or not active' });
+    }
 
-            if (entry.action === 'block') {
-              // Hard block for categories A, B, C, D
-              const errorMessage = sanitizedLanguage === 'no'
-                ? 'Ugyldig e-postadresse. Bruk en ekte e-post.'
-                : 'Invalid email address. Please use a real email.';
-              return res.status(400).json({
-                error: errorMessage,
-                category: entry.category
-              });
-            } else if (entry.action === 'suggest' && entry.suggested_fix) {
-              // Suggest correction for category F (typos)
-              const errorMessage = sanitizedLanguage === 'no'
-                ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`
-                : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`;
-              return res.status(400).json({
-                error: errorMessage,
-                suggestion: `${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}`,
-                category: entry.category
-              });
-            }
-          }
-        } catch (blacklistError) {
-          // Table may not exist yet or have different schema — skip check, don't block registration.
-          // Surface to Sentry so silent spam-filter degradation is noticed instead of slowly missed.
-          console.warn('Email blacklist check failed, skipping:', blacklistError.message);
-          if (process.env.NODE_ENV === 'production') {
-            Sentry.captureException(blacklistError);
-          }
-        }
-      }
+    const event = events[0];
+    if (event.no_signup || event.vigilo_signup) {
+      return res.status(400).json({
+        error: sanitizedLanguage === 'no'
+          ? 'Påmelding er ikke tillatt for dette arrangementet'
+          : 'Registration is not available for this event'
+      });
+    }
 
-      const eventIdNum = parseInt(eventId);
+    if (event.registration_deadline && event.registration_deadline < nowIso) {
+      return res.status(400).json({
+        error: sanitizedLanguage === 'no'
+          ? 'Påmeldingsfristen har gått ut'
+          : 'The registration deadline has passed'
+      });
+    }
 
-      if (isNaN(eventIdNum)) {
-        return res.status(400).json({ error: 'Valid event ID required' });
-      }
+    const requestedAttendees = sanitizedAttendeeCount;
 
-      const registrationRateLimitKey = rateLimitKey(req, 'register', `${eventIdNum}:${sanitizedEmail}`);
-      const registrationIpRateLimitKey = rateLimitKey(req, 'register-ip', '');
-      const [registrationRateLimit, registrationIpRateLimit] = await Promise.all([
-        checkRateLimit(sql, {
-          key: registrationRateLimitKey,
-          limit: REGISTRATION_MAX_ATTEMPTS,
-          windowSeconds: REGISTRATION_WINDOW_SECONDS
-        }),
-        checkRateLimit(sql, {
-          key: registrationIpRateLimitKey,
-          limit: REGISTRATION_MAX_ATTEMPTS,
-          windowSeconds: REGISTRATION_WINDOW_SECONDS
-        })
-      ]);
+    const sanitizedChildrenNames = sanitizeChildrenNames(childrenNames, requestedAttendees);
 
-      if (!registrationRateLimit.allowed || !registrationIpRateLimit.allowed) {
-        res.setHeader(
-          'Retry-After',
-          String(Math.max(registrationRateLimit.retryAfter, registrationIpRateLimit.retryAfter))
-        );
-        return res.status(429).json({
-          error: sanitizedLanguage === 'no'
-            ? 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
-            : 'Too many registrations from this device. Try again later.'
-        });
-      }
+    // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
+    let photoSlots = undefined;
+    let photoSlotsJson = null;
+    if (event.type === 'foto' && sanitizedChildrenNames) {
+      const existingForSlots = await sql`
+        SELECT id, attendee_count as "attendeeCount",
+               children_names as "childrenNames",
+               photo_slots as "photoSlots"
+        FROM event_registrations
+        WHERE event_id = ${eventIdNum}
+      `;
+      photoSlots = assignPhotoSlots(event, existingForSlots, requestedAttendees);
+      photoSlotsJson = JSON.stringify(photoSlots);
+    }
 
-      // Check if event exists and is active
-      const nowIso = new Date().toISOString();
-      const events = await sql`
-        SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees,
-               registration_deadline, type, no_signup, vigilo_signup
+    // Always bind children_names and photo_slots — null when this isn't a
+    // foto event so a single CTE handles both cases.
+    const childrenNamesParam = sanitizedChildrenNames ?? null;
+    const photoSlotsParam = photoSlotsJson ?? null;
+
+    const registrationResult = await sql`
+      WITH target_event AS (
+        SELECT *
         FROM events
         WHERE id = ${eventIdNum} AND status = 'active'
-      `;
-
-      if (events.length === 0) {
-        return res.status(404).json({ error: 'Event not found or not active' });
-      }
-
-      const event = events[0];
-      if (event.no_signup || event.vigilo_signup) {
-        return res.status(400).json({
-          error: sanitizedLanguage === 'no'
-            ? 'Påmelding er ikke tillatt for dette arrangementet'
-            : 'Registration is not available for this event'
-        });
-      }
-
-      if (event.registration_deadline && event.registration_deadline < nowIso) {
-        return res.status(400).json({
-          error: sanitizedLanguage === 'no'
-            ? 'Påmeldingsfristen har gått ut'
-            : 'The registration deadline has passed'
-        });
-      }
-
-      const requestedAttendees = sanitizedAttendeeCount;
-
-      const sanitizedChildrenNames = sanitizeChildrenNames(childrenNames, requestedAttendees);
-
-      // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
-      let photoSlots = undefined;
-      let photoSlotsJson = null;
-      if (event.type === 'foto' && sanitizedChildrenNames) {
-        const existingForSlots = await sql`
-          SELECT id, attendee_count as "attendeeCount",
-                 children_names as "childrenNames",
-                 photo_slots as "photoSlots"
-          FROM event_registrations
-          WHERE event_id = ${eventIdNum}
-        `;
-        photoSlots = assignPhotoSlots(event, existingForSlots, requestedAttendees);
-        photoSlotsJson = JSON.stringify(photoSlots);
-      }
-
-      // Always bind children_names and photo_slots — null when this isn't a
-      // foto event so a single CTE handles both cases.
-      const childrenNamesParam = sanitizedChildrenNames ?? null;
-      const photoSlotsParam = photoSlotsJson ?? null;
-
-      const registrationResult = await sql`
-        WITH target_event AS (
-          SELECT *
-          FROM events
-          WHERE id = ${eventIdNum} AND status = 'active'
-            AND COALESCE(no_signup, false) = false
-            AND COALESCE(vigilo_signup, false) = false
-            AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
-        ),
-        capacity_update AS (
-          UPDATE events
-          SET current_attendees = current_attendees + ${requestedAttendees}
-          WHERE id = ${eventIdNum}
-            AND EXISTS (SELECT 1 FROM target_event)
-            AND (
-              (SELECT type FROM target_event) = 'foto'
-              OR (SELECT max_attendees FROM target_event) IS NULL
-              OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
-            )
-          RETURNING *
-        ),
-        inserted_registration AS (
-          INSERT INTO event_registrations (
-            event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
+          AND COALESCE(no_signup, false) = false
+          AND COALESCE(vigilo_signup, false) = false
+          AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
+      ),
+      capacity_update AS (
+        UPDATE events
+        SET current_attendees = current_attendees + ${requestedAttendees}
+        WHERE id = ${eventIdNum}
+          AND EXISTS (SELECT 1 FROM target_event)
+          AND (
+            (SELECT type FROM target_event) = 'foto'
+            OR (SELECT max_attendees FROM target_event) IS NULL
+            OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
           )
-          SELECT
-            ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-            ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
-            ${childrenNamesParam}, ${photoSlotsParam}
-          WHERE EXISTS (SELECT 1 FROM capacity_update)
-            AND NOT EXISTS (
-              SELECT 1 FROM event_registrations
-              WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
-            )
-          ON CONFLICT DO NOTHING
-          RETURNING *
-        ),
-        rollback_capacity AS (
-          UPDATE events
-          SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
-          WHERE id = ${eventIdNum}
-            AND EXISTS (SELECT 1 FROM capacity_update)
-            AND NOT EXISTS (SELECT 1 FROM inserted_registration)
-          RETURNING id
+        RETURNING *
+      ),
+      inserted_registration AS (
+        INSERT INTO event_registrations (
+          event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
         )
         SELECT
-          (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
-          (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
-          (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
-          (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
-          (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
-      `;
-
-      const registrationState = registrationResult[0];
-      if (!registrationState?.eventExists) {
-        return res.status(404).json({ error: 'Event not found or not active' });
-      }
-
-      if (!registrationState.capacityReserved) {
-        return res.status(400).json({
-          error: 'Event is at capacity',
-          available: registrationState.available || 0
-        });
-      }
-
-      if (!registrationState.registration) {
-        return res.status(400).json({
-          error: 'This email is already registered for this event'
-        });
-      }
-
-      const newRegistration = [registrationState.registration];
-      const updatedEvent = registrationState.event || event;
-
-      // Send confirmation email (if configured)
-      try {
-        await sendEventConfirmationEmail({
-          registration: newRegistration[0],
-          event: updatedEvent,
-          language: sanitizedLanguage,
-          photoSlots: photoSlots
-        });
-        console.log('Event confirmation email sent successfully');
-      } catch (emailError) {
-        console.error('Failed to send event confirmation email:', emailError);
-        // Don't fail the request if email fails, just log to Sentry
-        if (process.env.NODE_ENV === 'production') {
-          Sentry.captureException(emailError);
-        }
-      }
-
-      return res.status(201).json(newRegistration[0]);
-    }
-
-    if (req.method === 'DELETE') {
-      const user = await requireRole(req, res, COUNCIL_ROLES, sql);
-      if (!user) return;
-
-      // CSRF protection for state-changing requests
-      if (!requireCsrf(req, res)) return;
-
-      const { id } = req.query;
-
-      if (!id || isNaN(parseInt(id))) {
-        return res.status(400).json({ error: 'Valid registration ID required' });
-      }
-
-      const deletedReg = await sql`
-        DELETE FROM event_registrations WHERE id = ${parseInt(id)} RETURNING event_id, attendee_count
-      `;
-
-      if (deletedReg.length === 0) {
-        return res.status(404).json({ error: 'Registration not found' });
-      }
-
-      // Update event attendee count
-      const { event_id, attendee_count } = deletedReg[0];
-      await sql`
+          ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
+          ${childrenNamesParam}, ${photoSlotsParam}
+        WHERE EXISTS (SELECT 1 FROM capacity_update)
+          AND NOT EXISTS (
+            SELECT 1 FROM event_registrations
+            WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
+          )
+        ON CONFLICT DO NOTHING
+        RETURNING *
+      ),
+      rollback_capacity AS (
         UPDATE events
-        SET current_attendees = GREATEST(0, current_attendees - ${attendee_count || 1})
-        WHERE id = ${event_id}
-      `;
+        SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
+        WHERE id = ${eventIdNum}
+          AND EXISTS (SELECT 1 FROM capacity_update)
+          AND NOT EXISTS (SELECT 1 FROM inserted_registration)
+        RETURNING id
+      )
+      SELECT
+        (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
+        (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
+        (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
+        (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
+        (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
+    `;
 
-      return res.status(200).json({ success: true });
+    const registrationState = registrationResult[0];
+    if (!registrationState?.eventExists) {
+      return res.status(404).json({ error: 'Event not found or not active' });
     }
 
-    return res.status(405).json({ error: 'Method not allowed' });
+    if (!registrationState.capacityReserved) {
+      return res.status(400).json({
+        error: 'Event is at capacity',
+        available: registrationState.available || 0
+      });
+    }
 
-  } catch (error) {
-    return handleError(res, error);
+    if (!registrationState.registration) {
+      return res.status(400).json({
+        error: 'This email is already registered for this event'
+      });
+    }
+
+    const newRegistration = [registrationState.registration];
+    const updatedEvent = registrationState.event || event;
+
+    // Send confirmation email (if configured)
+    try {
+      await sendEventConfirmationEmail({
+        registration: newRegistration[0],
+        event: updatedEvent,
+        language: sanitizedLanguage,
+        photoSlots: photoSlots
+      });
+      console.log('Event confirmation email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send event confirmation email:', emailError);
+      // Don't fail the request if email fails, just log to Sentry
+      if (process.env.NODE_ENV === 'production') {
+        Sentry.captureException(emailError);
+      }
+    }
+
+    return res.status(201).json(newRegistration[0]);
   }
-}
+
+  if (req.method === 'DELETE') {
+    const user = await requireRole(req, res, COUNCIL_ROLES, sql);
+    if (!user) return;
+
+    // CSRF protection for state-changing requests
+    if (!requireCsrf(req, res)) return;
+
+    const { id } = req.query;
+
+    if (!id || isNaN(parseInt(id))) {
+      return res.status(400).json({ error: 'Valid registration ID required' });
+    }
+
+    const deletedReg = await sql`
+      DELETE FROM event_registrations WHERE id = ${parseInt(id)} RETURNING event_id, attendee_count
+    `;
+
+    if (deletedReg.length === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+
+    // Update event attendee count
+    const { event_id, attendee_count } = deletedReg[0];
+    await sql`
+      UPDATE events
+      SET current_attendees = GREATEST(0, current_attendees - ${attendee_count || 1})
+      WHERE id = ${event_id}
+    `;
+
+    return res.status(200).json({ success: true });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+});
 
 async function sendEventConfirmationEmail(params) {
   const { registration, event, language, photoSlots } = params;

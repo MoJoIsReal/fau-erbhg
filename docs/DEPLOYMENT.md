@@ -143,7 +143,7 @@ INSERT INTO users (username, password, name, role, created_at)
 VALUES ('admin@example.com', '<hash-from-above>', 'Admin', 'admin', NOW()::text);
 ```
 
-Then log in via `/api/login`. Change the password by repeating the same procedure once a self-service flow is needed.
+Then log in via the site (calls `/api/auth?action=login`). Change the password by repeating the same procedure once a self-service flow is needed.
 
 ### 4. Database Indexes
 
@@ -169,8 +169,9 @@ After deployment completes:
 #### Verify the database-backed public endpoints
 
 There is no dedicated `/api/health` endpoint. The Vercel Hobby plan caps the
-project at 12 serverless functions and we are already using all 12 (11 routes
-under `api/*.js` plus the cron in `api/cron/event-reminders.js`). Use one of
+project at 12 serverless functions; we use 9 (8 routes under `api/*.js` plus
+the cron in `api/cron/event-reminders.js`), several of which multiplex more
+than one resource behind a query param to stay well under the cap. Use one of
 the existing public, DB-backed routes for uptime monitoring instead:
 
 ```bash

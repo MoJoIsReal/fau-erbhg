@@ -53,9 +53,9 @@ export function applySecurityHeaders(res, origin) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie, X-CSRF-Token');
 
-  // Security headers (note: global headers in vercel.json will also apply)
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
+  // X-Content-Type-Options and X-Frame-Options are intentionally not set here:
+  // the global headers in vercel.json already apply them to every route,
+  // including /api/*, so setting them again here would be pure duplication.
 }
 
 /**
@@ -70,6 +70,27 @@ export function handleCorsPreFlight(req, res) {
     return true;
   }
   return false;
+}
+
+/**
+ * Wrap a Vercel serverless function handler with the security headers, CORS
+ * preflight handling, and top-level error handling every API route needs.
+ * Route handlers just implement their method/action routing and can let
+ * errors propagate — this catches them and calls handleError().
+ * @param {(req: Object, res: Object) => Promise<any>} handler
+ * @returns {(req: Object, res: Object) => Promise<any>}
+ */
+export function withApiHandler(handler) {
+  return async function wrappedHandler(req, res) {
+    applySecurityHeaders(res, req.headers.origin);
+    if (handleCorsPreFlight(req, res)) return;
+
+    try {
+      return await handler(req, res);
+    } catch (error) {
+      return handleError(res, error);
+    }
+  };
 }
 
 /**
