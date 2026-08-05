@@ -316,7 +316,11 @@ export async function requireRole(req, res, allowedRoles, sqlClient = null, opti
 }
 
 /**
- * Sanitize text input to prevent XSS attacks
+ * Sanitize plain-text input. This is a defense-in-depth pass (strips angle
+ * brackets, javascript: URLs, inline event handlers) for fields that are
+ * never meant to contain markup — it is NOT a full HTML sanitizer. Fields
+ * that render as rich text/HTML must go through sanitizeHtml() instead,
+ * which is the actual XSS defense for that case.
  * @param {string} text - Input text to sanitize
  * @param {number} maxLength - Maximum allowed length (default: 1000)
  * @returns {string} - Sanitized text

@@ -1,11 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Calendar, Lightbulb, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+
+const PAGE_SIZE = 10;
 
 interface BlogPost {
   id: number;
@@ -67,9 +71,28 @@ export default function News() {
     path: isTips ? "/tips-tricks" : "/news",
   });
 
-  const { data: blogPosts = [], isLoading, isError } = useQuery<BlogPost[]>({
-    queryKey: [`/api/secure-settings?resource=blog-posts&category=${category}`],
+  const {
+    data,
+    isLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery<BlogPost[]>({
+    queryKey: [`/api/secure-settings?resource=blog-posts&category=${category}`, "paginated"],
+    queryFn: async ({ pageParam }) => {
+      const offset = pageParam as number;
+      const res = await apiRequest(
+        "GET",
+        `/api/secure-settings?resource=blog-posts&category=${category}&limit=${PAGE_SIZE}&offset=${offset}`,
+      );
+      return res.json();
+    },
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.length === PAGE_SIZE ? allPages.length * PAGE_SIZE : undefined,
   });
+  const blogPosts = data?.pages.flat() ?? [];
 
   if (isLoading) {
     return (
@@ -153,6 +176,23 @@ export default function News() {
               </CardContent>
             </Card>
           ))}
+          {hasNextPage && (
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="outline"
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+              >
+                {isFetchingNextPage ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : language === "no" ? (
+                  "Last flere"
+                ) : (
+                  "Load more"
+                )}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>

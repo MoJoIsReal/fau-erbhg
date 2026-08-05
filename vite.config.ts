@@ -17,6 +17,26 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     sourcemap: false,
+    rollupOptions: {
+      output: {
+        // Split out the largest, most stable vendor code so it lands in its
+        // own long-lived chunk: browsers cache it across deploys where only
+        // app code (not React/Radix/TanStack Query) actually changed.
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/")) {
+            return "vendor-react";
+          }
+          if (id.includes("@radix-ui")) {
+            return "vendor-radix";
+          }
+          if (id.includes("@tanstack/react-query")) {
+            return "vendor-query";
+          }
+          return undefined;
+        },
+      },
+    },
   },
   server: {
     fs: {

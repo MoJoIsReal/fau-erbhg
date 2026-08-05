@@ -105,9 +105,9 @@ export default function Newsletter() {
   return (
     <div className="max-w-xl mx-auto space-y-8">
       <div>
-        <h2 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">
+        <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">
           {t.newsletter.title}
-        </h2>
+        </h1>
         <p className="text-neutral-600 dark:text-neutral-300">{t.newsletter.subtitle}</p>
       </div>
       {content}

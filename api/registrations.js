@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import { getDb } from './_shared/database.js';
 import {
   withApiHandler,
@@ -52,18 +53,14 @@ export default withApiHandler(async function handler(req, res) {
 
     const eventIdNum = parseInt(eventId);
 
-    // Check if authenticated (for admin view with full details)
+    // Council members (with a valid session, no pending password change) get
+    // full registration details. Everyone else — anonymous visitors, or an
+    // authenticated non-council user like staff — gets the same public
+    // aggregate. Authentication must never make a public endpoint stricter.
     const user = await parseAuthToken(req, sql);
+    const isCouncilMember = user && !user.passwordChangeRequired && COUNCIL_ROLES.includes(user.role);
 
-    if (user) {
-      if (user.passwordChangeRequired) {
-        return res.status(403).json({ error: 'Password change required', code: 'PASSWORD_CHANGE_REQUIRED' });
-      }
-      if (!COUNCIL_ROLES.includes(user.role)) {
-        return res.status(403).json({ error: 'Council member access required' });
-      }
-
-      // Council view - return full registration details
+    if (isCouncilMember) {
       const registrations = await sql`
         SELECT id, event_id as "eventId", name, email, phone,
                attendee_count as "attendeeCount", comments,
@@ -308,22 +305,24 @@ export default withApiHandler(async function handler(req, res) {
     const newRegistration = [registrationState.registration];
     const updatedEvent = registrationState.event || event;
 
-    // Send confirmation email (if configured)
-    try {
-      await sendEventConfirmationEmail({
+    // Send confirmation email (if configured). Never fails the request, so
+    // there's no reason to make the caller wait on Gmail's response time —
+    // waitUntil() lets it finish after the response is already sent.
+    waitUntil(
+      sendEventConfirmationEmail({
         registration: newRegistration[0],
         event: updatedEvent,
         language: sanitizedLanguage,
         photoSlots: photoSlots
-      });
-      console.log('Event confirmation email sent successfully');
-    } catch (emailError) {
-      console.error('Failed to send event confirmation email:', emailError);
-      // Don't fail the request if email fails, just log to Sentry
-      if (process.env.NODE_ENV === 'production') {
-        Sentry.captureException(emailError);
-      }
-    }
+      })
+        .then(() => console.log('Event confirmation email sent successfully'))
+        .catch((emailError) => {
+          console.error('Failed to send event confirmation email:', emailError);
+          if (process.env.NODE_ENV === 'production') {
+            Sentry.captureException(emailError);
+          }
+        })
+    );
 
     return res.status(201).json(newRegistration[0]);
   }

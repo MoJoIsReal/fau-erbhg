@@ -130,6 +130,13 @@ async function handleBlogPosts(req, res, sql) {
   if (req.method === 'GET') {
     const { includeArchived, category } = req.query;
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : null;
+    // limit/offset are opt-in: omitting them keeps today's behavior (up to
+    // 500 posts in one page) so callers like the homepage, which need the
+    // full set to filter by showOnHomepage client-side, are unaffected.
+    // Callers that do "load more" pagination (the public news page) pass
+    // both explicitly.
+    const limit = sanitizeNumber(req.query.limit, 1, 100) ?? 500;
+    const offset = sanitizeNumber(req.query.offset, 0, Number.MAX_SAFE_INTEGER) ?? 0;
 
     let posts;
     if (includeArchived === 'true') {
@@ -142,6 +149,7 @@ async function handleBlogPosts(req, res, sql) {
         FROM blog_posts
         WHERE (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     } else {
       // Public view - only show published posts
@@ -151,6 +159,7 @@ async function handleBlogPosts(req, res, sql) {
         WHERE status = 'published'
           AND (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
+        LIMIT ${limit} OFFSET ${offset}
       `;
     }
 

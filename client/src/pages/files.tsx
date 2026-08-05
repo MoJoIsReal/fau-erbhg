@@ -192,7 +192,7 @@ export default function Files() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.documents.title}</h2>
+          <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.documents.title}</h1>
           <p className="text-neutral-600 dark:text-neutral-300">{t.documents.subtitle}</p>
         </div>
         {canManageDocuments && (

@@ -47,10 +47,10 @@ export function validateUploadFile({ filename, mimeType, size }) {
     };
   }
 
-  if (mimeType && !ALLOWED_UPLOAD_MIME_TYPES.includes(mimeType)) {
+  if (!mimeType || !ALLOWED_UPLOAD_MIME_TYPES.includes(mimeType)) {
     return {
       ok: false,
-      error: `File type '${mimeType}' not allowed. Allowed types: ${ALLOWED_UPLOAD_MIME_TYPES.join(', ')}`
+      error: `File type '${mimeType || '(missing)'}' not allowed. Allowed types: ${ALLOWED_UPLOAD_MIME_TYPES.join(', ')}`
     };
   }
 

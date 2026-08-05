@@ -694,6 +694,17 @@ export default function YearlyCalendarPage() {
             const isPast = group.isPast;
             const isCurrentMonth = monthOrderValue({ year, month }) === currentMonthValue;
             const monthEntries = entries.filter((e) => e.year === year && e.month === month);
+            // Both day-grid views below re-look-up entries per rendered day
+            // (up to 35 times/month). Index once here instead of filtering
+            // monthEntries from scratch on every single day cell.
+            const dayEntriesByDate = new Map<string, YearlyCalendarEntry[]>();
+            for (const e of monthEntries) {
+              if ((e.entryType === "day_event" || e.entryType === "closed") && e.date) {
+                const bucket = dayEntriesByDate.get(e.date);
+                if (bucket) bucket.push(e);
+                else dayEntriesByDate.set(e.date, [e]);
+              }
+            }
             const weeks = weeksOfMonth(year, month);
             // Single-week notes stay in the sidebar; multi-week notes are
             // rendered as a chevron-banner across the week badges instead.
@@ -946,15 +957,11 @@ export default function YearlyCalendarPage() {
                           </DroppableRow>
 
                           <ul className="divide-y divide-white/5 bg-[#2C5F41]/40">
-                            {week.days.map((d) => {
+                            {week.days.map((d, dayIndex) => {
                               const dateStr = toIsoDate(d.date);
                               const isToday = isCurrentMonth && d.inMonth && dateStr === todayMarker.date;
-                              const dayEntries = sortByTypeAndColor(
-                                monthEntries.filter(
-                                  (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr
-                                )
-                              );
-                              const dayShort = weekdayLabels[week.days.indexOf(d)].slice(0, 3);
+                              const dayEntries = sortByTypeAndColor(dayEntriesByDate.get(dateStr) ?? []);
+                              const dayShort = weekdayLabels[dayIndex].slice(0, 3);
                               return (
                                 <li key={dateStr}>
                                   <DroppableRow
@@ -1136,15 +1143,11 @@ export default function YearlyCalendarPage() {
 
                           {/* Days: 5-column horizontal grid (Mon–Fri) */}
                           <div className="grid grid-cols-5 divide-x divide-white/10 border-t border-white/10 bg-[#2C5F41]/40">
-                            {week.days.map((d) => {
+                            {week.days.map((d, dayIndex) => {
                               const dateStr = toIsoDate(d.date);
                               const isToday = isCurrentMonth && d.inMonth && dateStr === todayMarker.date;
-                              const dayEntries = sortByTypeAndColor(
-                                monthEntries.filter(
-                                  (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr
-                                )
-                              );
-                              const dayShort = weekdayLabels[week.days.indexOf(d)].slice(0, 3);
+                              const dayEntries = sortByTypeAndColor(dayEntriesByDate.get(dateStr) ?? []);
+                              const dayShort = weekdayLabels[dayIndex].slice(0, 3);
                               return (
                                 <DroppableRow
                                   key={dateStr}

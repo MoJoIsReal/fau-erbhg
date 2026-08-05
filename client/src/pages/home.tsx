@@ -2,6 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Users, Heart, Star, School, Handshake, Calendar, Clock, MapPin } from "lucide-react";
 import kindergartenImage768 from "@/assets/kindergarten-playground-768.jpg";
 import kindergartenImage1280 from "@/assets/kindergarten-playground-1280.jpg";
+import kindergartenImage768Webp from "@/assets/kindergarten-playground-768.webp";
+import kindergartenImage1280Webp from "@/assets/kindergarten-playground-1280.webp";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
@@ -130,9 +132,9 @@ export default function Home() {
       <section className="bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-neutral-900 dark:via-neutral-900 dark:to-[#173629] rounded-2xl p-8 border border-transparent dark:border-neutral-800">
         <div className="grid md:grid-cols-2 gap-8 items-center">
           <div>
-            <h2 className="font-heading font-bold text-3xl md:text-4xl text-neutral-900 dark:text-neutral-50 mb-4">
+            <h1 className="font-heading font-bold text-3xl md:text-4xl text-neutral-900 dark:text-neutral-50 mb-4">
               {t.home.title}
-            </h2>
+            </h1>
             <p className="text-lg text-neutral-700 dark:text-neutral-200 mb-6">
               {t.home.welcomeDescription}
             </p>
@@ -151,6 +153,11 @@ export default function Home() {
           <div className="hidden md:block">
             <picture>
               <source
+                type="image/webp"
+                srcSet={`${kindergartenImage768Webp} 768w, ${kindergartenImage1280Webp} 1280w`}
+                sizes="(min-width: 768px) 50vw, 100vw"
+              />
+              <source
                 type="image/jpeg"
                 srcSet={`${kindergartenImage768} 768w, ${kindergartenImage1280} 1280w`}
                 sizes="(min-width: 768px) 50vw, 100vw"
@@ -159,8 +166,11 @@ export default function Home() {
                 src={kindergartenImage1280}
                 alt={language === 'no' ? 'Barn som leker på lekeplass' : 'Children playing on a playground'}
                 className="rounded-xl shadow-lg w-full h-auto"
+                width="1280"
+                height="853"
                 loading="eager"
                 decoding="async"
+                fetchPriority="high"
               />
             </picture>
           </div>
