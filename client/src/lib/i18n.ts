@@ -58,6 +58,7 @@ export interface Translations {
     vara: string;
     fauDescription: string;
     upcomingEvents: string;
+    seeAllEvents: string;
     noEvents: string;
     safety: string;
     cooperation: string;
@@ -560,7 +561,8 @@ export const translations: Record<Language, Translations> = {
       vara: "Vara:",
       fauDescription: "Foreldrenes arbeidsutvalg (FAU) er foreldrenes egen frivillige forening. Vi jobber for å ivareta foreldrenes interesser og bidra til et godt miljø for barna i barnehagen.",
       upcomingEvents: "Hva skjer fremover",
-      noEvents: "Ingen Planlagte Arrangement",
+      seeAllEvents: "Se hele kalenderen →",
+      noEvents: "Ingen planlagte arrangementer",
       safety: "Trygghet",
       cooperation: "Samarbeid",
       engagement: "Engasjement"
@@ -1050,6 +1052,7 @@ export const translations: Record<Language, Translations> = {
       member: "Member:",
       vara: "Deputy member:",
       fauDescription: "The Parents' Council Working Committee (FAU) is the parents' own voluntary association. We work to safeguard parents' interests and contribute to a good environment for the children in the kindergarten.",
+      seeAllEvents: "See the full calendar →",
       upcomingEvents: "What's coming up",
       noEvents: "No Scheduled Events",
       safety: "Safety",

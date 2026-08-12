@@ -10,6 +10,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 const Home = lazy(() => import("@/pages/home"));
 const Events = lazy(() => import("@/pages/events"));
 const News = lazy(() => import("@/pages/news"));
+const NewsPost = lazy(() => import("@/pages/news-post"));
 const Contact = lazy(() => import("@/pages/contact"));
 const Files = lazy(() => import("@/pages/files"));
 const Settings = lazy(() => import("@/pages/settings"));
@@ -88,6 +89,8 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/events" component={Events} />
           <Route path="/news" component={News} />
+          <Route path="/nyheter" component={News} />
+          <Route path="/nyheter/:id" component={NewsPost} />
           <Route path="/tips-tricks" component={News} />
           <Route path="/tips-og-triks" component={News} />
           <Route path="/contact" component={Contact} />
