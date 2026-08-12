@@ -46,7 +46,7 @@ export default function Home() {
   const { language, t } = useLanguage();
 
   usePageMeta({
-    title: language === "no" ? "Hjem" : "Home",
+    title: t.home.home,
     description:
       language === "no"
         ? "FAU Erdal Barnehage – foreldrenes arbeidsutvalg. Arrangementer, nyheter, dokumenter og kontakt."
@@ -119,7 +119,7 @@ export default function Home() {
               />
               <img
                 src={kindergartenImage1280}
-                alt={language === 'no' ? 'Barn som leker på lekeplass' : 'Children playing on a playground'}
+                alt={t.home.childrenPlayingPlayground}
                 className="rounded-xl shadow-lg w-full h-auto"
                 width="1280"
                 height="853"
@@ -139,7 +139,7 @@ export default function Home() {
           <CardContent className="p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
               <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.upcomingEvents}</h3>
-              <Link href="/events" className="text-sm font-medium text-primary hover:text-primary/80">
+              <Link href="/kalender" className="text-sm font-medium text-primary hover:text-primary/80">
                 {t.home.seeAllEvents}
               </Link>
             </div>
@@ -168,7 +168,7 @@ export default function Home() {
                         <div className="space-y-1 text-xs text-accent">
                           <div className="flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
-                            <span>{formatDate(event.date, language)} {language === 'no' ? 'kl.' : 'at'} {event.time}</span>
+                            <span>{formatDate(event.date, language)} {t.home.at} {event.time}</span>
                           </div>
                           {event.location && (
                             <div className="flex items-center">
@@ -246,7 +246,7 @@ export default function Home() {
           <Card>
             <CardContent className="p-6">
               <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">
-                {language === 'no' ? 'Aktuelt' : 'Updates'}
+                {t.home.updates}
               </h3>
               <div className="space-y-6">
                 {blogPosts.slice(0, 3).map((post) => (
@@ -257,8 +257,8 @@ export default function Home() {
                     <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
                       <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
                         {post.category === "tips"
-                          ? language === 'no' ? 'Tips & triks' : 'Tips & Tricks'
-                          : language === 'no' ? 'Nyheter' : 'News'}
+                          ? t.home.tipsTricks
+                          : t.home.news}
                       </span>
                       {formatDate(post.publishedDate, language, {
                         year: 'numeric',
@@ -267,7 +267,7 @@ export default function Home() {
                       })}
                       {post.author && (
                         <span className="ml-2">
-                          • {language === 'no' ? 'av' : 'by'} {post.author}
+                          • {t.home.by} {post.author}
                         </span>
                       )}
                     </p>
@@ -278,7 +278,7 @@ export default function Home() {
                     />
                     <Link href={`/nyheter/${post.id}`}>
                       <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
-                        {language === 'no' ? 'Les mer →' : 'Read more →'}
+                        {t.home.readMore}
                       </span>
                     </Link>
                   </div>
@@ -310,10 +310,10 @@ export default function Home() {
                   </a></p>
                   <p><strong>{t.home.municipality}</strong> {kindergartenInfo.address}</p>
                   <p><strong>{t.home.openingHours}</strong> {kindergartenInfo.openingHours}</p>
-                  <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {language === 'no' ? 'barn' : 'children'}</p>
+                  <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {t.home.children}</p>
                   <p><strong>{t.home.owner}</strong> {kindergartenInfo.owner}</p>
                   {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
-                    <p><strong>{language === 'no' ? 'Styrer:' : 'Director:'}</strong> <a
+                    <p><strong>{t.home.director}</strong> <a
                       href={`mailto:${kindergartenInfo.styrerEmail}`}
                       className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
                     >
@@ -326,7 +326,7 @@ export default function Home() {
                 </>
               ) : (
                 <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">
-                  {language === 'no' ? 'Laster informasjon...' : 'Loading information...'}
+                  {t.home.loadingInformation}
                 </p>
               )}
             </div>

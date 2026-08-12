@@ -5,7 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 export default function DarkModeToggle() {
   const { theme, setTheme } = useTheme();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const isDark = theme === "dark";
 
   return (
@@ -14,12 +14,12 @@ export default function DarkModeToggle() {
       size="icon"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark
-        ? (language === 'no' ? 'Bytt til lyst modus' : 'Switch to light mode')
-        : (language === 'no' ? 'Bytt til mørkt modus' : 'Switch to dark mode')
+        ? (t.header.switchLightMode)
+        : (t.header.switchDarkMode)
       }
       title={isDark
-        ? (language === 'no' ? 'Lyst modus' : 'Light mode')
-        : (language === 'no' ? 'Mørkt modus' : 'Dark mode')
+        ? (t.header.lightMode)
+        : (t.header.darkMode)
       }
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

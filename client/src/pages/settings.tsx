@@ -108,14 +108,14 @@ export default function Settings() {
         await deleteMutation.mutateAsync(member.id);
         await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=board-members"] });
         toast({
-          title: language === "no" ? "Slettet!" : "Deleted!",
-          description: language === "no" ? "Medlem ble slettet" : "Member was deleted",
+          title: t.settings.deleted,
+          description: t.settings.memberWasDeleted,
         });
       } catch (error) {
         toast({
           variant: "destructive",
-          title: language === "no" ? "Feil" : "Error",
-          description: language === "no" ? "Kunne ikke slette medlem" : "Could not delete member",
+          title: t.settings.error,
+          description: t.settings.couldNotDeleteMember,
         });
       }
     } else {
@@ -138,7 +138,7 @@ export default function Settings() {
     if (incomplete) {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Kan ikke lagre" : "Cannot save",
+        title: t.settings.cannotSave,
         description: language === "no"
           ? incomplete.name
             ? `${incomplete.name} mangler rolle.`
@@ -164,14 +164,14 @@ export default function Settings() {
       await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=board-members"] });
 
       toast({
-        title: language === "no" ? "Lagret!" : "Saved!",
-        description: language === "no" ? "Styremedlemmer er lagret" : "Board members have been saved",
+        title: t.settings.saved,
+        description: t.settings.boardMembersHaveBeen,
       });
     } catch (error) {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Kunne ikke lagre endringer" : "Could not save changes",
+        title: t.settings.error,
+        description: t.settings.couldNotSaveChanges,
       });
     }
   };
@@ -217,14 +217,14 @@ export default function Settings() {
       await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=kindergarten-info"] });
 
       toast({
-        title: language === "no" ? "Lagret!" : "Saved!",
-        description: language === "no" ? "Barnehageinformasjon er lagret" : "Kindergarten info has been saved",
+        title: t.settings.saved,
+        description: t.settings.kindergartenInfoHasBeen,
       });
     } catch (error) {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Kunne ikke lagre informasjon" : "Could not save information",
+        title: t.settings.error,
+        description: t.settings.couldNotSaveInformation,
       });
     }
   };
@@ -241,7 +241,7 @@ export default function Settings() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
-          {language === "no" ? "Innstillinger" : "Settings"}
+          {t.settings.settings}
         </h1>
         <p className="text-neutral-600 dark:text-neutral-300 mt-2">
           {language === "no"
@@ -256,10 +256,10 @@ export default function Settings() {
           save models in a single scroll. */}
       <Tabs defaultValue="board">
         <TabsList className="mb-4 h-auto flex-wrap">
-          <TabsTrigger value="board">{language === "no" ? "FAU-styret" : "FAU Board"}</TabsTrigger>
-          <TabsTrigger value="kindergarten">{language === "no" ? "Barnehagen" : "Kindergarten"}</TabsTrigger>
-          <TabsTrigger value="users">{language === "no" ? "Brukere" : "Users"}</TabsTrigger>
-          <TabsTrigger value="newsletter">{language === "no" ? "Nyhetsbrev" : "Newsletter"}</TabsTrigger>
+          <TabsTrigger value="board">{t.settings.fauBoard}</TabsTrigger>
+          <TabsTrigger value="kindergarten">{t.settings.kindergarten}</TabsTrigger>
+          <TabsTrigger value="users">{t.settings.users}</TabsTrigger>
+          <TabsTrigger value="newsletter">{t.settings.newsletter}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="board">
@@ -267,7 +267,7 @@ export default function Settings() {
       <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
-            {language === "no" ? "FAU-styret" : "FAU Board"}
+            {t.settings.fauBoard}
           </h2>
           <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
             {language === "no"
@@ -280,25 +280,25 @@ export default function Settings() {
               <div key={member.id || `new-${index}`} className="flex gap-4 items-end">
                 <div className="flex-1">
                   <Label htmlFor={`name-${index}`}>
-                    {language === "no" ? "Navn" : "Name"}
+                    {t.settings.name}
                   </Label>
                   <Input
                     id={`name-${index}`}
                     value={member.name || ""}
                     onChange={(e) => updateMember(index, "name", e.target.value)}
-                    placeholder={language === "no" ? "Navn Navnesen" : "John Doe"}
+                    placeholder={t.settings.johnDoe}
                   />
                 </div>
                 <div className="flex-1">
                   <Label htmlFor={`role-${index}`}>
-                    {language === "no" ? "Rolle" : "Role"}
+                    {t.settings.role}
                   </Label>
                   <Select
                     value={member.role || ""}
                     onValueChange={(value) => updateMember(index, "role", value)}
                   >
                     <SelectTrigger id={`role-${index}`}>
-                      <SelectValue placeholder={language === "no" ? "Velg rolle" : "Select role"} />
+                      <SelectValue placeholder={t.settings.selectRole} />
                     </SelectTrigger>
                     <SelectContent>
                       {ROLE_VALUES.map((role) => (
@@ -317,7 +317,7 @@ export default function Settings() {
                         size="icon"
                         className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                         disabled={deleteMutation.isPending}
-                        aria-label={language === "no" ? "Slett medlem" : "Delete member"}
+                        aria-label={t.settings.deleteMember}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -325,7 +325,7 @@ export default function Settings() {
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>
-                          {language === "no" ? "Slette styremedlem?" : "Delete board member?"}
+                          {t.settings.deleteBoardMember}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
                           {language === "no"
@@ -334,12 +334,12 @@ export default function Settings() {
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+                        <AlertDialogCancel>{t.settings.cancel}</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={() => removeMember(index)}
                           className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                         >
-                          {language === "no" ? "Slett" : "Delete"}
+                          {t.settings.delete}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
@@ -351,7 +351,7 @@ export default function Settings() {
                     onClick={() => removeMember(index)}
                     className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                     disabled={deleteMutation.isPending}
-                    aria-label={language === "no" ? "Fjern medlem" : "Remove member"}
+                    aria-label={t.settings.removeMember}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -366,7 +366,7 @@ export default function Settings() {
             className="mt-4"
           >
             <Plus className="h-4 w-4 mr-2" />
-            {language === "no" ? "Legg til medlem" : "Add member"}
+            {t.settings.addMember}
           </Button>
         </div>
 
@@ -381,7 +381,7 @@ export default function Settings() {
             ) : (
               <Save className="h-4 w-4 mr-2" />
             )}
-            {language === "no" ? "Lagre endringer" : "Save changes"}
+            {t.settings.saveChanges}
           </Button>
         </div>
       </Card>
@@ -392,7 +392,7 @@ export default function Settings() {
       <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
-            {language === "no" ? "Barnehageinformasjon" : "Kindergarten Information"}
+            {t.settings.kindergartenInformation}
           </h2>
           <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
             {language === "no"
@@ -405,7 +405,7 @@ export default function Settings() {
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="kindergarten-email">
-                      {language === "no" ? "Kontakt e-post" : "Contact email"} *
+                      {t.settings.contactEmail} *
                     </Label>
                     <Input
                       id="kindergarten-email"
@@ -418,7 +418,7 @@ export default function Settings() {
 
                   <div>
                     <Label htmlFor="kindergarten-address">
-                      {language === "no" ? "Adresse" : "Address"} *
+                      {t.settings.address} *
                     </Label>
                     <Input
                       id="kindergarten-address"
@@ -430,7 +430,7 @@ export default function Settings() {
 
                   <div>
                     <Label htmlFor="kindergarten-hours">
-                      {language === "no" ? "Åpningstider" : "Opening hours"} *
+                      {t.settings.openingHours} *
                     </Label>
                     <Input
                       id="kindergarten-hours"
@@ -442,7 +442,7 @@ export default function Settings() {
 
                   <div>
                     <Label htmlFor="kindergarten-children">
-                      {language === "no" ? "Antall barn" : "Number of children"} *
+                      {t.settings.numberChildren} *
                     </Label>
                     <Input
                       id="kindergarten-children"
@@ -455,7 +455,7 @@ export default function Settings() {
 
                   <div>
                     <Label htmlFor="kindergarten-owner">
-                      {language === "no" ? "Eier" : "Owner"} *
+                      {t.settings.owner} *
                     </Label>
                     <Input
                       id="kindergarten-owner"
@@ -467,32 +467,32 @@ export default function Settings() {
 
                   <div>
                     <Label htmlFor="kindergarten-styrer-name">
-                      {language === "no" ? "Styrer (navn)" : "Director (name)"}
+                      {t.settings.directorName}
                     </Label>
                     <Input
                       id="kindergarten-styrer-name"
                       value={kindergartenInfo.styrerName || ""}
                       onChange={(e) => updateKindergartenField("styrerName", e.target.value)}
-                      placeholder={language === "no" ? "Navn på styrer" : "Director's name"}
+                      placeholder={t.settings.directorSName}
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="kindergarten-styrer-email">
-                      {language === "no" ? "Styrer (e-post)" : "Director (email)"}
+                      {t.settings.directorEmail}
                     </Label>
                     <Input
                       id="kindergarten-styrer-email"
                       type="email"
                       value={kindergartenInfo.styrerEmail || ""}
                       onChange={(e) => updateKindergartenField("styrerEmail", e.target.value)}
-                      placeholder={language === "no" ? "styrer@example.com" : "director@example.com"}
+                      placeholder={t.settings.directorExampleCom}
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="kindergarten-description">
-                      {language === "no" ? "Beskrivelse" : "Description"} *
+                      {t.settings.description} *
                     </Label>
                     <Textarea
                       id="kindergarten-description"
@@ -515,19 +515,19 @@ export default function Settings() {
                       ) : (
                         <Save className="h-4 w-4 mr-2" />
                       )}
-                      {language === "no" ? "Lagre endringer" : "Save changes"}
+                      {t.settings.saveChanges}
                     </Button>
                     {kindergartenDirty && (
                       <Button
                         variant="outline"
                         onClick={() => setKindergartenInfo(fetchedKindergartenInfo ?? null)}
                       >
-                        {language === "no" ? "Forkast endringer" : "Discard changes"}
+                        {t.settings.discardChanges}
                       </Button>
                     )}
                     {!kindergartenDirty && (
                       <span className="text-sm text-neutral-500 dark:text-neutral-400">
-                        {language === "no" ? "Ingen ulagrede endringer" : "No unsaved changes"}
+                        {t.settings.noUnsavedChanges}
                       </span>
                     )}
                   </div>

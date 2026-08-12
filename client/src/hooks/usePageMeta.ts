@@ -30,6 +30,12 @@ interface PageMeta {
   description: string;
   /** Canonical path (e.g. "/events"). Defaults to the current pathname. */
   path?: string;
+  /**
+   * Set false when the component renders inside a parent that owns the
+   * document metadata, so nested pages don't fight over <title>. Defaults
+   * to true.
+   */
+  enabled?: boolean;
 }
 
 /**
@@ -38,10 +44,12 @@ interface PageMeta {
  * Norwegian homepage; this updates them client-side as the user navigates and
  * switches language.
  */
-export function usePageMeta({ title, description, path }: PageMeta) {
+export function usePageMeta({ title, description, path, enabled = true }: PageMeta) {
   const { language } = useLanguage();
 
   useEffect(() => {
+    if (!enabled) return;
+
     const fullTitle = `${title} – ${SITE_NAME}`;
     document.title = fullTitle;
 
@@ -54,5 +62,5 @@ export function usePageMeta({ title, description, path }: PageMeta) {
 
     const canonicalPath = path ?? window.location.pathname;
     upsertCanonical(`${BASE_URL}${canonicalPath === "/" ? "" : canonicalPath}`);
-  }, [title, description, path, language]);
+  }, [title, description, path, language, enabled]);
 }

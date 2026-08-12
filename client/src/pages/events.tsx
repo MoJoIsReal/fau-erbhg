@@ -67,15 +67,24 @@ function formatRegistrationDeadline(deadline: string, language: 'no' | 'en') {
   });
 }
 
-export default function Events() {
+interface EventsProps {
+  /**
+   * Rendered as a tab inside the combined calendar page, which owns the
+   * page <h1> and the document metadata. Standalone use keeps both.
+   */
+  embedded?: boolean;
+}
+
+export default function Events({ embedded = false }: EventsProps = {}) {
   const { language, t } = useLanguage();
   usePageMeta({
-    title: language === "no" ? "Arrangementer" : "Events",
+    title: t.events.title,
     description:
       language === "no"
         ? "Se kommende arrangementer, møter og aktiviteter i FAU Erdal Barnehage, og meld deg på."
         : "See upcoming events, meetings and activities at FAU Erdal Kindergarten, and register.",
     path: "/events",
+    enabled: !embedded,
   });
   const { user } = useAuth();
   const canManageEvents = user?.role === "admin" || user?.role === "member";
@@ -98,8 +107,8 @@ export default function Events() {
     mutationFn: (id: number) => apiRequest("DELETE", `/api/events?id=${id}`),
     onSuccess: () => {
       toast({
-        title: language === 'no' ? "Arrangement slettet" : "Event deleted",
-        description: language === 'no' ? "Arrangementet har blitt slettet." : "The event has been deleted.",
+        title: t.events.eventDeleted,
+        description: t.events.eventHasBeenDeleted,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
@@ -108,14 +117,14 @@ export default function Events() {
       
       if (errorData?.hasRegistrations) {
         toast({
-          title: language === 'no' ? "Kan ikke slette" : "Cannot delete",
-          description: language === 'no' ? "Dette arrangementet har påmeldinger og kan ikke slettes. Du kan avlyse det i stedet." : "This event has registrations and cannot be deleted. You can cancel it instead.",
+          title: t.events.cannotDelete,
+          description: t.events.eventHasRegistrationsCannot,
           variant: "destructive",
         });
       } else {
         toast({
-          title: language === 'no' ? "Kunne ikke slette" : "Could not delete",
-          description: getApiErrorMessage(error, language === 'no' ? "En feil oppstod ved sletting av arrangementet." : "An error occurred while deleting the event."),
+          title: t.events.couldNotDelete,
+          description: getApiErrorMessage(error, t.events.errorOccurredWhileDeleting),
           variant: "destructive",
         });
       }
@@ -126,15 +135,15 @@ export default function Events() {
     mutationFn: (id: number) => apiRequest("PATCH", `/api/events?id=${id}&action=cancel`),
     onSuccess: () => {
       toast({
-        title: language === 'no' ? "Arrangement avlyst" : "Event cancelled",
-        description: language === 'no' ? "Arrangementet har blitt avlyst og e-poster er sendt til alle påmeldte." : "The event has been cancelled and emails have been sent to all attendees.",
+        title: t.events.eventCancelled,
+        description: t.events.eventHasBeenCancelled,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
     onError: () => {
       toast({
-        title: language === 'no' ? "Feil ved avlysning" : "Cancellation error",
-        description: language === 'no' ? "Kunne ikke avlyse arrangementet. Prøv igjen senere." : "Could not cancel the event. Please try again later.",
+        title: t.events.cancellationError,
+        description: t.events.couldNotCancelEvent,
         variant: "destructive",
       });
     },
@@ -143,8 +152,8 @@ export default function Events() {
   const handleRegisterClick = (event: Event) => {
     if (event.status === 'cancelled') {
       toast({
-        title: language === 'no' ? "Arrangementet er avlyst" : "Event is cancelled",
-        description: language === 'no' ? "Du kan ikke melde deg på et avlyst arrangement." : "You cannot register for a cancelled event.",
+        title: t.events.eventCancelled2,
+        description: t.events.cannotRegisterCancelledEvent,
         variant: "destructive",
       });
       return;
@@ -152,8 +161,8 @@ export default function Events() {
 
     if (event.vigiloSignup) {
       toast({
-        title: language === 'no' ? "Påmelding i Vigilo" : "Register in Vigilo",
-        description: language === 'no' ? "Dette arrangementet bruker Vigilo for påmelding." : "This event uses Vigilo for registration.",
+        title: t.events.registerVigilo,
+        description: t.events.eventUsesVigiloRegistration,
         variant: "default",
       });
       return;
@@ -161,8 +170,8 @@ export default function Events() {
 
     if (event.noSignup) {
       toast({
-        title: language === 'no' ? "Ingen påmelding nødvendig" : "No signup required",
-        description: language === 'no' ? "Dette arrangementet krever ikke påmelding." : "This event does not require registration.",
+        title: t.events.noSignupRequired,
+        description: t.events.eventDoesNotRequire,
         variant: "default",
       });
       return;
@@ -186,8 +195,8 @@ export default function Events() {
   const handleCalendarEventClick = (event: Event) => {
     if (event.status === 'cancelled') {
       toast({
-        title: language === 'no' ? "Arrangementet er avlyst" : "Event is cancelled",
-        description: language === 'no' ? "Dette arrangementet er avlyst og påmelding er ikke mulig." : "This event is cancelled and registration is not available.",
+        title: t.events.eventCancelled2,
+        description: t.events.eventCancelledRegistrationNot,
         variant: "destructive",
       });
       return;
@@ -275,36 +284,39 @@ export default function Events() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.events.title}</h1>
-          <p className="text-neutral-600 dark:text-neutral-300">{t.events.subtitle}</p>
-        </div>
-        <div className="mt-4 md:mt-0 flex items-center space-x-3">
+      {/* Header — suppressed when embedded, where the calendar page owns the
+          page title and this row is just the toolbar. */}
+      <div className={`flex flex-col md:flex-row md:items-center ${embedded ? "md:justify-end" : "md:justify-between"}`}>
+        {!embedded && (
+          <div>
+            <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.events.title}</h1>
+            <p className="text-neutral-600 dark:text-neutral-300">{t.events.subtitle}</p>
+          </div>
+        )}
+        <div className={`flex items-center space-x-3 ${embedded ? "" : "mt-4 md:mt-0"}`}>
           {/* View Toggle */}
-          <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1" role="group" aria-label={language === 'no' ? 'Visningsvalg' : 'View options'}>
+          <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1" role="group" aria-label={t.events.viewOptions}>
             <Button
               variant={viewMode === 'list' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('list')}
               className="flex items-center space-x-2"
-              aria-label={language === 'no' ? 'Listevisning' : 'List view'}
+              aria-label={t.events.listView}
               aria-pressed={viewMode === 'list'}
             >
               <List className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">{language === 'no' ? 'Liste' : 'List'}</span>
+              <span className="hidden sm:inline">{t.events.viewList}</span>
             </Button>
             <Button
               variant={viewMode === 'calendar' ? 'default' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('calendar')}
               className="flex items-center space-x-2"
-              aria-label={language === 'no' ? 'Kalendervisning' : 'Calendar view'}
+              aria-label={t.events.calendarView}
               aria-pressed={viewMode === 'calendar'}
             >
               <Grid className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden sm:inline">{language === 'no' ? 'Kalender' : 'Calendar'}</span>
+              <span className="hidden sm:inline">{t.events.viewCalendar}</span>
             </Button>
           </div>
           
@@ -326,7 +338,7 @@ export default function Events() {
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-neutral-600 dark:text-neutral-300">{language === 'no' ? 'Laster kalender...' : 'Loading calendar...'}</p>
+              <p className="text-neutral-600 dark:text-neutral-300">{t.events.loadingCalendar}</p>
             </div>
           </div>
         }>
@@ -346,7 +358,7 @@ export default function Events() {
                 <Calendar className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
                 <h3 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">{t.events.noEvents}</h3>
                 <p className="text-neutral-600 dark:text-neutral-300 mb-4">{t.events.noEventsDesc}</p>
-                <Link href="/arskalender">
+                <Link href="/kalender/arshjul">
                   <Button variant="outline">
                     <CalendarDays className="h-4 w-4 mr-2" />
                     {t.events.openYearlyCalendar}
@@ -377,7 +389,7 @@ export default function Events() {
                               <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{event.title}</h3>
                               <div className="flex items-center text-neutral-600 dark:text-neutral-400 text-sm mt-1">
                                 <Clock className="h-4 w-4 mr-2" />
-                                <span>{formatDate(event.date, language)}, {language === 'no' ? 'kl.' : 'at'} {event.time}</span>
+                                <span>{formatDate(event.date, language)}, {t.events.at} {event.time}</span>
                               </div>
                             </div>
                           </div>
@@ -386,7 +398,7 @@ export default function Events() {
                             {event.location === "Digitalt" ? (
                               <div className="flex items-center text-blue-600 dark:text-blue-300 text-sm mb-2">
                                 <Monitor className="h-4 w-4 mr-2" />
-                                <span>{language === 'no' ? 'Digitalt arrangement' : 'Digital event'}</span>
+                                <span>{t.events.digitalEvent}</span>
                               </div>
                             ) : (
                               <div className="flex items-center text-neutral-600 dark:text-neutral-400 text-sm mb-2">
@@ -433,22 +445,22 @@ export default function Events() {
                           {event.status === "cancelled" ? (
                             <div className="flex items-center text-red-600 dark:text-red-200 text-sm font-medium bg-red-50 dark:bg-red-950/30 px-3 py-2 rounded-lg">
                               <AlertTriangle className="h-4 w-4 mr-2" />
-                              <span>{language === 'no' ? 'Arrangementet er avlyst' : 'Event is cancelled'}</span>
+                              <span>{t.events.eventCancelled2}</span>
                             </div>
                           ) : event.noSignup === true ? (
                             <div className="flex items-center text-gray-600 dark:text-neutral-200 text-sm font-medium bg-gray-50 dark:bg-neutral-900 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
-                              <span>{language === 'no' ? 'Ingen påmelding nødvendig' : 'No signup required'}</span>
+                              <span>{t.events.noSignupRequired}</span>
                             </div>
                           ) : event.vigiloSignup === true ? (
                             <div className="flex items-center text-blue-600 dark:text-blue-200 text-sm font-medium bg-blue-50 dark:bg-blue-950/30 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
-                              <span>{language === 'no' ? 'Påmelding i Vigilo' : 'Register in Vigilo'}</span>
+                              <span>{t.events.registerVigilo}</span>
                             </div>
                           ) : event.type === "internal" ? (
                             <div className="flex items-center text-gray-600 dark:text-neutral-200 text-sm font-medium bg-gray-50 dark:bg-neutral-900 px-3 py-2 rounded-lg">
                               <Calendar className="h-4 w-4 mr-2" />
-                              <span>{language === 'no' ? 'Internt arrangement' : 'Internal event'}</span>
+                              <span>{t.events.internalEvent}</span>
                             </div>
                           ) : event.type === "dugnad" ? (
                             <Button
@@ -457,7 +469,7 @@ export default function Events() {
                               disabled={registrationClosed}
                             >
                               <Heart className="h-4 w-4 mr-2" />
-                              {registrationClosed ? t.events.registrationClosed : (language === 'no' ? 'Meld deg som frivillig' : 'Volunteer')}
+                              {registrationClosed ? t.events.registrationClosed : (t.events.volunteer)}
                             </Button>
                           ) : event.type === "foto" ? (
                             <Button
@@ -470,7 +482,7 @@ export default function Events() {
                                 ? t.events.registrationClosed
                                 : isFull
                                 ? t.events.full
-                                : (language === 'no' ? 'Meld på til fotografering' : 'Register for photo')
+                                : (t.events.registerPhoto)
                               }
                             </Button>
                           ) : (
@@ -502,14 +514,14 @@ export default function Events() {
                                   className="flex items-center space-x-2"
                                 >
                                   <Users className="h-4 w-4" />
-                                  <span>{language === 'no' ? 'Se påmeldinger' : 'View registrations'}</span>
+                                  <span>{t.events.viewRegistrations}</span>
                                 </Button>
                               )}
                               
                               {event.status === "cancelled" ? (
                                 <div className="flex items-center text-red-600 text-sm font-medium">
                                   <AlertTriangle className="h-4 w-4 mr-1" />
-                                  <span>{language === 'no' ? 'AVLYST' : 'CANCELLED'}</span>
+                                  <span>{t.events.cancelled2}</span>
                                 </div>
                               ) : (
                                 <div className="flex gap-2">
@@ -523,7 +535,7 @@ export default function Events() {
                                     className="border-blue-500 text-blue-600 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
-                                    <span>{language === 'no' ? 'Rediger' : 'Edit'}</span>
+                                    <span>{t.events.edit}</span>
                                   </Button>
                                   
                                   {(event.currentAttendees || 0) > 0 ? (
@@ -534,7 +546,7 @@ export default function Events() {
                                       className="border-orange-500 text-orange-600 dark:text-orange-300 hover:bg-orange-50 dark:hover:bg-orange-950/30"
                                     >
                                       <AlertTriangle className="h-4 w-4 mr-1" />
-                                      <span>{language === 'no' ? 'Avlys' : 'Cancel'}</span>
+                                      <span>{t.events.cancel}</span>
                                     </Button>
                                   ) : (
                                     <AlertDialog>
@@ -545,13 +557,13 @@ export default function Events() {
                                           className="border-red-500 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                                         >
                                           <Trash2 className="h-4 w-4 mr-1" />
-                                          <span>{language === 'no' ? 'Slett' : 'Delete'}</span>
+                                          <span>{t.events.delete}</span>
                                         </Button>
                                       </AlertDialogTrigger>
                                       <AlertDialogContent>
                                         <AlertDialogHeader>
                                           <AlertDialogTitle>
-                                            {language === 'no' ? 'Slette arrangement?' : 'Delete event?'}
+                                            {t.events.deleteEvent}
                                           </AlertDialogTitle>
                                           <AlertDialogDescription>
                                             {language === 'no'
@@ -560,12 +572,12 @@ export default function Events() {
                                           </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
-                                          <AlertDialogCancel>{language === 'no' ? 'Avbryt' : 'Cancel'}</AlertDialogCancel>
+                                          <AlertDialogCancel>{t.events.cancel}</AlertDialogCancel>
                                           <AlertDialogAction
                                             onClick={() => deleteMutation.mutate(event.id)}
                                             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                           >
-                                            {language === 'no' ? 'Slett' : 'Delete'}
+                                            {t.events.delete}
                                           </AlertDialogAction>
                                         </AlertDialogFooter>
                                       </AlertDialogContent>
@@ -629,7 +641,7 @@ export default function Events() {
                                 {!event.noSignup && !event.vigiloSignup && (
                                   <div className="flex items-center text-neutral-500 dark:text-neutral-400">
                                     <Users className="h-4 w-4 mr-1" />
-                                    <span>{(event.currentAttendees || 0)} {language === 'no' ? 'deltok' : 'attended'}</span>
+                                    <span>{(event.currentAttendees || 0)} {t.events.attended}</span>
                                   </div>
                                 )}
                                 {canManageEvents && !event.noSignup && !event.vigiloSignup && (event.currentAttendees || 0) > 0 && (
@@ -643,7 +655,7 @@ export default function Events() {
                                     className="flex items-center space-x-2 text-neutral-500 dark:text-neutral-300 border-neutral-300 dark:border-neutral-700"
                                   >
                                     <Users className="h-4 w-4" />
-                                    <span>{language === 'no' ? 'Se deltakere' : 'View attendees'}</span>
+                                    <span>{t.events.viewAttendees}</span>
                                   </Button>
                                 )}
                               </div>

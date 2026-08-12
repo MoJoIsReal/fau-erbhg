@@ -8,6 +8,7 @@ export interface Translations {
     news: string;
     tips: string;
     events: string;
+    calendar: string;
     contact: string;
     documents: string;
     more: string;
@@ -15,6 +16,16 @@ export interface Translations {
   };
   // Header
   header: {
+    overview: string;
+    content: string;
+    messages: string;
+    settings: string;
+    openMenu: string;
+    at: string;
+    switchLightMode: string;
+    switchDarkMode: string;
+    lightMode: string;
+    darkMode: string;
     title: string;
     subtitle: string;
     login: string;
@@ -23,6 +34,17 @@ export interface Translations {
   };
   // Home page
   home: {
+    home: string;
+    childrenPlayingPlayground: string;
+    at: string;
+    updates: string;
+    tipsTricks: string;
+    news: string;
+    by: string;
+    readMore: string;
+    children: string;
+    director: string;
+    loadingInformation: string;
     title: string;
     subtitle: string;
     welcomeTitle: string;
@@ -64,8 +86,84 @@ export interface Translations {
     cooperation: string;
     engagement: string;
   };
+  // Combined calendar page (events + yearly plan as tabs)
+  calendar: {
+    title: string;
+    subtitle: string;
+    upcomingTab: string;
+    upcomingTabHint: string;
+    yearlyTab: string;
+    yearlyTabHint: string;
+  };
   // Events page
   events: {
+    registrationDeleted: string;
+    registrationHasBeenDeleted: string;
+    deleteError: string;
+    couldNotDeleteRegistration: string;
+    loadingRegistrations: string;
+    registered: string;
+    registrationList: string;
+    downloadExcel: string;
+    people: string;
+    deleteRegistration: string;
+    deleteRegistration2: string;
+    childrenTimeSlots: string;
+    comment: string;
+    selectDate: string;
+    clearDeadline: string;
+    vigiloSignup: string;
+    noSignup: string;
+    sendNewsletterReminder: string;
+    addCalendar: string;
+    downloadIcsFile: string;
+    eventDeleted: string;
+    eventHasBeenDeleted: string;
+    cannotDelete: string;
+    eventHasRegistrationsCannot: string;
+    couldNotDelete: string;
+    errorOccurredWhileDeleting: string;
+    eventCancelled: string;
+    eventHasBeenCancelled: string;
+    cancellationError: string;
+    couldNotCancelEvent: string;
+    eventCancelled2: string;
+    cannotRegisterCancelledEvent: string;
+    registerVigilo: string;
+    eventUsesVigiloRegistration: string;
+    noSignupRequired: string;
+    eventDoesNotRequire: string;
+    eventCancelledRegistrationNot: string;
+    viewOptions: string;
+    listView: string;
+    calendarView: string;
+    loadingCalendar: string;
+    at: string;
+    digitalEvent: string;
+    internalEvent: string;
+    volunteer: string;
+    registerPhoto: string;
+    cancelled2: string;
+    deleteEvent: string;
+    attended: string;
+    viewAttendees: string;
+    more: string;
+    previousMonth: string;
+    nextMonth: string;
+    event: string;
+    today: string;
+    noRegistrationsYet: string;
+    loading: string;
+    attendees2: string;
+    missingNames: string;
+    registerPhotoSession: string;
+    eventRegistration: string;
+    parentGuardianName: string;
+    parentGuardianName2: string;
+    numberChildren: string;
+    child: string;
+    children: string;
+    childrenSFirstNames: string;
     title: string;
     subtitle: string;
     addEvent: string;
@@ -169,6 +267,15 @@ export interface Translations {
   };
   // Documents page
   documents: {
+    documentDeleted: string;
+    documentWasDeletedSuccessfully: string;
+    error: string;
+    delete: string;
+    deleteDocument: string;
+    cancel: string;
+    uploaded: string;
+    fileTypeNotAllowed: string;
+    fileLargerThan10: string;
     title: string;
     subtitle: string;
     upload: string;
@@ -316,6 +423,9 @@ export interface Translations {
   };
   // Common
   common: {
+    pageNotFound: string;
+    pageNotFoundBody: string;
+    goHomePage: string;
     loading: string;
     unknownSize: string;
     bytes: string;
@@ -326,7 +436,179 @@ export interface Translations {
     uploading: string;
   };
   // Settings
+  // Admin surfaces (dashboard, messages, content editor)
+  newsPage: {
+    tipsTricks: string;
+    noTipsYet: string;
+    loadingTips: string;
+    couldNotLoadTips: string;
+    news: string;
+    noNewsYet: string;
+    loadingNews: string;
+    couldNotLoadNews: string;
+    category: string;
+    by: string;
+    post: string;
+    loading: string;
+    postNotFound: string;
+    backNews: string;
+    allTips: string;
+    allNews: string;
+  };
+  adminPage: {
+    messages: string;
+    newInquiry: string;
+    newInquiries: string;
+    allHandled: string;
+    content: string;
+    publishedPost: string;
+    publishedPosts: string;
+    documents: string;
+    uploadedLast30Days: string;
+    settings: string;
+    boardKindergartenUsers: string;
+    newsletterSubscribers: string;
+    waiting: string;
+    noUpcomingEvents: string;
+    registered: string;
+    goEvents: string;
+  };
+  messagesPage: {
+    updated: string;
+    statusHasBeenUpdated: string;
+    error: string;
+    couldNotUpdateStatus: string;
+    deleted: string;
+    messageWasDeleted: string;
+    couldNotDeleteMessage: string;
+    new: string;
+    responded: string;
+    archived: string;
+    new2: string;
+    messages: string;
+    filterByStatus: string;
+    showAll: string;
+    showOnlyThese: string;
+    noMessagesYet: string;
+    noMessagesWithStatus: string;
+    anonymous: string;
+    archive: string;
+    restore: string;
+    deleteMessage: string;
+    deleteMessage2: string;
+    cancel: string;
+    delete: string;
+    showLess: string;
+    showMore: string;
+    by: string;
+  };
+  contentPage: {
+    content: string;
+    error: string;
+    titleContentRequired: string;
+    saved: string;
+    postHasBeenSaved: string;
+    couldNotSavePost: string;
+    updated: string;
+    couldNotUpdatePost: string;
+    deleted: string;
+    postWasDeleted: string;
+    couldNotDeletePost: string;
+    updatesPosts: string;
+    newPost: string;
+    filterByStatus: string;
+    all: string;
+    published: string;
+    archived: string;
+    searchTitles: string;
+    searchTitles2: string;
+    title: string;
+    postTitle: string;
+    writeYourPostHere: string;
+    category: string;
+    news: string;
+    tipsTricks: string;
+    publishDate: string;
+    writtenBy: string;
+    selectAuthor: string;
+    save: string;
+    cancel: string;
+    delete: string;
+    deleteBlogPost: string;
+    noTitle: string;
+    edit: string;
+    removeFromHome: string;
+    showHome: string;
+    publish: string;
+    archive: string;
+    by: string;
+    archived2: string;
+    deletePost: string;
+    bold: string;
+    italic: string;
+    underline: string;
+    strikethrough: string;
+    heading1: string;
+    heading2: string;
+    heading3: string;
+    bulletList: string;
+    numberedList: string;
+    alignLeft: string;
+    alignCenter: string;
+    alignRight: string;
+    quote: string;
+    codeBlock: string;
+    link: string;
+    image: string;
+    undo: string;
+    redo: string;
+    uploadFailed: string;
+    couldNotUploadImage: string;
+    addLink: string;
+    url: string;
+    saveLink: string;
+    removeLink: string;
+  };
   settings: {
+    deleted: string;
+    memberWasDeleted: string;
+    error: string;
+    couldNotDeleteMember: string;
+    cannotSave: string;
+    saved: string;
+    boardMembersHaveBeen: string;
+    couldNotSaveChanges: string;
+    kindergartenInfoHasBeen: string;
+    couldNotSaveInformation: string;
+    settings: string;
+    fauBoard: string;
+    kindergarten: string;
+    users: string;
+    newsletter: string;
+    name: string;
+    johnDoe: string;
+    role: string;
+    selectRole: string;
+    deleteMember: string;
+    deleteBoardMember: string;
+    cancel: string;
+    delete: string;
+    removeMember: string;
+    addMember: string;
+    saveChanges: string;
+    kindergartenInformation: string;
+    contactEmail: string;
+    address: string;
+    openingHours: string;
+    numberChildren: string;
+    owner: string;
+    directorName: string;
+    directorSName: string;
+    directorEmail: string;
+    directorExampleCom: string;
+    description: string;
+    discardChanges: string;
+    noUnsavedChanges: string;
     roles: {
       leder: string;
       medlem: string;
@@ -513,12 +795,23 @@ export const translations: Record<Language, Translations> = {
       news: "Nyheter",
       tips: "Tips & triks",
       events: "Arrangementer",
+      calendar: "Kalender",
       contact: "Kontakt",
       documents: "Dokumenter",
       more: "Mer",
       yearlyCalendar: "Årskalender"
     },
     header: {
+      overview: "Oversikt",
+      content: "Innhold",
+      messages: "Meldinger",
+      settings: "Innstillinger",
+      openMenu: "Åpne meny",
+      at: "Kl.",
+      switchLightMode: "Bytt til lyst modus",
+      switchDarkMode: "Bytt til mørkt modus",
+      lightMode: "Lyst modus",
+      darkMode: "Mørkt modus",
       title: "FAU Erdal Barnehage",
       subtitle: "Foreldrenes arbeidsutvalg",
       login: "FAU-pålogging",
@@ -526,6 +819,17 @@ export const translations: Record<Language, Translations> = {
       loggingOut: "Logger ut..."
     },
     home: {
+      home: "Hjem",
+      childrenPlayingPlayground: "Barn som leker på lekeplass",
+      at: "kl.",
+      updates: "Aktuelt",
+      tipsTricks: "Tips & triks",
+      news: "Nyheter",
+      by: "av",
+      readMore: "Les mer →",
+      children: "barn",
+      director: "Styrer:",
+      loadingInformation: "Laster informasjon...",
       title: "Velkommen til FAU Erdal Barnehage",
       subtitle: "Sammen skaper vi det beste for våre barn",
       welcomeTitle: "Velkommen til vårt arbeidsutvalg",
@@ -567,7 +871,82 @@ export const translations: Record<Language, Translations> = {
       cooperation: "Samarbeid",
       engagement: "Engasjement"
     },
+    calendar: {
+      title: "Kalender",
+      subtitle: "Alt som skjer i Erdal Barnehage, samlet på ett sted",
+      upcomingTab: "Hva skjer",
+      upcomingTabHint: "Arrangementer, møter og dugnader du kan melde deg på.",
+      yearlyTab: "Årshjul",
+      yearlyTabHint: "Faste datoer for barnehageåret: planleggingsdager, ferier og temauker.",
+    },
     events: {
+      registrationDeleted: "Påmelding slettet",
+      registrationHasBeenDeleted: "Påmeldingen har blitt slettet.",
+      deleteError: "Feil ved sletting",
+      couldNotDeleteRegistration: "Kunne ikke slette påmeldingen. Prøv igjen senere.",
+      loadingRegistrations: "Laster påmeldinger...",
+      registered: "Påmeldte",
+      registrationList: "Påmeldingsliste",
+      downloadExcel: "Last ned Excel",
+      people: "personer",
+      deleteRegistration: "Slett påmelding",
+      deleteRegistration2: "Slett påmelding?",
+      childrenTimeSlots: "Barn og tidspunkt",
+      comment: "Kommentar:",
+      selectDate: "Velg dato",
+      clearDeadline: "Fjern frist",
+      vigiloSignup: "Vigilo Påmelding",
+      noSignup: "Ingen påmelding",
+      sendNewsletterReminder: "Send påminnelse på nyhetsbrev",
+      addCalendar: "Legg til i kalender",
+      downloadIcsFile: "Last ned .ics fil",
+      eventDeleted: "Arrangement slettet",
+      eventHasBeenDeleted: "Arrangementet har blitt slettet.",
+      cannotDelete: "Kan ikke slette",
+      eventHasRegistrationsCannot: "Dette arrangementet har påmeldinger og kan ikke slettes. Du kan avlyse det i stedet.",
+      couldNotDelete: "Kunne ikke slette",
+      errorOccurredWhileDeleting: "En feil oppstod ved sletting av arrangementet.",
+      eventCancelled: "Arrangement avlyst",
+      eventHasBeenCancelled: "Arrangementet har blitt avlyst og e-poster er sendt til alle påmeldte.",
+      cancellationError: "Feil ved avlysning",
+      couldNotCancelEvent: "Kunne ikke avlyse arrangementet. Prøv igjen senere.",
+      eventCancelled2: "Arrangementet er avlyst",
+      cannotRegisterCancelledEvent: "Du kan ikke melde deg på et avlyst arrangement.",
+      registerVigilo: "Påmelding i Vigilo",
+      eventUsesVigiloRegistration: "Dette arrangementet bruker Vigilo for påmelding.",
+      noSignupRequired: "Ingen påmelding nødvendig",
+      eventDoesNotRequire: "Dette arrangementet krever ikke påmelding.",
+      eventCancelledRegistrationNot: "Dette arrangementet er avlyst og påmelding er ikke mulig.",
+      viewOptions: "Visningsvalg",
+      listView: "Listevisning",
+      calendarView: "Kalendervisning",
+      loadingCalendar: "Laster kalender...",
+      at: "kl.",
+      digitalEvent: "Digitalt arrangement",
+      internalEvent: "Internt arrangement",
+      volunteer: "Meld deg som frivillig",
+      registerPhoto: "Meld på til fotografering",
+      cancelled2: "AVLYST",
+      deleteEvent: "Slette arrangement?",
+      attended: "deltok",
+      viewAttendees: "Se deltakere",
+      more: "mer",
+      previousMonth: "Forrige måned",
+      nextMonth: "Neste måned",
+      event: "Arrangement",
+      today: "I dag",
+      noRegistrationsYet: "Ingen påmeldte ennå",
+      loading: "Laster...",
+      attendees2: "påmeldte",
+      missingNames: "Manglende navn",
+      registerPhotoSession: "Påmelding til fotografering",
+      eventRegistration: "Påmelding til arrangement",
+      parentGuardianName: "Navn foresatt *",
+      parentGuardianName2: "Navn på foresatt",
+      numberChildren: "Antall barn",
+      child: "barn",
+      children: "barn",
+      childrenSFirstNames: "Fornavn på barn",
       title: "Arrangementer",
       subtitle: "Kommende aktiviteter og møter i FAU Erdal Barnehage",
       addEvent: "Legg til arrangement",
@@ -668,6 +1047,15 @@ export const translations: Record<Language, Translations> = {
       }
     },
     documents: {
+      documentDeleted: "Dokument slettet",
+      documentWasDeletedSuccessfully: "Dokumentet ble slettet.",
+      error: "Feil",
+      delete: "Slett",
+      deleteDocument: "Slett dokument?",
+      cancel: "Avbryt",
+      uploaded: "lastet opp",
+      fileTypeNotAllowed: "Filtypen er ikke tillatt",
+      fileLargerThan10: "Filen er større enn 10 MB",
       title: "Dokumenter",
       subtitle: "Møtereferater, vedtekter og andre viktige dokumenter",
       upload: "Last opp dokument",
@@ -812,6 +1200,9 @@ export const translations: Record<Language, Translations> = {
       copyright: "© 2025 FAU Erdal Barnehage. Alle rettigheter reservert."
     },
     common: {
+      pageNotFound: "Siden finnes ikke",
+      pageNotFoundBody: "Lenken kan være utdatert, eller siden kan ha blitt flyttet.",
+      goHomePage: "Gå til forsiden",
       loading: "Laster...",
       unknownSize: "Ukjent størrelse",
       bytes: "Bytes",
@@ -821,7 +1212,178 @@ export const translations: Record<Language, Translations> = {
       upload: "Last opp",
       uploading: "Laster opp..."
     },
+    newsPage: {
+      tipsTricks: "Tips & triks",
+      noTipsYet: "Ingen tips ennå",
+      loadingTips: "Laster tips...",
+      couldNotLoadTips: "Kunne ikke laste tips",
+      news: "Nyheter",
+      noNewsYet: "Ingen nyheter ennå",
+      loadingNews: "Laster nyheter...",
+      couldNotLoadNews: "Kunne ikke laste nyheter",
+      category: "Kategori",
+      by: "av",
+      post: "Innlegg",
+      loading: "Laster …",
+      postNotFound: "Fant ikke innlegget",
+      backNews: "Til nyhetene",
+      allTips: "Alle tips",
+      allNews: "Alle nyheter",
+    },
+    adminPage: {
+      messages: "Meldinger",
+      newInquiry: "ny henvendelse",
+      newInquiries: "nye henvendelser",
+      allHandled: "alt er behandlet",
+      content: "Innhold",
+      publishedPost: "publisert innlegg",
+      publishedPosts: "publiserte innlegg",
+      documents: "Dokumenter",
+      uploadedLast30Days: "lastet opp siste 30 dager",
+      settings: "Innstillinger",
+      boardKindergartenUsers: "Styret, barnehagen, brukere",
+      newsletterSubscribers: "og nyhetsbrev-abonnenter",
+      waiting: "Venter",
+      noUpcomingEvents: "Ingen kommende arrangementer",
+      registered: "påmeldte",
+      goEvents: "Til arrangementer",
+    },
+    messagesPage: {
+      updated: "Oppdatert!",
+      statusHasBeenUpdated: "Status er oppdatert",
+      error: "Feil",
+      couldNotUpdateStatus: "Kunne ikke oppdatere status",
+      deleted: "Slettet!",
+      messageWasDeleted: "Meldingen ble slettet",
+      couldNotDeleteMessage: "Kunne ikke slette melding",
+      new: "Ny",
+      responded: "Besvart",
+      archived: "Arkivert",
+      new2: "Nye",
+      messages: "Meldinger",
+      filterByStatus: "Filtrer på status",
+      showAll: "Vis alle",
+      showOnlyThese: "Vis kun disse",
+      noMessagesYet: "Ingen meldinger ennå",
+      noMessagesWithStatus: "Ingen meldinger med denne statusen",
+      anonymous: "Anonym",
+      archive: "Arkiver",
+      restore: "Gjenopprett",
+      deleteMessage: "Slett melding",
+      deleteMessage2: "Slett melding?",
+      cancel: "Avbryt",
+      delete: "Slett",
+      showLess: "Vis mindre",
+      showMore: "Vis mer",
+      by: "av",
+    },
+    contentPage: {
+      content: "Innhold",
+      error: "Feil",
+      titleContentRequired: "Tittel og innhold er påkrevd",
+      saved: "Lagret!",
+      postHasBeenSaved: "Innlegget er lagret",
+      couldNotSavePost: "Kunne ikke lagre innlegg",
+      updated: "Oppdatert!",
+      couldNotUpdatePost: "Kunne ikke oppdatere innlegg",
+      deleted: "Slettet!",
+      postWasDeleted: "Innlegget ble slettet",
+      couldNotDeletePost: "Kunne ikke slette innlegg",
+      updatesPosts: "Aktuelt / Innlegg",
+      newPost: "Nytt innlegg",
+      filterByStatus: "Filtrer på status",
+      all: "Alle",
+      published: "Publiserte",
+      archived: "Arkiverte",
+      searchTitles: "Søk i titler …",
+      searchTitles2: "Søk i titler",
+      title: "Tittel",
+      postTitle: "Tittel på innlegget",
+      writeYourPostHere: "Skriv innlegget her...",
+      category: "Kategori",
+      news: "Nyheter",
+      tipsTricks: "Tips & triks",
+      publishDate: "Publiseringsdato",
+      writtenBy: "Skrevet av",
+      selectAuthor: "Velg forfatter",
+      save: "Lagre",
+      cancel: "Avbryt",
+      delete: "Slett",
+      deleteBlogPost: "Slette blogginnlegg?",
+      noTitle: "(Uten tittel)",
+      edit: "Rediger",
+      removeFromHome: "Fjern fra hjem",
+      showHome: "Vis på hjem",
+      publish: "Publiser",
+      archive: "Arkiver",
+      by: "av",
+      archived2: "ARKIVERT",
+      deletePost: "Slette innlegg?",
+      bold: "Fet",
+      italic: "Kursiv",
+      underline: "Understrek",
+      strikethrough: "Gjennomstrek",
+      heading1: "Overskrift 1",
+      heading2: "Overskrift 2",
+      heading3: "Overskrift 3",
+      bulletList: "Punktliste",
+      numberedList: "Nummerert liste",
+      alignLeft: "Venstrejuster",
+      alignCenter: "Midtstill",
+      alignRight: "Høyrejuster",
+      quote: "Sitat",
+      codeBlock: "Kodeblokk",
+      link: "Lenke",
+      image: "Bilde",
+      undo: "Angre",
+      redo: "Gjør om",
+      uploadFailed: "Opplasting feilet",
+      couldNotUploadImage: "Kunne ikke laste opp bilde",
+      addLink: "Legg til lenke",
+      url: "URL",
+      saveLink: "Lagre lenke",
+      removeLink: "Fjern lenke",
+    },
     settings: {
+      deleted: "Slettet!",
+      memberWasDeleted: "Medlem ble slettet",
+      error: "Feil",
+      couldNotDeleteMember: "Kunne ikke slette medlem",
+      cannotSave: "Kan ikke lagre",
+      saved: "Lagret!",
+      boardMembersHaveBeen: "Styremedlemmer er lagret",
+      couldNotSaveChanges: "Kunne ikke lagre endringer",
+      kindergartenInfoHasBeen: "Barnehageinformasjon er lagret",
+      couldNotSaveInformation: "Kunne ikke lagre informasjon",
+      settings: "Innstillinger",
+      fauBoard: "FAU-styret",
+      kindergarten: "Barnehagen",
+      users: "Brukere",
+      newsletter: "Nyhetsbrev",
+      name: "Navn",
+      johnDoe: "Navn Navnesen",
+      role: "Rolle",
+      selectRole: "Velg rolle",
+      deleteMember: "Slett medlem",
+      deleteBoardMember: "Slette styremedlem?",
+      cancel: "Avbryt",
+      delete: "Slett",
+      removeMember: "Fjern medlem",
+      addMember: "Legg til medlem",
+      saveChanges: "Lagre endringer",
+      kindergartenInformation: "Barnehageinformasjon",
+      contactEmail: "Kontakt e-post",
+      address: "Adresse",
+      openingHours: "Åpningstider",
+      numberChildren: "Antall barn",
+      owner: "Eier",
+      directorName: "Styrer (navn)",
+      directorSName: "Navn på styrer",
+      directorEmail: "Styrer (e-post)",
+      directorExampleCom: "styrer@example.com",
+      description: "Beskrivelse",
+      discardChanges: "Forkast endringer",
+      noUnsavedChanges: "Ingen ulagrede endringer",
       roles: {
         leder: "Leder",
         medlem: "Medlem",
@@ -1005,12 +1567,23 @@ export const translations: Record<Language, Translations> = {
       news: "News",
       tips: "Tips & Tricks",
       events: "Events",
+      calendar: "Calendar",
       contact: "Contact",
       documents: "Documents",
       more: "More",
       yearlyCalendar: "Yearly calendar"
     },
     header: {
+      overview: "Overview",
+      content: "Content",
+      messages: "Messages",
+      settings: "Settings",
+      openMenu: "Open menu",
+      at: "At",
+      switchLightMode: "Switch to light mode",
+      switchDarkMode: "Switch to dark mode",
+      lightMode: "Light mode",
+      darkMode: "Dark mode",
       title: "FAU Erdal Kindergarten",
       subtitle: "Parents' Council Working Committee",
       login: "Council Login",
@@ -1018,6 +1591,17 @@ export const translations: Record<Language, Translations> = {
       loggingOut: "Logging out..."
     },
     home: {
+      home: "Home",
+      childrenPlayingPlayground: "Children playing on a playground",
+      at: "at",
+      updates: "Updates",
+      tipsTricks: "Tips & Tricks",
+      news: "News",
+      by: "by",
+      readMore: "Read more →",
+      children: "children",
+      director: "Director:",
+      loadingInformation: "Loading information...",
       title: "Welcome to FAU Erdal Kindergarten",
       subtitle: "Together we create the best for our children",
       welcomeTitle: "Welcome to our parent council",
@@ -1059,7 +1643,82 @@ export const translations: Record<Language, Translations> = {
       cooperation: "Cooperation",
       engagement: "Engagement"
     },
+    calendar: {
+      title: "Calendar",
+      subtitle: "Everything happening at Erdal Kindergarten, in one place",
+      upcomingTab: "What's on",
+      upcomingTabHint: "Events, meetings and working bees you can sign up for.",
+      yearlyTab: "Yearly plan",
+      yearlyTabHint: "Fixed dates for the kindergarten year: planning days, holidays and theme weeks.",
+    },
     events: {
+      registrationDeleted: "Registration deleted",
+      registrationHasBeenDeleted: "The registration has been deleted.",
+      deleteError: "Delete error",
+      couldNotDeleteRegistration: "Could not delete the registration. Please try again later.",
+      loadingRegistrations: "Loading registrations...",
+      registered: "Registered",
+      registrationList: "Registration List",
+      downloadExcel: "Download Excel",
+      people: "people",
+      deleteRegistration: "Delete registration",
+      deleteRegistration2: "Delete registration?",
+      childrenTimeSlots: "Children and time slots",
+      comment: "Comment:",
+      selectDate: "Select date",
+      clearDeadline: "Clear deadline",
+      vigiloSignup: "Vigilo Signup",
+      noSignup: "No signup",
+      sendNewsletterReminder: "Send newsletter reminder",
+      addCalendar: "Add to calendar",
+      downloadIcsFile: "Download .ics file",
+      eventDeleted: "Event deleted",
+      eventHasBeenDeleted: "The event has been deleted.",
+      cannotDelete: "Cannot delete",
+      eventHasRegistrationsCannot: "This event has registrations and cannot be deleted. You can cancel it instead.",
+      couldNotDelete: "Could not delete",
+      errorOccurredWhileDeleting: "An error occurred while deleting the event.",
+      eventCancelled: "Event cancelled",
+      eventHasBeenCancelled: "The event has been cancelled and emails have been sent to all attendees.",
+      cancellationError: "Cancellation error",
+      couldNotCancelEvent: "Could not cancel the event. Please try again later.",
+      eventCancelled2: "Event is cancelled",
+      cannotRegisterCancelledEvent: "You cannot register for a cancelled event.",
+      registerVigilo: "Register in Vigilo",
+      eventUsesVigiloRegistration: "This event uses Vigilo for registration.",
+      noSignupRequired: "No signup required",
+      eventDoesNotRequire: "This event does not require registration.",
+      eventCancelledRegistrationNot: "This event is cancelled and registration is not available.",
+      viewOptions: "View options",
+      listView: "List view",
+      calendarView: "Calendar view",
+      loadingCalendar: "Loading calendar...",
+      at: "at",
+      digitalEvent: "Digital event",
+      internalEvent: "Internal event",
+      volunteer: "Volunteer",
+      registerPhoto: "Register for photo",
+      cancelled2: "CANCELLED",
+      deleteEvent: "Delete event?",
+      attended: "attended",
+      viewAttendees: "View attendees",
+      more: "more",
+      previousMonth: "Previous month",
+      nextMonth: "Next month",
+      event: "Event",
+      today: "Today",
+      noRegistrationsYet: "No registrations yet",
+      loading: "Loading...",
+      attendees2: "attendees",
+      missingNames: "Missing names",
+      registerPhotoSession: "Register for photo session",
+      eventRegistration: "Event registration",
+      parentGuardianName: "Parent/guardian name *",
+      parentGuardianName2: "Parent/guardian name",
+      numberChildren: "Number of children",
+      child: "child",
+      children: "children",
+      childrenSFirstNames: "Children\\'s first names",
       title: "Events",
       subtitle: "Upcoming activities and meetings at FAU Erdal Kindergarten",
       addEvent: "Add event",
@@ -1160,6 +1819,15 @@ export const translations: Record<Language, Translations> = {
       }
     },
     documents: {
+      documentDeleted: "Document deleted",
+      documentWasDeletedSuccessfully: "The document was deleted successfully.",
+      error: "Error",
+      delete: "Delete",
+      deleteDocument: "Delete document?",
+      cancel: "Cancel",
+      uploaded: "uploaded",
+      fileTypeNotAllowed: "File type is not allowed",
+      fileLargerThan10: "File is larger than 10 MB",
       title: "Documents",
       subtitle: "Meeting minutes, bylaws and other important documents",
       upload: "Upload document",
@@ -1304,6 +1972,9 @@ export const translations: Record<Language, Translations> = {
       copyright: "© 2025 FAU Erdal Kindergarten. All rights reserved."
     },
     common: {
+      pageNotFound: "Page not found",
+      pageNotFoundBody: "The link may be out of date, or the page may have moved.",
+      goHomePage: "Go to the home page",
       loading: "Loading...",
       unknownSize: "Unknown size",
       bytes: "Bytes",
@@ -1313,7 +1984,178 @@ export const translations: Record<Language, Translations> = {
       upload: "Upload",
       uploading: "Uploading..."
     },
+    newsPage: {
+      tipsTricks: "Tips & Tricks",
+      noTipsYet: "No tips yet",
+      loadingTips: "Loading tips...",
+      couldNotLoadTips: "Could not load tips",
+      news: "News",
+      noNewsYet: "No news yet",
+      loadingNews: "Loading news...",
+      couldNotLoadNews: "Could not load news",
+      category: "Category",
+      by: "by",
+      post: "Post",
+      loading: "Loading …",
+      postNotFound: "Post not found",
+      backNews: "Back to news",
+      allTips: "All tips",
+      allNews: "All news",
+    },
+    adminPage: {
+      messages: "Messages",
+      newInquiry: "new inquiry",
+      newInquiries: "new inquiries",
+      allHandled: "all handled",
+      content: "Content",
+      publishedPost: "published post",
+      publishedPosts: "published posts",
+      documents: "Documents",
+      uploadedLast30Days: "uploaded in the last 30 days",
+      settings: "Settings",
+      boardKindergartenUsers: "Board, kindergarten, users",
+      newsletterSubscribers: "and newsletter subscribers",
+      waiting: "Waiting",
+      noUpcomingEvents: "No upcoming events",
+      registered: "registered",
+      goEvents: "Go to events",
+    },
+    messagesPage: {
+      updated: "Updated!",
+      statusHasBeenUpdated: "Status has been updated",
+      error: "Error",
+      couldNotUpdateStatus: "Could not update status",
+      deleted: "Deleted!",
+      messageWasDeleted: "Message was deleted",
+      couldNotDeleteMessage: "Could not delete message",
+      new: "New",
+      responded: "Responded",
+      archived: "Archived",
+      new2: "New",
+      messages: "Messages",
+      filterByStatus: "Filter by status",
+      showAll: "Show all",
+      showOnlyThese: "Show only these",
+      noMessagesYet: "No messages yet",
+      noMessagesWithStatus: "No messages with this status",
+      anonymous: "Anonymous",
+      archive: "Archive",
+      restore: "Restore",
+      deleteMessage: "Delete message",
+      deleteMessage2: "Delete message?",
+      cancel: "Cancel",
+      delete: "Delete",
+      showLess: "Show less",
+      showMore: "Show more",
+      by: "by",
+    },
+    contentPage: {
+      content: "Content",
+      error: "Error",
+      titleContentRequired: "Title and content are required",
+      saved: "Saved!",
+      postHasBeenSaved: "Post has been saved",
+      couldNotSavePost: "Could not save post",
+      updated: "Updated!",
+      couldNotUpdatePost: "Could not update post",
+      deleted: "Deleted!",
+      postWasDeleted: "Post was deleted",
+      couldNotDeletePost: "Could not delete post",
+      updatesPosts: "Updates / Posts",
+      newPost: "New post",
+      filterByStatus: "Filter by status",
+      all: "All",
+      published: "Published",
+      archived: "Archived",
+      searchTitles: "Search titles …",
+      searchTitles2: "Search titles",
+      title: "Title",
+      postTitle: "Post title",
+      writeYourPostHere: "Write your post here...",
+      category: "Category",
+      news: "News",
+      tipsTricks: "Tips & Tricks",
+      publishDate: "Publish date",
+      writtenBy: "Written by",
+      selectAuthor: "Select author",
+      save: "Save",
+      cancel: "Cancel",
+      delete: "Delete",
+      deleteBlogPost: "Delete blog post?",
+      noTitle: "(No title)",
+      edit: "Edit",
+      removeFromHome: "Remove from home",
+      showHome: "Show on home",
+      publish: "Publish",
+      archive: "Archive",
+      by: "by",
+      archived2: "ARCHIVED",
+      deletePost: "Delete post?",
+      bold: "Bold",
+      italic: "Italic",
+      underline: "Underline",
+      strikethrough: "Strikethrough",
+      heading1: "Heading 1",
+      heading2: "Heading 2",
+      heading3: "Heading 3",
+      bulletList: "Bullet list",
+      numberedList: "Numbered list",
+      alignLeft: "Align left",
+      alignCenter: "Align center",
+      alignRight: "Align right",
+      quote: "Quote",
+      codeBlock: "Code block",
+      link: "Link",
+      image: "Image",
+      undo: "Undo",
+      redo: "Redo",
+      uploadFailed: "Upload failed",
+      couldNotUploadImage: "Could not upload image",
+      addLink: "Add link",
+      url: "URL",
+      saveLink: "Save link",
+      removeLink: "Remove link",
+    },
     settings: {
+      deleted: "Deleted!",
+      memberWasDeleted: "Member was deleted",
+      error: "Error",
+      couldNotDeleteMember: "Could not delete member",
+      cannotSave: "Cannot save",
+      saved: "Saved!",
+      boardMembersHaveBeen: "Board members have been saved",
+      couldNotSaveChanges: "Could not save changes",
+      kindergartenInfoHasBeen: "Kindergarten info has been saved",
+      couldNotSaveInformation: "Could not save information",
+      settings: "Settings",
+      fauBoard: "FAU Board",
+      kindergarten: "Kindergarten",
+      users: "Users",
+      newsletter: "Newsletter",
+      name: "Name",
+      johnDoe: "John Doe",
+      role: "Role",
+      selectRole: "Select role",
+      deleteMember: "Delete member",
+      deleteBoardMember: "Delete board member?",
+      cancel: "Cancel",
+      delete: "Delete",
+      removeMember: "Remove member",
+      addMember: "Add member",
+      saveChanges: "Save changes",
+      kindergartenInformation: "Kindergarten Information",
+      contactEmail: "Contact email",
+      address: "Address",
+      openingHours: "Opening hours",
+      numberChildren: "Number of children",
+      owner: "Owner",
+      directorName: "Director (name)",
+      directorSName: "Director's name",
+      directorEmail: "Director (email)",
+      directorExampleCom: "director@example.com",
+      description: "Description",
+      discardChanges: "Discard changes",
+      noUnsavedChanges: "No unsaved changes",
       roles: {
         leder: "Leader",
         medlem: "Member",

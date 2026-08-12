@@ -33,7 +33,7 @@ export default function Files() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
   usePageMeta({
-    title: language === "no" ? "Dokumenter" : "Documents",
+    title: t.documents.title,
     description:
       language === "no"
         ? "Last ned referater, vedtekter og andre dokumenter fra FAU Erdal Barnehage."
@@ -76,13 +76,13 @@ export default function Files() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       toast({
-        title: language === 'no' ? "Dokument slettet" : "Document deleted",
-        description: language === 'no' ? "Dokumentet ble slettet." : "The document was deleted successfully.",
+        title: t.documents.documentDeleted,
+        description: t.documents.documentWasDeletedSuccessfully,
       });
     },
     onError: (error: any) => {
       toast({
-        title: language === 'no' ? "Feil" : "Error",
+        title: t.documents.error,
         description: language === 'no' ? 
           "Kunne ikke slette dokumentet. Prøv igjen." : 
           "Could not delete document. Please try again.",
@@ -135,14 +135,14 @@ export default function Files() {
         >
           <Trash2 className={`h-4 w-4 ${options.showLabel ? "sm:mr-2" : ""}`} />
           {options.showLabel && (
-            <span className="hidden sm:inline">{language === 'no' ? 'Slett' : 'Delete'}</span>
+            <span className="hidden sm:inline">{t.documents.delete}</span>
           )}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {language === 'no' ? 'Slett dokument?' : 'Delete document?'}
+            {t.documents.deleteDocument}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {language === 'no'
@@ -151,12 +151,12 @@ export default function Files() {
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{language === 'no' ? 'Avbryt' : 'Cancel'}</AlertDialogCancel>
+          <AlertDialogCancel>{t.documents.cancel}</AlertDialogCancel>
           <AlertDialogAction
             onClick={() => deleteDocumentMutation.mutate(doc.id)}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {language === 'no' ? 'Slett' : 'Delete'}
+            {t.documents.delete}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -245,7 +245,7 @@ export default function Files() {
                             <div className="min-w-0 flex-1">
                               <p className="font-medium text-sm text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
                               <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                {formatDate(doc.uploadedAt, language)} • {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
+                                {formatDate(doc.uploadedAt, language)} • {t.documents.uploadedBy} {doc.uploadedBy}
                               </p>
                               {doc.description && (
                                 <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">{doc.description}</p>
@@ -307,7 +307,7 @@ export default function Files() {
                   <div className="flex-1">
                     <p className="text-sm text-neutral-900 dark:text-neutral-200">
                       <span className="font-medium">{activity.user}</span>{" "}
-                      {language === 'no' ? 'lastet opp' : 'uploaded'}{" "}
+                      {t.documents.uploaded}{" "}
                       <span className="font-medium">"{activity.document}"</span>
                     </p>
                     <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
@@ -348,7 +348,7 @@ export default function Files() {
                         {formatDate(doc.uploadedAt, language)} • {formatFileSize(doc.fileSize, language)}
                       </p>
                       <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        {language === 'no' ? 'Lastet opp av' : 'Uploaded by'} {doc.uploadedBy}
+                        {t.documents.uploadedBy} {doc.uploadedBy}
                       </p>
                       {doc.description && (
                         <p className="text-sm text-neutral-500 dark:text-neutral-300 mt-2 bg-neutral-50 dark:bg-neutral-950 p-2 rounded border-l-2 border-neutral-200 dark:border-neutral-800">
@@ -365,7 +365,7 @@ export default function Files() {
                       aria-label={language === 'no' ? `Last ned ${doc.title}` : `Download ${doc.title}`}
                     >
                       <Download className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">{language === 'no' ? 'Last ned' : 'Download'}</span>
+                      <span className="hidden sm:inline">{t.documents.download}</span>
                     </Button>
                     {canManageDocuments && renderDeleteDocumentButton(doc, {
                         variant: "outline",

@@ -90,11 +90,11 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     mutationFn: async (data: FormData) => {
       const extension = `.${data.file.name.split(".").pop()?.toLowerCase() || ""}`;
       if (!ALLOWED_UPLOAD_EXTENSIONS.includes(extension) || !ALLOWED_UPLOAD_MIME_TYPES.includes(data.file.type)) {
-        throw new Error(language === "no" ? "Filtypen er ikke tillatt" : "File type is not allowed");
+        throw new Error(t.documents.fileTypeNotAllowed);
       }
 
       if (data.file.size > MAX_UPLOAD_SIZE_BYTES) {
-        throw new Error(language === "no" ? "Filen er større enn 10 MB" : "File is larger than 10 MB");
+        throw new Error(t.documents.fileLargerThan10);
       }
 
       // 1. Sign — apiRequest handles credentials + CSRF.
@@ -169,7 +169,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       if (!ALLOWED_UPLOAD_EXTENSIONS.includes(extension) || !ALLOWED_UPLOAD_MIME_TYPES.includes(file.type)) {
         toast({
           title: t.documents.uploadError,
-          description: language === "no" ? "Filtypen er ikke tillatt" : "File type is not allowed",
+          description: t.documents.fileTypeNotAllowed,
           variant: "destructive"
         });
         return;
@@ -178,7 +178,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
       if (file.size > MAX_UPLOAD_SIZE_BYTES) {
         toast({
           title: t.documents.uploadError,
-          description: language === "no" ? "Filen er større enn 10 MB" : "File is larger than 10 MB",
+          description: t.documents.fileLargerThan10,
           variant: "destructive"
         });
         return;

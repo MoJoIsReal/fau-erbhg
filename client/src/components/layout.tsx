@@ -62,13 +62,20 @@ export default function Layout({ children }: LayoutProps) {
       icon: Newspaper,
       matchPrefixes: ["/nyheter", "/tips-tricks", "/tips-og-triks"],
     },
-    { name: t.navigation.events, href: "/events", icon: Calendar },
-    { name: t.navigation.yearlyCalendar, href: "/arskalender", icon: CalendarDays },
+    // Events and the yearly plan are two tabs of one calendar page now, so
+    // they share a single nav slot. That frees enough room for every item to
+    // sit at top level — nothing hides behind "More" any more.
+    {
+      name: t.navigation.calendar,
+      href: "/kalender",
+      icon: CalendarDays,
+      matchPrefixes: ["/kalender", "/events", "/arskalender"],
+    },
     { name: t.navigation.contact, href: "/contact", icon: Mail },
     { name: t.navigation.documents, href: "/files", icon: Folder },
   ];
-  const primaryNavigation = navigation.slice(0, 4);
-  const secondaryNavigation = navigation.slice(4);
+  const primaryNavigation = navigation.slice(0, 5);
+  const secondaryNavigation = navigation.slice(5);
   const isNavigationItemActive = (item: NavigationItem) =>
     location === item.href ||
     Boolean(item.matchPrefixes?.some((prefix) => location === prefix || location.startsWith(`${prefix}/`))) ||
@@ -142,30 +149,32 @@ export default function Layout({ children }: LayoutProps) {
                   </Link>
                 );
               })}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className={desktopNavItemClass(secondaryNavigationIsActive)}
-                  >
-                    <span>{t.navigation.more}</span>
-                    <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  {secondaryNavigation.map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <DropdownMenuItem key={item.href} asChild>
-                        <Link href={item.href} className="flex w-full items-center gap-2">
-                          <Icon className="h-4 w-4" />
-                          <span>{item.name}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {secondaryNavigation.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={desktopNavItemClass(secondaryNavigationIsActive)}
+                    >
+                      <span>{t.navigation.more}</span>
+                      <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    {secondaryNavigation.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <DropdownMenuItem key={item.href} asChild>
+                          <Link href={item.href} className="flex w-full items-center gap-2">
+                            <Icon className="h-4 w-4" />
+                            <span>{item.name}</span>
+                          </Link>
+                        </DropdownMenuItem>
+                      );
+                    })}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </nav>
 
             {/* Language Toggle, Dark Mode & Auth Controls */}
@@ -197,7 +206,7 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuItem asChild>
                         <Link href="/admin" className="flex w-full items-center gap-2">
                           <LayoutDashboard className="h-4 w-4" />
-                          <span>{language === 'no' ? 'Oversikt' : 'Overview'}</span>
+                          <span>{t.header.overview}</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
@@ -205,7 +214,7 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuItem asChild>
                         <Link href="/content" className="flex w-full items-center gap-2">
                           <Newspaper className="h-4 w-4" />
-                          <span>{language === 'no' ? 'Innhold' : 'Content'}</span>
+                          <span>{t.header.content}</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
@@ -213,7 +222,7 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuItem asChild>
                         <Link href="/messages" className="flex w-full items-center gap-2">
                           <MessageSquare className="h-4 w-4" />
-                          <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                          <span>{t.header.messages}</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
@@ -221,7 +230,7 @@ export default function Layout({ children }: LayoutProps) {
                       <DropdownMenuItem asChild>
                         <Link href="/settings" className="flex w-full items-center gap-2">
                           <SettingsIcon className="h-4 w-4" />
-                          <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                          <span>{t.header.settings}</span>
                         </Link>
                       </DropdownMenuItem>
                     )}
@@ -264,7 +273,7 @@ export default function Layout({ children }: LayoutProps) {
                   variant="ghost"
                   size="icon"
                   className="justify-self-end lg:hidden"
-                  aria-label={language === 'no' ? 'Åpne meny' : 'Open menu'}
+                  aria-label={t.header.openMenu}
                 >
                   <Menu className="h-6 w-6" aria-hidden="true" />
                 </Button>
@@ -358,7 +367,7 @@ export default function Layout({ children }: LayoutProps) {
                             className="w-full flex items-center space-x-2"
                           >
                             <LayoutDashboard className="h-4 w-4" />
-                            <span>{language === 'no' ? 'Oversikt' : 'Overview'}</span>
+                            <span>{t.header.overview}</span>
                           </Button>
                         </Link>
                       )}
@@ -370,7 +379,7 @@ export default function Layout({ children }: LayoutProps) {
                             className="w-full flex items-center space-x-2"
                           >
                             <Newspaper className="h-4 w-4" />
-                            <span>{language === 'no' ? 'Innhold' : 'Content'}</span>
+                            <span>{t.header.content}</span>
                           </Button>
                         </Link>
                       )}
@@ -382,7 +391,7 @@ export default function Layout({ children }: LayoutProps) {
                             className="w-full flex items-center space-x-2"
                           >
                             <MessageSquare className="h-4 w-4" />
-                            <span>{language === 'no' ? 'Meldinger' : 'Messages'}</span>
+                            <span>{t.header.messages}</span>
                           </Button>
                         </Link>
                       )}
@@ -394,7 +403,7 @@ export default function Layout({ children }: LayoutProps) {
                             className="w-full flex items-center space-x-2"
                           >
                             <SettingsIcon className="h-4 w-4" />
-                            <span>{language === 'no' ? 'Innstillinger' : 'Settings'}</span>
+                            <span>{t.header.settings}</span>
                           </Button>
                         </Link>
                       )}
@@ -512,7 +521,7 @@ export default function Layout({ children }: LayoutProps) {
                         })}
                       </p>
                       <p className="text-sm text-neutral-300 mb-3">
-                        {language === 'no' ? 'Kl.' : 'At'} {nextMeeting.event.time} - {nextMeeting.event.location}
+                        {t.header.at} {nextMeeting.event.time} - {nextMeeting.event.location}
                       </p>
                       <Link href="/events" className="text-primary hover:text-white text-sm font-medium">
                         {t.home.moreInfo}

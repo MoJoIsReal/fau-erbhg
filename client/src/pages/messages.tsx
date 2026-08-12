@@ -55,15 +55,15 @@ export default function Messages() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=contact-messages"] });
       toast({
-        title: language === "no" ? "Oppdatert!" : "Updated!",
-        description: language === "no" ? "Status er oppdatert" : "Status has been updated",
+        title: t.messagesPage.updated,
+        description: t.messagesPage.statusHasBeenUpdated,
       });
     },
     onError: () => {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Kunne ikke oppdatere status" : "Could not update status",
+        title: t.messagesPage.error,
+        description: t.messagesPage.couldNotUpdateStatus,
       });
     },
   });
@@ -77,15 +77,15 @@ export default function Messages() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=contact-messages"] });
       toast({
-        title: language === "no" ? "Slettet!" : "Deleted!",
-        description: language === "no" ? "Meldingen ble slettet" : "Message was deleted",
+        title: t.messagesPage.deleted,
+        description: t.messagesPage.messageWasDeleted,
       });
     },
     onError: () => {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Kunne ikke slette melding" : "Could not delete message",
+        title: t.messagesPage.error,
+        description: t.messagesPage.couldNotDeleteMessage,
       });
     },
   });
@@ -93,11 +93,11 @@ export default function Messages() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'new':
-        return <Badge className="bg-blue-500">{language === "no" ? "Ny" : "New"}</Badge>;
+        return <Badge className="bg-blue-500">{t.messagesPage.new}</Badge>;
       case 'responded':
-        return <Badge className="bg-green-500">{language === "no" ? "Besvart" : "Responded"}</Badge>;
+        return <Badge className="bg-green-500">{t.messagesPage.responded}</Badge>;
       case 'archived':
-        return <Badge variant="secondary">{language === "no" ? "Arkivert" : "Archived"}</Badge>;
+        return <Badge variant="secondary">{t.messagesPage.archived}</Badge>;
       default:
         return null;
     }
@@ -149,7 +149,7 @@ export default function Messages() {
   }[] = [
     {
       key: 'new',
-      label: language === "no" ? "Nye" : "New",
+      label: t.messagesPage.new2,
       count: newMessages.length,
       icon: Mail,
       numberClass: "text-blue-600 dark:text-blue-300",
@@ -157,7 +157,7 @@ export default function Messages() {
     },
     {
       key: 'responded',
-      label: language === "no" ? "Besvart" : "Responded",
+      label: t.messagesPage.responded,
       count: respondedMessages.length,
       icon: Check,
       numberClass: "text-green-600 dark:text-green-300",
@@ -165,7 +165,7 @@ export default function Messages() {
     },
     {
       key: 'archived',
-      label: language === "no" ? "Arkivert" : "Archived",
+      label: t.messagesPage.archived,
       count: archivedMessages.length,
       icon: Archive,
       numberClass: "text-neutral-600 dark:text-neutral-300",
@@ -177,7 +177,7 @@ export default function Messages() {
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
-          {language === "no" ? "Meldinger" : "Messages"}
+          {t.messagesPage.messages}
         </h1>
         <p className="text-neutral-600 dark:text-neutral-300 mt-2">
           {language === "no"
@@ -187,7 +187,7 @@ export default function Messages() {
       </div>
 
       {/* Summary cards double as status filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8" role="group" aria-label={language === "no" ? "Filtrer på status" : "Filter by status"}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8" role="group" aria-label={t.messagesPage.filterByStatus}>
         {filterCards.map((card) => {
           const Icon = card.icon;
           const isActive = statusFilter === card.key;
@@ -210,8 +210,8 @@ export default function Messages() {
                   </div>
                   <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
                     {isActive
-                      ? language === "no" ? "Vis alle" : "Show all"
-                      : language === "no" ? "Vis kun disse" : "Show only these"}
+                      ? t.messagesPage.showAll
+                      : t.messagesPage.showOnlyThese}
                   </p>
                 </CardContent>
               </Card>
@@ -226,8 +226,8 @@ export default function Messages() {
           {visibleMessages.length === 0 ? (
             <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
               {messages.length === 0
-                ? language === "no" ? "Ingen meldinger ennå" : "No messages yet"
-                : language === "no" ? "Ingen meldinger med denne statusen" : "No messages with this status"}
+                ? t.messagesPage.noMessagesYet
+                : t.messagesPage.noMessagesWithStatus}
             </p>
           ) : (
             <div className="space-y-4">
@@ -255,7 +255,7 @@ export default function Messages() {
                           {!message.name && message.subject === 'anonymous' && (
                             <p className="flex items-center gap-2">
                               <User className="h-4 w-4" />
-                              {language === "no" ? "Anonym" : "Anonymous"}
+                              {t.messagesPage.anonymous}
                             </p>
                           )}
                           {message.phone && (
@@ -285,7 +285,7 @@ export default function Messages() {
                             disabled={updateStatusMutation.isPending}
                           >
                             <Check className="h-4 w-4 mr-1" />
-                            {language === "no" ? "Besvart" : "Responded"}
+                            {t.messagesPage.responded}
                           </Button>
                         )}
                         {message.status !== 'archived' && (
@@ -296,7 +296,7 @@ export default function Messages() {
                             disabled={updateStatusMutation.isPending}
                           >
                             <Archive className="h-4 w-4 mr-1" />
-                            {language === "no" ? "Arkiver" : "Archive"}
+                            {t.messagesPage.archive}
                           </Button>
                         )}
                         {message.status === 'archived' && (
@@ -306,7 +306,7 @@ export default function Messages() {
                             size="sm"
                             disabled={updateStatusMutation.isPending}
                           >
-                            {language === "no" ? "Gjenopprett" : "Restore"}
+                            {t.messagesPage.restore}
                           </Button>
                         )}
                         <AlertDialog>
@@ -316,7 +316,7 @@ export default function Messages() {
                               size="sm"
                               className="text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30 border-red-200 dark:border-red-900/70"
                               disabled={deleteMutation.isPending}
-                              aria-label={language === "no" ? "Slett melding" : "Delete message"}
+                              aria-label={t.messagesPage.deleteMessage}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
@@ -324,7 +324,7 @@ export default function Messages() {
                           <AlertDialogContent>
                             <AlertDialogHeader>
                               <AlertDialogTitle>
-                                {language === "no" ? "Slett melding?" : "Delete message?"}
+                                {t.messagesPage.deleteMessage2}
                               </AlertDialogTitle>
                               <AlertDialogDescription>
                                 {language === "no"
@@ -333,12 +333,12 @@ export default function Messages() {
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+                              <AlertDialogCancel>{t.messagesPage.cancel}</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => deleteMutation.mutate(message.id)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
-                                {language === "no" ? "Slett" : "Delete"}
+                                {t.messagesPage.delete}
                               </AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
@@ -361,15 +361,15 @@ export default function Messages() {
                       className="mt-2 text-xs"
                     >
                       {expandedMessage === message.id
-                        ? language === "no" ? "Vis mindre" : "Show less"
-                        : language === "no" ? "Vis mer" : "Show more"}
+                        ? t.messagesPage.showLess
+                        : t.messagesPage.showMore}
                     </Button>
 
                     {message.respondedAt && (
                       <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3 italic">
-                        {language === "no" ? "Besvart" : "Responded"}{" "}
+                        {t.messagesPage.responded}{" "}
                         {new Date(message.respondedAt).toLocaleDateString(language === "no" ? "no-NO" : "en-US")}
-                        {message.respondedBy && ` ${language === "no" ? "av" : "by"} ${message.respondedBy}`}
+                        {message.respondedBy && ` ${t.messagesPage.by} ${message.respondedBy}`}
                       </p>
                     )}
                   </CardContent>

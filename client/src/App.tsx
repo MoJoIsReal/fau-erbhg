@@ -8,7 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 
 // Lazy load route components for code splitting
 const Home = lazy(() => import("@/pages/home"));
-const Events = lazy(() => import("@/pages/events"));
+const CalendarPage = lazy(() => import("@/pages/calendar"));
 const News = lazy(() => import("@/pages/news"));
 const NewsPost = lazy(() => import("@/pages/news-post"));
 const Contact = lazy(() => import("@/pages/contact"));
@@ -17,13 +17,12 @@ const Settings = lazy(() => import("@/pages/settings"));
 const Admin = lazy(() => import("@/pages/admin"));
 const Content = lazy(() => import("@/pages/content"));
 const Messages = lazy(() => import("@/pages/messages"));
-const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 const Privacy = lazy(() => import("@/pages/privacy"));
 const Newsletter = lazy(() => import("@/pages/newsletter"));
 
 // Loading fallback component
 function PageLoader() {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   return (
     <div
       className="min-h-screen w-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950"
@@ -33,7 +32,7 @@ function PageLoader() {
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
         <p className="text-neutral-600 dark:text-neutral-300">
-          {language === "no" ? "Laster …" : "Loading …"}
+          {t.common.loading}
         </p>
       </div>
     </div>
@@ -42,7 +41,7 @@ function PageLoader() {
 
 // 404: give the reader a way back rather than a dead end.
 function NotFound() {
-  const { language } = useLanguage();
+  const { t } = useLanguage();
   return (
     <div className="flex min-h-[50vh] w-full items-center justify-center">
       <div className="text-center">
@@ -50,19 +49,32 @@ function NotFound() {
           404
         </p>
         <h1 className="mb-3 font-heading text-2xl font-bold text-neutral-900 dark:text-neutral-50">
-          {language === "no" ? "Siden finnes ikke" : "Page not found"}
+          {t.common.pageNotFound}
         </h1>
         <p className="mb-6 text-neutral-600 dark:text-neutral-300">
-          {language === "no"
-            ? "Lenken kan være utdatert, eller siden kan ha blitt flyttet."
-            : "The link may be out of date, or the page may have moved."}
+          {t.common.pageNotFoundBody}
         </p>
         <Link href="/">
-          <Button>{language === "no" ? "Gå til forsiden" : "Go to the home page"}</Button>
+          <Button>{t.common.goHomePage}</Button>
         </Link>
       </div>
     </div>
   );
+}
+
+/**
+ * Send a retired URL to its replacement without leaving a history entry, so
+ * the back button doesn't bounce the reader straight back out. Links posted
+ * to Facebook or saved in bookmarks still land in the right place.
+ */
+function Redirect({ to }: { to: string }) {
+  const [, setLocation] = useLocation();
+
+  useEffect(() => {
+    setLocation(to, { replace: true });
+  }, [to, setLocation]);
+
+  return <PageLoader />;
 }
 
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: string[] }) {
@@ -88,7 +100,17 @@ function Router() {
       <Suspense fallback={<PageLoader />}>
         <Switch>
           <Route path="/" component={Home} />
-          <Route path="/events" component={Events} />
+          <Route path="/kalender" component={CalendarPage} />
+          <Route path="/kalender/arshjul" component={CalendarPage} />
+          {/* Retired top-level calendar URLs. Both are still in circulation
+              (newsletters, Facebook posts, bookmarks), so they redirect
+              rather than 404. */}
+          <Route path="/events">
+            <Redirect to="/kalender" />
+          </Route>
+          <Route path="/calendar">
+            <Redirect to="/kalender" />
+          </Route>
           <Route path="/news" component={News} />
           <Route path="/nyheter" component={News} />
           <Route path="/nyheter/:id" component={NewsPost} />
@@ -118,7 +140,9 @@ function Router() {
               <Messages />
             </RequireAuth>
           </Route>
-          <Route path="/arskalender" component={YearlyCalendar} />
+          <Route path="/arskalender">
+            <Redirect to="/kalender/arshjul" />
+          </Route>
           <Route path="/nyhetsbrev" component={Newsletter} />
           <Route path="/newsletter" component={Newsletter} />
           <Route>
