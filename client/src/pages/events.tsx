@@ -1,4 +1,5 @@
 import { useState, useMemo, lazy, Suspense } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,6 +17,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   Calendar,
+  CalendarDays,
   Camera,
   Clock,
   Users,
@@ -45,6 +47,9 @@ import AttendeeTooltip from "@/components/attendee-tooltip";
 
 // Lazy load calendar component (only loaded when user switches to calendar view)
 const CalendarView = lazy(() => import("@/components/calendar-view"));
+
+// How many past events to reveal per "show more" click.
+const PAST_EVENTS_PAGE_SIZE = 5;
 
 function isRegistrationDeadlinePassed(deadline?: string | null) {
   if (!deadline) return false;
@@ -83,6 +88,7 @@ export default function Events() {
   const [isRegistrationsModalOpen, setIsRegistrationsModalOpen] = useState(false);
   const [isCreationModalOpen, setIsCreationModalOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+  const [visiblePastCount, setVisiblePastCount] = useState(PAST_EVENTS_PAGE_SIZE);
 
   const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["/api/events"]
@@ -305,7 +311,7 @@ export default function Events() {
           {canManageEvents && (
             <Button 
               onClick={() => setIsCreationModalOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <Plus className="h-4 w-4 mr-2" />
               {t.events.addEvent}
@@ -331,18 +337,27 @@ export default function Events() {
         </Suspense>
       ) : (
         <div className="space-y-6">
-          {events.length === 0 ? (
+          {/* Empty state keys off "nothing upcoming", not "nothing at all": with
+              only past events the page used to jump straight to the archive with
+              no explanation, which reads as a broken page. */}
+          {currentEvents.length === 0 && (
             <Card>
               <CardContent className="p-8 text-center">
                 <Calendar className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
                 <h3 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">{t.events.noEvents}</h3>
-                <p className="text-neutral-600 dark:text-neutral-300">{t.events.noEventsDesc}</p>
+                <p className="text-neutral-600 dark:text-neutral-300 mb-4">{t.events.noEventsDesc}</p>
+                <Link href="/arskalender">
+                  <Button variant="outline">
+                    <CalendarDays className="h-4 w-4 mr-2" />
+                    {t.events.openYearlyCalendar}
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
-          ) : (
-            <>
-              {/* Current Events */}
-              {currentEvents.map((event) => {
+          )}
+
+          {/* Current Events */}
+          {currentEvents.map((event) => {
                 const IconComponent = getEventIcon(event.type);
                 const colorClass = getEventColor(event.type);
                 const registrationClosed = isRegistrationDeadlinePassed(event.registrationDeadline);
@@ -438,7 +453,7 @@ export default function Events() {
                           ) : event.type === "dugnad" ? (
                             <Button
                               onClick={() => handleRegisterClick(event)}
-                              className="bg-primary hover:bg-primary/90 text-white"
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground"
                               disabled={registrationClosed}
                             >
                               <Heart className="h-4 w-4 mr-2" />
@@ -461,7 +476,7 @@ export default function Events() {
                           ) : (
                             <Button 
                               onClick={() => handleRegisterClick(event)}
-                              className="bg-primary hover:bg-primary/90 text-white"
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground"
                               disabled={registrationClosed || isFull}
                             >
                               <UserPlus className="h-4 w-4 mr-2" />
@@ -567,14 +582,15 @@ export default function Events() {
                 );
               })}
 
-              {/* Past Events Section */}
-              {pastEvents.length > 0 && (
+          {/* Past Events Section — revealed a page at a time so the archive
+              doesn't bury the top of the page on mobile. */}
+          {pastEvents.length > 0 && (
                 <div className="mt-12">
                   <h2 className="text-2xl font-bold text-neutral-900 dark:text-neutral-50 mb-6">
-                    {language === 'no' ? 'Tidligere arrangementer' : 'Past Events'}
+                    {t.events.pastEvents} <span className="text-neutral-500 dark:text-neutral-400 font-normal">({pastEvents.length})</span>
                   </h2>
                   <div className="space-y-4">
-                    {pastEvents.map((event) => {
+                    {pastEvents.slice(0, visiblePastCount).map((event) => {
                       const IconComponent = getEventIcon(event.type);
                       return (
                         <Card key={event.id} className="opacity-75 border-neutral-200 dark:border-neutral-800">
@@ -637,10 +653,19 @@ export default function Events() {
                       );
                     })}
                   </div>
+
+                  {visiblePastCount < pastEvents.length && (
+                    <div className="mt-6 text-center">
+                      <Button
+                        variant="outline"
+                        onClick={() => setVisiblePastCount((count) => count + PAST_EVENTS_PAGE_SIZE)}
+                      >
+                        {t.events.showMorePast}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
-            </>
-          )}
         </div>
       )}
 

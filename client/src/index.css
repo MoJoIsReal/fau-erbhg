@@ -14,18 +14,24 @@
   --card-foreground: 20 14.3% 4.1%;
   --border: 20 5.9% 90%;
   --input: 20 5.9% 90%;
-  --primary: 16 100% 70%; /* #FF8A65 */
+  /* Text and control colours carry WCAG AA contrast against white.
+     The pastels they replaced (#FF8A65 2.31:1, #4FC3F7 2.00:1,
+     #81C784 2.01:1) all failed the 4.5:1 minimum, which affected every
+     primary button on the site. The pastels are kept below as
+     --kindergarten-* and are still used for tinted surfaces
+     (icon chips, badges) where they never carry text. */
+  --primary: 19 88% 41%; /* #C2410C — 5.18:1 on white */
   --primary-foreground: 0 0% 100%;
-  --secondary: 194 100% 70%; /* #4FC3F7 */
+  --secondary: 194 82% 30%; /* #0E6E8C — 5.79:1 on white */
   --secondary-foreground: 0 0% 100%;
-  --accent: 122 39% 72%; /* #81C784 */
+  --accent: 149 46% 33%; /* #2E7D53 — 5.03:1 on white */
   --accent-foreground: 0 0% 100%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 60 9.1% 97.8%;
-  --ring: 16 100% 70%;
+  --ring: 19 88% 41%;
   --radius: 0.75rem;
-  
-  /* Custom colors for the kindergarten theme */
+
+  /* Decorative pastels — surfaces and tints only, never text on white. */
   --kindergarten-orange: 16 100% 70%; /* #FF8A65 */
   --kindergarten-orange-dark: 14 89% 55%; /* #F4511E */
   --kindergarten-blue: 194 100% 70%; /* #4FC3F7 */
@@ -54,12 +60,15 @@
   --card-foreground: 0 0% 98%;
   --border: 220 18% 20%;
   --input: 220 18% 20%;
+  /* On the dark ground the pastels read well as text (≈7.8:1), so they stay.
+     What changes is the foreground they pair with: a filled pastel button
+     needs dark ink on top, not white, to clear 4.5:1. */
   --primary: 16 100% 70%;
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 215 28% 12%;
   --secondary: 194 100% 70%;
-  --secondary-foreground: 0 0% 100%;
+  --secondary-foreground: 215 28% 12%;
   --accent: 122 39% 72%;
-  --accent-foreground: 0 0% 100%;
+  --accent-foreground: 215 28% 12%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
   --ring: 240 4.9% 83.9%;

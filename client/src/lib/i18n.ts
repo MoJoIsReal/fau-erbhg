@@ -84,6 +84,8 @@ export interface Translations {
     viewList: string;
     viewCalendar: string;
     pastEvents: string;
+    showMorePast: string;
+    openYearlyCalendar: string;
     noPastEvents: string;
     noPastEventsDesc: string;
     viewRegistrations: string;
@@ -568,7 +570,7 @@ export const translations: Record<Language, Translations> = {
       subtitle: "Kommende aktiviteter og møter i FAU Erdal Barnehage",
       addEvent: "Legg til arrangement",
       noEvents: "Ingen kommende arrangementer",
-      noEventsDesc: "Sjekk tilbake senere for oppdateringer om kommende aktiviteter og møter.",
+      noEventsDesc: "FAU legger ut nye møter og dugnader fortløpende. Datoer som allerede er satt for barnehageåret finner du i årshjulet.",
       register: "Meld deg på",
       full: "Fullt",
       attendees: "påmeldte",
@@ -583,6 +585,8 @@ export const translations: Record<Language, Translations> = {
       viewList: "Liste",
       viewCalendar: "Kalender",
       pastEvents: "Tidligere arrangementer",
+      showMorePast: "Vis flere tidligere arrangementer",
+      openYearlyCalendar: "Åpne årshjulet",
       noPastEvents: "Ingen tidligere arrangementer",
       noPastEventsDesc: "Det er ingen tidligere arrangementer å vise.",
       viewRegistrations: "Se påmeldte",
@@ -1057,7 +1061,7 @@ export const translations: Record<Language, Translations> = {
       subtitle: "Upcoming activities and meetings at FAU Erdal Kindergarten",
       addEvent: "Add event",
       noEvents: "No upcoming events",
-      noEventsDesc: "Check back later for updates on upcoming activities and meetings.",
+      noEventsDesc: "FAU posts new meetings and working bees as they are planned. Dates already set for the kindergarten year are in the yearly calendar.",
       register: "Register",
       full: "Full",
       attendees: "registered",
@@ -1072,6 +1076,8 @@ export const translations: Record<Language, Translations> = {
       viewList: "List",
       viewCalendar: "Calendar",
       pastEvents: "Past events",
+      showMorePast: "Show more past events",
+      openYearlyCalendar: "Open the yearly calendar",
       noPastEvents: "No past events",
       noPastEventsDesc: "There are no past events to display.",
       viewRegistrations: "View registrations",

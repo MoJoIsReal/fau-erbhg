@@ -103,7 +103,15 @@ export default function Files() {
     return allDocuments.filter(doc => doc.category === categoryId);
   };
 
+  // Images uploaded from inside the rich-text editor are stored as documents
+  // under the "editor-image" category with a raw Cloudinary filename. They are
+  // not archive documents, so they must not surface in the activity feed.
+  // Sort explicitly rather than trusting the order the API happens to return.
+  const CATEGORY_IDS = categories.map((category) => category.id);
   const recentActivity = allDocuments
+    .filter((doc) => CATEGORY_IDS.includes(doc.category))
+    .slice()
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
     .slice(0, 3)
     .map(doc => ({
       type: "upload",
@@ -199,7 +207,7 @@ export default function Files() {
           <div className="mt-4 md:mt-0">
             <Button 
               onClick={() => setIsUploadModalOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               <Upload className="h-4 w-4 mr-2" />
               {t.documents.upload}
@@ -244,7 +252,10 @@ export default function Files() {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1">
+                          {/* Download and delete are separated: one is routine,
+                              the other destructive, and on a phone they were a
+                              thumb-width apart. */}
+                          <div className="flex items-center gap-1 pl-1 sm:gap-3">
                             <Button 
                               variant="ghost" 
                               size="sm" 
@@ -295,7 +306,8 @@ export default function Files() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-neutral-900 dark:text-neutral-200">
-                      <span className="font-medium">{activity.user}</span> lastet opp{" "}
+                      <span className="font-medium">{activity.user}</span>{" "}
+                      {language === 'no' ? 'lastet opp' : 'uploaded'}{" "}
                       <span className="font-medium">"{activity.document}"</span>
                     </p>
                     <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">

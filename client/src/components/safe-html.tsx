@@ -50,16 +50,43 @@ function sanitizeClientHtml(html: string) {
   return template.innerHTML;
 }
 
+// Build a plain-text excerpt from already-sanitized HTML. Counting characters
+// on the raw markup (which is what this used to do) meant a post starting with
+// an image spent its whole budget on the <img src="https://res.cloudinary.com/…">
+// URL, so the teaser rendered a full-width poster and barely any words. Excerpts
+// are text only: markup and images belong on the full post, not in a preview.
+function excerptFromHtml(sanitizedHtml: string, limit: number): string {
+  if (typeof window === "undefined") return "";
+
+  const template = document.createElement("template");
+  template.innerHTML = sanitizedHtml;
+  const text = (template.content.textContent ?? "").replace(/\s+/g, " ").trim();
+
+  if (text.length <= limit) return text;
+
+  // Cut on a word boundary when one is close enough to the limit, so the
+  // excerpt doesn't end mid-word.
+  const cut = text.slice(0, limit);
+  const lastSpace = cut.lastIndexOf(" ");
+  const body = lastSpace > limit * 0.6 ? cut.slice(0, lastSpace) : cut;
+  return `${body.replace(/[\s.,;:!?-]+$/, "")}…`;
+}
+
 export default function SafeHtml({ html, className, truncate }: SafeHtmlProps) {
-  const source = html ?? "";
-  const displayHtml = truncate && source.length > truncate
-    ? `${source.substring(0, truncate)}...`
-    : source;
+  const sanitized = sanitizeClientHtml(html ?? "");
+
+  if (truncate) {
+    return (
+      <div className={cn("safe-html dark:prose-invert", className)}>
+        {excerptFromHtml(sanitized, truncate)}
+      </div>
+    );
+  }
 
   return (
     <div
       className={cn("safe-html dark:prose-invert", className)}
-      dangerouslySetInnerHTML={{ __html: sanitizeClientHtml(displayHtml) }}
+      dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );
 }

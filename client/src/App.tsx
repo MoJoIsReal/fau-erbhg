@@ -1,8 +1,10 @@
 import { lazy, Suspense, useEffect, type ReactNode } from "react";
-import { Switch, Route, useLocation } from "wouter";
+import { Switch, Route, useLocation, Link } from "wouter";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Lazy load route components for code splitting
 const Home = lazy(() => import("@/pages/home"));
@@ -19,15 +21,43 @@ const Newsletter = lazy(() => import("@/pages/newsletter"));
 
 // Loading fallback component
 function PageLoader() {
+  const { language } = useLanguage();
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center bg-neutral-50"
+      className="min-h-screen w-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950"
       role="status"
       aria-live="polite"
     >
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-neutral-600">Laster...</p>
+        <p className="text-neutral-600 dark:text-neutral-300">
+          {language === "no" ? "Laster …" : "Loading …"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// 404: give the reader a way back rather than a dead end.
+function NotFound() {
+  const { language } = useLanguage();
+  return (
+    <div className="flex min-h-[50vh] w-full items-center justify-center">
+      <div className="text-center">
+        <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+          404
+        </p>
+        <h1 className="mb-3 font-heading text-2xl font-bold text-neutral-900 dark:text-neutral-50">
+          {language === "no" ? "Siden finnes ikke" : "Page not found"}
+        </h1>
+        <p className="mb-6 text-neutral-600 dark:text-neutral-300">
+          {language === "no"
+            ? "Lenken kan være utdatert, eller siden kan ha blitt flyttet."
+            : "The link may be out of date, or the page may have moved."}
+        </p>
+        <Link href="/">
+          <Button>{language === "no" ? "Gå til forsiden" : "Go to the home page"}</Button>
+        </Link>
       </div>
     </div>
   );
@@ -83,12 +113,7 @@ function Router() {
           <Route path="/nyhetsbrev" component={Newsletter} />
           <Route path="/newsletter" component={Newsletter} />
           <Route>
-            <div className="min-h-screen w-full flex items-center justify-center bg-neutral-50">
-              <div className="text-center">
-                <h1 className="text-2xl font-bold text-neutral-900 mb-4">404 - Side ikke funnet</h1>
-                <p className="text-neutral-600">Siden du leter etter finnes ikke.</p>
-              </div>
-            </div>
+            <NotFound />
           </Route>
         </Switch>
       </Suspense>
