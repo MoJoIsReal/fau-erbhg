@@ -12,7 +12,7 @@ interface CalendarViewProps {
 }
 
 export default function CalendarView({ events, onEventClick }: CalendarViewProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const getDaysInMonth = (date: Date) => {
@@ -105,7 +105,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
             ))}
             {dayEvents.length > 2 && (
               <div className="text-xs text-neutral-500 dark:text-neutral-400">
-                +{dayEvents.length - 2} {language === 'no' ? 'mer' : 'more'}
+                +{dayEvents.length - 2} {t.events.more}
               </div>
             )}
           </div>
@@ -134,7 +134,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
             variant="ghost"
             size="sm"
             onClick={() => navigateMonth('prev')}
-            aria-label={language === 'no' ? 'Forrige måned' : 'Previous month'}
+            aria-label={t.events.previousMonth}
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -146,7 +146,7 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
             variant="ghost"
             size="sm"
             onClick={() => navigateMonth('next')}
-            aria-label={language === 'no' ? 'Neste måned' : 'Next month'}
+            aria-label={t.events.nextMonth}
           >
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -163,11 +163,11 @@ export default function CalendarView({ events, onEventClick }: CalendarViewProps
         <div className="mt-4 text-xs text-neutral-600 dark:text-neutral-300 flex items-center space-x-4">
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded bg-primary/10"></div>
-            <span>{language === 'no' ? 'Arrangement' : 'Event'}</span>
+            <span>{t.events.event}</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-3 h-3 rounded border-2 border-primary"></div>
-            <span>{language === 'no' ? 'I dag' : 'Today'}</span>
+            <span>{t.events.today}</span>
           </div>
         </div>
       </CardContent>

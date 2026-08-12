@@ -21,14 +21,14 @@ interface BlogPost {
 }
 
 export default function News() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [location] = useLocation();
   const category = location.includes("tips") ? "tips" : "news";
   const isTips = category === "tips";
 
   const pageText = isTips
     ? {
-        title: language === "no" ? "Tips & triks" : "Tips & Tricks",
+        title: t.newsPage.tipsTricks,
         description:
           language === "no"
             ? "Praktiske tips og råd for foreldre i Erdal Barnehage."
@@ -37,16 +37,16 @@ export default function News() {
           language === "no"
             ? "Praktiske tips, råd og erfaringer for barnehagehverdagen"
             : "Practical tips, advice and experience for kindergarten life",
-        emptyTitle: language === "no" ? "Ingen tips ennå" : "No tips yet",
+        emptyTitle: t.newsPage.noTipsYet,
         emptyDescription:
           language === "no"
             ? "Sjekk tilbake senere for tips og nyttige råd."
             : "Check back later for tips and useful advice.",
-        loading: language === "no" ? "Laster tips..." : "Loading tips...",
-        errorTitle: language === "no" ? "Kunne ikke laste tips" : "Could not load tips",
+        loading: t.newsPage.loadingTips,
+        errorTitle: t.newsPage.couldNotLoadTips,
       }
     : {
-        title: language === "no" ? "Nyheter" : "News",
+        title: t.newsPage.news,
         description:
           language === "no"
             ? "Siste nyheter og informasjon fra FAU Erdal Barnehage."
@@ -55,13 +55,13 @@ export default function News() {
           language === "no"
             ? "Siste nyheter og informasjon fra FAU Erdal Barnehage"
             : "Latest news and information from FAU Erdal Kindergarten",
-        emptyTitle: language === "no" ? "Ingen nyheter ennå" : "No news yet",
+        emptyTitle: t.newsPage.noNewsYet,
         emptyDescription:
           language === "no"
             ? "Sjekk tilbake senere for oppdateringer og informasjon."
             : "Check back later for updates and information.",
-        loading: language === "no" ? "Laster nyheter..." : "Loading news...",
-        errorTitle: language === "no" ? "Kunne ikke laste nyheter" : "Could not load news",
+        loading: t.newsPage.loadingNews,
+        errorTitle: t.newsPage.couldNotLoadNews,
       };
   const EmptyIcon = isTips ? Lightbulb : Calendar;
 
@@ -141,7 +141,7 @@ export default function News() {
       <div
         className="mb-8 flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1 w-fit"
         role="group"
-        aria-label={language === "no" ? "Kategori" : "Category"}
+        aria-label={t.newsPage.category}
       >
         <Link href="/news">
           <Button
@@ -149,7 +149,7 @@ export default function News() {
             size="sm"
             aria-pressed={!isTips}
           >
-            {language === "no" ? "Nyheter" : "News"}
+            {t.newsPage.news}
           </Button>
         </Link>
         <Link href="/tips-tricks">
@@ -158,7 +158,7 @@ export default function News() {
             size="sm"
             aria-pressed={isTips}
           >
-            {language === "no" ? "Tips & triks" : "Tips & Tricks"}
+            {t.newsPage.tipsTricks}
           </Button>
         </Link>
       </div>
@@ -201,7 +201,7 @@ export default function News() {
                   </time>
                   {post.author && (
                     <span className="ml-2">
-                      &bull; {language === "no" ? "av" : "by"} {post.author}
+                      &bull; {t.newsPage.by} {post.author}
                     </span>
                   )}
                 </div>

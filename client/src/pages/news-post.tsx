@@ -23,7 +23,7 @@ interface BlogPost {
 // cached from the homepage under the same query key), so we find the post
 // client-side. This keeps the serverless function count unchanged.
 export default function NewsPost() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const [, params] = useRoute("/nyheter/:id");
   const postId = Number(params?.id);
 
@@ -34,7 +34,7 @@ export default function NewsPost() {
   const post = posts.find((p) => p.id === postId);
 
   usePageMeta({
-    title: post?.title ?? (language === "no" ? "Innlegg" : "Post"),
+    title: post?.title ?? (t.newsPage.post),
     description:
       language === "no"
         ? "Nyheter og informasjon fra FAU Erdal Barnehage."
@@ -46,7 +46,7 @@ export default function NewsPost() {
     return (
       <div className="flex justify-center items-center min-h-[400px]" role="status" aria-live="polite">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <span className="sr-only">{language === "no" ? "Laster …" : "Loading …"}</span>
+        <span className="sr-only">{t.newsPage.loading}</span>
       </div>
     );
   }
@@ -57,7 +57,7 @@ export default function NewsPost() {
         <Card>
           <CardContent className="p-12 text-center">
             <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50 mb-2">
-              {language === "no" ? "Fant ikke innlegget" : "Post not found"}
+              {t.newsPage.postNotFound}
             </h1>
             <p className="text-neutral-600 dark:text-neutral-300 mb-6">
               {language === "no"
@@ -67,7 +67,7 @@ export default function NewsPost() {
             <Link href="/news">
               <Button variant="outline">
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                {language === "no" ? "Til nyhetene" : "Back to news"}
+                {t.newsPage.backNews}
               </Button>
             </Link>
           </CardContent>
@@ -86,8 +86,8 @@ export default function NewsPost() {
       >
         <ArrowLeft className="h-4 w-4" />
         {post.category === "tips"
-          ? language === "no" ? "Alle tips" : "All tips"
-          : language === "no" ? "Alle nyheter" : "All news"}
+          ? t.newsPage.allTips
+          : t.newsPage.allNews}
       </Link>
 
       <article>
@@ -107,7 +107,7 @@ export default function NewsPost() {
               </time>
               {post.author && (
                 <span className="ml-2">
-                  &bull; {language === "no" ? "av" : "by"} {post.author}
+                  &bull; {t.newsPage.by} {post.author}
                 </span>
               )}
             </div>

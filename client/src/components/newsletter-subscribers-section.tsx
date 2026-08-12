@@ -51,7 +51,7 @@ export default function NewsletterSubscribersSection() {
     },
     onError: (err: any) => {
       toast({
-        title: language === "no" ? "Feil" : "Error",
+        title: t.settings.error,
         description: err?.message ?? "",
         variant: "destructive",
       });
@@ -119,12 +119,12 @@ export default function NewsletterSubscribersSection() {
                         <AlertDialogDescription>{t.newsletter.admin.deleteConfirm}</AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+                        <AlertDialogCancel>{t.settings.cancel}</AlertDialogCancel>
                         <AlertDialogAction
                           className="bg-red-600 text-white hover:bg-red-700"
                           onClick={() => deleteMutation.mutate(s.id)}
                         >
-                          {language === "no" ? "Slett" : "Delete"}
+                          {t.settings.delete}
                         </AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>

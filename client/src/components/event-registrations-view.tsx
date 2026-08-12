@@ -27,7 +27,7 @@ interface EventRegistrationsViewProps {
 }
 
 export default function EventRegistrationsView({ event }: EventRegistrationsViewProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -70,8 +70,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     },
     onSuccess: () => {
       toast({
-        title: language === 'no' ? "Påmelding slettet" : "Registration deleted",
-        description: language === 'no' ? "Påmeldingen har blitt slettet." : "The registration has been deleted.",
+        title: t.events.registrationDeleted,
+        description: t.events.registrationHasBeenDeleted,
       });
       // Invalidate to sync with server
       queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
@@ -83,8 +83,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         queryClient.setQueryData([`/api/registrations?eventId=${event.id}`], context.previousRegistrations);
       }
       toast({
-        title: language === 'no' ? "Feil ved sletting" : "Delete error",
-        description: language === 'no' ? "Kunne ikke slette påmeldingen. Prøv igjen senere." : "Could not delete the registration. Please try again later.",
+        title: t.events.deleteError,
+        description: t.events.couldNotDeleteRegistration,
         variant: "destructive",
       });
     },
@@ -99,7 +99,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
       <Card>
         <CardContent className="p-6">
           <div className="text-center text-neutral-600 dark:text-neutral-300">
-            {language === 'no' ? 'Laster påmeldinger...' : 'Loading registrations...'}
+            {t.events.loadingRegistrations}
           </div>
         </CardContent>
       </Card>
@@ -143,15 +143,15 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === 'no' ? 'Dato' : 'Date'}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t.events.date}</p>
               <p className="font-medium">{formatDate(event.date, language)}</p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === 'no' ? 'Tid' : 'Time'}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t.events.time}</p>
               <p className="font-medium">{event.time}</p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === 'no' ? 'Påmeldte' : 'Registered'}</p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t.events.registered}</p>
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="flex items-center space-x-1">
                   <Users className="h-3 w-3" />
@@ -159,7 +159,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                 </Badge>
                 {event.maxAttendees && (
                   <span className="text-sm text-neutral-600 dark:text-neutral-400">
-                    / {event.maxAttendees} {language === 'no' ? 'maks' : 'max'}
+                    / {event.maxAttendees} {t.events.maxAttendees}
                   </span>
                 )}
               </div>
@@ -173,7 +173,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>
-              {language === 'no' ? 'Påmeldingsliste' : 'Registration List'} ({registrations.length})
+              {t.events.registrationList} ({registrations.length})
             </CardTitle>
             {registrations.length > 0 && (
               <Button 
@@ -183,7 +183,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                 className="flex items-center space-x-2"
               >
                 <Download className="h-4 w-4" />
-                <span>{language === 'no' ? 'Last ned Excel' : 'Download Excel'}</span>
+                <span>{t.events.downloadExcel}</span>
               </Button>
             )}
           </div>
@@ -192,7 +192,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
           {registrations.length === 0 ? (
             <div className="text-center py-8 text-neutral-600 dark:text-neutral-300">
               <Users className="h-12 w-12 mx-auto mb-4 text-neutral-300 dark:text-neutral-600" />
-              <p>{language === 'no' ? 'Ingen påmeldinger ennå' : 'No registrations yet'}</p>
+              <p>{t.events.noRegistrationsYet}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -209,8 +209,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                       <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{registration.name}</h4>
                       <Badge variant="outline" className="mt-1">
                         {isFotoEvent
-                          ? `${registration.attendeeCount || 1} ${language === 'no' ? 'barn' : 'children'}`
-                          : `${registration.attendeeCount || 1} ${language === 'no' ? 'personer' : 'people'}`
+                          ? `${registration.attendeeCount || 1} ${t.events.children}`
+                          : `${registration.attendeeCount || 1} ${t.events.people}`
                         }
                       </Badge>
                     </div>
@@ -223,7 +223,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                             size="sm"
                             disabled={deleteRegistrationMutation.isPending}
                             className="border-red-500 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                            aria-label={language === 'no' ? 'Slett påmelding' : 'Delete registration'}
+                            aria-label={t.events.deleteRegistration}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -231,7 +231,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                         <AlertDialogContent>
                           <AlertDialogHeader>
                             <AlertDialogTitle>
-                              {language === 'no' ? 'Slett påmelding?' : 'Delete registration?'}
+                              {t.events.deleteRegistration2}
                             </AlertDialogTitle>
                             <AlertDialogDescription>
                               {language === 'no'
@@ -241,13 +241,13 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>
-                              {language === 'no' ? 'Avbryt' : 'Cancel'}
+                              {t.events.cancel}
                             </AlertDialogCancel>
                             <AlertDialogAction
                               className="bg-red-600 text-white hover:bg-red-700"
                               onClick={() => deleteRegistrationMutation.mutate(registration.id)}
                             >
-                              {language === 'no' ? 'Slett' : 'Delete'}
+                              {t.events.delete}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -261,7 +261,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                       <div className="flex items-center space-x-2 mb-2">
                         <Camera className="h-4 w-4 text-purple-600" />
                         <span className="text-sm font-medium text-purple-700 dark:text-purple-200">
-                          {language === 'no' ? 'Barn og tidspunkt' : 'Children and time slots'}
+                          {t.events.childrenTimeSlots}
                         </span>
                       </div>
                       <div className="space-y-1">
@@ -302,7 +302,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                           <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-neutral-400 mt-0.5" />
                           <div>
                             <p className="text-neutral-600 dark:text-neutral-400 text-xs mb-1">
-                              {language === 'no' ? 'Kommentar:' : 'Comment:'}
+                              {t.events.comment}
                             </p>
                             <p className="text-neutral-900 dark:text-neutral-50">{registration.comments}</p>
                           </div>

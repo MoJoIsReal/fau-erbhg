@@ -43,7 +43,7 @@ interface BlogPost {
 }
 
 export default function Content() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [posts, setPosts] = useState<Partial<BlogPost>[]>([]);
@@ -59,7 +59,7 @@ export default function Content() {
   const postKey = (post: Partial<BlogPost>) => (post.id ? String(post.id) : "new");
 
   usePageMeta({
-    title: language === "no" ? "Innhold" : "Content",
+    title: t.contentPage.content,
     description:
       language === "no"
         ? "Administrer nyheter, aktuelt og tips som vises på siden."
@@ -152,8 +152,8 @@ export default function Content() {
     if (!post.title || !post.content) {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Tittel og innhold er påkrevd" : "Title and content are required",
+        title: t.contentPage.error,
+        description: t.contentPage.titleContentRequired,
       });
       return;
     }
@@ -171,14 +171,14 @@ export default function Content() {
       setEditingKey(null);
       setPostDraft(null);
       toast({
-        title: language === "no" ? "Lagret!" : "Saved!",
-        description: language === "no" ? "Innlegget er lagret" : "Post has been saved",
+        title: t.contentPage.saved,
+        description: t.contentPage.postHasBeenSaved,
       });
     } catch {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Kunne ikke lagre innlegg" : "Could not save post",
+        title: t.contentPage.error,
+        description: t.contentPage.couldNotSavePost,
       });
     }
   };
@@ -194,7 +194,7 @@ export default function Content() {
       });
       await invalidateBlogPostQueries();
       toast({
-        title: language === "no" ? "Oppdatert!" : "Updated!",
+        title: t.contentPage.updated,
         description:
           post.status === "archived"
             ? language === "no"
@@ -207,8 +207,8 @@ export default function Content() {
     } catch {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Kunne ikke oppdatere innlegg" : "Could not update post",
+        title: t.contentPage.error,
+        description: t.contentPage.couldNotUpdatePost,
       });
     }
   };
@@ -224,7 +224,7 @@ export default function Content() {
       });
       await invalidateBlogPostQueries();
       toast({
-        title: language === "no" ? "Oppdatert!" : "Updated!",
+        title: t.contentPage.updated,
         description:
           post.showOnHomepage
             ? language === "no"
@@ -237,8 +237,8 @@ export default function Content() {
     } catch {
       toast({
         variant: "destructive",
-        title: language === "no" ? "Feil" : "Error",
-        description: language === "no" ? "Kunne ikke oppdatere innlegg" : "Could not update post",
+        title: t.contentPage.error,
+        description: t.contentPage.couldNotUpdatePost,
       });
     }
   };
@@ -250,14 +250,14 @@ export default function Content() {
         await deletePostMutation.mutateAsync(post.id);
         await invalidateBlogPostQueries();
         toast({
-          title: language === "no" ? "Slettet!" : "Deleted!",
-          description: language === "no" ? "Innlegget ble slettet" : "Post was deleted",
+          title: t.contentPage.deleted,
+          description: t.contentPage.postWasDeleted,
         });
       } catch {
         toast({
           variant: "destructive",
-          title: language === "no" ? "Feil" : "Error",
-          description: language === "no" ? "Kunne ikke slette innlegg" : "Could not delete post",
+          title: t.contentPage.error,
+          description: t.contentPage.couldNotDeletePost,
         });
       }
     } else {
@@ -281,7 +281,7 @@ export default function Content() {
       <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
-            {language === "no" ? "Aktuelt / Innlegg" : "Updates / Posts"}
+            {t.contentPage.updatesPosts}
           </h2>
           <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
             {language === "no"
@@ -292,13 +292,13 @@ export default function Content() {
           <div className="mb-6 flex flex-wrap items-center gap-3">
             <Button onClick={addNewPost} variant="default" disabled={editingKey === "new"}>
               <Plus className="h-4 w-4 mr-2" />
-              {language === "no" ? "Nytt innlegg" : "New post"}
+              {t.contentPage.newPost}
             </Button>
-            <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1" role="group" aria-label={language === "no" ? "Filtrer på status" : "Filter by status"}>
+            <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1" role="group" aria-label={t.contentPage.filterByStatus}>
               {([
-                ["all", language === "no" ? "Alle" : "All"],
-                ["published", language === "no" ? "Publiserte" : "Published"],
-                ["archived", language === "no" ? "Arkiverte" : "Archived"],
+                ["all", t.contentPage.all],
+                ["published", t.contentPage.published],
+                ["archived", t.contentPage.archived],
               ] as const).map(([value, label]) => (
                 <Button
                   key={value}
@@ -314,9 +314,9 @@ export default function Content() {
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder={language === "no" ? "Søk i titler …" : "Search titles …"}
+              placeholder={t.contentPage.searchTitles}
               className="w-full sm:w-56"
-              aria-label={language === "no" ? "Søk i titler" : "Search titles"}
+              aria-label={t.contentPage.searchTitles2}
             />
           </div>
 
@@ -335,39 +335,39 @@ export default function Content() {
                 {isEditingThis ? (
                   <div className="space-y-4">
                     <div>
-                      <Label htmlFor={`post-title-${index}`}>{language === "no" ? "Tittel" : "Title"}</Label>
+                      <Label htmlFor={`post-title-${index}`}>{t.contentPage.title}</Label>
                       <Input
                         id={`post-title-${index}`}
                         value={editablePost.title || ""}
                         onChange={(e) => updatePost(index, "title", e.target.value)}
-                        placeholder={language === "no" ? "Tittel på innlegget" : "Post title"}
+                        placeholder={t.contentPage.postTitle}
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor={`post-content-${index}`}>{language === "no" ? "Innhold" : "Content"}</Label>
+                      <Label htmlFor={`post-content-${index}`}>{t.contentPage.content}</Label>
                       <RichTextEditor
                         content={editablePost.content || ""}
                         onChange={(content) => updatePost(index, "content", content)}
-                        placeholder={language === "no" ? "Skriv innlegget her..." : "Write your post here..."}
+                        placeholder={t.contentPage.writeYourPostHere}
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor={`post-category-${index}`}>{language === "no" ? "Kategori" : "Category"}</Label>
+                      <Label htmlFor={`post-category-${index}`}>{t.contentPage.category}</Label>
                       <Select value={editablePost.category || "news"} onValueChange={(value) => updatePost(index, "category", value)}>
                         <SelectTrigger id={`post-category-${index}`}>
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="news">{language === "no" ? "Nyheter" : "News"}</SelectItem>
-                          <SelectItem value="tips">{language === "no" ? "Tips & triks" : "Tips & Tricks"}</SelectItem>
+                          <SelectItem value="news">{t.contentPage.news}</SelectItem>
+                          <SelectItem value="tips">{t.contentPage.tipsTricks}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
-                      <Label htmlFor={`post-date-${index}`}>{language === "no" ? "Publiseringsdato" : "Publish date"}</Label>
+                      <Label htmlFor={`post-date-${index}`}>{t.contentPage.publishDate}</Label>
                       <Input
                         id={`post-date-${index}`}
                         type="date"
@@ -377,10 +377,10 @@ export default function Content() {
                     </div>
 
                     <div>
-                      <Label htmlFor={`post-author-${index}`}>{language === "no" ? "Skrevet av" : "Written by"}</Label>
+                      <Label htmlFor={`post-author-${index}`}>{t.contentPage.writtenBy}</Label>
                       <Select value={editablePost.author || ""} onValueChange={(value) => updatePost(index, "author", value)}>
                         <SelectTrigger id={`post-author-${index}`}>
-                          <SelectValue placeholder={language === "no" ? "Velg forfatter" : "Select author"} />
+                          <SelectValue placeholder={t.contentPage.selectAuthor} />
                         </SelectTrigger>
                         <SelectContent>
                           {boardMembers?.map((member) => (
@@ -395,21 +395,21 @@ export default function Content() {
                     <div className="flex gap-2">
                       <Button onClick={() => savePost(index)} size="sm">
                         <Save className="h-4 w-4 mr-2" />
-                        {language === "no" ? "Lagre" : "Save"}
+                        {t.contentPage.save}
                       </Button>
                       <Button onClick={cancelEditingPost} variant="outline" size="sm">
-                        {language === "no" ? "Avbryt" : "Cancel"}
+                        {t.contentPage.cancel}
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" size="sm" className="ml-auto">
                             <Trash2 className="h-4 w-4 mr-2" />
-                            {language === "no" ? "Slett" : "Delete"}
+                            {t.contentPage.delete}
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>{language === "no" ? "Slette blogginnlegg?" : "Delete blog post?"}</AlertDialogTitle>
+                            <AlertDialogTitle>{t.contentPage.deleteBlogPost}</AlertDialogTitle>
                             <AlertDialogDescription>
                               {language === "no"
                                 ? `Dette sletter "${editablePost.title || "innlegget"}" permanent.`
@@ -417,12 +417,12 @@ export default function Content() {
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+                            <AlertDialogCancel>{t.contentPage.cancel}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => deletePost(index)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              {language === "no" ? "Slett" : "Delete"}
+                              {t.contentPage.delete}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -433,27 +433,27 @@ export default function Content() {
                   <div>
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50 flex-1 pr-2">
-                        {post.title || (language === "no" ? "(Uten tittel)" : "(No title)")}
+                        {post.title || (t.contentPage.noTitle)}
                       </h3>
 
                       <div className="hidden sm:flex gap-2 flex-shrink-0">
                         <Button onClick={() => startEditingPost(index)} variant="outline" size="sm">
-                          {language === "no" ? "Rediger" : "Edit"}
+                          {t.contentPage.edit}
                         </Button>
                         {post.id && post.status === "published" && (
                           <Button onClick={() => toggleHomepage(index)} variant="outline" size="sm">
                             <Home className="h-4 w-4 mr-2" />
                             {post.showOnHomepage
-                              ? language === "no" ? "Fjern fra hjem" : "Remove from home"
-                              : language === "no" ? "Vis på hjem" : "Show on home"}
+                              ? t.contentPage.removeFromHome
+                              : t.contentPage.showHome}
                           </Button>
                         )}
                         {post.id && (
                           <Button onClick={() => archivePost(index)} variant="outline" size="sm">
                             <Archive className="h-4 w-4 mr-2" />
                             {post.status === "archived"
-                              ? language === "no" ? "Publiser" : "Publish"
-                              : language === "no" ? "Arkiver" : "Archive"}
+                              ? t.contentPage.publish
+                              : t.contentPage.archive}
                           </Button>
                         )}
                         {post.id && (
@@ -464,7 +464,7 @@ export default function Content() {
                             className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            {language === "no" ? "Slett" : "Delete"}
+                            {t.contentPage.delete}
                           </Button>
                         )}
                       </div>
@@ -478,22 +478,22 @@ export default function Content() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
                             <DropdownMenuItem onClick={() => startEditingPost(index)}>
-                              {language === "no" ? "Rediger" : "Edit"}
+                              {t.contentPage.edit}
                             </DropdownMenuItem>
                             {post.id && post.status === "published" && (
                               <DropdownMenuItem onClick={() => toggleHomepage(index)}>
                                 <Home className="h-4 w-4 mr-2" />
                                 {post.showOnHomepage
-                                  ? language === "no" ? "Fjern fra hjem" : "Remove from home"
-                                  : language === "no" ? "Vis på hjem" : "Show on home"}
+                                  ? t.contentPage.removeFromHome
+                                  : t.contentPage.showHome}
                               </DropdownMenuItem>
                             )}
                             {post.id && (
                               <DropdownMenuItem onClick={() => archivePost(index)}>
                                 <Archive className="h-4 w-4 mr-2" />
                                 {post.status === "archived"
-                                  ? language === "no" ? "Publiser" : "Publish"
-                                  : language === "no" ? "Arkiver" : "Archive"}
+                                  ? t.contentPage.publish
+                                  : t.contentPage.archive}
                               </DropdownMenuItem>
                             )}
                             {post.id && (
@@ -502,7 +502,7 @@ export default function Content() {
                                 className="text-red-600 dark:text-red-300 focus:text-red-600"
                               >
                                 <Trash2 className="h-4 w-4 mr-2" />
-                                {language === "no" ? "Slett" : "Delete"}
+                                {t.contentPage.delete}
                               </DropdownMenuItem>
                             )}
                           </DropdownMenuContent>
@@ -512,15 +512,15 @@ export default function Content() {
                     <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
                       <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         {(post.category || "news") === "tips"
-                          ? language === "no" ? "Tips & triks" : "Tips & Tricks"
-                          : language === "no" ? "Nyheter" : "News"}
+                          ? t.contentPage.tipsTricks
+                          : t.contentPage.news}
                       </span>
                       {post.publishedDate &&
                         new Date(post.publishedDate).toLocaleDateString(language === "no" ? "no-NO" : "en-US")}
-                      {post.author && <span className="ml-2">- {language === "no" ? "av" : "by"} {post.author}</span>}
+                      {post.author && <span className="ml-2">- {t.contentPage.by} {post.author}</span>}
                       {post.status === "archived" && (
                         <span className="ml-2 text-xs font-semibold text-orange-600">
-                          ({language === "no" ? "ARKIVERT" : "ARCHIVED"})
+                          ({t.contentPage.archived2})
                         </span>
                       )}
                     </p>
@@ -553,7 +553,7 @@ export default function Content() {
       <AlertDialog open={deleteCandidate !== null} onOpenChange={(open) => { if (!open) setDeleteCandidate(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{language === "no" ? "Slette innlegg?" : "Delete post?"}</AlertDialogTitle>
+            <AlertDialogTitle>{t.contentPage.deletePost}</AlertDialogTitle>
             <AlertDialogDescription>
               {language === "no"
                 ? `Dette sletter "${(deleteCandidate !== null && posts[deleteCandidate]?.title) || "innlegget"}" permanent.`
@@ -561,12 +561,12 @@ export default function Content() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogCancel>{t.contentPage.cancel}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => { if (deleteCandidate !== null) deletePost(deleteCandidate); }}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {language === "no" ? "Slett" : "Delete"}
+              {t.contentPage.delete}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

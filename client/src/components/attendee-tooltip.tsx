@@ -22,7 +22,7 @@ export default function AttendeeTooltip({
   maxAttendees,
   className = ""
 }: AttendeeTooltipProps) {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
 
   const { data: registrations = [] } = useQuery<EventRegistration[]>({
     queryKey: ["/api/events", eventId, "registrations"],
@@ -31,7 +31,7 @@ export default function AttendeeTooltip({
 
   const getTooltipContent = () => {
     if (attendeeCount === 0) {
-      return language === 'no' ? 'Ingen påmeldte ennå' : 'No registrations yet';
+      return t.events.noRegistrationsYet;
     }
 
     if (attendeeCount > 10) {
@@ -50,7 +50,7 @@ export default function AttendeeTooltip({
       })
       .join('\n');
 
-    return attendeeNames || (language === 'no' ? 'Laster...' : 'Loading...');
+    return attendeeNames || (t.events.loading);
   };
 
   return (
@@ -60,7 +60,7 @@ export default function AttendeeTooltip({
           <div className={`flex items-center text-accent cursor-help ${className}`}>
             <Users className="h-4 w-4 mr-1" />
             <span>
-              {attendeeCount} {language === 'no' ? 'påmeldte' : 'attendees'}
+              {attendeeCount} {t.events.attendees2}
             </span>
           </div>
         </TooltipTrigger>

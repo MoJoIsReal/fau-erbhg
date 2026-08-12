@@ -212,12 +212,12 @@ function testClientRegressionGuards() {
   const calendarView = readFileSync(new URL('../client/src/components/calendar-view.tsx', import.meta.url), 'utf8');
   assert.match(
     calendarView,
-    /aria-label=\{language === 'no' \? 'Forrige måned' : 'Previous month'\}/,
+    /aria-label=\{t\.\w+\.previousMonth\}/,
     'Calendar previous-month icon button must have an accessible name',
   );
   assert.match(
     calendarView,
-    /aria-label=\{language === 'no' \? 'Neste måned' : 'Next month'\}/,
+    /aria-label=\{t\.\w+\.nextMonth\}/,
     'Calendar next-month icon button must have an accessible name',
   );
 

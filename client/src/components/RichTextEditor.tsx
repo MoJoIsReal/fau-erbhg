@@ -48,29 +48,29 @@ function isSafeLink(url: string) {
 
 export default function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
   const { toast } = useToast();
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const toolbarLabels = {
-    bold: language === 'no' ? 'Fet' : 'Bold',
-    italic: language === 'no' ? 'Kursiv' : 'Italic',
-    underline: language === 'no' ? 'Understrek' : 'Underline',
-    strike: language === 'no' ? 'Gjennomstrek' : 'Strikethrough',
-    heading1: language === 'no' ? 'Overskrift 1' : 'Heading 1',
-    heading2: language === 'no' ? 'Overskrift 2' : 'Heading 2',
-    heading3: language === 'no' ? 'Overskrift 3' : 'Heading 3',
-    bulletList: language === 'no' ? 'Punktliste' : 'Bullet list',
-    orderedList: language === 'no' ? 'Nummerert liste' : 'Numbered list',
-    alignLeft: language === 'no' ? 'Venstrejuster' : 'Align left',
-    alignCenter: language === 'no' ? 'Midtstill' : 'Align center',
-    alignRight: language === 'no' ? 'Høyrejuster' : 'Align right',
-    quote: language === 'no' ? 'Sitat' : 'Quote',
-    codeBlock: language === 'no' ? 'Kodeblokk' : 'Code block',
-    link: language === 'no' ? 'Lenke' : 'Link',
-    image: language === 'no' ? 'Bilde' : 'Image',
-    undo: language === 'no' ? 'Angre' : 'Undo',
-    redo: language === 'no' ? 'Gjør om' : 'Redo',
+    bold: t.contentPage.bold,
+    italic: t.contentPage.italic,
+    underline: t.contentPage.underline,
+    strike: t.contentPage.strikethrough,
+    heading1: t.contentPage.heading1,
+    heading2: t.contentPage.heading2,
+    heading3: t.contentPage.heading3,
+    bulletList: t.contentPage.bulletList,
+    orderedList: t.contentPage.numberedList,
+    alignLeft: t.contentPage.alignLeft,
+    alignCenter: t.contentPage.alignCenter,
+    alignRight: t.contentPage.alignRight,
+    quote: t.contentPage.quote,
+    codeBlock: t.contentPage.codeBlock,
+    link: t.contentPage.link,
+    image: t.contentPage.image,
+    undo: t.contentPage.undo,
+    redo: t.contentPage.redo,
   };
 
   const editor = useEditor({
@@ -196,8 +196,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       console.error('Image upload failed:', error);
       toast({
         variant: 'destructive',
-        title: language === 'no' ? 'Opplasting feilet' : 'Upload failed',
-        description: message || (language === 'no' ? 'Kunne ikke laste opp bilde' : 'Could not upload image'),
+        title: t.contentPage.uploadFailed,
+        description: message || (t.contentPage.couldNotUploadImage),
       });
       return null;
     }
@@ -479,11 +479,11 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{language === 'no' ? 'Legg til lenke' : 'Add link'}</DialogTitle>
+            <DialogTitle>{t.contentPage.addLink}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             <Label htmlFor="rich-text-link-url">
-              {language === 'no' ? 'URL' : 'URL'}
+              {t.contentPage.url}
             </Label>
             <Input
               id="rich-text-link-url"
@@ -500,12 +500,12 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setLinkDialogOpen(false)}>
-              {language === 'no' ? 'Avbryt' : 'Cancel'}
+              {t.contentPage.cancel}
             </Button>
             <Button type="button" onClick={applyLink}>
               {linkUrl.trim()
-                ? (language === 'no' ? 'Lagre lenke' : 'Save link')
-                : (language === 'no' ? 'Fjern lenke' : 'Remove link')}
+                ? (t.contentPage.saveLink)
+                : (t.contentPage.removeLink)}
             </Button>
           </DialogFooter>
         </DialogContent>

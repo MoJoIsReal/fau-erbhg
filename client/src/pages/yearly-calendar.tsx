@@ -383,7 +383,15 @@ function DroppableRow({ id, data, disabled, className, children }: DroppableProp
   );
 }
 
-export default function YearlyCalendarPage() {
+interface YearlyCalendarPageProps {
+  /**
+   * Rendered as a tab inside the combined calendar page, which owns the
+   * page <h1> and the document metadata. Standalone use keeps both.
+   */
+  embedded?: boolean;
+}
+
+export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarPageProps = {}) {
   const { t, language } = useLanguage();
   usePageMeta({
     title: language === "no" ? "Årshjul" : "Yearly calendar",
@@ -392,6 +400,7 @@ export default function YearlyCalendarPage() {
         ? "Årshjul for Erdal Barnehage med planleggingsdager, ferier og viktige datoer gjennom barnehageåret."
         : "Yearly calendar for Erdal Kindergarten with planning days, holidays and key dates through the year.",
     path: "/arskalender",
+    enabled: !embedded,
   });
   const { user } = useAuth();
   const { toast } = useToast();
@@ -610,7 +619,11 @@ export default function YearlyCalendarPage() {
         <div className="yearly-hero rounded-3xl bg-gradient-to-r from-[#2C5F41] via-[#4A8C5F] to-[#FF6B35] text-white p-6 sm:p-8 shadow-lg relative overflow-hidden">
           <div className="absolute -top-6 -right-6 text-yellow-300 opacity-30 text-7xl select-none" aria-hidden>★</div>
           <div className="absolute -bottom-8 -left-6 text-yellow-200 opacity-20 text-8xl select-none" aria-hidden>★</div>
-          <h1 className="font-heading text-3xl sm:text-4xl font-bold">{t.yearlyCalendar.title}</h1>
+          {embedded ? (
+            <h2 className="font-heading text-2xl sm:text-3xl font-bold">{t.yearlyCalendar.title}</h2>
+          ) : (
+            <h1 className="font-heading text-3xl sm:text-4xl font-bold">{t.yearlyCalendar.title}</h1>
+          )}
           <p className="mt-1 text-white/90">{t.yearlyCalendar.subtitle}</p>
           <p className="mt-3 italic text-yellow-100">{t.yearlyCalendar.tagline}</p>
 

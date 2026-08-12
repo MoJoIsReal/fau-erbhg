@@ -154,7 +154,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       }
       if (missingNames.length > 0) {
         toast({
-          title: language === 'no' ? "Manglende navn" : "Missing names",
+          title: t.events.missingNames,
           description: language === 'no'
             ? `Vennligst oppgi fornavn på alle barn`
             : `Please provide first names for all children`,
@@ -184,8 +184,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         <div className="flex-shrink-0 px-4 pt-4 pb-3 pr-12 border-b border-border sm:px-6 sm:pt-6 sm:pb-4">
           <DialogTitle className="text-base font-semibold sm:text-lg">
             {isFotoEvent
-              ? (language === 'no' ? 'Påmelding til fotografering' : 'Register for photo session')
-              : (language === 'no' ? 'Påmelding til arrangement' : 'Event registration')
+              ? (t.events.registerPhotoSession)
+              : (t.events.eventRegistration)
             }
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground mt-1">
@@ -210,7 +210,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
-                })} {language === 'no' ? 'kl.' : 'at'} {event.time}
+                })} {t.events.at} {event.time}
               </p>
               <p className="text-sm text-neutral-600 dark:text-neutral-400">{event.location}</p>
             </div>
@@ -223,9 +223,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{isFotoEvent ? (language === 'no' ? 'Navn foresatt *' : 'Parent/guardian name *') : 'Fullt navn *'}</FormLabel>
+                  <FormLabel>{isFotoEvent ? (t.events.parentGuardianName) : 'Fullt navn *'}</FormLabel>
                   <FormControl>
-                    <Input placeholder={isFotoEvent ? (language === 'no' ? 'Navn på foresatt' : 'Parent/guardian name') : 'Ditt navn'} {...field} />
+                    <Input placeholder={isFotoEvent ? (t.events.parentGuardianName2) : 'Ditt navn'} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -267,7 +267,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                 <FormItem>
                   <FormLabel>
                     {isFotoEvent
-                      ? (language === 'no' ? 'Antall barn' : 'Number of children')
+                      ? (t.events.numberChildren)
                       : 'Antall deltakere'
                     }
                   </FormLabel>
@@ -281,7 +281,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                       {[1, 2, 3, 4, 5].map(num => (
                         <SelectItem key={num} value={num.toString()}>
                           {isFotoEvent
-                            ? `${num} ${num === 1 ? (language === 'no' ? 'barn' : 'child') : (language === 'no' ? 'barn' : 'children')}`
+                            ? `${num} ${num === 1 ? (t.events.child) : (t.events.children)}`
                             : `${num} ${num === 1 ? "person" : "personer"}`
                           }
                         </SelectItem>
@@ -297,7 +297,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             {isFotoEvent && (
               <div className="space-y-3">
                 <p className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
-                  {language === 'no' ? 'Fornavn på barn' : 'Children\'s first names'}
+                  {t.events.childrenSFirstNames}
                 </p>
                 {Array.from({ length: attendeeCount || 1 }, (_, i) => (
                   <div key={i}>

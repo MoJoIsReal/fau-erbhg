@@ -41,7 +41,7 @@ export default function AddToCalendar({ event, variant = 'outline', size = 'sm' 
   };
 
   const getButtonText = () => {
-    return language === 'no' ? 'Legg til i kalender' : 'Add to calendar';
+    return t.events.addCalendar;
   };
 
   return (
@@ -80,7 +80,7 @@ export default function AddToCalendar({ event, variant = 'outline', size = 'sm' 
 
         <DropdownMenuItem onClick={handleDownloadICS} className="flex items-center space-x-2">
           <Download className="h-4 w-4" />
-          <span>{language === 'no' ? 'Last ned .ics fil' : 'Download .ics file'}</span>
+          <span>{t.events.downloadIcsFile}</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

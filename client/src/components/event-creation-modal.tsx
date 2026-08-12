@@ -134,6 +134,7 @@ interface DateTimePicker24hProps {
 }
 
 function DateTimePicker24h({ value, onChange, onBlur, language }: DateTimePicker24hProps) {
+  const { t } = useLanguage();
   const { date, time } = splitDateTimeLocal(value);
 
   return (
@@ -143,7 +144,7 @@ function DateTimePicker24h({ value, onChange, onBlur, language }: DateTimePicker
           value={date}
           onChange={(nextDate) => onChange(`${nextDate}T${time || "23:59"}`)}
           language={language}
-          placeholder={language === "no" ? "Velg dato" : "Select date"}
+          placeholder={t.events.selectDate}
         />
         <TimeInput24h
           value={time}
@@ -157,7 +158,7 @@ function DateTimePicker24h({ value, onChange, onBlur, language }: DateTimePicker
       </div>
       {value && (
         <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange("")}>
-          {language === "no" ? "Fjern frist" : "Clear deadline"}
+          {t.events.clearDeadline}
         </Button>
       )}
     </div>
@@ -351,7 +352,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                           value={field.value}
                           onChange={field.onChange}
                           language={language}
-                          placeholder={language === "no" ? "Velg dato" : "Select date"}
+                          placeholder={t.events.selectDate}
                         />
                       </FormControl>
                       <FormMessage />
@@ -506,7 +507,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel>
-                        {language === 'no' ? 'Vigilo Påmelding' : 'Vigilo Signup'}
+                        {t.events.vigiloSignup}
                       </FormLabel>
                       <p className="text-sm text-muted-foreground">
                         {language === 'no'
@@ -532,7 +533,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel>
-                        {language === 'no' ? 'Ingen påmelding' : 'No signup'}
+                        {t.events.noSignup}
                       </FormLabel>
                       <p className="text-sm text-muted-foreground">
                         {language === 'no'
@@ -558,7 +559,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel>
-                        {language === 'no' ? 'Send påminnelse på nyhetsbrev' : 'Send newsletter reminder'}
+                        {t.events.sendNewsletterReminder}
                       </FormLabel>
                       <p className="text-sm text-muted-foreground">
                         {language === 'no'
