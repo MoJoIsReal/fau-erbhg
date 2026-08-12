@@ -73,7 +73,7 @@ export default function NewsletterSubscribersSection() {
   const activeCount = subscribers.filter((s) => s.status === "active").length;
 
   return (
-    <Card className="p-6 mt-8">
+    <Card className="p-6">
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
           {t.newsletter.admin.title}

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -130,10 +131,27 @@ export default function Settings() {
   };
 
   const handleSave = async () => {
+    // Incomplete rows used to be skipped silently while the toast still said
+    // "Saved!" — a member added without a role just vanished on the next
+    // load. Now the save stops and says which row is the problem.
+    const incomplete = members.find((member) => !member.name || !member.role);
+    if (incomplete) {
+      toast({
+        variant: "destructive",
+        title: language === "no" ? "Kan ikke lagre" : "Cannot save",
+        description: language === "no"
+          ? incomplete.name
+            ? `${incomplete.name} mangler rolle.`
+            : "Et medlem mangler navn. Fyll ut raden eller fjern den."
+          : incomplete.name
+            ? `${incomplete.name} is missing a role.`
+            : "A member is missing a name. Complete the row or remove it.",
+      });
+      return;
+    }
+
     try {
       for (const member of members) {
-        if (!member.name || !member.role) continue;
-
         if (member.id) {
           // Update existing
           await updateMutation.mutateAsync({ id: member.id, member });
@@ -160,7 +178,6 @@ export default function Settings() {
 
   // ===== KINDERGARTEN INFO MANAGEMENT =====
   const [kindergartenInfo, setKindergartenInfo] = useState<Partial<KindergartenInfo> | null>(null);
-  const [isEditingKindergarten, setIsEditingKindergarten] = useState(false);
 
   // Fetch kindergarten info
   const { data: fetchedKindergartenInfo, isLoading: isLoadingKindergarten } = useQuery<KindergartenInfo>({
@@ -185,13 +202,19 @@ export default function Settings() {
     setKindergartenInfo(prev => prev ? { ...prev, [field]: value } : null);
   };
 
+  // Dirty flag drives the Save button: the form is always editable, and Save
+  // lights up when something actually changed — same pattern as the board tab.
+  const kindergartenDirty =
+    !!kindergartenInfo &&
+    !!fetchedKindergartenInfo &&
+    JSON.stringify(kindergartenInfo) !== JSON.stringify(fetchedKindergartenInfo);
+
   const saveKindergartenInfo = async () => {
     if (!kindergartenInfo) return;
 
     try {
       await updateKindergartenMutation.mutateAsync(kindergartenInfo);
       await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=kindergarten-info"] });
-      setIsEditingKindergarten(false);
 
       toast({
         title: language === "no" ? "Lagret!" : "Saved!",
@@ -226,8 +249,22 @@ export default function Settings() {
             : "Manage the FAU board and site settings"}
         </p>
       </div>
+
+      {/* One tab per concern, and one shared editing pattern inside them:
+          forms are always editable, and Save is enabled when something
+          changed. The page used to stack four sections with three different
+          save models in a single scroll. */}
+      <Tabs defaultValue="board">
+        <TabsList className="mb-4 h-auto flex-wrap">
+          <TabsTrigger value="board">{language === "no" ? "FAU-styret" : "FAU Board"}</TabsTrigger>
+          <TabsTrigger value="kindergarten">{language === "no" ? "Barnehagen" : "Kindergarten"}</TabsTrigger>
+          <TabsTrigger value="users">{language === "no" ? "Brukere" : "Users"}</TabsTrigger>
+          <TabsTrigger value="newsletter">{language === "no" ? "Nyhetsbrev" : "Newsletter"}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="board">
       {/* FAU Board Section */}
-      <Card className="p-6 mt-8">
+      <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
             {language === "no" ? "FAU-styret" : "FAU Board"}
@@ -348,9 +385,11 @@ export default function Settings() {
           </Button>
         </div>
       </Card>
+        </TabsContent>
 
+        <TabsContent value="kindergarten">
       {/* Kindergarten Info Section */}
-      <Card className="p-6 mt-8">
+      <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
             {language === "no" ? "Barnehageinformasjon" : "Kindergarten Information"}
@@ -363,8 +402,6 @@ export default function Settings() {
 
           {kindergartenInfo && (
             <div className="space-y-4">
-              {isEditingKindergarten ? (
-                // Edit mode
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="kindergarten-email">
@@ -468,52 +505,47 @@ export default function Settings() {
                     />
                   </div>
 
-                  <div className="flex gap-2 pt-4">
-                    <Button onClick={saveKindergartenInfo} disabled={updateKindergartenMutation.isPending}>
-                      <Save className="h-4 w-4 mr-2" />
-                      {language === "no" ? "Lagre" : "Save"}
+                  <div className="flex items-center gap-3 pt-4">
+                    <Button
+                      onClick={saveKindergartenInfo}
+                      disabled={!kindergartenDirty || updateKindergartenMutation.isPending}
+                    >
+                      {updateKindergartenMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Save className="h-4 w-4 mr-2" />
+                      )}
+                      {language === "no" ? "Lagre endringer" : "Save changes"}
                     </Button>
-                    <Button onClick={() => setIsEditingKindergarten(false)} variant="outline">
-                      {language === "no" ? "Avbryt" : "Cancel"}
-                    </Button>
+                    {kindergartenDirty && (
+                      <Button
+                        variant="outline"
+                        onClick={() => setKindergartenInfo(fetchedKindergartenInfo ?? null)}
+                      >
+                        {language === "no" ? "Forkast endringer" : "Discard changes"}
+                      </Button>
+                    )}
+                    {!kindergartenDirty && (
+                      <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                        {language === "no" ? "Ingen ulagrede endringer" : "No unsaved changes"}
+                      </span>
+                    )}
                   </div>
                 </div>
-              ) : (
-                // View mode
-                <div className="bg-neutral-50 dark:bg-neutral-950 p-4 rounded-lg">
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-                      {language === "no" ? "Om Barnehagen" : "About Kindergarten"}
-                    </h3>
-                    <Button onClick={() => setIsEditingKindergarten(true)} variant="outline" size="sm">
-                      {language === "no" ? "Rediger" : "Edit"}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-2 text-sm dark:text-neutral-300">
-                    <p><strong>{language === "no" ? "Kontakt:" : "Contact:"}</strong> {kindergartenInfo.contactEmail}</p>
-                    <p><strong>{language === "no" ? "Adresse:" : "Address:"}</strong> {kindergartenInfo.address}</p>
-                    <p><strong>{language === "no" ? "Åpningstider:" : "Opening hours:"}</strong> {kindergartenInfo.openingHours}</p>
-                    <p><strong>{language === "no" ? "Antall barn:" : "Number of children:"}</strong> {kindergartenInfo.numberOfChildren} {language === "no" ? "barn" : "children"}</p>
-                    <p><strong>{language === "no" ? "Eier:" : "Owner:"}</strong> {kindergartenInfo.owner}</p>
-                    {kindergartenInfo.styrerName && (
-                      <p><strong>{language === "no" ? "Styrer:" : "Director:"}</strong> {kindergartenInfo.styrerName}</p>
-                    )}
-                    {kindergartenInfo.styrerEmail && (
-                      <p><strong>{language === "no" ? "Styrer e-post:" : "Director email:"}</strong> {kindergartenInfo.styrerEmail}</p>
-                    )}
-                    <p className="mt-3"><strong>{language === "no" ? "Beskrivelse:" : "Description:"}</strong></p>
-                    <p className="text-neutral-700 dark:text-neutral-300">{kindergartenInfo.description}</p>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
       </Card>
+        </TabsContent>
 
-      <StaffUsersSection />
-      <NewsletterSubscribersSection />
+        <TabsContent value="users">
+          <StaffUsersSection />
+        </TabsContent>
+
+        <TabsContent value="newsletter">
+          <NewsletterSubscribersSection />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

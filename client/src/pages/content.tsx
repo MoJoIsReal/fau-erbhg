@@ -47,8 +47,16 @@ export default function Content() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [posts, setPosts] = useState<Partial<BlogPost>[]>([]);
-  const [isEditingPost, setIsEditingPost] = useState<number | null>(null);
+  // Edit state keys off the post id ("new" for an unsaved draft), not the
+  // array index — refetched data used to be able to shift indexes mid-edit
+  // and silently swap which post you were editing.
+  const [editingKey, setEditingKey] = useState<string | null>(null);
   const [postDraft, setPostDraft] = useState<Partial<BlogPost> | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "archived">("all");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [deleteCandidate, setDeleteCandidate] = useState<number | null>(null);
+
+  const postKey = (post: Partial<BlogPost>) => (post.id ? String(post.id) : "new");
 
   usePageMeta({
     title: language === "no" ? "Innhold" : "Content",
@@ -115,7 +123,7 @@ export default function Content() {
       draft,
       ...posts,
     ]);
-    setIsEditingPost(0);
+    setEditingKey("new");
     setPostDraft({ ...draft });
   };
 
@@ -127,15 +135,15 @@ export default function Content() {
   };
 
   const startEditingPost = (index: number) => {
-    setIsEditingPost(index);
+    setEditingKey(postKey(posts[index] ?? {}));
     setPostDraft({ ...(posts[index] ?? {}) });
   };
 
   const cancelEditingPost = () => {
-    if (isEditingPost !== null && !posts[isEditingPost]?.id) {
-      setPosts((current) => current.filter((_, index) => index !== isEditingPost));
+    if (editingKey === "new") {
+      setPosts((current) => current.filter((post) => post.id));
     }
-    setIsEditingPost(null);
+    setEditingKey(null);
     setPostDraft(null);
   };
 
@@ -160,7 +168,7 @@ export default function Content() {
 
       setPosts((current) => current.map((item, itemIndex) => itemIndex === index ? savedPost : item));
       await invalidateBlogPostQueries();
-      setIsEditingPost(null);
+      setEditingKey(null);
       setPostDraft(null);
       toast({
         title: language === "no" ? "Lagret!" : "Saved!",
@@ -254,9 +262,10 @@ export default function Content() {
       }
     } else {
       setPosts(posts.filter((_, i) => i !== index));
-      setIsEditingPost(null);
+      setEditingKey(null);
       setPostDraft(null);
     }
+    setDeleteCandidate(null);
   };
 
   if (isLoading) {
@@ -280,17 +289,50 @@ export default function Content() {
               : "Manage news, tips and information displayed on the website. Archive old posts to hide them."}
           </p>
 
-          <Button onClick={addNewPost} className="mb-6" variant="default">
-            <Plus className="h-4 w-4 mr-2" />
-            {language === "no" ? "Nytt innlegg" : "New post"}
-          </Button>
+          <div className="mb-6 flex flex-wrap items-center gap-3">
+            <Button onClick={addNewPost} variant="default" disabled={editingKey === "new"}>
+              <Plus className="h-4 w-4 mr-2" />
+              {language === "no" ? "Nytt innlegg" : "New post"}
+            </Button>
+            <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1" role="group" aria-label={language === "no" ? "Filtrer på status" : "Filter by status"}>
+              {([
+                ["all", language === "no" ? "Alle" : "All"],
+                ["published", language === "no" ? "Publiserte" : "Published"],
+                ["archived", language === "no" ? "Arkiverte" : "Archived"],
+              ] as const).map(([value, label]) => (
+                <Button
+                  key={value}
+                  variant={statusFilter === value ? "default" : "ghost"}
+                  size="sm"
+                  onClick={() => setStatusFilter(value)}
+                  aria-pressed={statusFilter === value}
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+            <Input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={language === "no" ? "Søk i titler …" : "Search titles …"}
+              className="w-full sm:w-56"
+              aria-label={language === "no" ? "Søk i titler" : "Search titles"}
+            />
+          </div>
 
           <div className="space-y-6">
             {posts.map((post, index) => {
-              const editablePost = isEditingPost === index && postDraft ? postDraft : post;
+              const isEditingThis = editingKey !== null && editingKey === postKey(post);
+              const editablePost = isEditingThis && postDraft ? postDraft : post;
+              // Filters hide non-matching posts instead of removing them from
+              // state, so indexes passed to the handlers stay valid.
+              const matchesStatus = statusFilter === "all" || (post.status ?? "published") === statusFilter;
+              const matchesSearch = !searchTerm.trim() ||
+                (post.title ?? "").toLowerCase().includes(searchTerm.trim().toLowerCase());
+              if (!isEditingThis && (!matchesStatus || !matchesSearch)) return null;
               return (
               <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-gray-50 dark:bg-neutral-900/70 opacity-75" : ""}`}>
-                {isEditingPost === index ? (
+                {isEditingThis ? (
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor={`post-title-${index}`}>{language === "no" ? "Tittel" : "Title"}</Label>
@@ -414,6 +456,17 @@ export default function Content() {
                               : language === "no" ? "Arkiver" : "Archive"}
                           </Button>
                         )}
+                        {post.id && (
+                          <Button
+                            onClick={() => setDeleteCandidate(index)}
+                            variant="outline"
+                            size="sm"
+                            className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            {language === "no" ? "Slett" : "Delete"}
+                          </Button>
+                        )}
                       </div>
 
                       <div className="sm:hidden flex-shrink-0">
@@ -443,6 +496,15 @@ export default function Content() {
                                   : language === "no" ? "Arkiver" : "Archive"}
                               </DropdownMenuItem>
                             )}
+                            {post.id && (
+                              <DropdownMenuItem
+                                onClick={() => setDeleteCandidate(index)}
+                                className="text-red-600 dark:text-red-300 focus:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                {language === "no" ? "Slett" : "Delete"}
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
@@ -462,9 +524,12 @@ export default function Content() {
                         </span>
                       )}
                     </p>
+                    {/* Text-only excerpt: a post that opens with a poster image
+                        used to render it at full height in the admin list. */}
                     <SafeHtml
                       html={post.content}
-                      className="prose prose-sm prose-neutral max-w-none line-clamp-3 text-neutral-700 dark:text-neutral-300"
+                      truncate={250}
+                      className="prose prose-sm prose-neutral max-w-none text-neutral-700 dark:text-neutral-300"
                     />
                   </div>
                 )}
@@ -482,6 +547,30 @@ export default function Content() {
           </div>
         </div>
       </Card>
+
+      {/* Shared confirm dialog for deleting from view mode (desktop buttons
+          and the mobile action menu both set deleteCandidate). */}
+      <AlertDialog open={deleteCandidate !== null} onOpenChange={(open) => { if (!open) setDeleteCandidate(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{language === "no" ? "Slette innlegg?" : "Delete post?"}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {language === "no"
+                ? `Dette sletter "${(deleteCandidate !== null && posts[deleteCandidate]?.title) || "innlegget"}" permanent.`
+                : `This permanently deletes "${(deleteCandidate !== null && posts[deleteCandidate]?.title) || "this post"}".`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{language === "no" ? "Avbryt" : "Cancel"}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { if (deleteCandidate !== null) deletePost(deleteCandidate); }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {language === "no" ? "Slett" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

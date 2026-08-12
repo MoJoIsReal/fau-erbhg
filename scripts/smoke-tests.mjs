@@ -271,16 +271,24 @@ function testClientRegressionGuards() {
     'Newsletter cron should include closed yearly calendar entries',
   );
 
+  // The footer's next-meeting logic lives in the shared useUpcomingItems hook
+  // (also used by the homepage); the layout must consume it.
+  const upcomingItemsHook = readFileSync(new URL('../client/src/hooks/useUpcomingItems.ts', import.meta.url), 'utf8');
+  assert.match(
+    upcomingItemsHook,
+    /\/api\/yearly-calendar\?schoolYear=/,
+    'Upcoming-items hook should consider yearly calendar entries shown on the homepage',
+  );
+  assert.match(
+    upcomingItemsHook,
+    /entry\.entryType === "closed"/,
+    'Upcoming-items hook should include closed yearly calendar entries',
+  );
   const layout = readFileSync(new URL('../client/src/components/layout.tsx', import.meta.url), 'utf8');
   assert.match(
     layout,
-    /\/api\/yearly-calendar\?schoolYear=/,
-    'Footer next meeting should consider yearly calendar entries shown on the homepage',
-  );
-  assert.match(
-    layout,
-    /entry\.entryType === "closed"/,
-    'Footer next meeting should include closed yearly calendar entries',
+    /useUpcomingItems\(\)/,
+    'Footer next meeting should come from the shared useUpcomingItems hook',
   );
   assert.match(
     layout,

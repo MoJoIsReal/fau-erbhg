@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Menu, Home, Calendar, CalendarDays, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import { ChevronDown, Menu, Home, Calendar, CalendarDays, LayoutDashboard, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
@@ -195,6 +195,14 @@ export default function Layout({ children }: LayoutProps) {
                     <DropdownMenuSeparator />
                     {isCouncil && (
                       <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex w-full items-center gap-2">
+                          <LayoutDashboard className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Oversikt' : 'Overview'}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {isCouncil && (
+                      <DropdownMenuItem asChild>
                         <Link href="/content" className="flex w-full items-center gap-2">
                           <Newspaper className="h-4 w-4" />
                           <span>{language === 'no' ? 'Innhold' : 'Content'}</span>
@@ -342,6 +350,18 @@ export default function Layout({ children }: LayoutProps) {
                         <User className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
                         <span className="font-medium text-neutral-900 dark:text-neutral-50">{user?.name}</span>
                       </div>
+                      {isCouncil && (
+                        <Link href="/admin">
+                          <Button
+                            variant="outline"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="w-full flex items-center space-x-2"
+                          >
+                            <LayoutDashboard className="h-4 w-4" />
+                            <span>{language === 'no' ? 'Oversikt' : 'Overview'}</span>
+                          </Button>
+                        </Link>
+                      )}
                       {isCouncil && (
                         <Link href="/content">
                           <Button
