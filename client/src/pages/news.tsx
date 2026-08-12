@@ -6,7 +6,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 
 const PAGE_SIZE = 10;
@@ -125,13 +125,42 @@ export default function News() {
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
           {pageText.title}
         </h1>
         <p className="text-neutral-600 dark:text-neutral-300 mt-2">
           {pageText.intro}
         </p>
+      </div>
+
+      {/* News and tips are one section with a category switch, instead of two
+          separate menu destinations — "Aktuelt" used to mean different things
+          in the nav and on the homepage, and an empty Tips category occupied
+          half the dropdown. */}
+      <div
+        className="mb-8 flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1 w-fit"
+        role="group"
+        aria-label={language === "no" ? "Kategori" : "Category"}
+      >
+        <Link href="/news">
+          <Button
+            variant={!isTips ? "default" : "ghost"}
+            size="sm"
+            aria-pressed={!isTips}
+          >
+            {language === "no" ? "Nyheter" : "News"}
+          </Button>
+        </Link>
+        <Link href="/tips-tricks">
+          <Button
+            variant={isTips ? "default" : "ghost"}
+            size="sm"
+            aria-pressed={isTips}
+          >
+            {language === "no" ? "Tips & triks" : "Tips & Tricks"}
+          </Button>
+        </Link>
       </div>
 
       {blogPosts.length === 0 ? (
@@ -151,8 +180,15 @@ export default function News() {
           {blogPosts.map((post) => (
             <Card key={post.id}>
               <CardContent className="p-6">
-                <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-50 mb-3">
-                  {post.title}
+                {/* Title links to the permalink so a specific post can be
+                    shared, e.g. in the parents' Facebook group. */}
+                <h2 className="text-2xl font-semibold mb-3">
+                  <Link
+                    href={`/nyheter/${post.id}`}
+                    className="text-neutral-900 dark:text-neutral-50 hover:text-primary dark:hover:text-primary transition-colors"
+                  >
+                    {post.title}
+                  </Link>
                 </h2>
                 <div className="flex items-center text-sm text-neutral-500 dark:text-neutral-400 mb-4">
                   <Calendar className="h-4 w-4 mr-2" />

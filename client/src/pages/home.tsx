@@ -7,11 +7,10 @@ import kindergartenImage1280Webp from "@/assets/kindergarten-playground-1280.web
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
-import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
-import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
+import { useUpcomingItems } from "@/hooks/useUpcomingItems";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
 interface FauBoardMember {
@@ -61,52 +60,8 @@ export default function Home() {
     { icon: Star, text: t.home.engagement },
   ];
 
-  // Fetch upcoming events
-  const { data: allEvents = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events"],
-  });
-
-  // Fetch yearly calendar day-events for the current and next school year so
-  // the homepage stays correct around the August transition. The kindergarten
-  // year starts in August, so before August we're still in last year's school year.
-  const now = new Date();
-  const currentSchoolYear = getKindergartenSchoolYear(now);
-  const { data: currentYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear}`],
-  });
-  const { data: nextYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`],
-  });
-
-  type UpcomingItem =
-    | { kind: "event"; date: string; event: Event }
-    | { kind: "yearly"; date: string; entry: YearlyCalendarEntry };
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayMs = today.getTime();
-
-  const eventItems: UpcomingItem[] = allEvents
-    .filter((event) => new Date(event.date).getTime() >= todayMs && event.status === "active")
-    .map((event) => ({ kind: "event" as const, date: event.date, event }));
-
-  const yearlyItems: UpcomingItem[] = [...currentYearEntries, ...nextYearEntries]
-    .filter((entry) => {
-      if (!entry.date || new Date(entry.date).getTime() < todayMs) return false;
-      // "Closed" days (planleggingsdag, ferie etc.) always surface on the
-      // homepage so parents see them without anyone having to flag them.
-      if (entry.entryType === "closed") return true;
-      // Day events only show when at least one homepage flag is set.
-      if (entry.entryType === "day_event") {
-        return entry.showOnHomepage === true || entry.showForParents === true;
-      }
-      return false;
-    })
-    .map((entry) => ({ kind: "yearly" as const, date: entry.date as string, entry }));
-
-  const upcomingEvents = [...eventItems, ...yearlyItems]
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-    .slice(0, 3);
+  // Merged upcoming events + yearly-calendar entries, shared with the footer.
+  const upcomingEvents = useUpcomingItems().slice(0, 3);
 
   // Fetch FAU board members
   const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
@@ -177,143 +132,17 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Blog Posts / News Section */}
-      {blogPosts.length > 0 && (
-        <section>
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">
-                {language === 'no' ? 'Aktuelt' : 'Updates'}
-              </h3>
-              <div className="space-y-6">
-                {blogPosts.slice(0, 3).map((post) => (
-                  <div key={post.id} className="border-b border-neutral-200 dark:border-neutral-800 last:border-0 pb-6 last:pb-0">
-                    <h4 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">
-                      {post.title}
-                    </h4>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-                      <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
-                        {post.category === "tips"
-                          ? language === 'no' ? 'Tips & triks' : 'Tips & Tricks'
-                          : language === 'no' ? 'Nyheter' : 'News'}
-                      </span>
-                      {formatDate(post.publishedDate, language, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                      {post.author && (
-                        <span className="ml-2">
-                          • {language === 'no' ? 'av' : 'by'} {post.author}
-                        </span>
-                      )}
-                    </p>
-                    <SafeHtml
-                      html={post.content}
-                      truncate={200}
-                      className="prose prose-sm prose-neutral max-w-none mb-2 text-neutral-700 dark:text-neutral-300"
-                    />
-                    <Link href={post.category === "tips" ? "/tips-tricks" : "/news"}>
-                      <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
-                        {language === 'no' ? 'Les mer →' : 'Read more →'}
-                      </span>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
-
-      {/* About Section */}
-      <section className="grid md:grid-cols-2 gap-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mr-4">
-                <School className="h-6 w-6 text-secondary" />
-              </div>
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.aboutKindergarten}</h3>
-            </div>
-            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
-              {kindergartenInfo ? (
-                <>
-                  <p><strong>{t.home.contact}</strong> <a
-                    href={`mailto:${kindergartenInfo.contactEmail}`}
-                    className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
-                  >
-                    {kindergartenInfo.contactEmail}
-                  </a></p>
-                  <p><strong>{t.home.municipality}</strong> {kindergartenInfo.address}</p>
-                  <p><strong>{t.home.openingHours}</strong> {kindergartenInfo.openingHours}</p>
-                  <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {language === 'no' ? 'barn' : 'children'}</p>
-                  <p><strong>{t.home.owner}</strong> {kindergartenInfo.owner}</p>
-                  {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
-                    <p><strong>{language === 'no' ? 'Styrer:' : 'Director:'}</strong> <a
-                      href={`mailto:${kindergartenInfo.styrerEmail}`}
-                      className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
-                    >
-                      {kindergartenInfo.styrerName}
-                    </a></p>
-                  )}
-                  <p className="mt-4">
-                    {kindergartenInfo.description}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">
-                  {language === 'no' ? 'Laster informasjon...' : 'Loading information...'}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-accent/20 rounded-xl flex items-center justify-center mr-4">
-                <Handshake className="h-6 w-6 text-accent" />
-              </div>
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.fauTitle}</h3>
-            </div>
-            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
-              <p><strong>{t.home.contact}</strong> <a
-                href={`mailto:${FAU_EMAIL}`}
-                className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
-              >
-                {FAU_EMAIL}
-              </a></p>
-              
-              <div className="mt-4">
-                <p><strong>{t.home.fauBoard}</strong></p>
-                <div className="ml-4 mt-2 space-y-1 text-sm">
-                  {boardMembers.map((member) => (
-                    <p key={member.id}>
-                      <strong>
-                        {member.role === "Leder" ? t.home.leader :
-                         member.role === "Vara" ? t.home.vara :
-                         t.home.member}
-                      </strong> {member.name}
-                    </p>
-                  ))}
-                </div>
-              </div>
-              
-              <p className="mt-4">
-                {t.home.fauDescription}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
-      {/* Upcoming Events */}
+      {/* Upcoming events — first section after the hero, because "is anything
+          happening soon?" is the question most visitors come to answer. */}
       <section>
         <Card>
           <CardContent className="p-6">
-            <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.home.upcomingEvents}</h3>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.upcomingEvents}</h3>
+              <Link href="/events" className="text-sm font-medium text-primary hover:text-primary/80">
+                {t.home.seeAllEvents}
+              </Link>
+            </div>
             {upcomingEvents.length === 0 ? (
               <div className="text-center py-8">
                 <Calendar className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
@@ -409,6 +238,140 @@ export default function Home() {
           </CardContent>
         </Card>
       </section>
+
+
+      {/* Blog Posts / News Section */}
+      {blogPosts.length > 0 && (
+        <section>
+          <Card>
+            <CardContent className="p-6">
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">
+                {language === 'no' ? 'Aktuelt' : 'Updates'}
+              </h3>
+              <div className="space-y-6">
+                {blogPosts.slice(0, 3).map((post) => (
+                  <div key={post.id} className="border-b border-neutral-200 dark:border-neutral-800 last:border-0 pb-6 last:pb-0">
+                    <h4 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">
+                      {post.title}
+                    </h4>
+                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
+                      <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                        {post.category === "tips"
+                          ? language === 'no' ? 'Tips & triks' : 'Tips & Tricks'
+                          : language === 'no' ? 'Nyheter' : 'News'}
+                      </span>
+                      {formatDate(post.publishedDate, language, {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                      {post.author && (
+                        <span className="ml-2">
+                          • {language === 'no' ? 'av' : 'by'} {post.author}
+                        </span>
+                      )}
+                    </p>
+                    <SafeHtml
+                      html={post.content}
+                      truncate={200}
+                      className="prose prose-sm prose-neutral max-w-none mb-2 text-neutral-700 dark:text-neutral-300"
+                    />
+                    <Link href={`/nyheter/${post.id}`}>
+                      <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
+                        {language === 'no' ? 'Les mer →' : 'Read more →'}
+                      </span>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* About Section */}
+      <section className="grid md:grid-cols-2 gap-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mr-4">
+                <School className="h-6 w-6 text-secondary" />
+              </div>
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.aboutKindergarten}</h3>
+            </div>
+            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
+              {kindergartenInfo ? (
+                <>
+                  <p><strong>{t.home.contact}</strong> <a
+                    href={`mailto:${kindergartenInfo.contactEmail}`}
+                    className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
+                  >
+                    {kindergartenInfo.contactEmail}
+                  </a></p>
+                  <p><strong>{t.home.municipality}</strong> {kindergartenInfo.address}</p>
+                  <p><strong>{t.home.openingHours}</strong> {kindergartenInfo.openingHours}</p>
+                  <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {language === 'no' ? 'barn' : 'children'}</p>
+                  <p><strong>{t.home.owner}</strong> {kindergartenInfo.owner}</p>
+                  {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
+                    <p><strong>{language === 'no' ? 'Styrer:' : 'Director:'}</strong> <a
+                      href={`mailto:${kindergartenInfo.styrerEmail}`}
+                      className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
+                    >
+                      {kindergartenInfo.styrerName}
+                    </a></p>
+                  )}
+                  <p className="mt-4">
+                    {kindergartenInfo.description}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">
+                  {language === 'no' ? 'Laster informasjon...' : 'Loading information...'}
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center mb-4">
+              <div className="w-12 h-12 bg-accent/20 rounded-xl flex items-center justify-center mr-4">
+                <Handshake className="h-6 w-6 text-accent" />
+              </div>
+              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.fauTitle}</h3>
+            </div>
+            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
+              <p><strong>{t.home.contact}</strong> <a
+                href={`mailto:${FAU_EMAIL}`}
+                className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
+              >
+                {FAU_EMAIL}
+              </a></p>
+              
+              <div className="mt-4">
+                <p><strong>{t.home.fauBoard}</strong></p>
+                <div className="ml-4 mt-2 space-y-1 text-sm">
+                  {boardMembers.map((member) => (
+                    <p key={member.id}>
+                      <strong>
+                        {member.role === "Leder" ? t.home.leader :
+                         member.role === "Vara" ? t.home.vara :
+                         t.home.member}
+                      </strong> {member.name}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              
+              <p className="mt-4">
+                {t.home.fauDescription}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
     </div>
   );
 }

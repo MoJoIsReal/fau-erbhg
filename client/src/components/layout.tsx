@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Menu, Home, Calendar, CalendarDays, Newspaper, Lightbulb, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import { ChevronDown, Menu, Home, Calendar, CalendarDays, LayoutDashboard, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
@@ -15,10 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { useQuery } from "@tanstack/react-query";
-import { type Event, type YearlyCalendarEntry } from "@shared/schema";
 import { formatDate } from "@/lib/i18n";
-import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
+import { useUpcomingItems } from "@/hooks/useUpcomingItems";
 import LoginModal from "./login-modal";
 import PasswordChangeModal from "./password-change-modal";
 import LanguageToggle from "./language-toggle";
@@ -35,6 +33,9 @@ interface NavigationItem {
   href: string;
   icon: LucideIcon;
   children?: NavigationItem[];
+  // Extra paths that should highlight this item (e.g. /tips-tricks and the
+  // /nyheter/:id permalinks all belong to "Aktuelt").
+  matchPrefixes?: string[];
 }
 
 export default function Layout({ children }: LayoutProps) {
@@ -46,55 +47,20 @@ export default function Layout({ children }: LayoutProps) {
   const isAdmin = user?.role === "admin";
   const isCouncil = user?.role === "admin" || user?.role === "member";
 
-  // Fetch events and dated yearly calendar entries to find the next visible item.
-  const { data: events = [] } = useQuery<Event[]>({
-    queryKey: ["/api/events"],
-  });
-  const now = new Date();
-  const currentSchoolYear = getKindergartenSchoolYear(now);
-  const { data: currentYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear}`],
-  });
-  const { data: nextYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`],
-  });
+  // Next visible item for the footer, from the same hook (and the same three
+  // cached queries) as the homepage's "Hva skjer fremover" section.
+  const nextMeeting = useUpcomingItems()[0];
 
-  type FooterNextItem =
-    | { kind: "event"; date: string; event: Event }
-    | { kind: "yearly"; date: string; entry: YearlyCalendarEntry };
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const todayMs = today.getTime();
-
-  const eventItems: FooterNextItem[] = events
-    .filter((event) => event.status === "active" && new Date(event.date).getTime() >= todayMs)
-    .map((event) => ({ kind: "event" as const, date: event.date, event }));
-
-  const yearlyItems: FooterNextItem[] = [...currentYearEntries, ...nextYearEntries]
-    .filter((entry) => {
-      if (!entry.date || new Date(entry.date).getTime() < todayMs) return false;
-      if (entry.entryType === "closed") return true;
-      if (entry.entryType === "day_event") {
-        return entry.showOnHomepage === true || entry.showForParents === true;
-      }
-      return false;
-    })
-    .map((entry) => ({ kind: "yearly" as const, date: entry.date as string, entry }));
-
-  const nextMeeting = [...eventItems, ...yearlyItems]
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
-
+  // "Aktuelt" is a plain link: news and tips live on one page with a category
+  // switch, so the nav no longer needs a dropdown (and an empty Tips category
+  // no longer occupies a menu slot).
   const navigation: NavigationItem[] = [
     { name: t.navigation.home, href: "/", icon: Home },
     {
       name: t.navigation.updates,
       href: "/news",
       icon: Newspaper,
-      children: [
-        { name: t.navigation.news, href: "/news", icon: Newspaper },
-        { name: t.navigation.tips, href: "/tips-tricks", icon: Lightbulb },
-      ],
+      matchPrefixes: ["/nyheter", "/tips-tricks", "/tips-og-triks"],
     },
     { name: t.navigation.events, href: "/events", icon: Calendar },
     { name: t.navigation.yearlyCalendar, href: "/arskalender", icon: CalendarDays },
@@ -104,7 +70,9 @@ export default function Layout({ children }: LayoutProps) {
   const primaryNavigation = navigation.slice(0, 4);
   const secondaryNavigation = navigation.slice(4);
   const isNavigationItemActive = (item: NavigationItem) =>
-    location === item.href || Boolean(item.children?.some((child) => child.href === location));
+    location === item.href ||
+    Boolean(item.matchPrefixes?.some((prefix) => location === prefix || location.startsWith(`${prefix}/`))) ||
+    Boolean(item.children?.some((child) => child.href === location));
   const secondaryNavigationIsActive = secondaryNavigation.some(isNavigationItemActive);
   const desktopNavItemClass = (isActive: boolean) =>
     `flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
@@ -227,6 +195,14 @@ export default function Layout({ children }: LayoutProps) {
                     <DropdownMenuSeparator />
                     {isCouncil && (
                       <DropdownMenuItem asChild>
+                        <Link href="/admin" className="flex w-full items-center gap-2">
+                          <LayoutDashboard className="h-4 w-4" />
+                          <span>{language === 'no' ? 'Oversikt' : 'Overview'}</span>
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {isCouncil && (
+                      <DropdownMenuItem asChild>
                         <Link href="/content" className="flex w-full items-center gap-2">
                           <Newspaper className="h-4 w-4" />
                           <span>{language === 'no' ? 'Innhold' : 'Content'}</span>
@@ -273,10 +249,10 @@ export default function Layout({ children }: LayoutProps) {
                   aria-label={t.header.login}
                 >
                   <LogIn className="h-4 w-4 shrink-0" />
-                  {/* Hide the label at lg (1024-1279) so the six nav items
-                      have room to lay out without overlapping; reveal it
-                      from xl (1280+) where there's space. */}
-                  <span className="hidden xl:inline">{t.header.login}</span>
+                  {/* Always label the button: an unnamed icon made login a
+                      guessing game for the handful of FAU members who need it.
+                      Dropping the "Aktuelt" dropdown freed up the nav row. */}
+                  <span>{t.header.login}</span>
                 </Button>
               )}
             </div>
@@ -305,7 +281,7 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
                 <nav className="space-y-3">
                   {navigation.map((item) => {
-                    const isActive = location === item.href || item.children?.some((child) => child.href === location);
+                    const isActive = isNavigationItemActive(item);
                     const Icon = item.icon;
                     if (item.children) {
                       return (
@@ -374,6 +350,18 @@ export default function Layout({ children }: LayoutProps) {
                         <User className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
                         <span className="font-medium text-neutral-900 dark:text-neutral-50">{user?.name}</span>
                       </div>
+                      {isCouncil && (
+                        <Link href="/admin">
+                          <Button
+                            variant="outline"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="w-full flex items-center space-x-2"
+                          >
+                            <LayoutDashboard className="h-4 w-4" />
+                            <span>{language === 'no' ? 'Oversikt' : 'Overview'}</span>
+                          </Button>
+                        </Link>
+                      )}
                       {isCouncil && (
                         <Link href="/content">
                           <Button

@@ -32,11 +32,14 @@ interface ContactMessage {
   respondedBy?: string;
 }
 
+type StatusFilter = 'all' | 'new' | 'responded' | 'archived';
+
 export default function Messages() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [expandedMessage, setExpandedMessage] = useState<number | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   // Fetch contact messages
   const { data: messages = [], isLoading } = useQuery<ContactMessage[]>({
@@ -122,6 +125,54 @@ export default function Messages() {
   const respondedMessages = messages.filter(m => m.status === 'responded');
   const archivedMessages = messages.filter(m => m.status === 'archived');
 
+  // Unhandled messages first, newest first within each group — so an
+  // archived message from last year can't sit above a fresh inquiry.
+  const STATUS_ORDER: Record<ContactMessage['status'], number> = { new: 0, responded: 1, archived: 2 };
+  const visibleMessages = (
+    statusFilter === 'all' ? [...messages] : messages.filter((m) => m.status === statusFilter)
+  ).sort(
+    (a, b) =>
+      STATUS_ORDER[a.status] - STATUS_ORDER[b.status] ||
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+
+  // The summary cards are the filter controls: they looked clickable before
+  // but did nothing, while the list always showed everything regardless of
+  // what the counters said.
+  const filterCards: {
+    key: StatusFilter;
+    label: string;
+    count: number;
+    icon: typeof Mail;
+    numberClass: string;
+    iconClass: string;
+  }[] = [
+    {
+      key: 'new',
+      label: language === "no" ? "Nye" : "New",
+      count: newMessages.length,
+      icon: Mail,
+      numberClass: "text-blue-600 dark:text-blue-300",
+      iconClass: "text-blue-500",
+    },
+    {
+      key: 'responded',
+      label: language === "no" ? "Besvart" : "Responded",
+      count: respondedMessages.length,
+      icon: Check,
+      numberClass: "text-green-600 dark:text-green-300",
+      iconClass: "text-green-500",
+    },
+    {
+      key: 'archived',
+      label: language === "no" ? "Arkivert" : "Archived",
+      count: archivedMessages.length,
+      icon: Archive,
+      numberClass: "text-neutral-600 dark:text-neutral-300",
+      iconClass: "text-neutral-500 dark:text-neutral-400",
+    },
+  ];
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
@@ -135,53 +186,52 @@ export default function Messages() {
         </p>
       </div>
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === "no" ? "Nye" : "New"}</p>
-                <p className="text-2xl font-bold text-blue-600">{newMessages.length}</p>
-              </div>
-              <Mail className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === "no" ? "Besvart" : "Responded"}</p>
-                <p className="text-2xl font-bold text-green-600">{respondedMessages.length}</p>
-              </div>
-              <Check className="h-8 w-8 text-green-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-600 dark:text-neutral-400">{language === "no" ? "Arkivert" : "Archived"}</p>
-                <p className="text-2xl font-bold text-neutral-600 dark:text-neutral-300">{archivedMessages.length}</p>
-              </div>
-              <Archive className="h-8 w-8 text-neutral-500 dark:text-neutral-400" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Summary cards double as status filters */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8" role="group" aria-label={language === "no" ? "Filtrer på status" : "Filter by status"}>
+        {filterCards.map((card) => {
+          const Icon = card.icon;
+          const isActive = statusFilter === card.key;
+          return (
+            <button
+              key={card.key}
+              type="button"
+              onClick={() => setStatusFilter(isActive ? 'all' : card.key)}
+              aria-pressed={isActive}
+              className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+            >
+              <Card className={isActive ? "border-primary ring-1 ring-primary" : "transition-colors hover:border-neutral-300 dark:hover:border-neutral-700"}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-neutral-600 dark:text-neutral-400">{card.label}</p>
+                      <p className={`text-2xl font-bold tabular-nums ${card.numberClass}`}>{card.count}</p>
+                    </div>
+                    <Icon className={`h-8 w-8 ${card.iconClass}`} />
+                  </div>
+                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                    {isActive
+                      ? language === "no" ? "Vis alle" : "Show all"
+                      : language === "no" ? "Vis kun disse" : "Show only these"}
+                  </p>
+                </CardContent>
+              </Card>
+            </button>
+          );
+        })}
       </div>
 
       {/* Messages list */}
       <Card>
         <CardContent className="p-6">
-          {messages.length === 0 ? (
+          {visibleMessages.length === 0 ? (
             <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
-              {language === "no" ? "Ingen meldinger ennå" : "No messages yet"}
+              {messages.length === 0
+                ? language === "no" ? "Ingen meldinger ennå" : "No messages yet"
+                : language === "no" ? "Ingen meldinger med denne statusen" : "No messages with this status"}
             </p>
           ) : (
             <div className="space-y-4">
-              {messages.map((message) => (
+              {visibleMessages.map((message) => (
                 <Card key={message.id} className={`${message.status === 'new' ? 'border-blue-300 bg-blue-50/50 dark:border-blue-900/80 dark:bg-blue-950/20' : ''}`}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-3">

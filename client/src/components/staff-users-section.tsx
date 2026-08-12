@@ -85,7 +85,7 @@ export default function StaffUsersSection() {
   });
 
   return (
-    <Card className="p-6 mt-8">
+    <Card className="p-6">
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
           {t.yearlyCalendar.staff.manageTitle}
