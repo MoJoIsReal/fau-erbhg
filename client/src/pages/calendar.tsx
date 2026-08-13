@@ -13,7 +13,7 @@ export type CalendarTab = "upcoming" | "yearly";
 
 const TAB_PATH: Record<CalendarTab, string> = {
   upcoming: "/kalender",
-  yearly: "/kalender/arshjul",
+  yearly: "/kalender/arskalender",
 };
 
 function TabLoader() {
@@ -28,20 +28,20 @@ function TabLoader() {
  * Events and the yearly calendar used to be two top-level pages that both
  * showed kindergarten dates without explaining which belonged where — parents
  * had to guess twice. They are one page with two tabs now: "what's happening"
- * for things you sign up for, "yearly plan" for the fixed dates of the
+ * for things you sign up for, "yearly calendar" for the fixed dates of the
  * kindergarten year.
  */
 export default function CalendarPage() {
   const { t, language } = useLanguage();
-  const [isYearlyRoute] = useRoute("/kalender/arshjul");
+  const [isYearlyRoute] = useRoute("/kalender/arskalender");
   const activeTab: CalendarTab = isYearlyRoute ? "yearly" : "upcoming";
 
   usePageMeta({
     title: t.calendar.title,
     description:
       language === "no"
-        ? "Samlet kalender for Erdal Barnehage: kommende arrangementer og møter du kan melde deg på, og årshjulet med planleggingsdager og ferier."
-        : "One calendar for Erdal Kindergarten: upcoming events and meetings you can sign up for, and the yearly plan with planning days and holidays.",
+        ? "Samlet kalender for Erdal Barnehage: kommende arrangementer og møter du kan melde deg på, og årskalenderen med planleggingsdager og ferier."
+        : "One calendar for Erdal Kindergarten: upcoming events and meetings you can sign up for, and the yearly calendar with planning days and holidays.",
     path: TAB_PATH[activeTab],
   });
 
