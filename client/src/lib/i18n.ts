@@ -86,7 +86,7 @@ export interface Translations {
     cooperation: string;
     engagement: string;
   };
-  // Combined calendar page (events + yearly plan as tabs)
+  // Combined calendar page (events + yearly calendar as tabs)
   calendar: {
     title: string;
     subtitle: string;
@@ -876,7 +876,7 @@ export const translations: Record<Language, Translations> = {
       subtitle: "Alt som skjer i Erdal Barnehage, samlet på ett sted",
       upcomingTab: "Hva skjer",
       upcomingTabHint: "Arrangementer, møter og dugnader du kan melde deg på.",
-      yearlyTab: "Årshjul",
+      yearlyTab: "Årskalender",
       yearlyTabHint: "Faste datoer for barnehageåret: planleggingsdager, ferier og temauker.",
     },
     events: {
@@ -951,7 +951,7 @@ export const translations: Record<Language, Translations> = {
       subtitle: "Kommende aktiviteter og møter i FAU Erdal Barnehage",
       addEvent: "Legg til arrangement",
       noEvents: "Ingen kommende arrangementer",
-      noEventsDesc: "FAU legger ut nye møter og dugnader fortløpende. Datoer som allerede er satt for barnehageåret finner du i årshjulet.",
+      noEventsDesc: "FAU legger ut nye møter og dugnader fortløpende. Datoer som allerede er satt for barnehageåret finner du i årskalenderen.",
       register: "Meld deg på",
       full: "Fullt",
       attendees: "påmeldte",
@@ -967,7 +967,7 @@ export const translations: Record<Language, Translations> = {
       viewCalendar: "Kalender",
       pastEvents: "Tidligere arrangementer",
       showMorePast: "Vis flere tidligere arrangementer",
-      openYearlyCalendar: "Åpne årshjulet",
+      openYearlyCalendar: "Åpne årskalenderen",
       noPastEvents: "Ingen tidligere arrangementer",
       noPastEventsDesc: "Det er ingen tidligere arrangementer å vise.",
       viewRegistrations: "Se påmeldte",
@@ -1648,7 +1648,7 @@ export const translations: Record<Language, Translations> = {
       subtitle: "Everything happening at Erdal Kindergarten, in one place",
       upcomingTab: "What's on",
       upcomingTabHint: "Events, meetings and working bees you can sign up for.",
-      yearlyTab: "Yearly plan",
+      yearlyTab: "Yearly calendar",
       yearlyTabHint: "Fixed dates for the kindergarten year: planning days, holidays and theme weeks.",
     },
     events: {

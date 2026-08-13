@@ -394,10 +394,10 @@ interface YearlyCalendarPageProps {
 export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarPageProps = {}) {
   const { t, language } = useLanguage();
   usePageMeta({
-    title: language === "no" ? "Årshjul" : "Yearly calendar",
+    title: t.yearlyCalendar.title,
     description:
       language === "no"
-        ? "Årshjul for Erdal Barnehage med planleggingsdager, ferier og viktige datoer gjennom barnehageåret."
+        ? "Årskalender for Erdal Barnehage med planleggingsdager, ferier og viktige datoer gjennom barnehageåret."
         : "Yearly calendar for Erdal Kindergarten with planning days, holidays and key dates through the year.",
     path: "/arskalender",
     enabled: !embedded,

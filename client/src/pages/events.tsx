@@ -358,7 +358,7 @@ export default function Events({ embedded = false }: EventsProps = {}) {
                 <Calendar className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
                 <h3 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">{t.events.noEvents}</h3>
                 <p className="text-neutral-600 dark:text-neutral-300 mb-4">{t.events.noEventsDesc}</p>
-                <Link href="/kalender/arshjul">
+                <Link href="/kalender/arskalender">
                   <Button variant="outline">
                     <CalendarDays className="h-4 w-4 mr-2" />
                     {t.events.openYearlyCalendar}

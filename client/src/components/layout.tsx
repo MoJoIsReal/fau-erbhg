@@ -62,7 +62,7 @@ export default function Layout({ children }: LayoutProps) {
       icon: Newspaper,
       matchPrefixes: ["/nyheter", "/tips-tricks", "/tips-og-triks"],
     },
-    // Events and the yearly plan are two tabs of one calendar page now, so
+    // Events and the yearly calendar are two tabs of one calendar page now, so
     // they share a single nav slot. That frees enough room for every item to
     // sit at top level — nothing hides behind "More" any more.
     {

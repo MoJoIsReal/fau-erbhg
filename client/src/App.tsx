@@ -101,7 +101,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/kalender" component={CalendarPage} />
-          <Route path="/kalender/arshjul" component={CalendarPage} />
+          <Route path="/kalender/arskalender" component={CalendarPage} />
           {/* Retired top-level calendar URLs. Both are still in circulation
               (newsletters, Facebook posts, bookmarks), so they redirect
               rather than 404. */}
@@ -141,7 +141,12 @@ function Router() {
             </RequireAuth>
           </Route>
           <Route path="/arskalender">
-            <Redirect to="/kalender/arshjul" />
+            <Redirect to="/kalender/arskalender" />
+          </Route>
+          {/* Shipped briefly as /kalender/arshjul before the page settled on
+              "Årskalender" everywhere. */}
+          <Route path="/kalender/arshjul">
+            <Redirect to="/kalender/arskalender" />
           </Route>
           <Route path="/nyhetsbrev" component={Newsletter} />
           <Route path="/newsletter" component={Newsletter} />
