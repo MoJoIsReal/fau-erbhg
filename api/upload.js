@@ -15,23 +15,7 @@ import {
   sanitizeFilename,
   validateUploadFile
 } from './_shared/upload-validation.js';
-
-function parseCloudinaryDeliveryUrl(parsedUrl) {
-  const parts = parsedUrl.pathname.split('/').filter(Boolean);
-  const [cloudName, resourceType, deliveryType, ...rest] = parts;
-  const publicIdParts = [...rest];
-
-  if (publicIdParts[0] && /^v\d+$/.test(publicIdParts[0])) {
-    publicIdParts.shift();
-  }
-
-  return {
-    cloudName,
-    resourceType,
-    deliveryType,
-    publicId: decodeURIComponent(publicIdParts.join('/')),
-  };
-}
+import { parseCloudinaryDeliveryUrl } from './_shared/cloudinary-url.js';
 
 export default withApiHandler(async function handler(req, res) {
   if (req.method !== 'POST') {

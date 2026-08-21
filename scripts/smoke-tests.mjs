@@ -26,6 +26,7 @@ import {
   getYearlyCalendarMonthGroups,
   getYearlyCalendarTodayMarker,
 } from '../shared/yearly-calendar-display.js';
+import { parseCloudinaryDeliveryUrl } from '../api/_shared/cloudinary-url.js';
 
 const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
@@ -67,6 +68,30 @@ function testRateLimitKeys() {
   assert.equal(keyA, keyB);
   assert.notEqual(keyA, keyC);
   assert.match(keyA, /^[a-f0-9]{64}$/);
+}
+
+function testCloudinaryDeliveryUrlParsing() {
+  const imageDelivery = parseCloudinaryDeliveryUrl(
+    new URL('https://res.cloudinary.com/fau-demo/image/upload/v1770000000/fau-documents/1770000000000-tips.jpg'),
+  );
+
+  assert.deepEqual(imageDelivery, {
+    cloudName: 'fau-demo',
+    resourceType: 'image',
+    deliveryType: 'upload',
+    publicId: 'fau-documents/1770000000000-tips',
+  });
+
+  const rawDelivery = parseCloudinaryDeliveryUrl(
+    new URL('https://res.cloudinary.com/fau-demo/raw/upload/v1770000000/fau-documents/1770000000000-referat.pdf'),
+  );
+
+  assert.deepEqual(rawDelivery, {
+    cloudName: 'fau-demo',
+    resourceType: 'raw',
+    deliveryType: 'upload',
+    publicId: 'fau-documents/1770000000000-referat.pdf',
+  });
 }
 
 function testAssignPhotoSlots() {
@@ -902,6 +927,7 @@ function testYearlyCalendarImportDecisionMatrix() {
 
 testSanitizeHtml();
 testRateLimitKeys();
+testCloudinaryDeliveryUrlParsing();
 testAssignPhotoSlots();
 testResolvePhotoSlotsForRegistration();
 testSharedConstants();
