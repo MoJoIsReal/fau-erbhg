@@ -418,10 +418,18 @@ export default function Events({ embedded = false }: EventsProps = {}) {
 
                           {!event.noSignup && !event.vigiloSignup && (
                             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-                              <div className="flex items-center text-accent">
-                                <Users className="h-4 w-4 mr-1" />
-                                <span>{(event.currentAttendees || 0)} {t.events.attendees}</span>
-                              </div>
+                              {canManageEvents && (event.currentAttendees || 0) > 0 ? (
+                                <AttendeeTooltip
+                                  eventId={event.id}
+                                  attendeeCount={event.currentAttendees || 0}
+                                  maxAttendees={event.maxAttendees}
+                                />
+                              ) : (
+                                <div className="flex items-center text-accent">
+                                  <Users className="h-4 w-4 mr-1" />
+                                  <span>{(event.currentAttendees || 0)} {t.events.attendees}</span>
+                                </div>
+                              )}
                               {event.maxAttendees && (
                                 <div className="flex items-center text-neutral-500 dark:text-neutral-400">
                                   <span>{t.events.maxAttendees}: {event.maxAttendees}</span>

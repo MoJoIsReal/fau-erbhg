@@ -25,7 +25,7 @@ export default function AttendeeTooltip({
   const { language, t } = useLanguage();
 
   const { data: registrations = [] } = useQuery<EventRegistration[]>({
-    queryKey: ["/api/events", eventId, "registrations"],
+    queryKey: [`/api/registrations?eventId=${eventId}`],
     enabled: attendeeCount > 0,
   });
 
@@ -57,12 +57,12 @@ export default function AttendeeTooltip({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <div className={`flex items-center text-accent cursor-help ${className}`}>
-            <Users className="h-4 w-4 mr-1" />
+          <button type="button" className={`flex items-center text-accent cursor-help ${className}`}>
+            <Users className="h-4 w-4 mr-1" aria-hidden="true" />
             <span>
               {attendeeCount} {t.events.attendees2}
             </span>
-          </div>
+          </button>
         </TooltipTrigger>
         <TooltipContent className="max-w-xs">
           <div className="whitespace-pre-line text-sm">

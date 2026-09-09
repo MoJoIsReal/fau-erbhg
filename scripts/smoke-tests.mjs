@@ -258,6 +258,46 @@ function testClientRegressionGuards() {
     'Document download icon buttons must have accessible names',
   );
 
+  const attendeeTooltip = readFileSync(new URL('../client/src/components/attendee-tooltip.tsx', import.meta.url), 'utf8');
+  assert.match(
+    attendeeTooltip,
+    /queryKey:\s*\[`\/api\/registrations\?eventId=\$\{eventId\}`\]/,
+    'Attendee tooltip must fetch the event registration endpoint, not the events list',
+  );
+  assert.equal(
+    attendeeTooltip.includes('queryKey: ["/api/events", eventId, "registrations"]'),
+    false,
+    'Attendee tooltip must not treat query-key segments as URL path segments',
+  );
+  assert.match(
+    eventsPage,
+    /<AttendeeTooltip\s+eventId=\{event\.id\}/,
+    'Council event cards with registrations must render the corrected attendee tooltip',
+  );
+
+  const app = readFileSync(new URL('../client/src/App.tsx', import.meta.url), 'utf8');
+  const messagesRoute = app.slice(
+    app.indexOf('<Route path="/messages">'),
+    app.indexOf('<Route path="/arskalender">'),
+  );
+  assert.match(
+    messagesRoute,
+    /<RequireAuth roles=\{\["admin"\]\}>/,
+    'Messages route must match the API admin-only authorization policy',
+  );
+  assert.equal(
+    messagesRoute.includes('"member"'),
+    false,
+    'Council members must not pass the messages page route guard',
+  );
+
+  const fileUploadModal = readFileSync(new URL('../client/src/components/file-upload-modal.tsx', import.meta.url), 'utf8');
+  assert.match(
+    fileUploadModal,
+    /aria-label=\{`\$\{t\.documents\.removeFile\}: \$\{selectedFile\.name\}`\}/,
+    'Selected-file remove button must have a localized accessible name including the filename',
+  );
+
   const richTextEditor = readFileSync(new URL('../client/src/components/RichTextEditor.tsx', import.meta.url), 'utf8');
   assert.match(
     richTextEditor,
@@ -1038,4 +1078,3 @@ testYearlyCalendarImportPreviewNormalizesDbShapedMatch();
 testYearlyCalendarImportDecisionMatrix();
 
 console.log('Smoke tests passed');
-
