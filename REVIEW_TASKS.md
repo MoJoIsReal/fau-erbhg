@@ -71,13 +71,6 @@ TRACE-001, TR-09
 **Effort:** Large  
 **Area:** Testing / Infrastructure
 
-### Progress
-- [x] Added a first-class `node:test` unit/contract tier and made it part of `npm test` and CI.
-- [x] Added executable CSRF, CORS/security-header, JWT identity-refresh, password-policy and RBAC matrix tests.
-- [x] Added upload-validation boundary tests.
-- [ ] Add isolated PostgreSQL handler integration and concurrency tests.
-- [ ] Add browser E2E and automated accessibility tests.
-
 ### Files
 - `package.json`
 - `.github/workflows/ci.yml`
