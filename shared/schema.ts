@@ -69,6 +69,13 @@ export const contactMessages = pgTable("contact_messages", {
   subject: text("subject").notNull(),
   message: text("message").notNull(),
   createdAt: text("created_at").notNull(),
+  // Handling state shown on /messages: "new", "responded" or "archived".
+  status: text("status").notNull().default("new"),
+  respondedAt: text("responded_at"),
+  respondedBy: text("responded_by"),
+  // Body of the reply FAU sent back to the inquirer, kept so the council can
+  // see what was answered without digging through the Gmail account.
+  responseMessage: text("response_message"),
 });
 
 // Newsletter ("nyhetsbrev") subscribers. Parents opt in via a public form and

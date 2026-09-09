@@ -14,10 +14,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Mail, Clock, User, Phone, Trash2, Check, Archive, Loader2 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Mail, Clock, User, Phone, Trash2, Check, Archive, Loader2, Reply } from "lucide-react";
+import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
 
 interface ContactMessage {
   id: number;
@@ -30,7 +39,10 @@ interface ContactMessage {
   createdAt: string;
   respondedAt?: string;
   respondedBy?: string;
+  responseMessage?: string;
 }
+
+const REPLY_MAX_LENGTH = 5000;
 
 type StatusFilter = 'all' | 'new' | 'responded' | 'archived';
 
@@ -40,6 +52,8 @@ export default function Messages() {
   const queryClient = useQueryClient();
   const [expandedMessage, setExpandedMessage] = useState<number | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [replyTarget, setReplyTarget] = useState<ContactMessage | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   // Fetch contact messages
   const { data: messages = [], isLoading } = useQuery<ContactMessage[]>({
@@ -89,6 +103,54 @@ export default function Messages() {
       });
     },
   });
+
+  // Reply from the admin panel: the API sends the email from FAU's own address
+  // to the address given in the inquiry, then marks the message as responded.
+  const replyMutation = useMutation({
+    mutationFn: async ({ id, message }: { id: number; message: string }) => {
+      const res = await apiRequest(
+        "POST",
+        `/api/secure-settings?resource=contact-messages&id=${id}`,
+        { message }
+      );
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=contact-messages"] });
+      setReplyTarget(null);
+      setReplyText("");
+      toast({
+        title: t.messagesPage.replySent,
+        description: t.messagesPage.replyWasSent,
+      });
+    },
+    onError: (error: unknown) => {
+      toast({
+        variant: "destructive",
+        title: t.messagesPage.couldNotSendReply,
+        description: getApiErrorMessage(error, t.messagesPage.couldNotSendReply),
+      });
+    },
+  });
+
+  const openReply = (message: ContactMessage) => {
+    setReplyTarget(message);
+    setReplyText("");
+  };
+
+  const submitReply = () => {
+    if (!replyTarget) return;
+    const trimmed = replyText.trim();
+    if (!trimmed) {
+      toast({
+        variant: "destructive",
+        title: t.messagesPage.error,
+        description: t.messagesPage.replyRequired,
+      });
+      return;
+    }
+    replyMutation.mutate({ id: replyTarget.id, message: trimmed });
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -274,9 +336,24 @@ export default function Messages() {
                               minute: "2-digit"
                             })}
                           </p>
+                          {!message.email && (
+                            <p className="text-xs italic text-neutral-500 dark:text-neutral-400">
+                              {t.messagesPage.cannotReplyAnonymous}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="flex gap-2 ml-4">
+                      <div className="flex flex-wrap justify-end gap-2 ml-4">
+                        {message.email && (
+                          <Button
+                            onClick={() => openReply(message)}
+                            size="sm"
+                            disabled={replyMutation.isPending}
+                          >
+                            <Reply className="h-4 w-4 mr-1" />
+                            {t.messagesPage.reply}
+                          </Button>
+                        )}
                         {message.status !== 'responded' && (
                           <Button
                             onClick={() => updateStatusMutation.mutate({ id: message.id, status: 'responded' })}
@@ -365,6 +442,17 @@ export default function Messages() {
                         : t.messagesPage.showMore}
                     </Button>
 
+                    {message.responseMessage && (
+                      <div className="mt-3 border-l-2 border-green-400 dark:border-green-700 pl-3">
+                        <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                          {t.messagesPage.sentReply}
+                        </p>
+                        <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap">
+                          {message.responseMessage}
+                        </p>
+                      </div>
+                    )}
+
                     {message.respondedAt && (
                       <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3 italic">
                         {t.messagesPage.responded}{" "}
@@ -379,6 +467,87 @@ export default function Messages() {
           )}
         </CardContent>
       </Card>
+
+      {/* Reply dialog — the email goes out from FAU's own address */}
+      <Dialog
+        open={replyTarget !== null}
+        onOpenChange={(open) => {
+          if (!open && !replyMutation.isPending) {
+            setReplyTarget(null);
+            setReplyText("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[560px]">
+          <DialogHeader>
+            <DialogTitle>{t.messagesPage.replyTitle}</DialogTitle>
+            <DialogDescription>
+              {t.messagesPage.replySentFromFau} {replyTarget?.email}
+            </DialogDescription>
+          </DialogHeader>
+
+          {replyTarget && (
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                  {t.messagesPage.originalMessage} — {getSubjectLabel(replyTarget.subject)}
+                </p>
+                <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-neutral-50 dark:bg-neutral-950 p-3 text-sm text-neutral-700 dark:text-neutral-200">
+                  {replyTarget.message}
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="contact-reply"
+                  className="text-xs font-medium text-neutral-600 dark:text-neutral-300"
+                >
+                  {t.messagesPage.yourReply}
+                </label>
+                <Textarea
+                  id="contact-reply"
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder={t.messagesPage.replyPlaceholder}
+                  maxLength={REPLY_MAX_LENGTH}
+                  rows={8}
+                  className="mt-1"
+                  disabled={replyMutation.isPending}
+                />
+                <p className="mt-1 text-right text-xs text-neutral-500 dark:text-neutral-400 tabular-nums">
+                  {replyText.length}/{REPLY_MAX_LENGTH}
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReplyTarget(null);
+                setReplyText("");
+              }}
+              disabled={replyMutation.isPending}
+            >
+              {t.messagesPage.cancel}
+            </Button>
+            <Button onClick={submitReply} disabled={replyMutation.isPending || !replyText.trim()}>
+              {replyMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {t.messagesPage.sending}
+                </>
+              ) : (
+                <>
+                  <Reply className="h-4 w-4 mr-2" />
+                  {t.messagesPage.sendReply}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
