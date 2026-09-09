@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, index, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, index, uniqueIndex, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -48,6 +48,8 @@ export const eventRegistrations = pgTable("event_registrations", {
   childrenNames: text("children_names"), // JSON array of child names for "foto" events
   photoSlots: text("photo_slots"), // JSON array of assigned "HH:MM" slots for "foto" events
   reminderSentAt: text("reminder_sent_at"),
+  reminderClaimedAt: timestamp("reminder_claimed_at", { withTimezone: true }),
+  reminderAttempts: integer("reminder_attempts").notNull().default(0),
   registeredAt: text("registered_at"),
 }, (table) => ({
   eventIdIdx: index("event_registrations_event_id_idx").on(table.eventId),
@@ -93,6 +95,29 @@ export const newsletterSubscribers = pgTable("newsletter_subscribers", {
   unsubscribedAt: text("unsubscribed_at"),
 }, (table) => ({
   statusIdx: index("newsletter_subscribers_status_idx").on(table.status),
+}));
+
+export const newsletterDeliveries = pgTable("newsletter_deliveries", {
+  id: serial("id").primaryKey(),
+  itemType: text("item_type").notNull(),
+  itemId: integer("item_id").notNull(),
+  subscriberId: integer("subscriber_id").notNull().references(() => newsletterSubscribers.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description"),
+  eventDate: text("event_date").notNull(),
+  status: text("status").notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }).notNull().defaultNow(),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
+  lastError: text("last_error"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  itemSubscriberUnique: uniqueIndex("newsletter_deliveries_item_subscriber_unique_idx")
+    .on(table.itemType, table.itemId, table.subscriberId),
+  claimIdx: index("newsletter_deliveries_claim_idx").on(table.status, table.nextAttemptAt),
+  eventDateIdx: index("newsletter_deliveries_event_date_idx").on(table.eventDate),
 }));
 
 export const documents = pgTable("documents", {
@@ -239,6 +264,7 @@ export type Event = typeof events.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
+export type NewsletterDelivery = typeof newsletterDeliveries.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type SiteSetting = typeof siteSettings.$inferSelect;
