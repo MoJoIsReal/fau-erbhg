@@ -71,13 +71,6 @@ TRACE-001, TR-09
 **Effort:** Large  
 **Area:** Testing / Infrastructure
 
-### Progress
-- [x] Added a first-class `node:test` unit/contract tier and made it part of `npm test` and CI.
-- [x] Added executable CSRF, CORS/security-header, JWT identity-refresh, password-policy and RBAC matrix tests.
-- [x] Added upload-validation boundary tests.
-- [ ] Add isolated PostgreSQL handler integration and concurrency tests.
-- [ ] Add browser E2E and automated accessibility tests.
-
 ### Files
 - `package.json`
 - `.github/workflows/ci.yml`
@@ -118,13 +111,6 @@ All P1 database/reliability tasks
 **Confidence:** High  
 **Effort:** Large  
 **Area:** Database / Reliability
-
-### Progress
-- [x] Added a per-item/per-subscriber outbox migration with unique idempotency keys.
-- [x] Added lease-based claims, retry backoff, unsubscribe skipping and completion-after-fan-out.
-- [x] Added deterministic message IDs and bounded delivery concurrency.
-- [ ] Apply migration 0008 in Neon before deploying this implementation.
-- [ ] Run concurrent/failure integration tests against an isolated PostgreSQL database.
 
 ### Files
 - `api/cron/event-reminders.js`
@@ -277,12 +263,6 @@ DB-004, TR-06
 **Effort:** Medium  
 **Area:** Reliability / Concurrency
 
-### Progress
-- [x] Added `FOR UPDATE SKIP LOCKED`, an expiring claim lease and update-side claim predicates.
-- [x] Mark reminders sent only after Gmail accepts them and release failed claims for retry.
-- [ ] Apply migration 0008 in Neon before deploying this implementation.
-- [ ] Verify overlapping workers against an isolated PostgreSQL database.
-
 ### Files
 - `api/cron/event-reminders.js`
 
@@ -318,13 +298,6 @@ REL-001, DB-001, TR-29
 **Confidence:** High  
 **Effort:** Medium after outbox  
 **Area:** Performance / Operations
-
-### Progress
-- [x] Replaced serial sends with a shared bounded-concurrency worker.
-- [x] Made timeout/crash work reclaimable through durable leases.
-- [x] Added deterministic backoff and delivery helper unit tests.
-- [ ] Add production queue-age/duration metrics after the outbox migration is deployed.
-- [ ] Run provider-latency load tests in staging.
 
 ### Files
 - `api/cron/event-reminders.js`
