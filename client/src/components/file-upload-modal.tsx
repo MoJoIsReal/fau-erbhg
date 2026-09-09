@@ -307,8 +307,9 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                               variant="ghost"
                               size="sm"
                               onClick={() => handleFileChange(null)}
+                              aria-label={`${t.documents.removeFile}: ${selectedFile.name}`}
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </div>
                           <p className="text-xs text-neutral-500 dark:text-neutral-400">

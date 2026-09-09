@@ -70,7 +70,7 @@ npm run build      # Build frontend for Vercel
 npm start          # Preview the built frontend locally
 npm run check      # TypeScript type checking (run before committing)
 npm run db:push    # Apply schema changes to database via drizzle-kit
-npm run test       # Run smoke tests (scripts/smoke-tests.mjs)
+npm run test       # Run Node unit/contract tests, then smoke tests
 ```
 
 Development runs at `http://localhost:5000`. There is no local backend process —
@@ -195,11 +195,14 @@ Schema changes workflow:
 2. Run `npm run db:push` to push changes via drizzle-kit.
 3. For any data-shape changes that need to be applied to existing rows, add a SQL file under `migrations/` and apply it through the Neon SQL editor (see `migrations/README.md`).
 
-Tables: `users`, `events`, `event_registrations`, `contact_messages`, `newsletter_subscribers`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
+Tables: `users`, `events`, `event_registrations`, `photo_event_slots`, `contact_messages`, `newsletter_subscribers`, `newsletter_deliveries`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
 
 ## Testing
 
-There is currently no real test suite — only `scripts/smoke-tests.mjs` which is invoked by `npm test`. When adding complex business logic, manually verify via the dev server. This is a known gap.
+`npm test` runs Node unit/contract tests under `tests/` followed by
+`scripts/smoke-tests.mjs`. Database concurrency and external-provider behavior
+still require an isolated integration environment; never point automated tests
+at the production Neon database.
 
 ## Deployment
 

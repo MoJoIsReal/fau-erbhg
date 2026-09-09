@@ -130,6 +130,14 @@ npm run db:push
 Then apply SQL migrations from `migrations/` in lexical order using the Neon SQL editor.
 Start with `migrations/0001_production_hardening.sql` before enabling reminders or rate limiting in production.
 
+For the durable reminder outbox, apply `migrations/0008_delivery_outbox.sql`
+before deploying code that imports it. See `migrations/README.md` for the exact
+post-migration verification queries. No new environment variables are required.
+
+Before deploying registration-integrity changes, apply
+`migrations/0009_registration_integrity.sql`. Its orphan preflight and
+post-migration verification steps are documented in `migrations/README.md`.
+
 ### 3. Initialize Admin User
 
 There is no public admin-bootstrap endpoint. Create the first admin user by inserting a row directly via the Neon SQL editor, generating the bcrypt hash locally first:
