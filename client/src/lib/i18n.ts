@@ -501,6 +501,20 @@ export interface Translations {
     showLess: string;
     showMore: string;
     by: string;
+    reply: string;
+    replyTitle: string;
+    replySentFromFau: string;
+    originalMessage: string;
+    yourReply: string;
+    replyPlaceholder: string;
+    sendReply: string;
+    sending: string;
+    replySent: string;
+    replyWasSent: string;
+    couldNotSendReply: string;
+    replyRequired: string;
+    cannotReplyAnonymous: string;
+    sentReply: string;
   };
   contentPage: {
     content: string;
@@ -1276,6 +1290,20 @@ export const translations: Record<Language, Translations> = {
       showLess: "Vis mindre",
       showMore: "Vis mer",
       by: "av",
+      reply: "Svar",
+      replyTitle: "Svar på henvendelse",
+      replySentFromFau: "Svaret sendes fra FAU sin e-postadresse til",
+      originalMessage: "Opprinnelig henvendelse",
+      yourReply: "Ditt svar",
+      replyPlaceholder: "Skriv svaret her …",
+      sendReply: "Send svar",
+      sending: "Sender …",
+      replySent: "Svar sendt!",
+      replyWasSent: "Svaret er sendt, og henvendelsen er markert som besvart.",
+      couldNotSendReply: "Kunne ikke sende svar",
+      replyRequired: "Skriv et svar før du sender",
+      cannotReplyAnonymous: "Anonyme henvendelser har ingen e-postadresse å svare til",
+      sentReply: "Sendt svar",
     },
     contentPage: {
       content: "Innhold",
@@ -2048,6 +2076,20 @@ export const translations: Record<Language, Translations> = {
       showLess: "Show less",
       showMore: "Show more",
       by: "by",
+      reply: "Reply",
+      replyTitle: "Reply to inquiry",
+      replySentFromFau: "The reply is sent from FAU's email address to",
+      originalMessage: "Original inquiry",
+      yourReply: "Your reply",
+      replyPlaceholder: "Write your reply here …",
+      sendReply: "Send reply",
+      sending: "Sending …",
+      replySent: "Reply sent!",
+      replyWasSent: "The reply was sent and the inquiry is marked as responded.",
+      couldNotSendReply: "Could not send reply",
+      replyRequired: "Write a reply before sending",
+      cannotReplyAnonymous: "Anonymous inquiries have no email address to reply to",
+      sentReply: "Sent reply",
     },
     contentPage: {
       content: "Content",

@@ -1,6 +1,10 @@
 import bcrypt from 'bcryptjs';
 import { getDb } from './_shared/database.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
+import { publicBaseUrl } from './_shared/newsletter.js';
+import { CONTACT_REPLY_MAX_LENGTH, contactReplyEmail } from './_shared/contact-reply.js';
+import { redactSensitiveText } from './_shared/redact.js';
+import Sentry from './_shared/sentry.js';
 import { generateTemporaryPassword } from './_shared/password-policy.js';
 import {
   withApiHandler,
@@ -345,7 +349,8 @@ async function handleContactMessages(req, res, sql) {
   if (req.method === 'GET') {
     const messages = await sql`
       SELECT id, name, email, phone, subject, message, status,
-             created_at as "createdAt", responded_at as "respondedAt", responded_by as "respondedBy"
+             created_at as "createdAt", responded_at as "respondedAt",
+             responded_by as "respondedBy", response_message as "responseMessage"
       FROM contact_messages
       ORDER BY created_at DESC
     `;
@@ -369,20 +374,94 @@ async function handleContactMessages(req, res, sql) {
       return res.status(400).json({ error: 'Valid status is required (new, responded, archived)' });
     }
 
-    const result = await sql`
-      UPDATE contact_messages
-      SET status = ${status},
-          responded_at = ${status === 'responded' ? now : null},
-          responded_by = ${status === 'responded' ? user.username : null}
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    // Marking as responded stamps who did it; archiving or reopening only
+    // moves the message between lists and must not erase a reply that was
+    // actually sent.
+    const result = status === 'responded'
+      ? await sql`
+          UPDATE contact_messages
+          SET status = ${status},
+              responded_at = ${now},
+              responded_by = ${user.username}
+          WHERE id = ${id}
+          RETURNING *
+        `
+      : await sql`
+          UPDATE contact_messages
+          SET status = ${status}
+          WHERE id = ${id}
+          RETURNING *
+        `;
 
     if (result.length === 0) {
       return res.status(404).json({ error: 'Message not found' });
     }
 
     return res.status(200).json(result[0]);
+  }
+
+  // POST - Send an email reply to the person behind the inquiry
+  if (req.method === 'POST') {
+    const id = sanitizeNumber(req.query.id, 1);
+    if (!id) {
+      return res.status(400).json({ error: 'Valid id query parameter required' });
+    }
+
+    const reply = sanitizeText(req.body?.message, CONTACT_REPLY_MAX_LENGTH);
+    if (!reply) {
+      return res.status(400).json({ error: 'Reply message is required' });
+    }
+
+    const rows = await sql`
+      SELECT id, name, email, subject, message, created_at as "createdAt"
+      FROM contact_messages
+      WHERE id = ${id}
+    `;
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
+
+    const original = rows[0];
+    const recipient = sanitizeEmail(original.email);
+
+    // Anonymous inquiries carry no address, so there is nobody to answer.
+    if (!recipient) {
+      return res.status(400).json({ error: 'This inquiry has no reply address' });
+    }
+
+    if (!isEmailConfigured()) {
+      return res.status(503).json({ error: 'Email is not configured' });
+    }
+
+    const { subject, text } = contactReplyEmail(original, reply);
+
+    // Only mark the inquiry as answered once Gmail has accepted the message —
+    // a silent failure here would leave the parent without a reply while the
+    // list claims it was handled.
+    try {
+      await sendEmail({ to: recipient, subject, text });
+    } catch (emailError) {
+      console.error('Failed to send contact reply:', redactSensitiveText(emailError.message || String(emailError)));
+      if (process.env.NODE_ENV === 'production') {
+        Sentry.captureException(emailError);
+      }
+      return res.status(502).json({ error: 'Could not send the reply email' });
+    }
+
+    const updated = await sql`
+      UPDATE contact_messages
+      SET status = 'responded',
+          responded_at = ${now},
+          responded_by = ${user.username},
+          response_message = ${reply}
+      WHERE id = ${id}
+      RETURNING id, name, email, phone, subject, message, status,
+                created_at as "createdAt", responded_at as "respondedAt",
+                responded_by as "respondedBy", response_message as "responseMessage"
+    `;
+
+    return res.status(200).json(updated[0]);
   }
 
   // DELETE - Delete a contact message
@@ -447,8 +526,6 @@ async function handleUsers(req, res, sql) {
       RETURNING id, username, name, role
     `;
 
-    const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://www.erdal-bhg.no';
-
     try {
       await sendEmail({
         to: username,
@@ -457,7 +534,7 @@ async function handleUsers(req, res, sql) {
           `Hei ${name},`,
           '',
           `Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside.`,
-          `Nettside: ${publicBaseUrl}`,
+          `Nettside: ${publicBaseUrl()}`,
           `Rolle: ${roleLabel(role)}`,
           '',
           roleDescription(role),

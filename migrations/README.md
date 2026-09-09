@@ -11,6 +11,7 @@ contents of each migration file. The current migrations are:
 4. `0004_blog_post_category.sql`
 5. `0005_user_token_version.sql`
 6. `0006_user_password_policy.sql`
+7. `0007_contact_message_replies.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the

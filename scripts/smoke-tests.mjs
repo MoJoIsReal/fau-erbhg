@@ -27,6 +27,7 @@ import {
   getYearlyCalendarTodayMarker,
 } from '../shared/yearly-calendar-display.js';
 import { parseCloudinaryDeliveryUrl } from '../api/_shared/cloudinary-url.js';
+import { contactReplyEmail, contactSubjectLabel } from '../api/_shared/contact-reply.js';
 
 const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
@@ -341,7 +342,7 @@ function testClientRegressionGuards() {
   );
   assert.match(
     secureSettingsApi,
-    /Nettside: \$\{publicBaseUrl\}/,
+    /Nettside: \$\{publicBaseUrl\(\)\}/,
     'New-user email should include a link to the website',
   );
 
@@ -925,7 +926,40 @@ function testYearlyCalendarImportDecisionMatrix() {
   }
 }
 
+function testContactReplyEmail() {
+  assert.equal(contactSubjectLabel('concern'), 'Bekymringsmelding');
+  assert.equal(contactSubjectLabel('ukjent'), 'ukjent');
+
+  const { subject, text } = contactReplyEmail(
+    {
+      name: 'Kari Nordmann',
+      subject: 'general',
+      message: 'Hei!\nNår er neste dugnad?',
+      createdAt: '2026-05-04T09:00:00.000Z',
+    },
+    'Neste dugnad er 12. mai.',
+  );
+
+  assert.match(subject, /Svar på din henvendelse til FAU Erdal Barnehage: Generell henvendelse/);
+  assert.match(text, /^Hei Kari Nordmann,/);
+  assert.match(text, /Neste dugnad er 12\. mai\./);
+  assert.match(text, /Med vennlig hilsen\nFAU Erdal Barnehage/);
+  // Original inquiry is quoted back, every line prefixed.
+  assert.match(text, /> Hei!\n> Når er neste dugnad\?/);
+
+  // Anonymous-style rows have no name: fall back to a neutral greeting, and an
+  // unparsable timestamp must not produce "Invalid Date" in the email.
+  const withoutName = contactReplyEmail(
+    { name: '', subject: 'anonymous', message: 'Anonymt tips', createdAt: 'ikke-en-dato' },
+    'Takk for tipset.',
+  );
+  assert.match(withoutName.text, /^Hei,/);
+  assert.equal(/Invalid Date/.test(withoutName.text), false);
+  assert.match(withoutName.text, /Din opprinnelige henvendelse:/);
+}
+
 testSanitizeHtml();
+testContactReplyEmail();
 testRateLimitKeys();
 testCloudinaryDeliveryUrlParsing();
 testAssignPhotoSlots();
