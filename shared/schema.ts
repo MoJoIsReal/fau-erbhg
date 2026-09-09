@@ -38,7 +38,7 @@ export const events = pgTable("events", {
 
 export const eventRegistrations = pgTable("event_registrations", {
   id: serial("id").primaryKey(),
-  eventId: integer("event_id").notNull(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "restrict" }),
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
@@ -54,6 +54,20 @@ export const eventRegistrations = pgTable("event_registrations", {
 }, (table) => ({
   eventIdIdx: index("event_registrations_event_id_idx").on(table.eventId),
   emailIdx: index("event_registrations_email_idx").on(table.email),
+}));
+
+// Normalized reservations for newly-created photo registrations. Legacy rows
+// remain represented by event_registrations.photo_slots; the unique index here
+// is the database backstop that makes concurrent new allocations race-safe.
+export const photoEventSlots = pgTable("photo_event_slots", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  registrationId: integer("registration_id").notNull().references(() => eventRegistrations.id, { onDelete: "cascade" }),
+  slot: text("slot").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  eventSlotUnique: uniqueIndex("photo_event_slots_event_slot_unique_idx").on(table.eventId, table.slot),
+  registrationIdx: index("photo_event_slots_registration_idx").on(table.registrationId),
 }));
 
 export const apiRateLimits = pgTable("api_rate_limits", {
@@ -262,6 +276,7 @@ export type InsertYearlyCalendarEntry = z.infer<typeof insertYearlyCalendarEntry
 
 export type Event = typeof events.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
+export type PhotoEventSlot = typeof photoEventSlots.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 export type NewsletterDelivery = typeof newsletterDeliveries.$inferSelect;

@@ -43,6 +43,11 @@ function normalizeRegistrationDeadline(value) {
   return deadline.toISOString();
 }
 
+export function isRegistrationForeignKeyConflict(error) {
+  return error?.code === '23503'
+    && error?.constraint === 'event_registrations_event_id_fkey';
+}
+
 export default withApiHandler(async function handler(req, res) {
   const sql = getDb();
 
@@ -202,11 +207,47 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: 'Valid event ID required' });
     }
 
-    const registrations = await sql`
-      SELECT COUNT(*) as count FROM event_registrations WHERE event_id = ${eventId}
-    `;
+    let deletion;
+    try {
+      deletion = await sql`
+        WITH target AS MATERIALIZED (
+          SELECT e.id,
+                 EXISTS (
+                   SELECT 1 FROM event_registrations r WHERE r.event_id = e.id
+                 ) AS has_registrations
+          FROM events e
+          WHERE e.id = ${eventId}
+        ), deleted AS (
+          DELETE FROM events e
+          USING target t
+          WHERE e.id = t.id AND t.has_registrations = false
+          RETURNING e.id
+        )
+        SELECT
+          EXISTS (SELECT 1 FROM target) AS "eventExists",
+          COALESCE((SELECT has_registrations FROM target), false) AS "hasRegistrations",
+          EXISTS (SELECT 1 FROM deleted) AS deleted
+      `;
+    } catch (error) {
+      // A registration committed between the snapshot and DELETE. The FK is the
+      // final integrity boundary; expose the same stable business response as a
+      // registration that was already visible at the start of the statement.
+      if (isRegistrationForeignKeyConflict(error)) {
+        return res.status(400).json({
+          error: 'Cannot delete event with registrations',
+          message: 'This event has registrations and cannot be deleted. You can cancel it instead.',
+          hasRegistrations: true
+        });
+      }
+      throw error;
+    }
 
-    if (registrations[0].count > 0) {
+    const state = deletion[0];
+    if (!state?.eventExists) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    if (state.hasRegistrations) {
       return res.status(400).json({
         error: 'Cannot delete event with registrations',
         message: 'This event has registrations and cannot be deleted. You can cancel it instead.',
@@ -214,12 +255,8 @@ export default withApiHandler(async function handler(req, res) {
       });
     }
 
-    const deletedEvent = await sql`
-      DELETE FROM events WHERE id = ${eventId} RETURNING id
-    `;
-
-    if (deletedEvent.length === 0) {
-      return res.status(404).json({ error: 'Event not found' });
+    if (!state.deleted) {
+      return res.status(409).json({ error: 'Event could not be deleted' });
     }
 
     return res.status(200).json({ success: true, message: 'Event deleted' });

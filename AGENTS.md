@@ -70,7 +70,7 @@ npm run build      # Build frontend for Vercel
 npm start          # Preview the built frontend locally
 npm run check      # TypeScript type checking (run before committing)
 npm run db:push    # Apply schema changes to database via drizzle-kit
-npm run test       # Run smoke tests (scripts/smoke-tests.mjs)
+npm run test       # Run Node unit/contract tests, then smoke tests
 ```
 
 Development runs at `http://localhost:5000`. There is no local backend process —
@@ -199,7 +199,10 @@ Tables: `users`, `events`, `event_registrations`, `contact_messages`, `newslette
 
 ## Testing
 
-There is currently no real test suite — only `scripts/smoke-tests.mjs` which is invoked by `npm test`. When adding complex business logic, manually verify via the dev server. This is a known gap.
+`npm test` runs Node unit/contract tests under `tests/` followed by
+`scripts/smoke-tests.mjs`. Database concurrency and external-provider behavior
+still require an isolated integration environment; never point automated tests
+at the production Neon database.
 
 ## Deployment
 
