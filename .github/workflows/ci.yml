@@ -25,7 +25,7 @@ jobs:
       - name: Type check
         run: npm run check
 
-      - name: Smoke tests
+      - name: Unit and contract tests
         run: npm test
 
       - name: Build
