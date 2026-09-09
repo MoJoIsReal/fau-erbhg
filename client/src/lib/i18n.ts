@@ -296,6 +296,7 @@ export interface Translations {
     dragDropText: string;
     orClickToSelect: string;
     maxFileSize: string;
+    removeFile: string;
     categories: {
       protocol: string;
       protocolDesc: string;
@@ -1090,6 +1091,7 @@ export const translations: Record<Language, Translations> = {
       dragDropText: "Dra og slipp filen her, eller",
       orClickToSelect: "klikk for å velge",
       maxFileSize: "Maks filstørrelse: 10MB",
+      removeFile: "Fjern valgt fil",
       categories: {
         protocol: "Møtereferater",
         protocolDesc: "Referater fra møter",
@@ -1876,6 +1878,7 @@ export const translations: Record<Language, Translations> = {
       dragDropText: "Drag and drop file here, or",
       orClickToSelect: "click to select",
       maxFileSize: "Max file size: 10MB",
+      removeFile: "Remove selected file",
       categories: {
         protocol: "Meeting Minutes",
         protocolDesc: "Meeting records",

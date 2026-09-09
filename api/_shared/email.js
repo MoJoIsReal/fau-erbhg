@@ -29,13 +29,14 @@ export function createTransporter() {
  * `from` defaults to GMAIL_USER. The transporter is cached across invocations
  * within a single warm Vercel function instance.
  */
-export async function sendEmail({ to, subject, text, from }) {
+export async function sendEmail({ to, subject, text, from, messageId }) {
   const transporter = createTransporter();
   await transporter.sendMail({
     from: from || process.env.GMAIL_USER,
     to,
     subject,
     text,
+    ...(messageId ? { messageId } : {}),
   });
 }
 

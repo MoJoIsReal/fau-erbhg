@@ -195,7 +195,7 @@ Schema changes workflow:
 2. Run `npm run db:push` to push changes via drizzle-kit.
 3. For any data-shape changes that need to be applied to existing rows, add a SQL file under `migrations/` and apply it through the Neon SQL editor (see `migrations/README.md`).
 
-Tables: `users`, `events`, `event_registrations`, `contact_messages`, `newsletter_subscribers`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
+Tables: `users`, `events`, `event_registrations`, `contact_messages`, `newsletter_subscribers`, `newsletter_deliveries`, `documents`, `site_settings`, `fau_board_members`, `api_rate_limits`, `email_domain_blacklist`, `yearly_calendar_entries`, `blog_posts`, `kindergarten_info`.
 
 ## Testing
 
