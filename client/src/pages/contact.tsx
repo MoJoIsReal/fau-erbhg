@@ -107,7 +107,8 @@ export default function Contact() {
           phone: ""
         });
       }
-      return apiRequest("POST", "/api/contact", data);
+      // language decides which of the two auto-reply templates the sender gets.
+      return apiRequest("POST", "/api/contact", { ...data, language });
     },
     onSuccess: () => {
       toast({

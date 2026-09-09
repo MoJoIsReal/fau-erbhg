@@ -10,6 +10,7 @@ import {
 import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { confirmationEmail, newsletterToken } from './_shared/newsletter.js';
+import { contactAcknowledgementEmail } from './_shared/contact-emails.js';
 import Sentry from './_shared/sentry.js';
 
 const CONTACT_WINDOW_SECONDS = 10 * 60;
@@ -30,7 +31,7 @@ export default withApiHandler(async function handler(req, res) {
   if (action === 'newsletter-unsubscribe') return handleNewsletterUnsubscribe(req, res);
 
   try {
-    const { name, email, phone, subject, message, website } = req.body;
+    const { name, email, phone, subject, message, website, language } = req.body;
 
     // Honeypot: humans never see/fill this field.
     if (website) {
@@ -123,6 +124,28 @@ export default withApiHandler(async function handler(req, res) {
         })
     );
 
+    // Auto-reply to the sender so they know the inquiry arrived. Anonymous
+    // submissions have no address to answer, and a failed receipt must never
+    // turn a stored inquiry into an error for the parent.
+    if (!isAnonymous && sanitizedEmail) {
+      waitUntil(
+        sendAcknowledgementEmail({
+          name: sanitizedName,
+          email: sanitizedEmail,
+          subject,
+          language: language === 'en' ? 'en' : 'no',
+          receivedAt: contactMessage?.created_at,
+        })
+          .then(() => console.log('Contact acknowledgement sent successfully'))
+          .catch((emailError) => {
+            console.error('Failed to send contact acknowledgement:', emailError);
+            if (process.env.NODE_ENV === 'production') {
+              Sentry.captureException(emailError);
+            }
+          })
+      );
+    }
+
     return res.status(201).json(contactMessage);
   } catch (error) {
     return handleError(res, error);
@@ -156,6 +179,23 @@ ${isAnonymous ? 'Dette er en anonym henvendelse.' : ''}
     subject: `Ny henvendelse: ${subject}`,
     text: emailContent,
   });
+}
+
+// Receipt to the person who submitted the form, sent from FAU's own address.
+async function sendAcknowledgementEmail({ name, email, subject, language, receivedAt }) {
+  if (!isEmailConfigured()) {
+    console.warn('Email configuration missing: skipping contact acknowledgement');
+    return;
+  }
+
+  const { subject: mailSubject, text } = contactAcknowledgementEmail({
+    name,
+    subject,
+    language,
+    receivedAt,
+  });
+
+  await sendEmail({ to: email, subject: mailSubject, text });
 }
 
 // POST /api/contact?action=newsletter-subscribe
