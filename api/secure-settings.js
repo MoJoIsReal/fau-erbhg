@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { getDb } from './_shared/database.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
-import { CONTACT_REPLY_MAX_LENGTH, contactReplyEmail } from './_shared/contact-reply.js';
+import { CONTACT_REPLY_MAX_LENGTH, contactReplyEmail } from './_shared/contact-emails.js';
 import { redactSensitiveText } from './_shared/redact.js';
 import Sentry from './_shared/sentry.js';
 import { generateTemporaryPassword } from './_shared/password-policy.js';

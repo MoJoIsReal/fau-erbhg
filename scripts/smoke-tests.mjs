@@ -27,7 +27,11 @@ import {
   getYearlyCalendarTodayMarker,
 } from '../shared/yearly-calendar-display.js';
 import { parseCloudinaryDeliveryUrl } from '../api/_shared/cloudinary-url.js';
-import { contactReplyEmail, contactSubjectLabel } from '../api/_shared/contact-reply.js';
+import {
+  contactAcknowledgementEmail,
+  contactReplyEmail,
+  contactSubjectLabel,
+} from '../api/_shared/contact-emails.js';
 
 const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
@@ -344,6 +348,18 @@ function testClientRegressionGuards() {
     secureSettingsApi,
     /Nettside: \$\{publicBaseUrl\(\)\}/,
     'New-user email should include a link to the website',
+  );
+
+  const contactApi = readFileSync(new URL('../api/contact.js', import.meta.url), 'utf8');
+  assert.match(
+    contactApi,
+    /sendAcknowledgementEmail\(/,
+    'Contact form should send an auto-reply receipt to the sender',
+  );
+  assert.match(
+    contactApi,
+    /if \(!isAnonymous && sanitizedEmail\) \{/,
+    'Auto-reply must be skipped for anonymous submissions, which have no address',
   );
 
   const loginModal = readFileSync(new URL('../client/src/components/login-modal.tsx', import.meta.url), 'utf8');
@@ -928,6 +944,7 @@ function testYearlyCalendarImportDecisionMatrix() {
 
 function testContactReplyEmail() {
   assert.equal(contactSubjectLabel('concern'), 'Bekymringsmelding');
+  assert.equal(contactSubjectLabel('concern', 'en'), 'Concern');
   assert.equal(contactSubjectLabel('ukjent'), 'ukjent');
 
   const { subject, text } = contactReplyEmail(
@@ -958,8 +975,44 @@ function testContactReplyEmail() {
   assert.match(withoutName.text, /Din opprinnelige henvendelse:/);
 }
 
+function testContactAcknowledgementEmail() {
+  const no = contactAcknowledgementEmail({
+    name: 'Kari Nordmann',
+    subject: 'general',
+    receivedAt: '2026-05-04T09:00:00.000Z',
+  });
+  assert.match(no.subject, /Vi har mottatt din henvendelse/);
+  assert.match(no.text, /^Hei Kari Nordmann,/);
+  assert.match(no.text, /besvare den så snart som mulig/);
+  assert.match(no.text, /Emne: Generell henvendelse/);
+  assert.match(no.text, /Mottatt: /);
+  assert.match(no.text, /FAU Erdal Barnehage/);
+
+  const en = contactAcknowledgementEmail({ name: 'Kari', subject: 'feedback', language: 'en' });
+  assert.match(en.subject, /We have received your inquiry/);
+  assert.match(en.text, /^Hi Kari,/);
+  assert.match(en.text, /Subject: Feedback/);
+
+  // The receipt must never echo the submitted message back out: the form is
+  // public and takes any recipient address, so quoting it would make the site
+  // a relay for arbitrary mail.
+  const withMessage = contactAcknowledgementEmail({
+    name: 'Kari',
+    subject: 'general',
+    message: 'KJØP BILLIGE PILLER http://spam.example',
+  });
+  assert.equal(/spam\.example/.test(withMessage.text), false);
+
+  // An unparsable timestamp must not leak "Invalid Date" into the email.
+  const badDate = contactAcknowledgementEmail({ subject: 'concern', receivedAt: 'ikke-en-dato' });
+  assert.equal(/Invalid Date/.test(badDate.text), false);
+  assert.equal(/Mottatt:/.test(badDate.text), false);
+  assert.match(badDate.text, /^Hei,/);
+}
+
 testSanitizeHtml();
 testContactReplyEmail();
+testContactAcknowledgementEmail();
 testRateLimitKeys();
 testCloudinaryDeliveryUrlParsing();
 testAssignPhotoSlots();
