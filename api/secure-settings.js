@@ -337,10 +337,11 @@ async function handleKindergartenInfo(req, res, sql) {
 
 // Handle Contact Messages operations
 async function handleContactMessages(req, res, sql) {
-  // Contact messages can contain parent PII and sensitive concerns.
-  // Keep this surface admin-only; council members have narrower write access
-  // to events, documents, and calendar entries.
-  const user = await requireRole(req, res, ADMIN_ONLY, sql);
+  // Contact messages carry parent PII and sensitive concerns, so this stays a
+  // council surface: FAU members are who the contact form addresses ("Kontakt
+  // for foreldrerepresentantene"), and leaving one admin as the only person who
+  // could answer meant inquiries waited on a single inbox. Staff stay out.
+  const user = await requireRole(req, res, COUNCIL_ROLES, sql);
   if (!user) return;
 
   const now = new Date().toISOString();

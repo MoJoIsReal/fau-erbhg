@@ -218,7 +218,7 @@ export default function Layout({ children }: LayoutProps) {
                         </Link>
                       </DropdownMenuItem>
                     )}
-                    {isAdmin && (
+                    {isCouncil && (
                       <DropdownMenuItem asChild>
                         <Link href="/messages" className="flex w-full items-center gap-2">
                           <MessageSquare className="h-4 w-4" />
@@ -383,7 +383,7 @@ export default function Layout({ children }: LayoutProps) {
                           </Button>
                         </Link>
                       )}
-                      {isAdmin && (
+                      {isCouncil && (
                         <Link href="/messages">
                           <Button
                             variant="outline"
