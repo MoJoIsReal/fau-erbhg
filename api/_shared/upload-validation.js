@@ -92,6 +92,25 @@ export function expectedCloudinaryResourceTypes(mimeType) {
   return ['raw'];
 }
 
+// The format Cloudinary parsed out of the bytes is the only trustworthy signal
+// about what a file really is: both the filename and the browser's File.type
+// are derived from the extension the uploader happened to give it, so a PNG
+// saved as "bilde.jpg" arrives claiming to be a JPEG.
+export const IMAGE_FORMAT_MIME_TYPES = {
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp',
+};
+
+export function withFileExtension(filename, fileExtension) {
+  const name = String(filename || '');
+  const dotIndex = name.lastIndexOf('.');
+  const base = dotIndex > 0 ? name.slice(0, dotIndex) : name;
+  return `${base}${fileExtension}`;
+}
+
 export function providerMetadataMatches({ uploadedAsset, delivery, mimeType, fileExtension }) {
   const expectedResourceTypes = expectedCloudinaryResourceTypes(mimeType);
   if (delivery?.resourceType !== uploadedAsset?.resource_type
@@ -101,8 +120,14 @@ export function providerMetadataMatches({ uploadedAsset, delivery, mimeType, fil
 
   if (delivery.resourceType === 'image') {
     const observed = String(uploadedAsset?.format || '').toLowerCase();
-    const expectedFormats = fileExtension === '.jpeg' ? ['jpg', 'jpeg'] : [fileExtension.slice(1)];
-    return expectedFormats.includes(observed);
+    // A PDF delivered as an image resource still has to be a PDF.
+    if (mimeType === 'application/pdf') return observed === 'pdf';
+    // For images, require that Cloudinary parsed a format we allow — not that
+    // it agrees with the extension. Requiring agreement rejected real images
+    // for nothing (an uploader controls both the name and the declared type,
+    // so the two matching proves nothing), while the parsed format is what
+    // actually rules out a disguised file.
+    return Object.prototype.hasOwnProperty.call(IMAGE_FORMAT_MIME_TYPES, observed);
   }
 
   // Cloudinary raw resources do not consistently expose `format`; the parsed
@@ -113,7 +138,16 @@ export function providerMetadataMatches({ uploadedAsset, delivery, mimeType, fil
 
 export function validateProviderUpload({ uploadedAsset, delivery, mimeType, fileExtension }) {
   if (!providerMetadataMatches({ uploadedAsset, delivery, mimeType, fileExtension })) {
-    return { ok: false, error: 'Uploaded asset type does not match the declared file type' };
+    const observed = String(uploadedAsset?.format || '').toLowerCase();
+    // Name the actual format when we have one and it is the format that was
+    // rejected — "does not match" told an uploader nothing about what to fix.
+    const resourceTypeAgrees = delivery?.resourceType === uploadedAsset?.resource_type;
+    return {
+      ok: false,
+      error: observed && resourceTypeAgrees
+        ? `Uploaded asset is a "${observed}" file, which is not an allowed type`
+        : 'Uploaded asset type does not match the declared file type',
+    };
   }
 
   const size = Number(uploadedAsset?.bytes);
@@ -123,5 +157,16 @@ export function validateProviderUpload({ uploadedAsset, delivery, mimeType, file
   if (size > MAX_UPLOAD_SIZE_BYTES) {
     return { ok: false, error: 'File size exceeds maximum allowed size of 10MB' };
   }
-  return { ok: true, size };
+
+  // Report what the file actually is, so the caller stores truthful metadata
+  // rather than the extension the uploader chose.
+  const observedFormat = String(uploadedAsset?.format || '').toLowerCase();
+  const observedMimeType = IMAGE_FORMAT_MIME_TYPES[observedFormat];
+
+  return {
+    ok: true,
+    size,
+    mimeType: observedMimeType ?? mimeType,
+    fileExtension: observedMimeType ? `.${observedFormat}` : fileExtension,
+  };
 }

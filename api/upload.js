@@ -13,6 +13,7 @@ import {
   ALLOWED_UPLOAD_MIME_TYPES,
   MAX_UPLOAD_SIZE_BYTES,
   validateProviderUpload,
+  withFileExtension,
   sanitizeFilename,
   validateUploadFile
 } from './_shared/upload-validation.js';
@@ -157,6 +158,12 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: providerValidation.error });
     }
     const observedFileSize = providerValidation.size;
+    // Store what Cloudinary actually parsed: a PNG named "bilde.jpg" is saved
+    // as image/png with a .png filename, not as the JPEG it claimed to be.
+    const storedMimeType = providerValidation.mimeType;
+    const storedFilename = providerValidation.fileExtension === validation.fileExtension
+      ? sanitizedFilename
+      : withFileExtension(sanitizedFilename, providerValidation.fileExtension);
 
     // Sanitize text inputs to prevent XSS
     const sanitizedTitle = sanitizeText(title, 1000);
@@ -173,11 +180,11 @@ export default withApiHandler(async function handler(req, res) {
       INSERT INTO documents (title, filename, cloudinary_url, cloudinary_public_id, file_size, mime_type, category, description, uploaded_by, uploaded_at)
       VALUES (
         ${sanitizedTitle},
-        ${sanitizedFilename},
+        ${storedFilename},
         ${sanitizedFileUrl},
         ${sanitizedPublicId},
         ${observedFileSize},
-        ${mimeType},
+        ${storedMimeType},
         ${sanitizedCategory},
         ${sanitizedDescription},
         ${sanitizedUploadedBy},
