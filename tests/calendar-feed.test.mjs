@@ -115,7 +115,6 @@ test('long lines fold to 75 octets without splitting a multi-byte character', ()
 
 test('date helpers roll over month and year boundaries', () => {
   assert.equal(toIcsLocalDateTime('2026-12-31', '9:05'), '20261231T090500');
-  assert.equal(addHoursToIcsLocalDateTime('20261231T230000', 2), '20270101T010000');
   assert.equal(nextIcsDate('20260228'), '20260301');
 });
 
@@ -147,7 +146,7 @@ test('a dated entry with a clock time becomes a timed event, not an all-day one'
   assert.equal(feedLines.includes('TRANSP:TRANSPARENT'), false);
 });
 
-test('a start time without an end falls back to the default duration', () => {
+test('a start time without an end does not invent a duration', () => {
   const feed = buildCalendarFeed({
     entries: [{ id: 13, title: 'Dugnad', entryType: 'day_event', date: '2026-09-16', startTime: '17:00' }],
     now: NOW,
