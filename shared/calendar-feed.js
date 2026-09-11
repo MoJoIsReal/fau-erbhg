@@ -8,9 +8,6 @@ import { htmlToPlainText } from './html-text.js';
 
 export const CALENDAR_FEED_PATH = '/kalender.ics';
 const UID_DOMAIN = 'erdal-bhg.no';
-// Events carry a start time but no end time; the site has always assumed a
-// two-hour slot when exporting a single event, so the feed does the same.
-const DEFAULT_EVENT_DURATION_HOURS = 2;
 
 // Norwegian local time, spelled out so clients that do not carry an Olson
 // database still place every event correctly across DST.
@@ -91,18 +88,48 @@ export function toIcsLocalDateTime(dateStr, timeStr) {
   return `${date}T${pad(match[1])}${pad(match[2])}00`;
 }
 
-export function addHoursToIcsLocalDateTime(stamp, hours) {
+const osloDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Oslo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+function partsAsUtcMilliseconds(date) {
+  const parts = Object.fromEntries(
+    osloDateTimeFormatter.formatToParts(date)
+      .filter(({ type }) => type !== 'literal')
+      .map(({ type, value }) => [type, Number(value)]),
+  );
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+}
+
+// Convert an Oslo wall-clock stamp to an unambiguous UTC iCalendar stamp.
+// Although TZID + VTIMEZONE is valid RFC 5545, Apple Calendar has interpreted
+// these feed values as if the Oslo offset had already been applied. Emitting Z
+// timestamps avoids that client-specific double conversion while Intl keeps
+// the summer/winter offset correct.
+export function osloLocalDateTimeToUtc(stamp) {
   const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/.exec(String(stamp || ''));
   if (!match) return null;
   const [, year, month, day, hour, minute, second] = match;
-  // UTC arithmetic on wall-clock parts: this only shifts the clock reading,
-  // the TZID on the property is what anchors it to Oslo time.
-  const shifted = new Date(Date.UTC(
+  const wallClock = Date.UTC(
     Number(year), Number(month) - 1, Number(day),
-    Number(hour) + hours, Number(minute), Number(second),
-  ));
-  return `${shifted.getUTCFullYear()}${pad(shifted.getUTCMonth() + 1)}${pad(shifted.getUTCDate())}`
-    + `T${pad(shifted.getUTCHours())}${pad(shifted.getUTCMinutes())}${pad(shifted.getUTCSeconds())}`;
+    Number(hour), Number(minute), Number(second),
+  );
+
+  // Start from the wall-clock fields treated as UTC, measure how Oslo renders
+  // that instant, then remove the measured offset. A second pass also handles
+  // the rare case where the first guess lies on the other side of a DST edge.
+  let instant = wallClock;
+  for (let pass = 0; pass < 2; pass += 1) {
+    instant += wallClock - partsAsUtcMilliseconds(new Date(instant));
+  }
+  return toIcsUtcStamp(new Date(instant));
 }
 
 // All-day events are exclusive at the end: a single day ends the next day.
@@ -134,14 +161,12 @@ function eventDescription(event, baseUrl) {
 function signupEventLines(event, { dtstamp, baseUrl }) {
   const start = toIcsLocalDateTime(event.date, event.time);
   if (!start) return null;
-  const end = addHoursToIcsLocalDateTime(start, DEFAULT_EVENT_DURATION_HOURS);
 
   const lines = [
     'BEGIN:VEVENT',
     `UID:event-${event.id}@${UID_DOMAIN}`,
     `DTSTAMP:${dtstamp}`,
-    `DTSTART;TZID=Europe/Oslo:${start}`,
-    `DTEND;TZID=Europe/Oslo:${end}`,
+    `DTSTART:${osloLocalDateTimeToUtc(start)}`,
     `SUMMARY:${escapeIcsText(event.title)}`,
   ];
 
@@ -178,11 +203,12 @@ function yearlyEntryLines(entry, { dtstamp, baseUrl, language }) {
   const startStamp = toIcsLocalDateTime(entry.date, entry.startTime);
   if (startStamp) {
     const endStamp = toIcsLocalDateTime(entry.date, entry.endTime);
-    const end = endStamp && endStamp > startStamp
-      ? endStamp
-      : addHoursToIcsLocalDateTime(startStamp, DEFAULT_EVENT_DURATION_HOURS);
-    lines.push(`DTSTART;TZID=Europe/Oslo:${startStamp}`);
-    lines.push(`DTEND;TZID=Europe/Oslo:${end}`);
+    lines.push(`DTSTART:${osloLocalDateTimeToUtc(startStamp)}`);
+    // Missing or invalid end times stay omitted instead of inventing a
+    // duration that was never entered.
+    if (endStamp && endStamp > startStamp) {
+      lines.push(`DTEND:${osloLocalDateTimeToUtc(endStamp)}`);
+    }
   } else {
     lines.push(`DTSTART;VALUE=DATE:${start}`);
     lines.push(`DTEND;VALUE=DATE:${nextIcsDate(start)}`);
