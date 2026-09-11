@@ -8,6 +8,8 @@ import {
   sanitizeNumber
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES, EVENT_TYPES } from '../shared/constants.js';
+import { buildCalendarFeed } from '../shared/calendar-feed.js';
+import { publicBaseUrl } from './_shared/newsletter.js';
 
 // All event endpoints return rows with the same camelCase shape so the
 // client (and any cache merge) sees one schema. `mapEvent` is the single
@@ -34,6 +36,60 @@ function mapEvent(row) {
   };
 }
 
+// Dated yearly-calendar entries ride along in the subscribable feed, so a
+// parent who subscribes gets planning days and holidays too — the same two
+// sources the /kalender page shows in its two tabs.
+function mapFeedEntry(row) {
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    entryType: row.entry_type,
+    date: row.date,
+  };
+}
+
+// Keep the feed bounded: a year of history is plenty for a calendar app,
+// and it stops the document growing without limit as the years pass.
+function feedCutoffDate(now = new Date()) {
+  const cutoff = new Date(Date.UTC(now.getUTCFullYear() - 1, now.getUTCMonth(), now.getUTCDate()));
+  return cutoff.toISOString().slice(0, 10);
+}
+
+async function respondWithCalendarFeed(req, res, sql) {
+  const since = feedCutoffDate();
+  const language = req.query.lang === 'en' ? 'en' : 'no';
+
+  const [eventRows, entryRows] = await Promise.all([
+    sql`
+      SELECT *
+      FROM events
+      WHERE status IN ('active', 'cancelled')
+        AND date >= ${since}
+      ORDER BY date ASC, time ASC
+    `,
+    sql`
+      SELECT id, title, description, entry_type, date
+      FROM yearly_calendar_entries
+      WHERE entry_type IN ('day_event', 'closed')
+        AND date IS NOT NULL
+        AND date >= ${since}
+      ORDER BY date ASC
+    `,
+  ]);
+
+  const feed = buildCalendarFeed({
+    events: eventRows.map(mapEvent),
+    entries: entryRows.map(mapFeedEntry),
+    baseUrl: publicBaseUrl(),
+    language,
+  });
+
+  res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+  res.setHeader('Content-Disposition', 'inline; filename="fau-erdal-barnehage.ics"');
+  return res.status(200).send(feed);
+}
+
 function normalizeRegistrationDeadline(value) {
   if (!value) return null;
   const deadline = new Date(String(value));
@@ -52,6 +108,11 @@ export default withApiHandler(async function handler(req, res) {
   const sql = getDb();
 
   if (req.method === 'GET') {
+    // Public iCalendar feed for calendar apps that subscribe to the URL.
+    if (req.query.format === 'ics') {
+      return await respondWithCalendarFeed(req, res, sql);
+    }
+
     const events = await sql`
       SELECT *
       FROM events

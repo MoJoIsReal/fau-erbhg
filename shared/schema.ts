@@ -167,6 +167,11 @@ export const blogPosts = pgTable("blog_posts", {
   publishedDate: text("published_date").notNull(),
   author: text("author"),
   showOnHomepage: boolean("show_on_homepage").default(true),
+  // When true, the next evening newsletter run emails this post to every
+  // confirmed subscriber. newsletterSentAt records when that went out so the
+  // same post is never broadcast twice.
+  notifyNewsletter: boolean("notify_newsletter").default(false),
+  newsletterSentAt: text("newsletter_sent_at"),
   createdBy: text("created_by"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),

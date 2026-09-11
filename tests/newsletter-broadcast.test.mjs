@@ -91,3 +91,42 @@ test('newsletter outbox skips a subscriber who is no longer active', async () =>
     true,
   );
 });
+
+test('a flagged news post is broadcast with an excerpt and a link to the post', async () => {
+  const { sql, calls } = scriptedSql([
+    delivery({
+      itemType: 'news',
+      itemId: 42,
+      title: 'Dugnaden er i havn',
+      description: `<p>${'Takk for innsatsen. '.repeat(60)}</p>`,
+    }),
+  ]);
+  const sentMessages = [];
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => {
+    sentMessages.push(message);
+  });
+
+  assert.equal(result.sent, 1);
+  assert.match(sentMessages[0].subject, /^Nytt fra FAU: Dugnaden er i havn$/);
+  assert.match(sentMessages[0].text, /\/nyheter\/42/);
+  // The body is a teaser, not the whole article.
+  assert.equal(sentMessages[0].text.includes('Takk for innsatsen. '.repeat(60).trim()), false);
+  assert.match(sentMessages[0].text, /Takk for innsatsen\./);
+  // Only stamp the post once no delivery for it is still in flight.
+  assert.equal(
+    calls.some(({ statement }) => statement.includes('UPDATE blog_posts p SET newsletter_sent_at')),
+    true,
+  );
+});
+
+test('news posts are queued by flag, independent of the run date', async () => {
+  const { sql, calls } = scriptedSql([]);
+
+  await broadcastNewsletter(sql, '2026-09-10', async () => {});
+
+  const queueStatement = calls.find(({ statement }) =>
+    statement.includes('INSERT INTO newsletter_deliveries'))?.statement;
+
+  assert.match(queueStatement, /FROM blog_posts WHERE status = 'published' AND notify_newsletter = true AND newsletter_sent_at IS NULL/);
+});

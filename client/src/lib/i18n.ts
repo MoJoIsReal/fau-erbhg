@@ -94,6 +94,19 @@ export interface Translations {
     upcomingTabHint: string;
     yearlyTab: string;
     yearlyTabHint: string;
+    subscribe: string;
+    subscribeTitle: string;
+    subscribeDescription: string;
+    subscribeGoogle: string;
+    subscribeApple: string;
+    subscribeUrlLabel: string;
+    subscribeUrlHint: string;
+    subscribeCopy: string;
+    subscribeCopied: string;
+    subscribeCopyFailed: string;
+    subscribeCopyFailedHint: string;
+    subscribeDownload: string;
+    subscribeDownloadHint: string;
   };
   // Events page
   events: {
@@ -552,6 +565,11 @@ export interface Translations {
     edit: string;
     removeFromHome: string;
     showHome: string;
+    sendInNewsletter: string;
+    sendInNewsletterHint: string;
+    newsletterAlreadySent: string;
+    newsletterSentBadge: string;
+    newsletterQueuedBadge: string;
     publish: string;
     archive: string;
     by: string;
@@ -891,6 +909,22 @@ export const translations: Record<Language, Translations> = {
       upcomingTabHint: "Arrangementer, møter og dugnader du kan melde deg på.",
       yearlyTab: "Årskalender",
       yearlyTabHint: "Faste datoer for barnehageåret: planleggingsdager, ferier og temauker.",
+      subscribe: "Abonner på kalenderen",
+      subscribeTitle: "Abonner på kalenderen",
+      subscribeDescription:
+        "Få arrangementer, møter og datoer fra årskalenderen rett inn i din egen kalender. Nye og endrede datoer oppdateres automatisk.",
+      subscribeGoogle: "Legg til i Google Kalender",
+      subscribeApple: "Abonner i Apple Kalender eller Outlook",
+      subscribeUrlLabel: "Kalenderadresse (URL)",
+      subscribeUrlHint:
+        "Kopier adressen og lim den inn der kalenderappen din spør etter «abonner på kalender fra URL».",
+      subscribeCopy: "Kopier kalenderadressen",
+      subscribeCopied: "Kalenderadressen er kopiert",
+      subscribeCopyFailed: "Kunne ikke kopiere",
+      subscribeCopyFailedHint: "Marker adressen i feltet og kopier den manuelt.",
+      subscribeDownload: "Last ned som .ics-fil",
+      subscribeDownloadHint:
+        "Engangsimport av dagens datoer. Filen oppdateres ikke senere – bruk abonnement hvis du vil ha endringer automatisk.",
     },
     events: {
       registrationDeleted: "Påmelding slettet",
@@ -1021,14 +1055,14 @@ export const translations: Record<Language, Translations> = {
     newsletter: {
       navTitle: "Nyhetsbrev",
       title: "Meld deg på nyhetsbrevet",
-      subtitle: "Få påminnelser på e-post om kommende arrangementer i barnehagen og aktiviteter for barn og foreldre.",
+      subtitle: "Få påminnelser på e-post om kommende arrangementer i barnehagen, og nyhetssaker FAU merker for nyhetsbrevet.",
       emailLabel: "E-post",
       emailPlaceholder: "din@epost.no",
       nameLabel: "Navn (valgfritt)",
       namePlaceholder: "Navn Navnesen",
       subscribe: "Meld meg på",
       subscribing: "Melder på...",
-      consent: "Vi bruker e-postadressen din kun til å sende påminnelser fra FAU. Du kan melde deg av når som helst via lenken nederst i hver e-post.",
+      consent: "Vi bruker e-postadressen din kun til å sende påminnelser og nyheter fra FAU. Du kan melde deg av når som helst via lenken nederst i hver e-post.",
       successTitle: "Sjekk e-posten din",
       successDesc: "Vi har sendt deg en bekreftelseslenke. Klikk på den for å fullføre påmeldingen.",
       errorTitle: "Noe gikk galt",
@@ -1046,7 +1080,7 @@ export const translations: Record<Language, Translations> = {
       footerLink: "📧 Meld deg på nyhetsbrev",
       admin: {
         title: "Nyhetsbrev-abonnenter",
-        description: "Foreldre som har bekreftet påmelding til nyhetsbrevet. Påminnelser sendes automatisk dagen før arrangementer som er huket av.",
+        description: "Foreldre som har bekreftet påmelding til nyhetsbrevet. Påminnelser sendes automatisk dagen før arrangementer som er huket av, og nyhetssaker som er huket av sendes ved neste utsending.",
         email: "E-post",
         status: "Status",
         subscribed: "Påmeldt",
@@ -1340,6 +1374,12 @@ export const translations: Record<Language, Translations> = {
       edit: "Rediger",
       removeFromHome: "Fjern fra hjem",
       showHome: "Vis på hjem",
+      sendInNewsletter: "Ta med i nyhetsbrevet",
+      sendInNewsletterHint:
+        "Saken sendes på e-post til alle bekreftede nyhetsbrev-abonnenter ved neste utsending (kl. 21). Den sendes bare én gang.",
+      newsletterAlreadySent: "Sendt i nyhetsbrevet",
+      newsletterSentBadge: "Sendt i nyhetsbrev",
+      newsletterQueuedBadge: "Sendes i nyhetsbrev",
       publish: "Publiser",
       archive: "Arkiver",
       by: "av",
@@ -1676,6 +1716,22 @@ export const translations: Record<Language, Translations> = {
       upcomingTabHint: "Events, meetings and working bees you can sign up for.",
       yearlyTab: "Yearly calendar",
       yearlyTabHint: "Fixed dates for the kindergarten year: planning days, holidays and theme weeks.",
+      subscribe: "Subscribe to the calendar",
+      subscribeTitle: "Subscribe to the calendar",
+      subscribeDescription:
+        "Get events, meetings and the dates from the yearly calendar straight into your own calendar. New and changed dates update automatically.",
+      subscribeGoogle: "Add to Google Calendar",
+      subscribeApple: "Subscribe in Apple Calendar or Outlook",
+      subscribeUrlLabel: "Calendar address (URL)",
+      subscribeUrlHint:
+        "Copy the address and paste it where your calendar app asks to subscribe to a calendar from a URL.",
+      subscribeCopy: "Copy the calendar address",
+      subscribeCopied: "Calendar address copied",
+      subscribeCopyFailed: "Could not copy",
+      subscribeCopyFailedHint: "Select the address in the field and copy it manually.",
+      subscribeDownload: "Download as an .ics file",
+      subscribeDownloadHint:
+        "A one-off import of today's dates. The file never updates — subscribe instead if you want changes automatically.",
     },
     events: {
       registrationDeleted: "Registration deleted",
@@ -1806,14 +1862,14 @@ export const translations: Record<Language, Translations> = {
     newsletter: {
       navTitle: "Newsletter",
       title: "Subscribe to the newsletter",
-      subtitle: "Get email reminders about upcoming events at the kindergarten and activities for children and parents.",
+      subtitle: "Get email reminders about upcoming events at the kindergarten, plus the news posts FAU flags for the newsletter.",
       emailLabel: "Email",
       emailPlaceholder: "you@email.com",
       nameLabel: "Name (optional)",
       namePlaceholder: "John Doe",
       subscribe: "Subscribe",
       subscribing: "Subscribing...",
-      consent: "We use your email address only to send reminders from FAU. You can unsubscribe at any time via the link at the bottom of every email.",
+      consent: "We use your email address only to send reminders and news from FAU. You can unsubscribe at any time via the link at the bottom of every email.",
       successTitle: "Check your email",
       successDesc: "We have sent you a confirmation link. Click it to complete your subscription.",
       errorTitle: "Something went wrong",
@@ -1831,7 +1887,7 @@ export const translations: Record<Language, Translations> = {
       footerLink: "📧 Subscribe to newsletter",
       admin: {
         title: "Newsletter subscribers",
-        description: "Parents who have confirmed their newsletter subscription. Reminders are sent automatically the day before flagged events.",
+        description: "Parents who have confirmed their newsletter subscription. Reminders are sent automatically the day before flagged events, and flagged news posts go out on the next send.",
         email: "Email",
         status: "Status",
         subscribed: "Subscribed",
@@ -2125,6 +2181,12 @@ export const translations: Record<Language, Translations> = {
       edit: "Edit",
       removeFromHome: "Remove from home",
       showHome: "Show on home",
+      sendInNewsletter: "Include in the newsletter",
+      sendInNewsletterHint:
+        "The post is emailed to every confirmed newsletter subscriber on the next send (21:00). It goes out only once.",
+      newsletterAlreadySent: "Sent in the newsletter",
+      newsletterSentBadge: "Sent in newsletter",
+      newsletterQueuedBadge: "Queued for newsletter",
       publish: "Publish",
       archive: "Archive",
       by: "by",
