@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
+import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil, Calendar as CalendarIcon, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Download, Loader2, FileSpreadsheet, Upload } from "lucide-react";
+import { Plus, Pencil, Calendar as CalendarIcon, Clock, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Download, Loader2, FileSpreadsheet, Upload } from "lucide-react";
 import {
   DndContext,
   type DragEndEvent,
@@ -27,12 +28,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { YearlyCalendarEntry } from "@shared/schema";
+import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import {
   getYearlyCalendarMonthGroups,
   getYearlyCalendarTodayMarker,
-  isoWeek,
   monthOrderValue,
+  weeksOfMonth,
   type YearlyCalendarMonthRef,
 } from "@shared/yearly-calendar-display";
 import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
@@ -142,28 +143,6 @@ function sortByTypeAndColor(entries: YearlyCalendarEntry[]): YearlyCalendarEntry
     if (aColor !== bColor) return aColor.localeCompare(bColor);
     return a.id - b.id;
   });
-}
-
-function weeksOfMonth(year: number, month: number): { weekNumber: number; days: { date: Date; inMonth: boolean }[] }[] {
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
-  const dayOfWeek = (first.getDay() + 6) % 7;
-  const cursor = new Date(first);
-  cursor.setDate(first.getDate() - dayOfWeek);
-
-  const weeks: { weekNumber: number; days: { date: Date; inMonth: boolean }[] }[] = [];
-  while (true) {
-    const days: { date: Date; inMonth: boolean }[] = [];
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(cursor);
-      days.push({ date: d, inMonth: d.getMonth() + 1 === month });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    cursor.setDate(cursor.getDate() + 2);
-    weeks.push({ weekNumber: isoWeek(days[0].date), days });
-    if (days[4].date >= last) break;
-  }
-  return weeks.filter((w) => w.days.some((d) => d.inMonth));
 }
 
 function toIsoDate(d: Date): string {
@@ -349,6 +328,51 @@ function DraggableEntry({ entry, canEdit, onClick, className, style, children, t
   );
 }
 
+interface EventChipProps {
+  event: Event;
+  label: string;
+  cancelledLabel: string;
+  compact?: boolean;
+}
+
+/**
+ * A signup event inside a day cell. Read-only on purpose: the yearly calendar
+ * owns kindergarten dates, while events are created and edited on the
+ * "Hva skjer" tab, which this links back to. Cancelled events stay visible —
+ * a struck-through entry tells parents more than a vanished one.
+ */
+function EventChip({ event, label, cancelledLabel, compact = false }: EventChipProps) {
+  const isCancelled = event.status === "cancelled";
+  const location = event.customLocation
+    ? `${event.location} (${event.customLocation})`
+    : event.location;
+  const tooltip = [
+    `${label}: ${event.title}`,
+    event.time,
+    location,
+    isCancelled ? cancelledLabel : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return (
+    <Link
+      href="/kalender"
+      title={tooltip}
+      aria-label={tooltip}
+      className={`${compact ? "text-xs rounded-md px-2 py-1" : "text-[11px] rounded px-1.5 py-1"} bg-[#FF6B35] text-white shadow-sm flex items-start gap-1 max-w-full hover:bg-[#e55a27] ${
+        isCancelled ? "opacity-70 line-through" : ""
+      }`}
+    >
+      <Clock className={`h-3 w-3 shrink-0 ${compact ? "" : "mt-0.5"}`} aria-hidden />
+      {event.time && <span className="shrink-0 font-semibold tabular-nums">{event.time}</span>}
+      <span className={`${compact ? "truncate" : "break-words leading-snug"} font-medium min-w-0`}>
+        {event.title}
+      </span>
+    </Link>
+  );
+}
+
 interface DroppableProps {
   id: string;
   data: DropTarget;
@@ -438,6 +462,27 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
     queryKey: [entriesKey],
   });
 
+  // Signup events from the "Hva skjer" tab are shown alongside the yearly
+  // entries so the calendar is the whole picture, not just the kindergarten's
+  // own fixed dates. They are read-only here — editing stays on that tab.
+  const { data: events = [] } = useQuery<Event[]>({
+    queryKey: ["/api/events"],
+  });
+
+  const eventsByDate = useMemo(() => {
+    const byDate = new Map<string, Event[]>();
+    for (const event of events) {
+      if (!event.date) continue;
+      const bucket = byDate.get(event.date);
+      if (bucket) bucket.push(event);
+      else byDate.set(event.date, [event]);
+    }
+    for (const bucket of byDate.values()) {
+      bucket.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "") || a.id - b.id);
+    }
+    return byDate;
+  }, [events]);
+
   const moveMutation = useMutation({
     mutationFn: async ({ entry, patch }: { entry: YearlyCalendarEntry; patch: Partial<YearlyCalendarEntry> }) => {
       const body = { ...entry, ...patch };
@@ -483,12 +528,16 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
     return t.yearlyCalendar.months[keys[m - 1]];
   };
 
+  // Mon–Sun: the kindergarten week is Mon–Fri, but FAU arrangements land on
+  // weekends, so the grid has to have somewhere to show them.
   const weekdayLabels = [
     t.yearlyCalendar.monday,
     t.yearlyCalendar.tuesday,
     t.yearlyCalendar.wednesday,
     t.yearlyCalendar.thursday,
     t.yearlyCalendar.friday,
+    t.yearlyCalendar.saturday,
+    t.yearlyCalendar.sunday,
   ];
 
   const schoolYearOptions = [defaultSchoolYear - 1, defaultSchoolYear, defaultSchoolYear + 1];
@@ -537,6 +586,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
       const { downloadYearlyCalendarPdf } = await import("@/lib/yearly-calendar-pdf");
       await downloadYearlyCalendarPdf({
         entries,
+        events,
         schoolYear,
         lang: language,
         year: target === "all" ? undefined : target.year,
@@ -626,6 +676,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
           )}
           <p className="mt-1 text-white/90">{t.yearlyCalendar.subtitle}</p>
           <p className="mt-3 italic text-yellow-100">{t.yearlyCalendar.tagline}</p>
+          <p className="mt-2 text-sm text-white/85">{t.yearlyCalendar.eventsIncludedHint}</p>
 
           <div className="mt-5 flex flex-wrap gap-3 items-center">
             <span className="text-sm text-white/80">{t.yearlyCalendar.schoolYearLabel}:</span>
@@ -887,7 +938,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                         })
                       );
                       const mFirst = week.days[0].date;
-                      const mLast = week.days[4].date;
+                      const mLast = week.days[week.days.length - 1].date;
                       const range = `${mFirst.getDate()}.${mFirst.getMonth() + 1}–${mLast.getDate()}.${mLast.getMonth() + 1}`;
                       const weekRowId = `m-wkrow-${year}-${month}-${week.weekNumber}`;
                       const isCurrentWeek =
@@ -974,14 +1025,22 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                               const dateStr = toIsoDate(d.date);
                               const isToday = isCurrentMonth && d.inMonth && dateStr === todayMarker.date;
                               const dayEntries = sortByTypeAndColor(dayEntriesByDate.get(dateStr) ?? []);
+                              const dayEvents = eventsByDate.get(dateStr) ?? [];
                               const dayShort = weekdayLabels[dayIndex].slice(0, 3);
+                              // On a phone an empty Saturday and Sunday are
+                              // just two more rows to scroll past, so they only
+                              // appear when they hold something — or when an
+                              // editor needs somewhere to add it.
+                              if (d.isWeekend && !canEdit && dayEntries.length === 0 && dayEvents.length === 0) {
+                                return null;
+                              }
                               return (
                                 <li key={dateStr}>
                                   <DroppableRow
                                     id={`m-day-${dateStr}`}
                                     data={{ kind: "day", year, month, weekNumber: week.weekNumber, date: dateStr }}
                                     disabled={!canEdit || !d.inMonth}
-                                    className={`flex items-start gap-3 px-3 py-2 ${d.inMonth ? "" : "opacity-40"} ${isToday ? "bg-yellow-200/20 ring-1 ring-inset ring-yellow-200/70" : ""}`}
+                                    className={`flex items-start gap-3 px-3 py-2 ${d.inMonth ? "" : "opacity-40"} ${d.isWeekend ? "bg-[#1f4530]/60" : ""} ${isToday ? "bg-yellow-200/20 ring-1 ring-inset ring-yellow-200/70" : ""}`}
                                   >
                                     <div className="flex flex-col items-center w-12 shrink-0">
                                       <span className="text-yellow-100/70 text-[10px] uppercase">{dayShort}</span>
@@ -1012,7 +1071,16 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                                           </DraggableEntry>
                                         );
                                       })}
-                                      {canEdit && d.inMonth && dayEntries.length === 0 && (
+                                      {dayEvents.map((event) => (
+                                        <EventChip
+                                          key={`event-${event.id}`}
+                                          event={event}
+                                          label={t.yearlyCalendar.eventLabel}
+                                          cancelledLabel={t.yearlyCalendar.eventCancelledLabel}
+                                          compact
+                                        />
+                                      ))}
+                                      {canEdit && d.inMonth && dayEntries.length === 0 && dayEvents.length === 0 && (
                                         <button
                                           type="button"
                                           className="text-[11px] text-white/60 hover:text-white print:hidden"
@@ -1055,7 +1123,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                         })
                       );
                       const dFirst = week.days[0].date;
-                      const dLast = week.days[4].date;
+                      const dLast = week.days[week.days.length - 1].date;
                       const range = `${dFirst.getDate()}.${dFirst.getMonth() + 1}–${dLast.getDate()}.${dLast.getMonth() + 1}`;
                       const isCurrentWeek =
                         isCurrentMonth &&
@@ -1154,12 +1222,15 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                             </div>
                           </DroppableRow>
 
-                          {/* Days: 5-column horizontal grid (Mon–Fri) */}
-                          <div className="grid grid-cols-5 divide-x divide-white/10 border-t border-white/10 bg-[#2C5F41]/40">
+                          {/* Days: 7-column horizontal grid (Mon–Sun). The
+                              weekend is dimmed — the kindergarten is closed —
+                              but present, because FAU arrangements land there. */}
+                          <div className="grid grid-cols-7 divide-x divide-white/10 border-t border-white/10 bg-[#2C5F41]/40">
                             {week.days.map((d, dayIndex) => {
                               const dateStr = toIsoDate(d.date);
                               const isToday = isCurrentMonth && d.inMonth && dateStr === todayMarker.date;
                               const dayEntries = sortByTypeAndColor(dayEntriesByDate.get(dateStr) ?? []);
+                              const dayEvents = eventsByDate.get(dateStr) ?? [];
                               const dayShort = weekdayLabels[dayIndex].slice(0, 3);
                               return (
                                 <DroppableRow
@@ -1167,7 +1238,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                                   id={`day-${dateStr}`}
                                   data={{ kind: "day", year, month, weekNumber: week.weekNumber, date: dateStr }}
                                   disabled={!canEdit || !d.inMonth}
-                                  className={`px-2 py-2 min-h-[64px] ${d.inMonth ? "" : "opacity-40"} ${isToday ? "bg-yellow-200/20 ring-1 ring-inset ring-yellow-200/70" : ""}`}
+                                  className={`px-2 py-2 min-h-[64px] ${d.inMonth ? "" : "opacity-40"} ${d.isWeekend ? "bg-[#1f4530]/60" : ""} ${isToday ? "bg-yellow-200/20 ring-1 ring-inset ring-yellow-200/70" : ""}`}
                                 >
                                   <div className="flex flex-wrap items-baseline gap-1.5 mb-1">
                                     <span className="text-yellow-100/70 text-[10px] uppercase">{dayShort}</span>
@@ -1198,7 +1269,15 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                                         </DraggableEntry>
                                       );
                                     })}
-                                    {canEdit && d.inMonth && dayEntries.length === 0 && (
+                                    {dayEvents.map((event) => (
+                                      <EventChip
+                                        key={`event-${event.id}`}
+                                        event={event}
+                                        label={t.yearlyCalendar.eventLabel}
+                                        cancelledLabel={t.yearlyCalendar.eventCancelledLabel}
+                                      />
+                                    ))}
+                                    {canEdit && d.inMonth && dayEntries.length === 0 && dayEvents.length === 0 && (
                                       <button
                                         type="button"
                                         className="text-[10px] text-white/50 hover:text-white print:hidden"

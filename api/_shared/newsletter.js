@@ -98,3 +98,50 @@ FAU Erdal Kindergarten
 You receive this email because you subscribed to our newsletter. Unsubscribe here: ${link}`,
   };
 }
+
+// Broadcast of a flagged news post. Unlike the event reminder this is not tied
+// to a date — it goes out on the first evening run after an author ticks the
+// "send in the newsletter" box — so it leads with the excerpt and links to the
+// full post on the site.
+export function newsPostEmail({ title, excerpt, postId, language, unsubscribeToken }) {
+  const isNorwegian = language !== 'en';
+  const link = unsubscribeUrl(unsubscribeToken);
+  const postUrl = `${publicBaseUrl()}/nyheter/${postId}`;
+  const body = excerpt ? `${excerpt}\n\n` : '';
+
+  if (isNorwegian) {
+    return {
+      subject: `Nytt fra FAU: ${title}`,
+      text: `Hei,
+
+Det er lagt ut en ny nyhetssak fra FAU Erdal Barnehage.
+
+${title}
+
+${body}Les hele saken her: ${postUrl}
+
+Med vennlig hilsen,
+FAU Erdal Barnehage
+
+—
+Du mottar denne e-posten fordi du er påmeldt nyhetsbrevet vårt. Meld deg av her: ${link}`,
+    };
+  }
+
+  return {
+    subject: `News from FAU: ${title}`,
+    text: `Hi,
+
+A new post has been published by FAU Erdal Kindergarten.
+
+${title}
+
+${body}Read the full post here: ${postUrl}
+
+Best regards,
+FAU Erdal Kindergarten
+
+—
+You receive this email because you subscribed to our newsletter. Unsubscribe here: ${link}`,
+  };
+}

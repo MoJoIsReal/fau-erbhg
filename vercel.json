@@ -19,6 +19,10 @@
   ],
   "rewrites": [
     {
+      "source": "/kalender.ics",
+      "destination": "/api/events?format=ics"
+    },
+    {
       "source": "/((?!api).*)",
       "destination": "/index.html"
     }

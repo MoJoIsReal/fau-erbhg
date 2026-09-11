@@ -22,7 +22,9 @@ test('an allowed PDF at the size boundary is accepted', () => {
       mimeType: 'application/pdf',
       size: MAX_UPLOAD_SIZE_BYTES,
     }),
-    { ok: true, sanitizedFilename: 'referat.pdf', fileExtension: '.pdf' },
+    // validateUploadFile returns the normalized numeric size alongside the
+    // sanitized name, so callers persist one canonical value.
+    { ok: true, sanitizedFilename: 'referat.pdf', fileExtension: '.pdf', size: MAX_UPLOAD_SIZE_BYTES },
   );
 });
 

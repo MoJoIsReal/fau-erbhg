@@ -28,3 +28,20 @@ export function getYearlyCalendarMonthGroups(
   schoolYear: number,
   currentDate?: Date,
 ): YearlyCalendarMonthGroups;
+
+export type YearlyCalendarDayCell = {
+  date: Date;
+  inMonth: boolean;
+  isWeekend: boolean;
+};
+
+export type YearlyCalendarWeek = {
+  weekNumber: number;
+  days: YearlyCalendarDayCell[];
+};
+
+export const CALENDAR_DAYS_PER_WEEK: number;
+
+export function isWeekendIndex(dayIndex: number): boolean;
+
+export function weeksOfMonth(year: number, month: number): YearlyCalendarWeek[];

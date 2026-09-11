@@ -30,7 +30,9 @@ FAU Erdal Barnehage is a bilingual (Norwegian/English) web application for a Nor
 ├── shared/              # Shared code (client + server)
 │   ├── schema.ts        # Drizzle ORM schema + Zod types (source of truth)
 │   ├── constants.js     # Cross-tier constants
-│   └── photo-slots.ts   # Photo-event slot assignment (client mirror)
+│   ├── photo-slots.ts   # Photo-event slot assignment (client mirror)
+│   ├── calendar-feed.js # iCalendar (.ics) builder for the subscribable calendar
+│   └── html-text.js     # Sanitized HTML → plain text (emails, calendar feed)
 ├── migrations/          # SQL migrations applied via the Neon SQL editor
 ├── docs/                # Deployment and operations guides
 └── attached_assets/     # Static image assets
@@ -162,6 +164,46 @@ Never write files to disk in serverless functions.
 
 Throw structured errors with HTTP status codes on the server. The shared `handleError` helper writes the response, redacts PII from logs, and forwards 5xx to Sentry in production. On the client, display errors via the `useToast()` hook — never use `alert()`.
 
+### Yearly calendar
+
+The month grid runs **Monday–Sunday**. The kindergarten week is Mon–Fri, but FAU
+arrangements (dugnad, sommerfest) fall on weekends, so the weekend columns exist
+and are only dimmed. `weeksOfMonth()` in `shared/yearly-calendar-display.js` is
+the single source for that grid — the page and the PDF export both use it; do
+not re-derive weeks locally. On phones an empty weekend row is hidden unless the
+viewer can edit, so there is still somewhere to add a Saturday entry.
+
+Signup events (`/api/events`) are rendered inside the day cells alongside the
+yearly entries, in orange, read-only (they link back to the "Hva skjer" tab,
+which owns creating and editing them) and never draggable — drag-and-drop moves
+yearly entries only. Cancelled events stay visible, struck through. The PDF
+export takes the same events and prints them the same way.
+
+### Calendar feed
+
+`GET /api/events?format=ics` (public URL: `/kalender.ics`, `?lang=en` for English
+labels) serves an iCalendar feed of signup events and dated yearly-calendar
+entries (`day_event` / `closed`), bounded to the last 12 months onwards. The
+document is assembled by `shared/calendar-feed.js`; keep RFC 5545 concerns
+(escaping, 75-octet line folding, `VTIMEZONE`) there rather than in the handler,
+and keep `UID`s stable (`event-<id>@`, `yearly-<id>@`) — a changed UID makes
+every subscriber's calendar duplicate the entry. Week-based yearly entries have
+no date and are deliberately left out. Cancelled events stay in the feed with
+`STATUS:CANCELLED` so subscribers see the cancellation.
+
+The client-side `AddToCalendar` export (`client/src/lib/calendar.ts`) is the
+separate one-event-at-a-time path and is unrelated to the feed.
+
+### Newsletter
+
+Three item types feed the evening broadcast, all through the
+`newsletter_deliveries` outbox: events and yearly-calendar entries flagged
+`notify_newsletter` and dated tomorrow, and blog posts flagged
+`notify_newsletter` (any published post that has not been broadcast yet — news
+is not tied to a date, so it goes out on the first run after it is flagged).
+Each item is stamped `newsletter_sent_at` once no delivery for it is still
+pending, which is what stops a second send.
+
 ## Environment Variables
 
 Required at runtime (provided via Vercel project env; the serverless functions
@@ -208,7 +250,9 @@ at the production Neon database.
 
 Production deploys automatically to Vercel on push to `main`. See `docs/DEPLOYMENT.md` for the full guide including environment variable setup, database provisioning, and rollback procedures.
 
-The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures two daily cron triggers (both hitting `api/cron/event-reminders.js`): 07:00 UTC for event-registration reminders + GDPR retention cleanup, and 19:00 UTC (`?task=newsletter`, ≈21:00 Oslo) for the newsletter broadcast of the next day's flagged events. Cron times are fixed UTC and do not follow Norwegian DST.
+The `vercel.json` file maps all non-asset routes to the serverless functions in `api/` and configures two daily cron triggers (both hitting `api/cron/event-reminders.js`): 07:00 UTC for event-registration reminders + GDPR retention cleanup, and 19:00 UTC (`?task=newsletter`, ≈21:00 Oslo) for the newsletter broadcast of the next day's flagged events plus any flagged news post not sent yet. Cron times are fixed UTC and do not follow Norwegian DST.
+
+`vercel.json` also rewrites `/kalender.ics` to `GET /api/events?format=ics`, the public iCalendar feed parents subscribe to (see "Calendar feed" below).
 
 **Serverless-function budget:** the Vercel Hobby plan caps the project at 12
 serverless functions. We currently use 9 (8 routes in `api/*.js` + 1 cron in

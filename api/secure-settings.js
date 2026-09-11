@@ -148,7 +148,7 @@ async function handleBlogPosts(req, res, sql) {
 
       // Admin view - show all posts
       posts = await sql`
-        SELECT id, title, content, status, category, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
+        SELECT id, title, content, status, category, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage", notify_newsletter as "notifyNewsletter", newsletter_sent_at as "newsletterSentAt", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
         FROM blog_posts
         WHERE (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
@@ -180,7 +180,7 @@ async function handleBlogPosts(req, res, sql) {
 
   // POST - Create new blog post
   if (req.method === 'POST') {
-    const { title, content, publishedDate, author, category } = req.body;
+    const { title, content, publishedDate, author, category, notifyNewsletter } = req.body;
 
     const sanitizedTitle = sanitizeText(title, 200);
     const sanitizedContent = sanitizeHtml(content, 50000);
@@ -194,8 +194,8 @@ async function handleBlogPosts(req, res, sql) {
     const pubDate = publishedDate || now;
 
     const result = await sql`
-      INSERT INTO blog_posts (title, content, status, category, published_date, author, created_by, created_at, updated_at)
-      VALUES (${sanitizedTitle}, ${sanitizedContent}, 'published', ${sanitizedCategory}, ${pubDate}, ${sanitizedAuthor}, ${user.username}, ${now}, ${now})
+      INSERT INTO blog_posts (title, content, status, category, published_date, author, notify_newsletter, created_by, created_at, updated_at)
+      VALUES (${sanitizedTitle}, ${sanitizedContent}, 'published', ${sanitizedCategory}, ${pubDate}, ${sanitizedAuthor}, ${notifyNewsletter === true}, ${user.username}, ${now}, ${now})
       RETURNING *
     `;
 
@@ -205,7 +205,7 @@ async function handleBlogPosts(req, res, sql) {
   // PUT - Update existing blog post
   if (req.method === 'PUT') {
     const { id } = req.query;
-    const { title, content, status, publishedDate, author, showOnHomepage, category } = req.body;
+    const { title, content, status, publishedDate, author, showOnHomepage, category, notifyNewsletter } = req.body;
 
     if (!id) {
       return res.status(400).json({ error: 'ID is required' });
@@ -230,6 +230,7 @@ async function handleBlogPosts(req, res, sql) {
           published_date = ${publishedDate || now},
           author = ${sanitizedAuthor},
           show_on_homepage = ${showOnHomepage !== undefined ? showOnHomepage : true},
+          notify_newsletter = COALESCE(${notifyNewsletter === undefined ? null : notifyNewsletter === true}::boolean, notify_newsletter),
           updated_at = ${now}
       WHERE id = ${id}
       RETURNING *

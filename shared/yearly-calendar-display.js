@@ -54,3 +54,43 @@ export function getYearlyCalendarMonthGroups(schoolYear, currentDate = new Date(
 
   return { currentAndUpcoming, past };
 }
+
+// The calendar grid runs Monday→Sunday. The kindergarten week is Mon–Fri, but
+// FAU arrangements (dugnad, sommerfest) land on weekends, so the weekend has
+// to exist in the grid for those to be visible at all. Callers mark the two
+// last cells as weekend rather than dropping them.
+export const CALENDAR_DAYS_PER_WEEK = 7;
+
+export function isWeekendIndex(dayIndex) {
+  return dayIndex >= 5;
+}
+
+/**
+ * Weeks (Mon–Sun) overlapping a given month, each with its ISO week number.
+ * Leading/trailing days from the neighbouring months are included with
+ * `inMonth: false` so the grid stays rectangular.
+ */
+export function weeksOfMonth(year, month) {
+  const first = new Date(year, month - 1, 1);
+  const last = new Date(year, month, 0);
+  const dayOfWeek = (first.getDay() + 6) % 7;
+  const cursor = new Date(first);
+  cursor.setDate(first.getDate() - dayOfWeek);
+
+  const weeks = [];
+  while (true) {
+    const days = [];
+    for (let i = 0; i < CALENDAR_DAYS_PER_WEEK; i++) {
+      const date = new Date(cursor);
+      days.push({
+        date,
+        inMonth: date.getMonth() + 1 === month,
+        isWeekend: isWeekendIndex(i),
+      });
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push({ weekNumber: isoWeek(days[0].date), days });
+    if (days[CALENDAR_DAYS_PER_WEEK - 1].date >= last) break;
+  }
+  return weeks.filter((week) => week.days.some((day) => day.inMonth));
+}

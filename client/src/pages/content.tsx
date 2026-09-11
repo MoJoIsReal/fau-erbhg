@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, Home, Loader2, MoreVertical, Plus, Save, Trash2 } from "lucide-react";
+import { Archive, Home, Loader2, Mail, MoreVertical, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -40,6 +41,8 @@ interface BlogPost {
   publishedDate: string;
   author?: string;
   showOnHomepage?: boolean;
+  notifyNewsletter?: boolean;
+  newsletterSentAt?: string | null;
 }
 
 export default function Content() {
@@ -57,6 +60,7 @@ export default function Content() {
   const [deleteCandidate, setDeleteCandidate] = useState<number | null>(null);
 
   const postKey = (post: Partial<BlogPost>) => (post.id ? String(post.id) : "new");
+  const dateLocale = language === "no" ? "no-NO" : "en-US";
 
   usePageMeta({
     title: t.contentPage.content,
@@ -118,6 +122,7 @@ export default function Content() {
       status: "published",
       category: "news",
       publishedDate: new Date().toISOString().split("T")[0],
+      notifyNewsletter: false,
     };
     setPosts([
       draft,
@@ -127,7 +132,7 @@ export default function Content() {
     setPostDraft({ ...draft });
   };
 
-  const updatePost = (index: number, field: keyof BlogPost, value: string) => {
+  const updatePost = (index: number, field: keyof BlogPost, value: string | boolean) => {
     setPostDraft((current) => ({
       ...(current ?? posts[index] ?? {}),
       [field]: value,
@@ -392,6 +397,28 @@ export default function Content() {
                       </Select>
                     </div>
 
+                    {/* A post only reaches subscribers if it is flagged here;
+                        the evening cron picks it up on its next run and
+                        stamps it so it can never go out twice. */}
+                    <div className="flex flex-row items-start space-x-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
+                      <Checkbox
+                        id={`post-newsletter-${index}`}
+                        checked={editablePost.notifyNewsletter === true}
+                        disabled={Boolean(editablePost.newsletterSentAt)}
+                        onCheckedChange={(checked) => updatePost(index, "notifyNewsletter", checked === true)}
+                      />
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor={`post-newsletter-${index}`}>
+                          {t.contentPage.sendInNewsletter}
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          {editablePost.newsletterSentAt
+                            ? `${t.contentPage.newsletterAlreadySent} ${new Date(editablePost.newsletterSentAt).toLocaleDateString(dateLocale)}`
+                            : t.contentPage.sendInNewsletterHint}
+                        </p>
+                      </div>
+                    </div>
+
                     <div className="flex gap-2">
                       <Button onClick={() => savePost(index)} size="sm">
                         <Save className="h-4 w-4 mr-2" />
@@ -516,11 +543,19 @@ export default function Content() {
                           : t.contentPage.news}
                       </span>
                       {post.publishedDate &&
-                        new Date(post.publishedDate).toLocaleDateString(language === "no" ? "no-NO" : "en-US")}
+                        new Date(post.publishedDate).toLocaleDateString(dateLocale)}
                       {post.author && <span className="ml-2">- {t.contentPage.by} {post.author}</span>}
                       {post.status === "archived" && (
                         <span className="ml-2 text-xs font-semibold text-orange-600">
                           ({t.contentPage.archived2})
+                        </span>
+                      )}
+                      {(post.notifyNewsletter || post.newsletterSentAt) && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                          <Mail className="h-3 w-3" aria-hidden="true" />
+                          {post.newsletterSentAt
+                            ? t.contentPage.newsletterSentBadge
+                            : t.contentPage.newsletterQueuedBadge}
                         </span>
                       )}
                     </p>

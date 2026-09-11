@@ -13,6 +13,8 @@ contents of each migration file. The current migrations are:
 6. `0006_user_password_policy.sql`
 7. `0007_contact_message_replies.sql`
 8. `0008_delivery_outbox.sql`
+9. `0009_registration_integrity.sql`
+10. `0010_blog_post_newsletter.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -45,3 +47,22 @@ ORDER BY column_name;
 The first query must return `newsletter_deliveries`; the second must return both
 columns. The migration is additive and safe to rerun because it uses
 `IF NOT EXISTS` for schema objects.
+
+## Newsletter flag on news posts
+
+`0010_blog_post_newsletter.sql` adds `notify_newsletter` and
+`newsletter_sent_at` to `blog_posts`, and widens the `newsletter_deliveries`
+`item_type` check to accept `'news'` alongside `'event'` and `'calendar'`. Apply it **before** deploying the
+matching code: the evening cron (`/api/cron/event-reminders?task=newsletter`)
+reads both columns on every run, and the content editor writes
+`notify_newsletter` on save. Existing posts default to `false`, so applying the
+migration on its own broadcasts nothing.
+
+Verify after applying:
+
+```sql
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'blog_posts'
+  AND column_name IN ('notify_newsletter', 'newsletter_sent_at');
+```
