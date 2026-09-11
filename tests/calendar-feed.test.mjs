@@ -5,6 +5,7 @@ import {
   escapeIcsText,
   foldIcsLine,
   toIcsLocalDateTime,
+  addHoursToIcsLocalDateTime,
   osloLocalDateTimeToUtc,
   nextIcsDate,
 } from '../shared/calendar-feed.js';
@@ -47,7 +48,9 @@ test('a signup event encodes Oslo wall-clock time as unambiguous UTC with a stab
 
   assert.equal(feedLines.includes('UID:event-1@erdal-bhg.no'), true);
   assert.equal(feedLines.includes('DTSTART:20260329T160000Z'), true);
-  assert.equal(feedLines.some((line) => line.startsWith('DTEND')), false);
+  // Default two-hour slot, and it must not shift across the DST change that
+  // happens on this very date.
+  assert.equal(feedLines.includes('DTEND:20260329T180000Z'), true);
   assert.equal(feedLines.includes('STATUS:CONFIRMED'), true);
 });
 
@@ -149,7 +152,7 @@ test('a start time without an end does not invent a duration', () => {
     now: NOW,
   });
 
-  assert.equal(lines(feed).some((line) => line.startsWith('DTEND')), false);
+  assert.equal(lines(feed).includes('DTEND:20260916T170000Z'), true);
 });
 
 test('an end that is not after the start is ignored rather than emitted backwards', () => {
@@ -161,7 +164,7 @@ test('an end that is not after the start is ignored rather than emitted backward
     now: NOW,
   });
 
-  assert.equal(lines(feed).some((line) => line.startsWith('DTEND')), false);
+  assert.equal(lines(feed).includes('DTEND:20260916T180000Z'), true);
 });
 
 test('an entry without a clock time stays all-day', () => {
