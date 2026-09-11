@@ -13,8 +13,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const FEED_PATH = "/kalender.ics";
+
+interface CalendarSubscribeProps {
+  /** Extra classes for the trigger, so it can match the surface it sits on. */
+  triggerClassName?: string;
+  triggerSize?: "default" | "sm";
+}
 
 /**
  * "Subscribe to the calendar": hands the parent the iCalendar feed URL served
@@ -22,7 +29,10 @@ const FEED_PATH = "/kalender.ics";
  * subscription keeps updating — new events, changed times and cancellations
  * arrive in their own calendar app without them doing anything.
  */
-export default function CalendarSubscribe() {
+export default function CalendarSubscribe({
+  triggerClassName,
+  triggerSize = "sm",
+}: CalendarSubscribeProps = {}) {
   const { t, language } = useLanguage();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -53,7 +63,11 @@ export default function CalendarSubscribe() {
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          size={triggerSize}
+          className={cn("flex items-center gap-2", triggerClassName)}
+        >
           <CalendarPlus className="h-4 w-4" aria-hidden="true" />
           <span>{t.calendar.subscribe}</span>
         </Button>
@@ -65,31 +79,35 @@ export default function CalendarSubscribe() {
         </DialogHeader>
 
         <div className="space-y-4">
+          {/* Button labels are whitespace-nowrap by default, which makes a long
+              label the dialog's minimum width and pushes every grid child past
+              the padding. Let these wrap and shrink instead. */}
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Button asChild className="flex-1">
+            <Button asChild className="h-auto min-w-0 flex-1 whitespace-normal py-2 text-center">
               <a href={googleUrl} target="_blank" rel="noopener noreferrer">
                 {t.calendar.subscribeGoogle}
               </a>
             </Button>
-            <Button asChild variant="outline" className="flex-1">
+            <Button asChild variant="outline" className="h-auto min-w-0 flex-1 whitespace-normal py-2 text-center">
               <a href={webcalUrl}>{t.calendar.subscribeApple}</a>
             </Button>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="calendar-feed-url">{t.calendar.subscribeUrlLabel}</Label>
-            <div className="flex gap-2">
+            <div className="flex min-w-0 gap-2">
               <Input
                 id="calendar-feed-url"
                 readOnly
                 value={httpUrl}
                 onFocus={(event) => event.currentTarget.select()}
-                className="font-mono text-xs"
+                className="min-w-0 font-mono text-xs"
               />
               <Button
                 type="button"
                 variant="outline"
                 size="icon"
+                className="shrink-0"
                 onClick={handleCopy}
                 aria-label={t.calendar.subscribeCopy}
               >
@@ -102,7 +120,7 @@ export default function CalendarSubscribe() {
           </div>
 
           <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
-            <Button asChild variant="ghost" size="sm" className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="sm" className="h-auto min-w-0 whitespace-normal py-2 flex items-center gap-2">
               <a href={httpUrl} download="fau-erdal-barnehage.ics">
                 <Download className="h-4 w-4" aria-hidden="true" />
                 <span>{t.calendar.subscribeDownload}</span>
