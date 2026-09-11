@@ -3,8 +3,7 @@ import { getDb } from './_shared/database.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import { CONTACT_REPLY_MAX_LENGTH, contactReplyEmail } from './_shared/contact-emails.js';
-import { redactSensitiveText } from './_shared/redact.js';
-import Sentry from './_shared/sentry.js';
+import { reportProviderError } from './_shared/provider-errors.js';
 import { generateTemporaryPassword } from './_shared/password-policy.js';
 import {
   withApiHandler,
@@ -442,10 +441,7 @@ async function handleContactMessages(req, res, sql) {
     try {
       await sendEmail({ to: recipient, subject, text });
     } catch (emailError) {
-      console.error('Failed to send contact reply:', redactSensitiveText(emailError.message || String(emailError)));
-      if (process.env.NODE_ENV === 'production') {
-        Sentry.captureException(emailError);
-      }
+      reportProviderError('Failed to send contact reply', emailError);
       return res.status(502).json({ error: 'Could not send the reply email' });
     }
 

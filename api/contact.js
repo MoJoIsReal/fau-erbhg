@@ -11,7 +11,7 @@ import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { confirmationEmail, newsletterToken } from './_shared/newsletter.js';
 import { contactAcknowledgementEmail } from './_shared/contact-emails.js';
-import Sentry from './_shared/sentry.js';
+import { reportProviderError } from './_shared/provider-errors.js';
 
 const CONTACT_WINDOW_SECONDS = 10 * 60;
 const CONTACT_MAX_ATTEMPTS = 3;
@@ -117,10 +117,7 @@ export default withApiHandler(async function handler(req, res) {
       })
         .then(() => console.log('Contact email sent successfully'))
         .catch((emailError) => {
-          console.error('Failed to send contact email:', emailError);
-          if (process.env.NODE_ENV === 'production') {
-            Sentry.captureException(emailError);
-          }
+          reportProviderError('Failed to send contact email', emailError);
         })
     );
 
@@ -138,10 +135,7 @@ export default withApiHandler(async function handler(req, res) {
         })
           .then(() => console.log('Contact acknowledgement sent successfully'))
           .catch((emailError) => {
-            console.error('Failed to send contact acknowledgement:', emailError);
-            if (process.env.NODE_ENV === 'production') {
-              Sentry.captureException(emailError);
-            }
+            reportProviderError('Failed to send contact acknowledgement', emailError);
           })
       );
     }
@@ -271,10 +265,7 @@ async function handleNewsletterSubscribe(req, res) {
       const { subject, text } = confirmationEmail({ language: lang, confirmToken });
       waitUntil(
         sendEmail({ to: sanitizedEmail, subject, text }).catch((emailError) => {
-          console.error('Failed to send newsletter confirmation:', emailError.message);
-          if (process.env.NODE_ENV === 'production') {
-            Sentry.captureException(emailError);
-          }
+          reportProviderError('Failed to send newsletter confirmation', emailError);
         })
       );
     }

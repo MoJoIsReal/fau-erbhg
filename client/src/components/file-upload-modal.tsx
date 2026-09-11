@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,18 +35,10 @@ const ALLOWED_UPLOAD_MIME_TYPES = [
 ];
 const ACCEPTED_UPLOAD_TYPES = ALLOWED_UPLOAD_EXTENSIONS.join(",");
 
-interface FauBoardMember {
-  id: number;
-  name: string;
-  role: string;
-  sortOrder: number;
-}
-
 interface FormData {
   title: string;
   category: string;
   description?: string;
-  uploadedBy: string;
   file: File;
 }
 
@@ -62,17 +54,11 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
   const [dragActive, setDragActive] = useState(false);
   const { language, t } = useLanguage();
 
-  // Fetch FAU board members for the dropdown
-  const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
-    queryKey: ["/api/secure-settings?resource=board-members"],
-  });
-
   // Create form schema with translations
   const formSchema = z.object({
     title: z.string().min(1, t.common.required),
     category: z.string().min(1, t.common.required),
     description: z.string().optional(),
-    uploadedBy: z.string().min(1, t.common.required),
     file: z.instanceof(File, { message: t.common.required })
   });
   
@@ -81,8 +67,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     defaultValues: {
       title: "",
       category: "",
-      description: "",
-      uploadedBy: ""
+      description: ""
     }
   });
 
@@ -135,7 +120,6 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
         title: data.title,
         category: data.category,
         description: data.description || "",
-        uploadedBy: data.uploadedBy,
         filename: data.file.name,
         fileUrl: uploadResult.secure_url,
         publicId: uploadResult.public_id,
@@ -307,8 +291,9 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                               variant="ghost"
                               size="sm"
                               onClick={() => handleFileChange(null)}
+                              aria-label={`${t.documents.removeFile}: ${selectedFile.name}`}
                             >
-                              <X className="h-4 w-4" />
+                              <X className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </div>
                           <p className="text-xs text-neutral-500 dark:text-neutral-400">
@@ -345,31 +330,6 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                       />
                     </div>
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="uploadedBy"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t.documents.uploadedByLabel} *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder={t.documents.uploadedByPlaceholder} />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {boardMembers.map((member) => (
-                        <SelectItem key={member.id} value={member.name}>
-                          {member.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

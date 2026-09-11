@@ -291,11 +291,10 @@ export interface Translations {
     fileNamePlaceholder: string;
     description: string;
     descriptionPlaceholder: string;
-    uploadedByLabel: string;
-    uploadedByPlaceholder: string;
     dragDropText: string;
     orClickToSelect: string;
     maxFileSize: string;
+    removeFile: string;
     categories: {
       protocol: string;
       protocolDesc: string;
@@ -1085,11 +1084,10 @@ export const translations: Record<Language, Translations> = {
       fileNamePlaceholder: "Skriv inn tittel",
       description: "Beskrivelse",
       descriptionPlaceholder: "Kort beskrivelse av dokumentet...",
-      uploadedByLabel: "Ditt navn",
-      uploadedByPlaceholder: "For hvem laster opp",
       dragDropText: "Dra og slipp filen her, eller",
       orClickToSelect: "klikk for å velge",
       maxFileSize: "Maks filstørrelse: 10MB",
+      removeFile: "Fjern valgt fil",
       categories: {
         protocol: "Møtereferater",
         protocolDesc: "Referater fra møter",
@@ -1871,11 +1869,10 @@ export const translations: Record<Language, Translations> = {
       fileNamePlaceholder: "Enter title",
       description: "Description",
       descriptionPlaceholder: "Brief description of the document...",
-      uploadedByLabel: "Your name",
-      uploadedByPlaceholder: "Who is uploading",
       dragDropText: "Drag and drop file here, or",
       orClickToSelect: "click to select",
       maxFileSize: "Max file size: 10MB",
+      removeFile: "Remove selected file",
       categories: {
         protocol: "Meeting Minutes",
         protocolDesc: "Meeting records",

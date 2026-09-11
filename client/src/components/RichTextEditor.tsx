@@ -182,7 +182,6 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
         title,
         category: 'editor-image',
         description: '',
-        uploadedBy: 'Rich text editor',
         filename: file.name,
         fileUrl: uploadResult.secure_url,
         publicId: uploadResult.public_id,

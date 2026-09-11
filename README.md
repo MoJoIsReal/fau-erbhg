@@ -13,7 +13,7 @@ A comprehensive digital platform for FAU Erdal Barnehage that enhances parent-sc
 
 ## Technology Stack
 
-- **Frontend**: React 18 + TypeScript + Tailwind CSS
+- **Frontend**: React 19 + TypeScript + Tailwind CSS
 - **Backend**: Vercel serverless functions + Neon PostgreSQL
 - **Database**: Neon PostgreSQL with Drizzle ORM
 - **File Storage**: Cloudinary
@@ -61,6 +61,21 @@ npm run dev
 
 Local development runs the Vite frontend. API routes are implemented in `api/*.js`
 and run as Vercel serverless functions in production.
+
+### Verification
+
+```bash
+npm run test:unit  # Executable middleware, RBAC and validation contracts
+npm run test:smoke # Shared business-logic and source-level regression guards
+npm test           # Both test tiers
+npm run check      # TypeScript and bilingual-string checks
+npm run build      # Production frontend build
+```
+
+The unit/contract tier uses Node's built-in test runner and does not require
+production credentials. Database concurrency and provider integration tests
+still require an isolated test environment; never point automated tests at the
+production Neon database.
 
 ## Database Management
 

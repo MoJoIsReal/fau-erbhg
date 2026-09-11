@@ -2,8 +2,14 @@ import { getDb } from '../_shared/database.js';
 import { withApiHandler } from '../_shared/middleware.js';
 import { sendEmail, isEmailConfigured } from '../_shared/email.js';
 import { reminderEmail as newsletterReminderEmail } from '../_shared/newsletter.js';
-import Sentry from '../_shared/sentry.js';
 import { redactSensitiveText } from '../_shared/redact.js';
+import { reportProviderError } from '../_shared/provider-errors.js';
+import {
+  DELIVERY_CONCURRENCY,
+  deliveryMessageId,
+  nextAttemptAt,
+  runWithConcurrency,
+} from '../_shared/delivery.js';
 
 const MAX_REMINDERS_PER_RUN = 25;
 // Upper bound on newsletter emails sent in a single daily run. Comfortably
@@ -85,11 +91,6 @@ FAU Erdal Barnehage
   return { subject, text };
 }
 
-async function sendReminder(registration) {
-  const { subject, text } = reminderEmail(registration);
-  await sendEmail({ to: registration.email, subject, text });
-}
-
 // Event descriptions are stored as sanitized HTML; flatten to readable plain
 // text for the text-only newsletter email. Calendar descriptions are already
 // plain text, so this is a no-op for them.
@@ -118,91 +119,162 @@ function formatLongDate(dateStr, language) {
   });
 }
 
-// Email every confirmed newsletter subscriber about events and dated calendar
-// entries that are flagged and fall on targetDate. Items are claimed
-// (newsletter_sent_at stamped) atomically so a re-run never double-sends.
-async function broadcastNewsletter(sql, targetDate) {
-  const subscribers = await sql`
-    SELECT email, language, unsubscribe_token as "unsubscribeToken"
-    FROM newsletter_subscribers
-    WHERE status = 'active'
-  `;
-
-  // Nothing to do without recipients — leave items unclaimed.
-  if (subscribers.length === 0) {
-    return { items: 0, sent: 0, failed: 0 };
-  }
-
-  // Don't claim items if we can't actually send; otherwise they'd be marked as
-  // sent while no email went out.
+// Fan out due items into a durable per-subscriber outbox, claim a bounded batch,
+// and only mark each delivery sent after Gmail accepts it. A crashed invocation
+// leaves processing rows reclaimable after the lease expires.
+export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
   if (!isEmailConfigured()) {
-    return { items: 0, sent: 0, failed: 0, skipped: 'email-not-configured' };
+    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, remaining: 0, reason: 'email-not-configured' };
   }
 
-  const now = new Date().toISOString();
-
-  const dueEvents = await sql`
-    UPDATE events
-    SET newsletter_sent_at = ${now}
-    WHERE date = ${targetDate}
-      AND status = 'active'
-      AND notify_newsletter = true
-      AND newsletter_sent_at IS NULL
-    RETURNING id, title, description, date
+  const queued = await sql`
+    WITH due_items AS (
+      SELECT 'event'::text AS item_type, id AS item_id, title, description, date AS event_date
+      FROM events
+      WHERE date = ${targetDate}
+        AND status = 'active'
+        AND notify_newsletter = true
+        AND newsletter_sent_at IS NULL
+      UNION ALL
+      SELECT 'calendar'::text, id, title, description, date
+      FROM yearly_calendar_entries
+      WHERE date = ${targetDate}
+        AND entry_type IN ('day_event', 'closed')
+        AND notify_newsletter = true
+        AND newsletter_sent_at IS NULL
+    )
+    INSERT INTO newsletter_deliveries (
+      item_type, item_id, subscriber_id, title, description, event_date
+    )
+    SELECT d.item_type, d.item_id, s.id, d.title, d.description, d.event_date
+    FROM due_items d
+    CROSS JOIN newsletter_subscribers s
+    WHERE s.status = 'active'
+    ON CONFLICT (item_type, item_id, subscriber_id) DO NOTHING
+    RETURNING id
   `;
 
-  const dueEntries = await sql`
-    UPDATE yearly_calendar_entries
-    SET newsletter_sent_at = ${now}
-    WHERE date = ${targetDate}
-      AND entry_type IN ('day_event', 'closed')
-      AND notify_newsletter = true
-      AND newsletter_sent_at IS NULL
-    RETURNING id, title, description, date
+  const deliveries = await sql`
+    WITH candidates AS (
+      SELECT id
+      FROM newsletter_deliveries
+      WHERE event_date = ${targetDate}
+        AND (
+          (status = 'pending' AND next_attempt_at <= NOW())
+          OR (status = 'processing' AND claimed_at < NOW() - INTERVAL '10 minutes')
+        )
+      ORDER BY next_attempt_at, id
+      FOR UPDATE SKIP LOCKED
+      LIMIT ${MAX_NEWSLETTER_EMAILS_PER_RUN}
+    ), claimed AS (
+      UPDATE newsletter_deliveries d
+      SET status = 'processing', claimed_at = NOW(), attempts = attempts + 1, updated_at = NOW()
+      FROM candidates c
+      WHERE d.id = c.id
+      RETURNING d.*
+    )
+    SELECT c.id, c.title, c.description, c.event_date as "eventDate",
+           c.attempts, s.email, s.language, s.status as "subscriberStatus",
+           s.unsubscribe_token as "unsubscribeToken"
+    FROM claimed c
+    LEFT JOIN newsletter_subscribers s ON s.id = c.subscriber_id
+    ORDER BY c.id
   `;
-
-  const dueItems = [...dueEvents, ...dueEntries];
-  if (dueItems.length === 0) {
-    return { items: 0, sent: 0, failed: 0 };
-  }
 
   let sent = 0;
   let failed = 0;
-  let capped = false;
+  let skipped = 0;
 
-  for (const item of dueItems) {
-    const description = htmlToText(item.description);
-    for (const subscriber of subscribers) {
-      if (sent + failed >= MAX_NEWSLETTER_EMAILS_PER_RUN) {
-        capped = true;
-        break;
-      }
-      try {
-        const { subject, text } = newsletterReminderEmail({
-          title: item.title,
-          description,
-          dateText: formatLongDate(item.date, subscriber.language),
-          language: subscriber.language,
-          unsubscribeToken: subscriber.unsubscribeToken,
-        });
-        await sendEmail({ to: subscriber.email, subject, text });
-        sent += 1;
-      } catch (emailError) {
-        failed += 1;
-        console.error('Failed to send newsletter email:', redactSensitiveText(emailError.message));
-        if (process.env.NODE_ENV === 'production') {
-          Sentry.captureException(emailError);
-        }
-      }
+  await runWithConcurrency(deliveries, DELIVERY_CONCURRENCY, async (delivery) => {
+    if (delivery.subscriberStatus !== 'active' || !delivery.email) {
+      await sql`
+        UPDATE newsletter_deliveries
+        SET status = 'skipped', claimed_at = NULL, last_error = NULL, updated_at = NOW()
+        WHERE id = ${delivery.id} AND status = 'processing'
+      `;
+      skipped += 1;
+      return;
     }
-    if (capped) break;
-  }
 
-  if (capped && process.env.NODE_ENV === 'production') {
-    Sentry.captureMessage(`Newsletter broadcast hit per-run cap of ${MAX_NEWSLETTER_EMAILS_PER_RUN}`);
-  }
+    try {
+      const { subject, text } = newsletterReminderEmail({
+        title: delivery.title,
+        description: htmlToText(delivery.description),
+        dateText: formatLongDate(delivery.eventDate, delivery.language),
+        language: delivery.language,
+        unsubscribeToken: delivery.unsubscribeToken,
+      });
+      await send({
+        to: delivery.email,
+        subject,
+        text,
+        messageId: deliveryMessageId('newsletter', delivery.id),
+      });
+      await sql`
+        UPDATE newsletter_deliveries
+        SET status = 'sent', sent_at = NOW(), claimed_at = NULL,
+            last_error = NULL, updated_at = NOW()
+        WHERE id = ${delivery.id} AND status = 'processing'
+      `;
+      sent += 1;
+    } catch (emailError) {
+      const retryAt = nextAttemptAt(delivery.attempts);
+      const safeError = redactSensitiveText(emailError?.message || String(emailError)).substring(0, 500);
+      await sql`
+        UPDATE newsletter_deliveries
+        SET status = 'pending', claimed_at = NULL, next_attempt_at = ${retryAt},
+            last_error = ${safeError}, updated_at = NOW()
+        WHERE id = ${delivery.id} AND status = 'processing'
+      `;
+      failed += 1;
+      reportProviderError('Failed to send newsletter delivery', new Error(safeError));
+    }
+  });
 
-  return { items: dueItems.length, sent, failed, capped };
+  await sql`
+    UPDATE events e
+    SET newsletter_sent_at = NOW()::text
+    WHERE e.date = ${targetDate}
+      AND EXISTS (
+        SELECT 1 FROM newsletter_deliveries d
+        WHERE d.item_type = 'event' AND d.item_id = e.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM newsletter_deliveries d
+        WHERE d.item_type = 'event' AND d.item_id = e.id
+          AND d.status IN ('pending', 'processing')
+      )
+  `;
+
+  await sql`
+    UPDATE yearly_calendar_entries e
+    SET newsletter_sent_at = NOW()::text
+    WHERE e.date = ${targetDate}
+      AND EXISTS (
+        SELECT 1 FROM newsletter_deliveries d
+        WHERE d.item_type = 'calendar' AND d.item_id = e.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM newsletter_deliveries d
+        WHERE d.item_type = 'calendar' AND d.item_id = e.id
+          AND d.status IN ('pending', 'processing')
+      )
+  `;
+
+  const remainingRows = await sql`
+    SELECT COUNT(*)::int AS count
+    FROM newsletter_deliveries
+    WHERE event_date = ${targetDate} AND status IN ('pending', 'processing')
+  `;
+
+  return {
+    queued: queued.length,
+    processed: deliveries.length,
+    sent,
+    failed,
+    skipped,
+    remaining: remainingRows[0]?.count || 0,
+  };
 }
 
 // api_rate_limits rows are useless once their window has passed; without this
@@ -248,7 +320,6 @@ export default withApiHandler(async function handler(req, res) {
 
   const sql = getDb();
   const targetDate = req.query.date || tomorrowInOslo();
-  const claimTimestamp = new Date().toISOString();
 
   // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
   // for the next day's flagged events. Registration reminders + GDPR cleanup
@@ -277,17 +348,21 @@ export default withApiHandler(async function handler(req, res) {
       WHERE e.status = 'active'
         AND e.date = ${targetDate}
         AND r.reminder_sent_at IS NULL
+        AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
       ORDER BY e.time ASC, r.id ASC
+      FOR UPDATE OF r SKIP LOCKED
       LIMIT ${MAX_REMINDERS_PER_RUN}
     ),
     claimed AS (
       UPDATE event_registrations r
-      SET reminder_sent_at = ${claimTimestamp}
+      SET reminder_claimed_at = NOW(), reminder_attempts = reminder_attempts + 1
       FROM due
       WHERE r.id = due.id
-      RETURNING r.id
+        AND r.reminder_sent_at IS NULL
+        AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
+      RETURNING r.id, r.reminder_attempts as "reminderAttempts"
     )
-    SELECT due.*
+    SELECT due.*, claimed."reminderAttempts"
     FROM due
     JOIN claimed ON claimed.id = due.id
   `;
@@ -300,23 +375,31 @@ export default withApiHandler(async function handler(req, res) {
       throw new Error('Email configuration not available');
     }
 
-    for (const registration of claimed) {
+    await runWithConcurrency(claimed, DELIVERY_CONCURRENCY, async (registration) => {
       try {
-        await sendReminder(registration);
+        const { subject, text } = reminderEmail(registration);
+        await sendEmail({
+          to: registration.email,
+          subject,
+          text,
+          messageId: deliveryMessageId('registration-reminder', registration.id),
+        });
+        await sql`
+          UPDATE event_registrations
+          SET reminder_sent_at = NOW()::text, reminder_claimed_at = NULL
+          WHERE id = ${registration.id} AND reminder_sent_at IS NULL
+        `;
         sent += 1;
       } catch (emailError) {
         failed += 1;
         await sql`
           UPDATE event_registrations
-          SET reminder_sent_at = NULL
-          WHERE id = ${registration.id}
+          SET reminder_claimed_at = NULL
+          WHERE id = ${registration.id} AND reminder_sent_at IS NULL
         `;
-        console.error('Failed to send event reminder:', redactSensitiveText(emailError.message));
-        if (process.env.NODE_ENV === 'production') {
-          Sentry.captureException(emailError);
-        }
+        reportProviderError('Failed to send event reminder', emailError);
       }
-    }
+    });
   }
 
   const retention = await cleanupPrivacyRetention(sql);

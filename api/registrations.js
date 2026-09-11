@@ -14,11 +14,18 @@ import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import Sentry from './_shared/sentry.js';
+import { reportProviderError } from './_shared/provider-errors.js';
 import { COUNCIL_ROLES } from '../shared/constants.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
 const REGISTRATION_MAX_ATTEMPTS = 10;
 const MAX_CHILD_NAME_LENGTH = 100;
+const PHOTO_SLOT_ALLOCATION_ATTEMPTS = 3;
+
+export function isPhotoSlotConflict(error) {
+  return error?.code === '23505'
+    && error?.constraint === 'photo_event_slots_event_slot_unique_idx';
+}
 
 // Children names arrive as a JSON-stringified array from the client. Never trust
 // it: parse, enforce it's an array of strings, sanitize each name, and cap both
@@ -211,78 +218,105 @@ export default withApiHandler(async function handler(req, res) {
 
     const sanitizedChildrenNames = sanitizeChildrenNames(childrenNames, requestedAttendees);
 
-    // For foto events, assign 5-minute time slots (gap-filling) before insert so we persist them.
+    // Photo slots are first proposed from the current registration snapshot, then
+    // reserved by a unique (event_id, slot) database index in the same statement
+    // as the registration. A concurrent winner makes the loser retry from a fresh
+    // snapshot rather than persisting a duplicate appointment.
     let photoSlots = undefined;
-    let photoSlotsJson = null;
-    if (event.type === 'foto' && sanitizedChildrenNames) {
-      const existingForSlots = await sql`
-        SELECT id, attendee_count as "attendeeCount",
-               children_names as "childrenNames",
-               photo_slots as "photoSlots"
-        FROM event_registrations
-        WHERE event_id = ${eventIdNum}
-      `;
-      photoSlots = assignPhotoSlots(event, existingForSlots, requestedAttendees);
-      photoSlotsJson = JSON.stringify(photoSlots);
-    }
-
-    // Always bind children_names and photo_slots — null when this isn't a
-    // foto event so a single CTE handles both cases.
     const childrenNamesParam = sanitizedChildrenNames ?? null;
-    const photoSlotsParam = photoSlotsJson ?? null;
+    let registrationResult;
 
-    const registrationResult = await sql`
-      WITH target_event AS (
-        SELECT *
-        FROM events
-        WHERE id = ${eventIdNum} AND status = 'active'
-          AND COALESCE(no_signup, false) = false
-          AND COALESCE(vigilo_signup, false) = false
-          AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
-      ),
-      capacity_update AS (
-        UPDATE events
-        SET current_attendees = current_attendees + ${requestedAttendees}
-        WHERE id = ${eventIdNum}
-          AND EXISTS (SELECT 1 FROM target_event)
-          AND (
-            (SELECT type FROM target_event) = 'foto'
-            OR (SELECT max_attendees FROM target_event) IS NULL
-            OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
+    for (let allocationAttempt = 1; allocationAttempt <= PHOTO_SLOT_ALLOCATION_ATTEMPTS; allocationAttempt += 1) {
+      let photoSlotsJson = null;
+      if (event.type === 'foto' && sanitizedChildrenNames) {
+        const existingForSlots = await sql`
+          SELECT id, attendee_count as "attendeeCount",
+                 children_names as "childrenNames",
+                 photo_slots as "photoSlots"
+          FROM event_registrations
+          WHERE event_id = ${eventIdNum}
+        `;
+        photoSlots = assignPhotoSlots(event, existingForSlots, requestedAttendees);
+        photoSlotsJson = JSON.stringify(photoSlots);
+      }
+
+      const photoSlotsParam = photoSlotsJson ?? null;
+
+      try {
+        registrationResult = await sql`
+          WITH target_event AS (
+            SELECT *
+            FROM events
+            WHERE id = ${eventIdNum} AND status = 'active'
+              AND COALESCE(no_signup, false) = false
+              AND COALESCE(vigilo_signup, false) = false
+              AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
+          ),
+          capacity_update AS (
+            UPDATE events
+            SET current_attendees = current_attendees + ${requestedAttendees}
+            WHERE id = ${eventIdNum}
+              AND EXISTS (SELECT 1 FROM target_event)
+              AND (
+                (SELECT type FROM target_event) = 'foto'
+                OR (SELECT max_attendees FROM target_event) IS NULL
+                OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
+              )
+            RETURNING *
+          ),
+          inserted_registration AS (
+            INSERT INTO event_registrations (
+              event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
+            )
+            SELECT
+              ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
+              ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
+              ${childrenNamesParam}, ${photoSlotsParam}
+            WHERE EXISTS (SELECT 1 FROM capacity_update)
+              AND NOT EXISTS (
+                SELECT 1 FROM event_registrations
+                WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
+              )
+            ON CONFLICT DO NOTHING
+            RETURNING *
+          ),
+          reserved_slots AS (
+            INSERT INTO photo_event_slots (event_id, registration_id, slot)
+            SELECT ${eventIdNum}, r.id, slots.slot
+            FROM inserted_registration r
+            CROSS JOIN LATERAL jsonb_array_elements_text(
+              COALESCE(${photoSlotsParam}::text, '[]')::jsonb
+            ) AS slots(slot)
+            RETURNING id
+          ),
+          rollback_capacity AS (
+            UPDATE events
+            SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
+            WHERE id = ${eventIdNum}
+              AND EXISTS (SELECT 1 FROM capacity_update)
+              AND NOT EXISTS (SELECT 1 FROM inserted_registration)
+            RETURNING id
           )
-        RETURNING *
-      ),
-      inserted_registration AS (
-        INSERT INTO event_registrations (
-          event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
-        )
-        SELECT
-          ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
-          ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
-          ${childrenNamesParam}, ${photoSlotsParam}
-        WHERE EXISTS (SELECT 1 FROM capacity_update)
-          AND NOT EXISTS (
-            SELECT 1 FROM event_registrations
-            WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
-          )
-        ON CONFLICT DO NOTHING
-        RETURNING *
-      ),
-      rollback_capacity AS (
-        UPDATE events
-        SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
-        WHERE id = ${eventIdNum}
-          AND EXISTS (SELECT 1 FROM capacity_update)
-          AND NOT EXISTS (SELECT 1 FROM inserted_registration)
-        RETURNING id
-      )
-      SELECT
-        (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
-        (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
-        (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
-        (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
-        (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
-    `;
+          SELECT
+            (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
+            (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
+            (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
+            (SELECT COUNT(*)::int FROM reserved_slots) AS "reservedSlotCount",
+            (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
+            (SELECT row_to_json(inserted_registration) FROM inserted_registration) AS registration
+        `;
+        break;
+      } catch (error) {
+        if (!isPhotoSlotConflict(error)) throw error;
+        if (allocationAttempt === PHOTO_SLOT_ALLOCATION_ATTEMPTS) {
+          return res.status(409).json({
+            error: sanitizedLanguage === 'no'
+              ? 'Fototiden ble nettopp tatt. Prøv på nytt.'
+              : 'The photo slot was just taken. Please try again.'
+          });
+        }
+      }
+    }
 
     const registrationState = registrationResult[0];
     if (!registrationState?.eventExists) {
@@ -317,10 +351,7 @@ export default withApiHandler(async function handler(req, res) {
       })
         .then(() => console.log('Event confirmation email sent successfully'))
         .catch((emailError) => {
-          console.error('Failed to send event confirmation email:', emailError);
-          if (process.env.NODE_ENV === 'production') {
-            Sentry.captureException(emailError);
-          }
+          reportProviderError('Failed to send event confirmation email', emailError);
         })
     );
 
@@ -341,20 +372,25 @@ export default withApiHandler(async function handler(req, res) {
     }
 
     const deletedReg = await sql`
-      DELETE FROM event_registrations WHERE id = ${parseInt(id)} RETURNING event_id, attendee_count
+      WITH deleted AS (
+        DELETE FROM event_registrations
+        WHERE id = ${parseInt(id)}
+        RETURNING id, event_id, attendee_count
+      ), updated_event AS (
+        UPDATE events e
+        SET current_attendees = GREATEST(0, COALESCE(e.current_attendees, 0) - COALESCE(d.attendee_count, 1))
+        FROM deleted d
+        WHERE e.id = d.event_id
+        RETURNING e.id
+      )
+      SELECT d.id, d.event_id, d.attendee_count,
+             EXISTS (SELECT 1 FROM updated_event) as "eventUpdated"
+      FROM deleted d
     `;
 
     if (deletedReg.length === 0) {
       return res.status(404).json({ error: 'Registration not found' });
     }
-
-    // Update event attendee count
-    const { event_id, attendee_count } = deletedReg[0];
-    await sql`
-      UPDATE events
-      SET current_attendees = GREATEST(0, current_attendees - ${attendee_count || 1})
-      WHERE id = ${event_id}
-    `;
 
     return res.status(200).json({ success: true });
   }
