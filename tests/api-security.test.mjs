@@ -10,6 +10,7 @@ import {
   validateCsrfToken,
 } from '../api/_shared/middleware.js';
 import { ADMIN_ONLY, COUNCIL_ROLES } from '../shared/constants.js';
+import { JWT_AUDIENCE, JWT_ISSUER } from '../api/_shared/jwt-config.js';
 
 const SESSION_SECRET = 'test-only-session-secret-with-at-least-32-bytes';
 process.env.SESSION_SECRET = SESSION_SECRET;
@@ -49,8 +50,15 @@ function response() {
   };
 }
 
+// parseAuthToken verifies with getJwtConfig().verifyOptions, which pins the
+// issuer and audience — a token minted without them is rejected before the
+// role checks these tests are actually about.
 function tokenFor(userId = 1, tokenVersion = 3) {
-  return jwt.sign({ userId, tokenVersion }, SESSION_SECRET, { expiresIn: '5m' });
+  return jwt.sign({ userId, tokenVersion }, SESSION_SECRET, {
+    expiresIn: '5m',
+    issuer: JWT_ISSUER,
+    audience: JWT_AUDIENCE,
+  });
 }
 
 function userSql(user) {
