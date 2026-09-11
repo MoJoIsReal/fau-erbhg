@@ -12,6 +12,7 @@ import {
   ALLOWED_UPLOAD_EXTENSIONS,
   ALLOWED_UPLOAD_MIME_TYPES,
   MAX_UPLOAD_SIZE_BYTES,
+  validateProviderUpload,
   sanitizeFilename,
   validateUploadFile
 } from './_shared/upload-validation.js';
@@ -34,7 +35,6 @@ export default withApiHandler(async function handler(req, res) {
       title,
       category,
       description,
-      uploadedBy,
       fileUrl,
       publicId,
       fileSize,
@@ -147,22 +147,27 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: 'Uploaded asset could not be verified' });
     }
 
-    if (Number(uploadedAsset.bytes) > MAX_UPLOAD_SIZE_BYTES) {
-      return res.status(400).json({ error: 'File size exceeds maximum allowed size of 10MB' });
+    const providerValidation = validateProviderUpload({
+      uploadedAsset,
+      delivery,
+      mimeType,
+      fileExtension: validation.fileExtension,
+    });
+    if (!providerValidation.ok) {
+      return res.status(400).json({ error: providerValidation.error });
     }
+    const observedFileSize = providerValidation.size;
 
     // Sanitize text inputs to prevent XSS
     const sanitizedTitle = sanitizeText(title, 1000);
     const sanitizedDescription = sanitizeText(description, 5000);
     const sanitizedCategory = category ? sanitizeText(category, 100) : 'annet';
-    const sanitizedUploadedBy = uploadedBy ? sanitizeText(uploadedBy, 200) : 'Unknown';
+    const sanitizedUploadedBy = sanitizeText(decoded.username, 200);
 
     // Validate sanitized inputs
     if (!sanitizedTitle || sanitizedTitle.length < 1) {
       return res.status(400).json({ error: 'Valid title is required' });
     }
-
-    const safeFileSize = Number.isFinite(Number(uploadedAsset.bytes)) ? Math.max(0, Math.floor(Number(uploadedAsset.bytes))) : 0;
 
     const newDocument = await sql`
       INSERT INTO documents (title, filename, cloudinary_url, cloudinary_public_id, file_size, mime_type, category, description, uploaded_by, uploaded_at)
@@ -171,7 +176,7 @@ export default withApiHandler(async function handler(req, res) {
         ${sanitizedFilename},
         ${sanitizedFileUrl},
         ${sanitizedPublicId},
-        ${safeFileSize},
+        ${observedFileSize},
         ${mimeType},
         ${sanitizedCategory},
         ${sanitizedDescription},

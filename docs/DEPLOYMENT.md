@@ -69,6 +69,10 @@ SESSION_SECRET=<generate-a-secure-random-string-min-32-chars>
 CRON_SECRET=<generate-a-secure-random-string-for-vercel-cron>
 ```
 - Generate `SESSION_SECRET` using: `openssl rand -base64 32`
+- JWTs are bound to `HS256`, issuer `fau-erdal-barnehage`, and audience
+  `fau-erdal-barnehage-web`. The server rejects missing, shorter-than-32, and
+  obvious placeholder secrets. Deploying this binding invalidates legacy JWTs
+  without issuer/audience, so existing users will need to sign in again once.
 - Generate `CRON_SECRET` the same way. Vercel Cron requests must include it as `Authorization: Bearer <CRON_SECRET>`; without it the cron endpoint rejects all requests in production.
 
 #### Cloudinary

@@ -9,6 +9,7 @@ import Sentry from './sentry.js';
 import { redactSensitiveText } from './redact.js';
 import { getDb } from './database.js';
 import { isPasswordChangeRequired } from './password-policy.js';
+import { getJwtConfig } from './jwt-config.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -236,7 +237,8 @@ export async function parseAuthToken(req, sqlClient = null) {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.SESSION_SECRET);
+    const jwtConfig = getJwtConfig();
+    const decoded = jwt.verify(token, jwtConfig.secret, jwtConfig.verifyOptions);
     if (!Number.isInteger(decoded.tokenVersion)) {
       return null;
     }

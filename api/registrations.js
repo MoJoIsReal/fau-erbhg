@@ -14,6 +14,7 @@ import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import Sentry from './_shared/sentry.js';
+import { reportProviderError } from './_shared/provider-errors.js';
 import { COUNCIL_ROLES } from '../shared/constants.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
@@ -350,10 +351,7 @@ export default withApiHandler(async function handler(req, res) {
       })
         .then(() => console.log('Event confirmation email sent successfully'))
         .catch((emailError) => {
-          console.error('Failed to send event confirmation email:', emailError);
-          if (process.env.NODE_ENV === 'production') {
-            Sentry.captureException(emailError);
-          }
+          reportProviderError('Failed to send event confirmation email', emailError);
         })
     );
 

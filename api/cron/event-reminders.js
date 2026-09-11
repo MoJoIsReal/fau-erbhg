@@ -2,7 +2,6 @@ import { getDb } from '../_shared/database.js';
 import { withApiHandler } from '../_shared/middleware.js';
 import { sendEmail, isEmailConfigured } from '../_shared/email.js';
 import { reminderEmail as newsletterReminderEmail } from '../_shared/newsletter.js';
-import Sentry from '../_shared/sentry.js';
 import { redactSensitiveText } from '../_shared/redact.js';
 import {
   DELIVERY_CONCURRENCY,
@@ -400,10 +399,7 @@ export default withApiHandler(async function handler(req, res) {
           SET reminder_claimed_at = NULL
           WHERE id = ${registration.id} AND reminder_sent_at IS NULL
         `;
-        console.error('Failed to send event reminder:', redactSensitiveText(emailError.message));
-        if (process.env.NODE_ENV === 'production') {
-          Sentry.captureException(emailError);
-        }
+        reportProviderError('Failed to send event reminder', emailError);
       }
     });
   }

@@ -10,6 +10,7 @@ import {
 } from './_shared/middleware.js';
 import { checkRateLimit, clearRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import { isPasswordChangeRequired } from './_shared/password-policy.js';
+import { getJwtConfig } from './_shared/jwt-config.js';
 
 // Consolidates login/logout/current-user/change-password onto one function
 // (?action=csrf|login|logout|change-password, default GET = current user) to
@@ -60,7 +61,10 @@ async function handleLogin(req, res, sql) {
     return res.status(400).json({ error: 'Username and password required' });
   }
 
-  if (!process.env.SESSION_SECRET) {
+  let jwtConfig;
+  try {
+    jwtConfig = getJwtConfig();
+  } catch {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
@@ -125,8 +129,8 @@ async function handleLogin(req, res, sql) {
       role: user.role,
       tokenVersion: user.tokenVersion
     },
-    process.env.SESSION_SECRET,
-    { expiresIn: '2h' }
+    jwtConfig.secret,
+    jwtConfig.signOptions
   );
 
   const csrfToken = generateCsrfToken();
@@ -198,7 +202,10 @@ async function handleChangePassword(req, res, sql, decoded) {
   if (currentPassword === newPassword) {
     return res.status(400).json({ error: 'New password must be different from current password' });
   }
-  if (!process.env.SESSION_SECRET) {
+  let jwtConfig;
+  try {
+    jwtConfig = getJwtConfig();
+  } catch {
     return res.status(500).json({ error: 'Server configuration error' });
   }
 
@@ -240,8 +247,8 @@ async function handleChangePassword(req, res, sql, decoded) {
       role: updatedUser.role,
       tokenVersion: updatedUser.tokenVersion,
     },
-    process.env.SESSION_SECRET,
-    { expiresIn: '2h' },
+    jwtConfig.secret,
+    jwtConfig.signOptions,
   );
   const csrfToken = generateCsrfToken();
   setAuthCookies(res, token, csrfToken);
