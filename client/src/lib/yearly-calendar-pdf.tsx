@@ -470,12 +470,16 @@ function Week({
               </View>
               {dayEntries.map((entry) => {
                 const { background, color } = entryColors(entry);
+                // Same "18:30 Tittel" shape the screen uses.
+                const label = entry.startTime
+                  ? `${entry.startTime} ${entry.title}`
+                  : entry.title;
                 return (
                   <View
                     key={entry.id}
                     style={[styles.dayEvent, { backgroundColor: background }]}
                   >
-                    <Text style={{ fontSize: 6.5, color }}>{entry.title}</Text>
+                    <Text style={{ fontSize: 6.5, color }}>{label}</Text>
                   </View>
                 );
               })}

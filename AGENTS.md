@@ -173,6 +173,15 @@ the single source for that grid — the page and the PDF export both use it; do
 not re-derive weeks locally. On phones an empty weekend row is hidden unless the
 viewer can edit, so there is still somewhere to add a Saturday entry.
 
+A `day_event` can carry an optional `startTime`/`endTime` ("HH:MM", Norwegian
+local time). Without a start time it stays an all-day entry, which is what most
+of them are; with one it renders as "18:30–21:00 Tittel" and the calendar feed
+publishes it as a timed VEVENT (busy) instead of an all-day block (free). An end
+that is not after the start is dropped rather than rejected, the same way
+`weekNumberEnd` is. Only `day_event` takes times — every other type is a whole
+day or a whole week — and the Excel import does not carry them, so re-importing
+never wipes a time set in the UI.
+
 Signup events (`/api/events`) are rendered inside the day cells alongside the
 yearly entries, in orange, read-only (they link back to the "Hva skjer" tab,
 which owns creating and editing them) and never draggable — drag-and-drop moves

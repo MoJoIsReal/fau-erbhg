@@ -15,6 +15,7 @@ contents of each migration file. The current migrations are:
 8. `0008_delivery_outbox.sql`
 9. `0009_registration_integrity.sql`
 10. `0010_blog_post_newsletter.sql`
+11. `0011_yearly_calendar_times.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the

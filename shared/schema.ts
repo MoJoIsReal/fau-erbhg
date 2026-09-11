@@ -233,6 +233,12 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   weekdayStart: integer("weekday_start"), // 1=Mon..5=Fri (week_event range start, optional)
   weekdayEnd: integer("weekday_end"), // 1=Mon..5=Fri (week_event range end, optional)
   date: text("date"), // ISO date "YYYY-MM-DD" used for day_event
+  // Optional clock time for a day_event, "HH:MM" in Norwegian local time. A
+  // dated entry without a start time stays an all-day entry; with one it
+  // becomes a timed entry, which is what makes the calendar feed useful for
+  // things like a foreldremøte at 18:30.
+  startTime: text("start_time"),
+  endTime: text("end_time"),
   title: text("title").notNull(),
   description: text("description"),
   color: text("color"), // optional CSS color hint, e.g. "red", "yellow", "green"

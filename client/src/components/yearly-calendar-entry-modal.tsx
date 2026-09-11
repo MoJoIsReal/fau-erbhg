@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TimeInput24h } from "@/components/time-input-24h";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -38,6 +39,8 @@ export type EntryDraft = {
   weekNumber?: number | null;
   weekNumberEnd?: number | null;
   date?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
   title?: string;
   description?: string | null;
   color?: string | null;
@@ -83,6 +86,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const [weekNumber, setWeekNumber] = useState<string>("");
   const [weekNumberEnd, setWeekNumberEnd] = useState<string>("");
   const [date, setDate] = useState<string>("");
+  const [startTime, setStartTime] = useState<string>("");
+  const [endTime, setEndTime] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
   const [color, setColor] = useState<string>("");
@@ -99,6 +104,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setWeekNumber(seed.weekNumber != null ? String(seed.weekNumber) : "");
     setWeekNumberEnd(seed.weekNumberEnd != null ? String(seed.weekNumberEnd) : "");
     setDate(seed.date ?? "");
+    setStartTime(seed.startTime ?? "");
+    setEndTime(seed.endTime ?? "");
     setTitle(seed.title ?? "");
     setDescription(seed.description ?? "");
     setColor(seed.color ?? "");
@@ -124,6 +131,10 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         weekNumber: weekNumber ? parseInt(weekNumber) : null,
         weekNumberEnd: supportsSpan && weekNumberEnd ? parseInt(weekNumberEnd) : null,
         date: entryType === "day_event" || entryType === "closed" ? (date || null) : null,
+        // Only a day_event carries a clock time; the server drops an end that
+        // isn't after the start, so don't send one either.
+        startTime: entryType === "day_event" ? (startTime || null) : null,
+        endTime: entryType === "day_event" && startTime && endTime > startTime ? endTime : null,
         showOnHomepage: entryType === "day_event" ? showOnHomepage : false,
         showForParents: entryType === "day_event" ? showForParents : false,
         notifyNewsletter: supportsNewsletter ? notifyNewsletter : false,
@@ -263,6 +274,27 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             <div>
               <Label>{t.yearlyCalendar.modal.date}</Label>
               <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          )}
+
+          {/* Optional: a dated entry without a time stays a whole-day entry.
+              With one it shows up as a real appointment in a subscriber's
+              calendar instead of a block across the day. */}
+          {entryType === "day_event" && (
+            <div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="entry-start-time">{t.yearlyCalendar.modal.startTime}</Label>
+                  <TimeInput24h name="entry-start-time" value={startTime} onChange={setStartTime} />
+                </div>
+                <div>
+                  <Label htmlFor="entry-end-time">{t.yearlyCalendar.modal.endTime}</Label>
+                  <TimeInput24h name="entry-end-time" value={endTime} onChange={setEndTime} disabled={!startTime} />
+                </div>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t.yearlyCalendar.modal.timeHint}
+              </p>
             </div>
           )}
 

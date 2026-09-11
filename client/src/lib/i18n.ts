@@ -722,6 +722,9 @@ export interface Translations {
       showForParentsHint: string;
       notifyNewsletter: string;
       notifyNewsletterHint: string;
+      startTime: string;
+      endTime: string;
+      timeHint: string;
       save: string;
       saving: string;
       delete: string;
@@ -1537,6 +1540,9 @@ export const translations: Record<Language, Translations> = {
         showForParentsHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"For foreldre\".",
         notifyNewsletter: "Send påminnelse på nyhetsbrev",
         notifyNewsletterHint: "Dagen før sendes beskrivelsen som påminnelse på e-post til alle påmeldte nyhetsbrev-abonnenter.",
+        startTime: "Starttid (valgfritt)",
+        endTime: "Sluttid (valgfritt)",
+        timeHint: "Uten klokkeslett står oppføringen som en heldagsdato. Med starttid vises den som et vanlig avtalepunkt i kalenderen til de som abonnerer.",
         save: "Lagre",
         saving: "Lagrer...",
         delete: "Slett",
@@ -2350,6 +2356,9 @@ export const translations: Record<Language, Translations> = {
         showForParentsHint: "Appears under \"Upcoming events\" on the front page, marked \"For parents\".",
         notifyNewsletter: "Send newsletter reminder",
         notifyNewsletterHint: "The day before, the description is emailed as a reminder to all confirmed newsletter subscribers.",
+        startTime: "Start time (optional)",
+        endTime: "End time (optional)",
+        timeHint: "Without a time the entry stays an all-day date. With a start time it appears as a normal appointment in subscribers' calendars.",
         save: "Save",
         saving: "Saving...",
         delete: "Delete",
