@@ -117,3 +117,56 @@ test('date helpers roll over month and year boundaries', () => {
   assert.equal(addHoursToIcsLocalDateTime('20261231T230000', 2), '20270101T010000');
   assert.equal(nextIcsDate('20260228'), '20260301');
 });
+
+test('a dated entry with a clock time becomes a timed event, not an all-day one', () => {
+  const feed = buildCalendarFeed({
+    entries: [{
+      id: 12,
+      title: 'Foreldremøte',
+      entryType: 'day_event',
+      date: '2026-09-16',
+      startTime: '18:30',
+      endTime: '21:00',
+    }],
+    now: NOW,
+  });
+  const feedLines = lines(feed);
+
+  assert.equal(feedLines.includes('DTSTART;TZID=Europe/Oslo:20260916T183000'), true);
+  assert.equal(feedLines.includes('DTEND;TZID=Europe/Oslo:20260916T210000'), true);
+  assert.equal(feedLines.some((line) => line.startsWith('DTSTART;VALUE=DATE')), false);
+  // A real appointment should show as busy, unlike an all-day entry.
+  assert.equal(feedLines.includes('TRANSP:TRANSPARENT'), false);
+});
+
+test('a start time without an end falls back to the default duration', () => {
+  const feed = buildCalendarFeed({
+    entries: [{ id: 13, title: 'Dugnad', entryType: 'day_event', date: '2026-09-16', startTime: '17:00' }],
+    now: NOW,
+  });
+
+  assert.equal(lines(feed).includes('DTEND;TZID=Europe/Oslo:20260916T190000'), true);
+});
+
+test('an end that is not after the start is ignored rather than emitted backwards', () => {
+  const feed = buildCalendarFeed({
+    entries: [{
+      id: 14, title: 'Rart', entryType: 'day_event', date: '2026-09-16',
+      startTime: '18:00', endTime: '17:00',
+    }],
+    now: NOW,
+  });
+
+  assert.equal(lines(feed).includes('DTEND;TZID=Europe/Oslo:20260916T200000'), true);
+});
+
+test('an entry without a clock time stays all-day', () => {
+  const feed = buildCalendarFeed({
+    entries: [{ id: 15, title: 'Planleggingsdag', entryType: 'closed', date: '2026-09-16' }],
+    now: NOW,
+  });
+  const feedLines = lines(feed);
+
+  assert.equal(feedLines.includes('DTSTART;VALUE=DATE:20260916'), true);
+  assert.equal(feedLines.includes('TRANSP:TRANSPARENT'), true);
+});

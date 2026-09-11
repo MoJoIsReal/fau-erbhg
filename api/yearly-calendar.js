@@ -26,6 +26,17 @@ function sanitizeColor(value) {
   return null;
 }
 
+const TIME_RE = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
+
+// "HH:MM" in Norwegian local time, normalized to a leading zero so string
+// comparison orders times correctly.
+function sanitizeTimeOfDay(value) {
+  if (!value || typeof value !== 'string') return null;
+  const match = TIME_RE.exec(value.trim());
+  if (!match) return null;
+  return `${match[1].padStart(2, '0')}:${match[2]}`;
+}
+
 function mapEntry(row) {
   return {
     id: row.id,
@@ -38,6 +49,8 @@ function mapEntry(row) {
     weekdayStart: row.weekday_start,
     weekdayEnd: row.weekday_end,
     date: row.date,
+    startTime: row.start_time,
+    endTime: row.end_time,
     title: row.title,
     description: row.description,
     color: row.color,
@@ -68,6 +81,12 @@ function sanitizeEntryPayload(body) {
   const weekdayStart = body.weekdayStart != null ? sanitizeNumber(body.weekdayStart, 1, 7) : null;
   const weekdayEnd = body.weekdayEnd != null ? sanitizeNumber(body.weekdayEnd, 1, 7) : null;
   const date = body.date && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : null;
+  // Only a day_event carries a clock time; every other type is a whole day or
+  // a whole week. An end that isn't after the start is dropped rather than
+  // rejected, the same way weekNumberEnd is handled above.
+  const startTime = entryType === 'day_event' ? sanitizeTimeOfDay(body.startTime) : null;
+  const endTimeRaw = entryType === 'day_event' ? sanitizeTimeOfDay(body.endTime) : null;
+  const endTime = startTime && endTimeRaw && endTimeRaw > startTime ? endTimeRaw : null;
   // Only day_event entries can be flagged for the homepage. Force false on
   // every other type so a stale flag can't survive a type change.
   const showOnHomepage = entryType === 'day_event' ? body.showOnHomepage === true : false;
@@ -88,6 +107,8 @@ function sanitizeEntryPayload(body) {
     weekdayStart,
     weekdayEnd,
     date,
+    startTime,
+    endTime,
     showOnHomepage,
     showForParents,
     notifyNewsletter,
@@ -133,7 +154,7 @@ function pushImportFailure(summary, rowNumber, message) {
 async function getEntriesForSchoolYear(sql, schoolYear) {
   const rows = await sql`
     SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
-           weekday_start, weekday_end, date, title, description, color,
+           weekday_start, weekday_end, date, start_time, end_time, title, description, color,
            show_on_homepage, show_for_parents, notify_newsletter, newsletter_sent_at,
            created_by, created_at, updated_at
     FROM yearly_calendar_entries
@@ -326,11 +347,11 @@ export default withApiHandler(async function handler(req, res) {
     const created = await sql`
       INSERT INTO yearly_calendar_entries (
         school_year, year, month, entry_type, week_number, week_number_end,
-        weekday_start, weekday_end, date, title, description, color,
+        weekday_start, weekday_end, date, start_time, end_time, title, description, color,
         show_on_homepage, show_for_parents, notify_newsletter, created_by, created_at, updated_at
       ) VALUES (
         ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber}, ${payload.weekNumberEnd},
-        ${payload.weekdayStart}, ${payload.weekdayEnd}, ${payload.date}, ${payload.title}, ${payload.description}, ${payload.color},
+        ${payload.weekdayStart}, ${payload.weekdayEnd}, ${payload.date}, ${payload.startTime}, ${payload.endTime}, ${payload.title}, ${payload.description}, ${payload.color},
         ${payload.showOnHomepage}, ${payload.showForParents}, ${payload.notifyNewsletter}, ${user.name || user.username || 'ukjent'}, ${now}, ${now}
       )
       RETURNING *
@@ -359,6 +380,8 @@ export default withApiHandler(async function handler(req, res) {
           weekday_start = ${payload.weekdayStart},
           weekday_end = ${payload.weekdayEnd},
           date = ${payload.date},
+          start_time = ${payload.startTime},
+          end_time = ${payload.endTime},
           title = ${payload.title},
           description = ${payload.description},
           color = ${payload.color},

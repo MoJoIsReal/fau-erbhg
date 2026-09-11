@@ -170,16 +170,32 @@ function yearlyEntryLines(entry, { dtstamp, baseUrl, language }) {
     'BEGIN:VEVENT',
     `UID:yearly-${entry.id}@${UID_DOMAIN}`,
     `DTSTAMP:${dtstamp}`,
-    `DTSTART;VALUE=DATE:${start}`,
-    `DTEND;VALUE=DATE:${nextIcsDate(start)}`,
-    `SUMMARY:${escapeIcsText(summary)}`,
   ];
+
+  // An entry with a clock time is a real appointment — a foreldremøte at 18:30
+  // is far more useful in a parent's calendar than a block across the whole
+  // day. Without one it stays all-day, which is what most entries are.
+  const startStamp = toIcsLocalDateTime(entry.date, entry.startTime);
+  if (startStamp) {
+    const endStamp = toIcsLocalDateTime(entry.date, entry.endTime);
+    const end = endStamp && endStamp > startStamp
+      ? endStamp
+      : addHoursToIcsLocalDateTime(startStamp, DEFAULT_EVENT_DURATION_HOURS);
+    lines.push(`DTSTART;TZID=Europe/Oslo:${startStamp}`);
+    lines.push(`DTEND;TZID=Europe/Oslo:${end}`);
+  } else {
+    lines.push(`DTSTART;VALUE=DATE:${start}`);
+    lines.push(`DTEND;VALUE=DATE:${nextIcsDate(start)}`);
+  }
+
+  lines.push(`SUMMARY:${escapeIcsText(summary)}`);
 
   const description = htmlToPlainText(entry.description);
   if (description) lines.push(`DESCRIPTION:${escapeIcsText(description)}`);
   if (baseUrl) lines.push(`URL:${baseUrl}/kalender/arskalender`);
-  // All-day kindergarten dates should not mark a parent as busy all day.
-  lines.push('TRANSP:TRANSPARENT');
+  // A timed entry is a genuine commitment, so leave it as busy. An all-day
+  // kindergarten date should not blank out a parent's whole day.
+  if (!startStamp) lines.push('TRANSP:TRANSPARENT');
   lines.push('STATUS:CONFIRMED');
   lines.push('END:VEVENT');
   return lines;

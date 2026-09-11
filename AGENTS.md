@@ -135,8 +135,8 @@ const form = useForm<FormValues>({ resolver: zodResolver(formSchema) });
 - JWT lives in an HttpOnly cookie named `jwt`; an `Authorization: Bearer …` header is accepted as a fallback for backward compatibility (`api/_shared/middleware.js:parseAuthToken`).
 - CSRF protection: double-submit cookie. The `csrf-token` cookie is non-HttpOnly so the client can mirror it into the `X-CSRF-Token` header on writes. `requireCsrf()` enforces this on every state-changing endpoint.
 - Roles:
-  - `admin` — full CRUD on all resources (settings, blog, board members, staff users, contact messages, etc.).
-  - `member` — write access to events, event registrations (delete), document uploads, and yearly calendar entries. Not allowed on `secure-settings` (admin-only).
+  - `admin` — full CRUD on all resources. Admin-only within `secure-settings`: site settings, board members, kindergarten info, user administration and newsletter subscribers.
+  - `member` — events, event registrations (full details + delete), document uploads, blog posts, yearly calendar entries, and contact messages (read, reply, delete) — FAU is who the contact form addresses.
   - `staff` — kindergarten staff with write access limited to yearly calendar entries.
 - Login rate limits: per-(IP, username) 5/15min, per-IP 30/15min, per-account 20/60min. The dummy bcrypt hash in `api/auth.js` keeps timing constant for non-existent users.
 
@@ -172,6 +172,15 @@ and are only dimmed. `weeksOfMonth()` in `shared/yearly-calendar-display.js` is
 the single source for that grid — the page and the PDF export both use it; do
 not re-derive weeks locally. On phones an empty weekend row is hidden unless the
 viewer can edit, so there is still somewhere to add a Saturday entry.
+
+A `day_event` can carry an optional `startTime`/`endTime` ("HH:MM", Norwegian
+local time). Without a start time it stays an all-day entry, which is what most
+of them are; with one it renders as "18:30–21:00 Tittel" and the calendar feed
+publishes it as a timed VEVENT (busy) instead of an all-day block (free). An end
+that is not after the start is dropped rather than rejected, the same way
+`weekNumberEnd` is. Only `day_event` takes times — every other type is a whole
+day or a whole week — and the Excel import does not carry them, so re-importing
+never wipes a time set in the UI.
 
 Signup events (`/api/events`) are rendered inside the day cells alongside the
 yearly entries, in orange, read-only (they link back to the "Hva skjer" tab,

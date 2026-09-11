@@ -46,6 +46,8 @@ function mapFeedEntry(row) {
     description: row.description,
     entryType: row.entry_type,
     date: row.date,
+    startTime: row.start_time,
+    endTime: row.end_time,
   };
 }
 
@@ -69,7 +71,7 @@ async function respondWithCalendarFeed(req, res, sql) {
       ORDER BY date ASC, time ASC
     `,
     sql`
-      SELECT id, title, description, entry_type, date
+      SELECT id, title, description, entry_type, date, start_time, end_time
       FROM yearly_calendar_entries
       WHERE entry_type IN ('day_event', 'closed')
         AND date IS NOT NULL

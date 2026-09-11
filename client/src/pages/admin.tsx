@@ -35,6 +35,7 @@ export default function Admin() {
   const { language, t } = useLanguage();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
+  const isCouncil = user?.role === "admin" || user?.role === "member";
 
   usePageMeta({
     title: "Admin",
@@ -45,10 +46,10 @@ export default function Admin() {
     path: "/admin",
   });
 
-  // Messages are admin-only server-side; don't fire the query for members.
+  // Messages are a council surface server-side; staff would only get a 403.
   const { data: messages = [] } = useQuery<ContactMessage[]>({
     queryKey: ["/api/secure-settings?resource=contact-messages"],
-    enabled: isAdmin,
+    enabled: isCouncil,
   });
   const newMessages = messages.filter((m) => m.status === "new");
 
@@ -70,7 +71,7 @@ export default function Admin() {
   const nextEvent = upcoming.find((item) => item.kind === "event");
 
   const cards = [
-    ...(isAdmin
+    ...(isCouncil
       ? [
           {
             href: "/messages",

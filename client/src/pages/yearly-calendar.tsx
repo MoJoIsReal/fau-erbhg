@@ -146,6 +146,13 @@ function sortByTypeAndColor(entries: YearlyCalendarEntry[]): YearlyCalendarEntry
   });
 }
 
+// "18:30–21:00", or just "18:30" when no end was set. Entries without a start
+// time are whole-day dates and show no time at all.
+function entryTimeLabel(entry: YearlyCalendarEntry): string | null {
+  if (!entry.startTime) return null;
+  return entry.endTime ? `${entry.startTime}–${entry.endTime}` : entry.startTime;
+}
+
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -1075,6 +1082,11 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                                             style={cs.style}
                                           >
                                             <CalendarIcon className="h-3 w-3 shrink-0" />
+                                            {entryTimeLabel(entry) && (
+                                              <span className="shrink-0 whitespace-nowrap font-semibold tabular-nums">
+                                                {entryTimeLabel(entry)}
+                                              </span>
+                                            )}
                                             <span className="truncate">{entry.title}</span>
                                           </DraggableEntry>
                                         );
@@ -1273,7 +1285,14 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                                           style={cs.style}
                                         >
                                           <CalendarIcon className="h-3 w-3 mt-0.5 shrink-0" aria-hidden />
-                                          <span className="break-words leading-snug font-medium min-w-0">{entry.title}</span>
+                                          <span className="break-words leading-snug font-medium min-w-0">
+                                            {entryTimeLabel(entry) && (
+                                              <span className="mr-1 whitespace-nowrap font-semibold tabular-nums">
+                                                {entryTimeLabel(entry)}
+                                              </span>
+                                            )}
+                                            {entry.title}
+                                          </span>
                                         </DraggableEntry>
                                       );
                                     })}
