@@ -3,7 +3,6 @@ import { withApiHandler } from '../_shared/middleware.js';
 import { sendEmail, isEmailConfigured } from '../_shared/email.js';
 import { reminderEmail as newsletterReminderEmail } from '../_shared/newsletter.js';
 import { redactSensitiveText } from '../_shared/redact.js';
-import { reportProviderError } from '../_shared/provider-errors.js';
 import {
   DELIVERY_CONCURRENCY,
   deliveryMessageId,
@@ -227,7 +226,10 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
         WHERE id = ${delivery.id} AND status = 'processing'
       `;
       failed += 1;
-      reportProviderError('Failed to send newsletter delivery', new Error(safeError));
+      console.error('Failed to send newsletter delivery:', safeError);
+      if (process.env.NODE_ENV === 'production') {
+        Sentry.captureException(new Error(safeError));
+      }
     }
   });
 

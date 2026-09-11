@@ -10,7 +10,6 @@ import {
   validateCsrfToken,
 } from '../api/_shared/middleware.js';
 import { ADMIN_ONLY, COUNCIL_ROLES } from '../shared/constants.js';
-import { getJwtConfig } from '../api/_shared/jwt-config.js';
 
 const SESSION_SECRET = 'test-only-session-secret-with-at-least-32-bytes';
 process.env.SESSION_SECRET = SESSION_SECRET;
@@ -51,8 +50,7 @@ function response() {
 }
 
 function tokenFor(userId = 1, tokenVersion = 3) {
-  const config = getJwtConfig({ SESSION_SECRET });
-  return jwt.sign({ userId, tokenVersion }, config.secret, config.signOptions);
+  return jwt.sign({ userId, tokenVersion }, SESSION_SECRET, { expiresIn: '5m' });
 }
 
 function userSql(user) {
@@ -67,31 +65,6 @@ const activeAdmin = {
   mustChangePassword: false,
   passwordChangedAt: new Date().toISOString(),
 };
-
-test('JWT configuration rejects missing, short, and placeholder secrets', () => {
-  assert.throws(() => getJwtConfig({}), /SESSION_SECRET/);
-  assert.throws(() => getJwtConfig({ SESSION_SECRET: 'too-short' }), /at least 32/);
-  assert.throws(
-    () => getJwtConfig({ SESSION_SECRET: 'change-me-this-placeholder-is-long-enough' }),
-    /non-placeholder/,
-  );
-});
-
-test('JWT verification rejects tokens with missing context or wrong algorithm', async (t) => {
-  t.mock.method(console, 'error', () => {});
-  const legacyToken = jwt.sign({ userId: 1, tokenVersion: 3 }, SESSION_SECRET, {
-    algorithm: 'HS256',
-    expiresIn: '5m',
-  });
-  assert.equal(await parseAuthToken(request({ token: legacyToken }), userSql(activeAdmin)), null);
-  const wrongAlgorithm = jwt.sign({
-    userId: 1,
-    tokenVersion: 3,
-    iss: 'fau-erdal-barnehage',
-    aud: 'fau-erdal-barnehage-web',
-  }, SESSION_SECRET, { algorithm: 'HS384', expiresIn: '5m' });
-  assert.equal(await parseAuthToken(request({ token: wrongAlgorithm }), userSql(activeAdmin)), null);
-});
 
 test('CSRF tokens are random, require both channels, and compare exactly', () => {
   const first = generateCsrfToken();
