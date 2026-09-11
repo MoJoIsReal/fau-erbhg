@@ -24,3 +24,23 @@ updates:
         update-types:
           - minor
           - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Oslo
+    open-pull-requests-limit: 5
+    rebase-strategy: auto
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      action-updates:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
