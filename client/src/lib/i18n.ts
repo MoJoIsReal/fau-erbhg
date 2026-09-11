@@ -677,6 +677,11 @@ export interface Translations {
     wednesday: string;
     thursday: string;
     friday: string;
+    saturday: string;
+    sunday: string;
+    eventLabel: string;
+    eventCancelledLabel: string;
+    eventsIncludedHint: string;
     notes: string;
     tagline: string;
     entryTypes: {
@@ -1486,6 +1491,12 @@ export const translations: Record<Language, Translations> = {
       wednesday: "Onsdag",
       thursday: "Torsdag",
       friday: "Fredag",
+      saturday: "Lørdag",
+      sunday: "Søndag",
+      eventLabel: "Arrangement",
+      eventCancelledLabel: "Avlyst",
+      eventsIncludedHint:
+        "Arrangementer fra «Hva skjer» vises også her, i oransje. Klikk på et arrangement for å melde deg på.",
       notes: "Notater",
       tagline: "Kunsten å være sammen i lekens magiske verden",
       entryTypes: {
@@ -2293,6 +2304,12 @@ export const translations: Record<Language, Translations> = {
       wednesday: "Wednesday",
       thursday: "Thursday",
       friday: "Friday",
+      saturday: "Saturday",
+      sunday: "Sunday",
+      eventLabel: "Event",
+      eventCancelledLabel: "Cancelled",
+      eventsIncludedHint:
+        "Events from \"What's on\" appear here too, in orange. Click an event to sign up.",
       notes: "Notes",
       tagline: "The art of being together in the magical world of play",
       entryTypes: {

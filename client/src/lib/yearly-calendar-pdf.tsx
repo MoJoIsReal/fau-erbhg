@@ -18,7 +18,11 @@ import {
   View,
   pdf,
 } from "@react-pdf/renderer";
-import type { YearlyCalendarEntry } from "@shared/schema";
+import type { Event, YearlyCalendarEntry } from "@shared/schema";
+import {
+  weeksOfMonth,
+  type YearlyCalendarDayCell as DayCell,
+} from "@shared/yearly-calendar-display";
 
 // ──────────────────────────────────────────────────────────────────
 // Helpers (mirrors client/src/pages/yearly-calendar.tsx so the PDF
@@ -104,43 +108,11 @@ function sortByTypeAndColor(entries: YearlyCalendarEntry[]): YearlyCalendarEntry
   });
 }
 
-function isoWeek(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-}
-
 function monthsForSchoolYear(schoolYear: number): { year: number; month: number }[] {
   const out: { year: number; month: number }[] = [];
   for (let m = 8; m <= 12; m++) out.push({ year: schoolYear, month: m });
   for (let m = 1; m <= 7; m++) out.push({ year: schoolYear + 1, month: m });
   return out;
-}
-
-type DayCell = { date: Date; inMonth: boolean };
-
-function weeksOfMonth(year: number, month: number): { weekNumber: number; days: DayCell[] }[] {
-  const first = new Date(year, month - 1, 1);
-  const last = new Date(year, month, 0);
-  const dayOfWeek = (first.getDay() + 6) % 7;
-  const cursor = new Date(first);
-  cursor.setDate(first.getDate() - dayOfWeek);
-
-  const weeks: { weekNumber: number; days: DayCell[] }[] = [];
-  while (true) {
-    const days: DayCell[] = [];
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(cursor);
-      days.push({ date: d, inMonth: d.getMonth() + 1 === month });
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    cursor.setDate(cursor.getDate() + 2);
-    weeks.push({ weekNumber: isoWeek(days[0].date), days });
-    if (days[4].date >= last) break;
-  }
-  return weeks.filter((w) => w.days.some((d) => d.inMonth));
 }
 
 function toIsoDate(d: Date): string {
@@ -191,7 +163,7 @@ const STRINGS: Record<Lang, {
     tagline: "Kunsten å være sammen i lekens magiske verden",
     notes: "Notater",
     week: "UKE",
-    weekdays: ["MAN", "TIR", "ONS", "TOR", "FRE"],
+    weekdays: ["MAN", "TIR", "ONS", "TOR", "FRE", "LØR", "SØN"],
     months: [
       "Januar", "Februar", "Mars", "April", "Mai", "Juni",
       "Juli", "August", "September", "Oktober", "November", "Desember",
@@ -202,7 +174,7 @@ const STRINGS: Record<Lang, {
     tagline: "The art of being together in play",
     notes: "Notes",
     week: "WK",
-    weekdays: ["MON", "TUE", "WED", "THU", "FRI"],
+    weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
     months: [
       "January", "February", "March", "April", "May", "June",
       "July", "August", "September", "October", "November", "December",
@@ -386,6 +358,17 @@ const styles = StyleSheet.create({
   dayOutOfMonth: {
     opacity: 0.35,
   },
+  dayWeekend: {
+    // Kindergarten is closed — dim the weekend without hiding what is on it.
+    backgroundColor: "rgba(17, 40, 28, 0.55)",
+  },
+  dayEventSignup: {
+    paddingHorizontal: 2.5,
+    paddingVertical: 1,
+    borderRadius: 1.5,
+    marginTop: 1.5,
+    backgroundColor: "#FF6B35",
+  },
   dayEvent: {
     paddingHorizontal: 2.5,
     paddingVertical: 1,
@@ -423,11 +406,13 @@ function Badge({
 function Week({
   week,
   monthEntries,
+  eventsByDate,
   weekdayLabels,
   weekLabel,
 }: {
   week: { weekNumber: number; days: DayCell[] };
   monthEntries: YearlyCalendarEntry[];
+  eventsByDate: Map<string, Event[]>;
   weekdayLabels: string[];
   weekLabel: string;
 }) {
@@ -440,7 +425,7 @@ function Week({
     }),
   );
   const dFirst = week.days[0].date;
-  const dLast = week.days[4].date;
+  const dLast = week.days[week.days.length - 1].date;
   const range = `${dFirst.getDate()}.${dFirst.getMonth() + 1}–${dLast.getDate()}.${dLast.getMonth() + 1}`;
 
   return (
@@ -467,6 +452,7 @@ function Week({
               (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr,
             ),
           );
+          const dayEvents = eventsByDate.get(dateStr) ?? [];
           const isLast = idx === week.days.length - 1;
           return (
             <View
@@ -474,6 +460,7 @@ function Week({
               style={[
                 styles.day,
                 isLast ? styles.dayLast : {},
+                d.isWeekend ? styles.dayWeekend : {},
                 d.inMonth ? {} : styles.dayOutOfMonth,
               ]}
             >
@@ -492,6 +479,14 @@ function Week({
                   </View>
                 );
               })}
+              {/* Signup events, in the same orange as on screen. */}
+              {dayEvents.map((event) => (
+                <View key={`event-${event.id}`} style={styles.dayEventSignup}>
+                  <Text style={{ fontSize: 6.5, color: "#FFFFFF" }}>
+                    {[event.time, event.title].filter(Boolean).join(" ")}
+                  </Text>
+                </View>
+              ))}
             </View>
           );
         })}
@@ -504,11 +499,13 @@ function Month({
   year,
   month,
   entries,
+  eventsByDate,
   lang,
 }: {
   year: number;
   month: number;
   entries: YearlyCalendarEntry[];
+  eventsByDate: Map<string, Event[]>;
   lang: Lang;
 }) {
   const t = STRINGS[lang];
@@ -539,6 +536,7 @@ function Month({
               key={w.weekNumber}
               week={w}
               monthEntries={monthEntries}
+              eventsByDate={eventsByDate}
               weekdayLabels={t.weekdays}
               weekLabel={t.week}
             />
@@ -564,17 +562,30 @@ function Month({
 
 function YearlyCalendarDocument({
   entries,
+  events,
   schoolYear,
   lang,
   year,
   month,
 }: {
   entries: YearlyCalendarEntry[];
+  events: Event[];
   schoolYear: number;
   lang: Lang;
   year?: number;
   month?: number;
 }) {
+  const eventsByDate = new Map<string, Event[]>();
+  for (const event of events) {
+    if (!event.date) continue;
+    const bucket = eventsByDate.get(event.date);
+    if (bucket) bucket.push(event);
+    else eventsByDate.set(event.date, [event]);
+  }
+  for (const bucket of eventsByDate.values()) {
+    bucket.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "") || a.id - b.id);
+  }
+
   const allMonths = monthsForSchoolYear(schoolYear);
   const months = year != null && month != null
     ? allMonths.filter((m) => m.year === year && m.month === month)
@@ -591,6 +602,7 @@ function YearlyCalendarDocument({
           year={m.year}
           month={m.month}
           entries={entries}
+          eventsByDate={eventsByDate}
           lang={lang}
         />
       ))}
@@ -624,6 +636,8 @@ function pdfFilename(opts: {
  */
 export async function downloadYearlyCalendarPdf(opts: {
   entries: YearlyCalendarEntry[];
+  /** Signup events, printed alongside the yearly entries. */
+  events?: Event[];
   schoolYear: number;
   lang: Lang;
   year?: number;
@@ -632,6 +646,7 @@ export async function downloadYearlyCalendarPdf(opts: {
   const blob = await pdf(
     <YearlyCalendarDocument
       entries={opts.entries}
+      events={opts.events ?? []}
       schoolYear={opts.schoolYear}
       lang={opts.lang}
       year={opts.year}

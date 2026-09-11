@@ -164,6 +164,21 @@ Never write files to disk in serverless functions.
 
 Throw structured errors with HTTP status codes on the server. The shared `handleError` helper writes the response, redacts PII from logs, and forwards 5xx to Sentry in production. On the client, display errors via the `useToast()` hook — never use `alert()`.
 
+### Yearly calendar
+
+The month grid runs **Monday–Sunday**. The kindergarten week is Mon–Fri, but FAU
+arrangements (dugnad, sommerfest) fall on weekends, so the weekend columns exist
+and are only dimmed. `weeksOfMonth()` in `shared/yearly-calendar-display.js` is
+the single source for that grid — the page and the PDF export both use it; do
+not re-derive weeks locally. On phones an empty weekend row is hidden unless the
+viewer can edit, so there is still somewhere to add a Saturday entry.
+
+Signup events (`/api/events`) are rendered inside the day cells alongside the
+yearly entries, in orange, read-only (they link back to the "Hva skjer" tab,
+which owns creating and editing them) and never draggable — drag-and-drop moves
+yearly entries only. Cancelled events stay visible, struck through. The PDF
+export takes the same events and prints them the same way.
+
 ### Calendar feed
 
 `GET /api/events?format=ics` (public URL: `/kalender.ics`, `?lang=en` for English
