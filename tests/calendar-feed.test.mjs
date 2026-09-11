@@ -6,6 +6,7 @@ import {
   foldIcsLine,
   toIcsLocalDateTime,
   addHoursToIcsLocalDateTime,
+  osloLocalDateTimeToUtc,
   nextIcsDate,
 } from '../shared/calendar-feed.js';
 
@@ -41,15 +42,15 @@ test('feed is a well-formed VCALENDAR carrying an Oslo VTIMEZONE', () => {
   assert.equal(feedLines.filter((line) => line === 'END:VEVENT').length, 1);
 });
 
-test('a signup event keeps Oslo wall-clock time and a stable UID', () => {
+test('a signup event encodes Oslo wall-clock time as unambiguous UTC with a stable UID', () => {
   const feed = buildCalendarFeed({ events: [signupEvent()], now: NOW });
   const feedLines = lines(feed);
 
   assert.equal(feedLines.includes('UID:event-1@erdal-bhg.no'), true);
-  assert.equal(feedLines.includes('DTSTART;TZID=Europe/Oslo:20260329T180000'), true);
+  assert.equal(feedLines.includes('DTSTART:20260329T160000Z'), true);
   // Default two-hour slot, and it must not shift across the DST change that
   // happens on this very date.
-  assert.equal(feedLines.includes('DTEND;TZID=Europe/Oslo:20260329T200000'), true);
+  assert.equal(feedLines.includes('DTEND:20260329T180000Z'), true);
   assert.equal(feedLines.includes('STATUS:CONFIRMED'), true);
 });
 
@@ -118,6 +119,11 @@ test('date helpers roll over month and year boundaries', () => {
   assert.equal(nextIcsDate('20260228'), '20260301');
 });
 
+test('Oslo local times use the correct summer and winter UTC offsets', () => {
+  assert.equal(osloLocalDateTimeToUtc('20260916T173000'), '20260916T153000Z');
+  assert.equal(osloLocalDateTimeToUtc('20261216T173000'), '20261216T163000Z');
+});
+
 test('a dated entry with a clock time becomes a timed event, not an all-day one', () => {
   const feed = buildCalendarFeed({
     entries: [{
@@ -125,15 +131,17 @@ test('a dated entry with a clock time becomes a timed event, not an all-day one'
       title: 'Foreldremøte',
       entryType: 'day_event',
       date: '2026-09-16',
-      startTime: '18:30',
-      endTime: '21:00',
+      startTime: '17:30',
+      endTime: '20:30',
     }],
     now: NOW,
   });
   const feedLines = lines(feed);
 
-  assert.equal(feedLines.includes('DTSTART;TZID=Europe/Oslo:20260916T183000'), true);
-  assert.equal(feedLines.includes('DTEND;TZID=Europe/Oslo:20260916T210000'), true);
+  // UTC values make Apple Calendar display the intended 17:30–20:30 in Oslo,
+  // rather than applying the +02:00 summer offset in the wrong direction.
+  assert.equal(feedLines.includes('DTSTART:20260916T153000Z'), true);
+  assert.equal(feedLines.includes('DTEND:20260916T183000Z'), true);
   assert.equal(feedLines.some((line) => line.startsWith('DTSTART;VALUE=DATE')), false);
   // A real appointment should show as busy, unlike an all-day entry.
   assert.equal(feedLines.includes('TRANSP:TRANSPARENT'), false);
@@ -145,7 +153,7 @@ test('a start time without an end falls back to the default duration', () => {
     now: NOW,
   });
 
-  assert.equal(lines(feed).includes('DTEND;TZID=Europe/Oslo:20260916T190000'), true);
+  assert.equal(lines(feed).includes('DTEND:20260916T170000Z'), true);
 });
 
 test('an end that is not after the start is ignored rather than emitted backwards', () => {
@@ -157,7 +165,7 @@ test('an end that is not after the start is ignored rather than emitted backward
     now: NOW,
   });
 
-  assert.equal(lines(feed).includes('DTEND;TZID=Europe/Oslo:20260916T200000'), true);
+  assert.equal(lines(feed).includes('DTEND:20260916T180000Z'), true);
 });
 
 test('an entry without a clock time stays all-day', () => {

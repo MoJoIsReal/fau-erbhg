@@ -105,6 +105,50 @@ export function addHoursToIcsLocalDateTime(stamp, hours) {
     + `T${pad(shifted.getUTCHours())}${pad(shifted.getUTCMinutes())}${pad(shifted.getUTCSeconds())}`;
 }
 
+const osloDateTimeFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Oslo',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+function partsAsUtcMilliseconds(date) {
+  const parts = Object.fromEntries(
+    osloDateTimeFormatter.formatToParts(date)
+      .filter(({ type }) => type !== 'literal')
+      .map(({ type, value }) => [type, Number(value)]),
+  );
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+}
+
+// Convert an Oslo wall-clock stamp to an unambiguous UTC iCalendar stamp.
+// Although TZID + VTIMEZONE is valid RFC 5545, Apple Calendar has interpreted
+// these feed values as if the Oslo offset had already been applied. Emitting Z
+// timestamps avoids that client-specific double conversion while Intl keeps
+// the summer/winter offset correct.
+export function osloLocalDateTimeToUtc(stamp) {
+  const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})$/.exec(String(stamp || ''));
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second] = match;
+  const wallClock = Date.UTC(
+    Number(year), Number(month) - 1, Number(day),
+    Number(hour), Number(minute), Number(second),
+  );
+
+  // Start from the wall-clock fields treated as UTC, measure how Oslo renders
+  // that instant, then remove the measured offset. A second pass also handles
+  // the rare case where the first guess lies on the other side of a DST edge.
+  let instant = wallClock;
+  for (let pass = 0; pass < 2; pass += 1) {
+    instant += wallClock - partsAsUtcMilliseconds(new Date(instant));
+  }
+  return toIcsUtcStamp(new Date(instant));
+}
+
 // All-day events are exclusive at the end: a single day ends the next day.
 export function nextIcsDate(dateStamp) {
   const match = /^(\d{4})(\d{2})(\d{2})$/.exec(String(dateStamp || ''));
@@ -140,8 +184,8 @@ function signupEventLines(event, { dtstamp, baseUrl }) {
     'BEGIN:VEVENT',
     `UID:event-${event.id}@${UID_DOMAIN}`,
     `DTSTAMP:${dtstamp}`,
-    `DTSTART;TZID=Europe/Oslo:${start}`,
-    `DTEND;TZID=Europe/Oslo:${end}`,
+    `DTSTART:${osloLocalDateTimeToUtc(start)}`,
+    `DTEND:${osloLocalDateTimeToUtc(end)}`,
     `SUMMARY:${escapeIcsText(event.title)}`,
   ];
 
@@ -181,8 +225,8 @@ function yearlyEntryLines(entry, { dtstamp, baseUrl, language }) {
     const end = endStamp && endStamp > startStamp
       ? endStamp
       : addHoursToIcsLocalDateTime(startStamp, DEFAULT_EVENT_DURATION_HOURS);
-    lines.push(`DTSTART;TZID=Europe/Oslo:${startStamp}`);
-    lines.push(`DTEND;TZID=Europe/Oslo:${end}`);
+    lines.push(`DTSTART:${osloLocalDateTimeToUtc(startStamp)}`);
+    lines.push(`DTEND:${osloLocalDateTimeToUtc(end)}`);
   } else {
     lines.push(`DTSTART;VALUE=DATE:${start}`);
     lines.push(`DTEND;VALUE=DATE:${nextIcsDate(start)}`);
