@@ -36,6 +36,7 @@ import {
   weeksOfMonth,
   type YearlyCalendarMonthRef,
 } from "@shared/yearly-calendar-display";
+import CalendarSubscribe from "@/components/calendar-subscribe";
 import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
 import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
 
@@ -736,6 +737,13 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                 ? t.yearlyCalendar.pdfGenerating
                 : t.yearlyCalendar.downloadAllPdf}
             </Button>
+
+            {/* The feed carries both tabs' dates, so it belongs next to the
+                other "take this calendar with you" action. */}
+            <CalendarSubscribe
+              triggerSize="default"
+              triggerClassName="bg-white/10 border-white/40 text-white hover:bg-white/20 hover:text-white print:hidden"
+            />
           </div>
         </div>
 

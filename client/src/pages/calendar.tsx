@@ -1,7 +1,6 @@
 import { lazy, Suspense } from "react";
 import { Link, useRoute } from "wouter";
 import { CalendarClock, CalendarDays, Loader2 } from "lucide-react";
-import CalendarSubscribe from "@/components/calendar-subscribe";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
@@ -63,16 +62,11 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">
-            {t.calendar.title}
-          </h1>
-          <p className="text-neutral-600 dark:text-neutral-300">{t.calendar.subtitle}</p>
-        </div>
-        {/* Subscribing covers both tabs — the feed carries signup events and
-            the dated entries from the yearly calendar. */}
-        <CalendarSubscribe />
+      <div>
+        <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">
+          {t.calendar.title}
+        </h1>
+        <p className="text-neutral-600 dark:text-neutral-300">{t.calendar.subtitle}</p>
       </div>
 
       {/* Tabs are real links so each view is bookmarkable and the browser
