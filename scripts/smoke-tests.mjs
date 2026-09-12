@@ -282,13 +282,13 @@ function testClientRegressionGuards() {
   );
   assert.match(
     messagesRoute,
-    /<RequireAuth roles=\{\["admin"\]\}>/,
-    'Messages route must match the API admin-only authorization policy',
+    /<RequireAuth roles=\{\["admin", "member"\]\}>/,
+    'Messages route must match the API council-only authorization policy',
   );
   assert.equal(
-    messagesRoute.includes('"member"'),
+    messagesRoute.includes('"staff"'),
     false,
-    'Council members must not pass the messages page route guard',
+    'Kindergarten staff must not pass the messages page route guard',
   );
 
   const fileUploadModal = readFileSync(new URL('../client/src/components/file-upload-modal.tsx', import.meta.url), 'utf8');
