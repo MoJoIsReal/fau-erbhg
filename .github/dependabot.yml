@@ -1,31 +1,10 @@
 version: 2
 
 updates:
+  # ---------------------------------------------------------------------------
+  # npm
+  # ---------------------------------------------------------------------------
   - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-      day: monday
-      time: "06:00"
-      timezone: Europe/Oslo
-    open-pull-requests-limit: 10
-    rebase-strategy: auto
-    commit-message:
-      prefix: deps
-      include: scope
-    groups:
-      production-dependencies:
-        dependency-type: production
-        update-types:
-          - minor
-          - patch
-      development-dependencies:
-        dependency-type: development
-        update-types:
-          - minor
-          - patch
-
-  - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
@@ -35,12 +14,90 @@ updates:
     open-pull-requests-limit: 5
     rebase-strategy: auto
     commit-message:
+      prefix: deps
+      include: scope
+
+    # Let releases settle before we take them. This is a volunteer-run site, so
+    # we would rather run a month-old major than be the ones finding its .0 bugs.
+    # Security updates ignore cooldown and still arrive immediately.
+    cooldown:
+      default-days: 7
+      semver-major-days: 30
+      semver-minor-days: 7
+      semver-patch-days: 3
+
+    groups:
+      # zod, drizzle-zod and @hookform/resolvers are one unit and must be
+      # upgraded together:
+      #   - drizzle-zod 0.8 and @hookform/resolvers 5 both require zod 4
+      #   - zodResolver 3.x throws when it maps a zod 4 ZodError (v4 replaced
+      #     the v3 `.errors` shape with `.issues`)
+      # Bumped one at a time they either fail `npm run check` or — worse — pass
+      # the type check, the tests and the build, and then break every form in
+      # the browser, because the resolvers only run client-side and nothing
+      # under tests/ exercises them. Keeping them in one PR makes the migration
+      # reviewable as the single change it actually is.
+      # Listed first so these three never get pulled into the groups below.
+      zod-stack:
+        applies-to: version-updates
+        patterns:
+          - zod
+          - drizzle-zod
+          - "@hookform/resolvers"
+        update-types:
+          - major
+          - minor
+          - patch
+
+      production-dependencies:
+        applies-to: version-updates
+        dependency-type: production
+        exclude-patterns:
+          - zod
+          - drizzle-zod
+          - "@hookform/resolvers"
+        update-types:
+          - minor
+          - patch
+
+      development-dependencies:
+        applies-to: version-updates
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+
+    # Everything else major (React, Radix, TipTap, nodemailer, lucide-react, ...)
+    # deliberately stays ungrouped and arrives as its own PR, so a single
+    # breaking upgrade can be held or closed without blocking the others.
+
+  # ---------------------------------------------------------------------------
+  # GitHub Actions
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Oslo
+    open-pull-requests-limit: 3
+    rebase-strategy: auto
+    commit-message:
       prefix: ci
       include: scope
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
+      # Action bumps are CI-only: a bad one turns the verify job red and never
+      # reaches production, so majors ride along here instead of each getting
+      # its own PR.
       action-updates:
+        applies-to: version-updates
         patterns:
           - "*"
         update-types:
+          - major
           - minor
           - patch
