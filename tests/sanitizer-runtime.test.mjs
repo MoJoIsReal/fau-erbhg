@@ -4,7 +4,8 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { sanitizeHtml } from '../api/_shared/middleware.js';
+import { sanitizeHtml, sanitizeText } from '../api/_shared/middleware.js';
+import { htmlToPlainText } from '../shared/html-text.js';
 
 const require = createRequire(import.meta.url);
 
@@ -86,4 +87,41 @@ test('the sanitize-html XSS fixes this version shipped are still in force', () =
   );
   assert.equal(smil.includes('animate'), false);
   assert.equal(smil.includes('javascript:'), false);
+});
+
+// CodeQL flagged the single-pass replaces here: cutting "javascript:" out once
+// rebuilt it from the text around the hole. sanitizeText is defense in depth,
+// not the XSS boundary, but it must never assemble a scheme that was not
+// already there.
+test('sanitizeText cannot be tricked into assembling a scripting scheme', () => {
+  const scheme = /(?<![\w.-])(?:javascript|vbscript|data)\s*:/i;
+
+  assert.equal(scheme.test(sanitizeText('javajavascript:script:alert(1)')), false);
+  assert.equal(scheme.test(sanitizeText('java<>script:alert(1)')), false);
+  assert.equal(scheme.test(sanitizeText('data:text/html;base64,PHNjcmlwdD4=')), false);
+  assert.equal(scheme.test(sanitizeText('VBScript:msgbox(1)')), false);
+});
+
+// The scheme strip runs on free-text fields too, so it may only fire where a
+// URL could actually start.
+test('sanitizeText leaves ordinary Norwegian prose alone', () => {
+  assert.equal(sanitizeText('Kontaktdata: 12345'), 'Kontaktdata: 12345');
+  assert.equal(sanitizeText('Blåbærsyltetøy og kake på dugnaden'), 'Blåbærsyltetøy og kake på dugnaden');
+  assert.equal(
+    sanitizeText('https://res.cloudinary.com/demo/image/upload/v1/fau-documents/a.pdf'),
+    'https://res.cloudinary.com/demo/image/upload/v1/fau-documents/a.pdf',
+  );
+});
+
+// Decoding &amp; before &lt; unescaped the same text twice: an author writing
+// the literal characters "&lt;" got a real "<" in the email and the ICS feed.
+test('htmlToPlainText decodes each entity exactly once', () => {
+  assert.equal(htmlToPlainText('&amp;lt;script&amp;gt;'), '&lt;script&gt;');
+  assert.equal(htmlToPlainText('<p>Hei &amp; ha det</p><p>Neste</p>'), 'Hei & ha det\n\nNeste');
+  assert.equal(htmlToPlainText('Tekst med &lt;tag&gt;'), 'Tekst med <tag>');
+});
+
+test('htmlToPlainText strips nested tag remnants instead of splicing a new tag', () => {
+  assert.equal(htmlToPlainText('<scr<b>ipt>alert(1)</scr</b>ipt>').includes('<script>'), false);
+  assert.equal(htmlToPlainText('<p>Klippet midt i en ta'), 'Klippet midt i en ta');
 });
