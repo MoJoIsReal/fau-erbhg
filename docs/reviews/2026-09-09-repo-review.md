@@ -33,7 +33,7 @@ cron handler performs mail and retention work. Shared TypeScript schema/types
 describe PostgreSQL; migrations are manually applied through Neon. External
 systems are Cloudinary, Gmail SMTP, Sentry and Vercel Analytics. There is no
 queue, distributed cache, backend framework, service/repository layer, trigger,
-view or stored procedure in tracked source. See [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md).
+view or stored procedure in tracked source. See [../architecture.md](../architecture.md).
 
 Principal trust path:
 
@@ -61,7 +61,7 @@ Reconnaissance covered manifests/lockfile, root configuration, CI/deployment,
 routes, all SQL call sites, schema/migrations, API calls, interactive controls,
 error/logging paths, tests and documentation. Automated checks were not treated
 as proof of runtime behavior. Detailed trace evidence is in
-[TRACEABILITY_MATRIX.md](TRACEABILITY_MATRIX.md).
+[2026-09-09-traceability-matrix.md](2026-09-09-traceability-matrix.md).
 
 ## 4. Scorecard
 
@@ -589,7 +589,7 @@ Finish keyboard/skip/name/motion work, Playwright/axe/manual AT runs, CI pinning
 documentation and legacy schema disposition.
 
 The atomic implementation backlog and dependency graph are in
-[REVIEW_TASKS.md](REVIEW_TASKS.md).
+[../review-backlog.md](../review-backlog.md).
 
 ## 13. Blocked and unverified areas
 

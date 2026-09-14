@@ -2,6 +2,13 @@
 
 A comprehensive digital platform for FAU Erdal Barnehage that enhances parent-school communication through robust and scalable digital infrastructure.
 
+## Documentation
+
+- [`AGENTS.md`](AGENTS.md) — architecture, conventions, commands and boundaries
+  (also what AI coding agents load; `CLAUDE.md` imports it).
+- [`docs/`](docs/README.md) — deployment guide, architecture reference,
+  subsystem rules and the review backlog.
+
 ## Features
 
 - **Event Management**: Create, manage, and register for kindergarten events
@@ -70,6 +77,7 @@ npm run test:smoke # Shared business-logic and source-level regression guards
 npm test           # Both test tiers
 npm run check      # TypeScript and bilingual-string checks
 npm run build      # Production frontend build
+npm run verify     # check + test + build (the same gate CI runs)
 ```
 
 The unit/contract tier uses Node's built-in test runner and does not require

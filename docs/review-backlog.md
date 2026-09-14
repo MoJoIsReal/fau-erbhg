@@ -3,7 +3,7 @@
 ## Context and contribution rules
 
 This backlog derives from the 2026-09-09 audit of the React/Vercel/Neon FAU
-application. Read `AGENTS.md`, `REPO_REVIEW.md`, `ARCHITECTURE_REVIEW.md` and the
+application. Read `AGENTS.md`, `docs/reviews/2026-09-09-repo-review.md`, `docs/architecture.md` and the
 relevant trace row before starting. Do not weaken server-side RBAC, CSRF,
 parameterized SQL or sanitization. Schema changes require both
 `shared/schema.ts` and a staged `migrations/*.sql`; never test against production.
@@ -732,7 +732,7 @@ Run contract/integration/E2E suites after each vertical extraction.
 TEST-001
 
 ### Related findings
-MAINT-001, ARCHITECTURE_REVIEW.md
+MAINT-001, docs/architecture.md
 
 ## [ ] MAINT-002 — Bring backend contracts under static typing
 
