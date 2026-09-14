@@ -86,9 +86,10 @@ updates:
     commit-message:
       prefix: ci
       include: scope
+    # Only default-days here: the github-actions ecosystem does not support the
+    # semver-*-days keys, and setting them makes Dependabot reject the whole file.
     cooldown:
       default-days: 7
-      semver-major-days: 14
     groups:
       # Action bumps are CI-only: a bad one turns the verify job red and never
       # reaches production, so majors ride along here instead of each getting
