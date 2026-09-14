@@ -80,7 +80,11 @@ function buildEntrySheetData(entries: YearlyCalendarEntry[]): WriteSheetData {
   ];
 }
 
-function escapeXmlAttribute(value: string) {
+// Every spot we interpolate into below — the attributes and the formula body
+// alike — sits between double quotes, so one escaper covering all five XML
+// meta-characters serves them all. The text-only variant that skipped `"` left
+// the formula able to close its own quote.
+function escapeXml(value: string) {
   return value
     .replace(/&/g, "&amp;")
     .replace(/"/g, "&quot;")
@@ -89,18 +93,18 @@ function escapeXmlAttribute(value: string) {
     .replace(/>/g, "&gt;");
 }
 
-function escapeXmlText(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+// Excel reads <formula1> as a quoted string and splits it on commas, so a value
+// carrying either character cannot be expressed as a list entry at all —
+// escaping keeps the XML well-formed but still hands Excel a broken formula.
+// Drop such a value rather than emit a workbook Excel refuses to open; the
+// vocabularies we pass today are plain tokens, so nothing is filtered out.
+const LIST_FORMULA_SAFE = /^[^",]+$/;
 
 function listValidationXml({ range, values }: { range: string; values: readonly string[] }) {
-  const csv = values.join(",");
+  const csv = values.filter((value) => LIST_FORMULA_SAFE.test(value)).join(",");
   return [
-    `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="${escapeXmlAttribute(range)}">`,
-    `<formula1>"${escapeXmlText(csv)}"</formula1>`,
+    `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="${escapeXml(range)}">`,
+    `<formula1>"${escapeXml(csv)}"</formula1>`,
     "</dataValidation>",
   ].join("");
 }

@@ -327,6 +327,23 @@ function testClientRegressionGuards() {
     'Yearly calendar modal should preserve newsletter choice for supported dated entry types',
   );
 
+  const yearlyCalendarExcel = readFileSync(new URL('../client/src/lib/yearly-calendar-excel.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(
+    yearlyCalendarExcel,
+    /escapeXmlText/,
+    'Yearly calendar Excel export must not reintroduce an escaper that leaves double quotes raw',
+  );
+  assert.match(
+    yearlyCalendarExcel,
+    /function escapeXml\(value: string\)[\s\S]*?\.replace\(\/"\/g, "&quot;"\)/,
+    'Every value interpolated into the exported worksheet XML sits inside quotes, so the escaper must escape them',
+  );
+  assert.match(
+    yearlyCalendarExcel,
+    /values\.filter\(\(value\) => LIST_FORMULA_SAFE\.test\(value\)\)/,
+    'Data validation lists must drop values an Excel list formula cannot express',
+  );
+
   const yearlyCalendarApi = readFileSync(new URL('../api/yearly-calendar.js', import.meta.url), 'utf8');
   assert.match(
     yearlyCalendarApi,
