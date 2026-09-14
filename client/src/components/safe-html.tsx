@@ -37,7 +37,7 @@ function sanitizeClientHtml(html: string) {
       "h1", "h2", "h3", "a", "img"
     ],
     ALLOWED_ATTR: ["href", "src", "alt"],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.-]+(?:[^a-z+.-:]|$))/i,
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
   });
   const template = document.createElement("template");
   template.innerHTML = sanitized;

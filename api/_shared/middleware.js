@@ -327,13 +327,32 @@ export async function requireRole(req, res, allowedRoles, sqlClient = null, opti
  * @param {number} maxLength - Maximum allowed length (default: 1000)
  * @returns {string} - Sanitized text
  */
+// Scripting schemes, only where one actually starts: the lookbehind keeps
+// ordinary Norwegian prose such as "Kontaktdata: ..." intact while still
+// catching a leading "data:text/html,...".
+const SCRIPTING_SCHEME = /(?<![\w.-])(?:javascript|vbscript|data)\s*:/gi;
+const INLINE_EVENT_HANDLER = /on\w+\s*=\s*["'][^"']*["']/gi;
+
+// A single pass lets a nested payload reassemble itself once the inner copy is
+// cut out ("javajavascript:script:" leaves "javascript:"), so repeat until the
+// string stops changing.
+function removeUntilStable(value, pattern) {
+  let current = value;
+  let previous;
+  do {
+    previous = current;
+    current = current.replace(pattern, '');
+  } while (current !== previous);
+  return current;
+}
+
 export function sanitizeText(text, maxLength = 1000) {
   if (!text || typeof text !== 'string') return '';
 
-  return text
-    .replace(/[<>]/g, '') // Remove potential HTML tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '') // Remove event handlers
+  const withoutBrackets = text.replace(/[<>]/g, ''); // Remove potential HTML tags
+  const withoutSchemes = removeUntilStable(withoutBrackets, SCRIPTING_SCHEME);
+
+  return removeUntilStable(withoutSchemes, INLINE_EVENT_HANDLER)
     .trim()
     .substring(0, maxLength);
 }
