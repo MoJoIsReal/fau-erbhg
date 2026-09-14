@@ -38,7 +38,12 @@ const formSchema = insertEventSchema.extend({
   notifyNewsletter: z.boolean().default(false)
 });
 
-type FormData = z.infer<typeof formSchema>;
+// The three `.default(false)` fields above make zod 4 distinguish the two
+// sides of the schema: on the way in those booleans are optional, on the way
+// out they are always present. FormInput is what the fields bind to and what
+// defaultValues must satisfy; FormData is what the resolver hands to onSubmit.
+type FormInput = z.input<typeof formSchema>;
+type FormData = z.output<typeof formSchema>;
 
 function toDateTimeLocalInputValue(value?: string | null) {
   if (!value) return "";
@@ -176,7 +181,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
 
-  const form = useForm<FormData>({
+  const form = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: event ? {
       title: event.title || "",

@@ -408,6 +408,29 @@ function testClientRegressionGuards() {
     /duration:\s*2500/,
     'Successful login toast should auto-dismiss quickly on mobile',
   );
+
+  // zod 4 splits a schema's input and output types wherever a field carries a
+  // .default(). zodResolver types the form on the input side and hands the
+  // output side to onSubmit, so this form needs all three useForm generics.
+  // Collapsing it back to useForm<FormData> is a type error today, but the
+  // shape is easy to "simplify" by mistake, and the three .default(false)
+  // fields it depends on are what make it necessary.
+  const eventCreationModal = readFileSync(new URL('../client/src/components/event-creation-modal.tsx', import.meta.url), 'utf8');
+  assert.match(
+    eventCreationModal,
+    /useForm<FormInput,\s*unknown,\s*FormData>/,
+    'Event creation form must keep the input/output useForm generics that zod 4 defaults require',
+  );
+  assert.match(
+    eventCreationModal,
+    /type FormInput = z\.input<typeof formSchema>/,
+    'FormInput must stay bound to the schema input type, not the output type',
+  );
+  assert.match(
+    eventCreationModal,
+    /type FormData = z\.output<typeof formSchema>/,
+    'FormData must stay bound to the schema output type that onSubmit receives',
+  );
 }
 
 function validDayRow(overrides = {}) {
