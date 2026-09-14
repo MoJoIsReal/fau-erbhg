@@ -1,10 +1,14 @@
 # Documentation
 
-## [DEPLOYMENT.md](./DEPLOYMENT.md)
+Start with [`AGENTS.md`](../AGENTS.md) at the repository root — architecture,
+commands, conventions and boundaries. The documents here are the deeper
+references it links to; read one only when a task needs it.
 
-Deploying and managing the application on Vercel: prerequisites, environment
-variables, database setup, post-deployment verification, monitoring, and
-rollback procedures. Start here for first-time deployment or troubleshooting.
-
-For everything else — architecture, conventions, tech stack — see
-[`AGENTS.md`](../AGENTS.md) at the repo root.
+| Document | Read it when |
+|---|---|
+| [architecture.md](./architecture.md) | You need the boundary/trust model: who validates what across browser → handler → Neon/Cloudinary/Gmail. |
+| [subsystems.md](./subsystems.md) | You are touching the yearly calendar, the `/kalender.ics` feed, or the newsletter broadcast. These have invariants the code alone does not reveal. |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploying or operating on Vercel: environment variables, database setup, verification, monitoring, rollback. |
+| [review-backlog.md](./review-backlog.md) | Picking up scoped remediation work from the 2026-09 audit (28 open tasks, each with acceptance criteria). |
+| [reviews/](./reviews) | You want the evidence behind the backlog: the point-in-time repository review and the UI→database traceability matrix (2026-09-09). Historical snapshots, not live documentation. |
+| [superpowers/](./superpowers) | Historical feature plans and design specs. |
