@@ -275,10 +275,12 @@ export default function Settings() {
               : "Define board members and their roles. This is shown on the homepage."}
           </p>
 
+          {/* Name gets its own line on a phone, with role and delete beside it
+              below — two inputs plus the button never fit on one row there. */}
           <div className="space-y-4">
             {members.map((member, index) => (
-              <div key={member.id || `new-${index}`} className="flex gap-4 items-end">
-                <div className="flex-1">
+              <div key={member.id || `new-${index}`} className="grid grid-cols-[1fr_auto] items-end gap-3 border-b pb-4 dark:border-neutral-800 sm:flex sm:gap-4 sm:border-0 sm:pb-0">
+                <div className="col-span-2 min-w-0 sm:flex-1">
                   <Label htmlFor={`name-${index}`}>
                     {t.settings.name}
                   </Label>
@@ -289,7 +291,7 @@ export default function Settings() {
                     placeholder={t.settings.johnDoe}
                   />
                 </div>
-                <div className="flex-1">
+                <div className="min-w-0 sm:flex-1">
                   <Label htmlFor={`role-${index}`}>
                     {t.settings.role}
                   </Label>
@@ -315,7 +317,7 @@ export default function Settings() {
                       <Button
                         variant="outline"
                         size="icon"
-                        className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                        className="self-end shrink-0 border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                         disabled={deleteMutation.isPending}
                         aria-label={t.settings.deleteMember}
                       >
@@ -349,7 +351,7 @@ export default function Settings() {
                     variant="outline"
                     size="icon"
                     onClick={() => removeMember(index)}
-                    className="border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                    className="self-end shrink-0 border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
                     disabled={deleteMutation.isPending}
                     aria-label={t.settings.removeMember}
                   >
