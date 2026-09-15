@@ -248,8 +248,10 @@ export default function Messages() {
         </p>
       </div>
 
-      {/* Summary cards double as status filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8" role="group" aria-label={t.messagesPage.filterByStatus}>
+      {/* Summary cards double as status filters. They stay three across on a
+          phone — stacked full-width they pushed the message list a screen and
+          a half down. */}
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-8" role="group" aria-label={t.messagesPage.filterByStatus}>
         {filterCards.map((card) => {
           const Icon = card.icon;
           const isActive = statusFilter === card.key;
@@ -259,18 +261,18 @@ export default function Messages() {
               type="button"
               onClick={() => setStatusFilter(isActive ? 'all' : card.key)}
               aria-pressed={isActive}
-              className="text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+              className="h-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
             >
-              <Card className={isActive ? "border-primary ring-1 ring-primary" : "transition-colors hover:border-neutral-300 dark:hover:border-neutral-700"}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">{card.label}</p>
-                      <p className={`text-2xl font-bold tabular-nums ${card.numberClass}`}>{card.count}</p>
+              <Card className={`h-full ${isActive ? "border-primary ring-1 ring-primary" : "transition-colors hover:border-neutral-300 dark:hover:border-neutral-700"}`}>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 break-words">{card.label}</p>
+                      <p className={`text-xl sm:text-2xl font-bold tabular-nums ${card.numberClass}`}>{card.count}</p>
                     </div>
-                    <Icon className={`h-8 w-8 ${card.iconClass}`} />
+                    <Icon className={`h-5 w-5 sm:h-8 sm:w-8 shrink-0 ${card.iconClass}`} />
                   </div>
-                  <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+                  <p className="mt-1 text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400">
                     {isActive
                       ? t.messagesPage.showAll
                       : t.messagesPage.showOnlyThese}
@@ -284,7 +286,7 @@ export default function Messages() {
 
       {/* Messages list */}
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           {visibleMessages.length === 0 ? (
             <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
               {messages.length === 0
@@ -296,19 +298,21 @@ export default function Messages() {
               {visibleMessages.map((message) => (
                 <Card key={message.id} className={`${message.status === 'new' ? 'border-blue-300 bg-blue-50/50 dark:border-blue-900/80 dark:bg-blue-950/20' : ''}`}>
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                    {/* Stacks on a phone: side by side, a long sender address
+                        refused to shrink and pushed the buttons off-screen. */}
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-2">
                           {getStatusBadge(message.status)}
-                          <span className="font-semibold text-neutral-900 dark:text-neutral-50">{getSubjectLabel(message.subject)}</span>
+                          <span className="font-semibold text-neutral-900 dark:text-neutral-50 break-words">{getSubjectLabel(message.subject)}</span>
                         </div>
                         <div className="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
                           {message.name && (
-                            <p className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
+                            <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <User className="h-4 w-4 shrink-0" />
                               {message.name}
                               {message.email && (
-                                <a href={`mailto:${message.email}`} className="text-blue-600 dark:text-blue-300 hover:text-blue-500">
+                                <a href={`mailto:${message.email}`} className="text-blue-600 dark:text-blue-300 hover:text-blue-500 break-all">
                                   ({message.email})
                                 </a>
                               )}
@@ -316,18 +320,18 @@ export default function Messages() {
                           )}
                           {!message.name && message.subject === 'anonymous' && (
                             <p className="flex items-center gap-2">
-                              <User className="h-4 w-4" />
+                              <User className="h-4 w-4 shrink-0" />
                               {t.messagesPage.anonymous}
                             </p>
                           )}
                           {message.phone && (
                             <p className="flex items-center gap-2">
-                              <Phone className="h-4 w-4" />
+                              <Phone className="h-4 w-4 shrink-0" />
                               {message.phone}
                             </p>
                           )}
-                          <p className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
+                          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <Clock className="h-4 w-4 shrink-0" />
                             {new Date(message.createdAt).toLocaleDateString(language === "no" ? "no-NO" : "en-US", {
                               year: "numeric",
                               month: "long",
@@ -343,7 +347,7 @@ export default function Messages() {
                           )}
                         </div>
                       </div>
-                      <div className="flex flex-wrap justify-end gap-2 ml-4">
+                      <div className="flex flex-wrap gap-2 sm:ml-4 sm:shrink-0 sm:justify-end">
                         {message.email && (
                           <Button
                             onClick={() => openReply(message)}
@@ -426,7 +430,7 @@ export default function Messages() {
                     <div
                       className={`mt-3 ${expandedMessage === message.id ? '' : 'line-clamp-2'}`}
                     >
-                      <p className="text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap bg-neutral-50 dark:bg-neutral-950 p-3 rounded">
+                      <p className="text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap break-words bg-neutral-50 dark:bg-neutral-950 p-3 rounded">
                         {message.message}
                       </p>
                     </div>
@@ -447,7 +451,7 @@ export default function Messages() {
                         <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
                           {t.messagesPage.sentReply}
                         </p>
-                        <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap">
+                        <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap break-words">
                           {message.responseMessage}
                         </p>
                       </div>
@@ -481,7 +485,7 @@ export default function Messages() {
         <DialogContent className="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle>{t.messagesPage.replyTitle}</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="break-words">
               {t.messagesPage.replySentFromFau} {replyTarget?.email}
             </DialogDescription>
           </DialogHeader>
@@ -492,7 +496,7 @@ export default function Messages() {
                 <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
                   {t.messagesPage.originalMessage} — {getSubjectLabel(replyTarget.subject)}
                 </p>
-                <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap rounded bg-neutral-50 dark:bg-neutral-950 p-3 text-sm text-neutral-700 dark:text-neutral-200">
+                <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-neutral-50 dark:bg-neutral-950 p-3 text-sm text-neutral-700 dark:text-neutral-200">
                   {replyTarget.message}
                 </p>
               </div>

@@ -171,7 +171,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
       {/* Registrations List */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <CardTitle>
               {t.events.registrationList} ({registrations.length})
             </CardTitle>
@@ -180,7 +180,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                 onClick={handleExportExcel}
                 variant="outline" 
                 size="sm"
-                className="flex items-center space-x-2"
+                className="flex items-center space-x-2 shrink-0"
               >
                 <Download className="h-4 w-4" />
                 <span>{t.events.downloadExcel}</span>
@@ -204,9 +204,9 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
 
                 return (
                 <div key={registration.id} className="border dark:border-neutral-800 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{registration.name}</h4>
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="min-w-0">
+                      <h4 className="font-medium text-neutral-900 dark:text-neutral-50 break-words">{registration.name}</h4>
                       <Badge variant="outline" className="mt-1">
                         {isFotoEvent
                           ? `${registration.attendeeCount || 1} ${t.events.children}`
@@ -214,7 +214,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                         }
                       </Badge>
                     </div>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2 shrink-0">
                       <span className="text-sm text-neutral-500 dark:text-neutral-400">#{index + 1}</span>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
@@ -279,16 +279,16 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                   )}
 
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2 text-sm">
-                        <Mail className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
-                        <a href={`mailto:${registration.email}`} className="text-primary hover:underline">
+                    <div className="space-y-2 min-w-0">
+                      <div className="flex items-center space-x-2 text-sm min-w-0">
+                        <Mail className="h-4 w-4 shrink-0 text-neutral-500 dark:text-neutral-400" />
+                        <a href={`mailto:${registration.email}`} className="text-primary hover:underline break-all">
                           {registration.email}
                         </a>
                       </div>
                       {registration.phone && (
                         <div className="flex items-center space-x-2 text-sm">
-                          <Phone className="h-4 w-4 text-neutral-500 dark:text-neutral-400" />
+                          <Phone className="h-4 w-4 shrink-0 text-neutral-500 dark:text-neutral-400" />
                           <a href={`tel:${registration.phone}`} className="text-primary hover:underline">
                             {registration.phone}
                           </a>
