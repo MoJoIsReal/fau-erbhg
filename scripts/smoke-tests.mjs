@@ -77,9 +77,18 @@ function testVideoEmbedCsp() {
     .find((header) => header.key === 'Content-Security-Policy');
 
   assert.ok(cspHeader, 'vercel.json should still set a Content-Security-Policy');
-  assert.match(
-    cspHeader.value,
-    new RegExp(`frame-src[^;]*https://${YOUTUBE_EMBED_HOST}`),
+
+  // Split the policy into directives and compare sources literally. Building a
+  // regex out of the host would leave its dots unescaped, so the guard would
+  // also accept a neighbouring host that merely looks like ours.
+  const frameSrc = cspHeader.value
+    .split(';')
+    .map((directive) => directive.trim())
+    .find((directive) => directive === 'frame-src' || directive.startsWith('frame-src '));
+
+  assert.ok(frameSrc, 'CSP must declare a frame-src directive for video embeds');
+  assert.ok(
+    frameSrc.split(/\s+/).slice(1).includes(`https://${YOUTUBE_EMBED_HOST}`),
     `CSP must allow ${YOUTUBE_EMBED_HOST}, the only host the sanitizer lets through as an iframe`,
   );
 
