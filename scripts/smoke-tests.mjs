@@ -9,6 +9,7 @@ import {
   isUndefinedColumnError,
 } from '../api/_shared/password-policy.js';
 import { assignPhotoSlots, resolvePhotoSlotsForRegistration } from '../shared/photo-slots.js';
+import { YOUTUBE_EMBED_HOST } from '../shared/video-embed.js';
 import { COUNCIL_ROLES, EVENT_TYPES, ROLES } from '../shared/constants.js';
 import {
   VALID_YEARLY_CALENDAR_COLORS,
@@ -62,6 +63,34 @@ function testSanitizeHtml() {
   assert.equal(
     sanitizeHtml('<a href="https://example.com">ok</a>'),
     '<a href="https://example.com" target="_blank" rel="noopener noreferrer">ok</a>',
+  );
+}
+
+// A video embed only reaches the visitor if two files agree: the sanitizer has
+// to keep the frame, and the CSP has to allow its origin. They live far apart,
+// and a frame-src the sanitizer's host is missing from fails silently — the
+// browser just renders an empty box — so check them against each other here.
+function testVideoEmbedCsp() {
+  const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const cspHeader = vercelConfig.headers
+    ?.flatMap((entry) => entry.headers ?? [])
+    .find((header) => header.key === 'Content-Security-Policy');
+
+  assert.ok(cspHeader, 'vercel.json should still set a Content-Security-Policy');
+  assert.match(
+    cspHeader.value,
+    new RegExp(`frame-src[^;]*https://${YOUTUBE_EMBED_HOST}`),
+    `CSP must allow ${YOUTUBE_EMBED_HOST}, the only host the sanitizer lets through as an iframe`,
+  );
+
+  const kept = sanitizeHtml(`<iframe src="https://${YOUTUBE_EMBED_HOST}/embed/IgVwQOoZm2I"></iframe>`);
+  assert.match(kept, /^<iframe /, 'the sanitizer should keep a YouTube no-cookie embed');
+
+  const safeHtml = readFileSync(new URL('../client/src/components/safe-html.tsx', import.meta.url), 'utf8');
+  assert.match(
+    safeHtml,
+    /youtubeEmbedSrc/,
+    'SafeHtml must validate frame sources with the same shared helper as the server',
   );
 }
 
@@ -1091,6 +1120,7 @@ function testContactAcknowledgementEmail() {
 }
 
 testSanitizeHtml();
+testVideoEmbedCsp();
 testContactReplyEmail();
 testContactAcknowledgementEmail();
 testRateLimitKeys();

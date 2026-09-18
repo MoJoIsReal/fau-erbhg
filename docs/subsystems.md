@@ -1,6 +1,6 @@
 # Subsystem rules
 
-Domain invariants for the three subsystems whose rules are easy to break from
+Domain invariants for the four subsystems whose rules are easy to break from
 the code alone. Read the relevant section before changing the files it names.
 Everything else lives in [`AGENTS.md`](../AGENTS.md).
 
@@ -68,3 +68,35 @@ run of the same handler does registration reminders and GDPR retention cleanup.
 Both schedules live in `vercel.json`, are fixed UTC, and do **not** follow
 Norwegian DST. `/api/cron/*` requires the `CRON_SECRET` bearer token in
 production.
+
+## Rich text and video embeds
+
+Files: `shared/video-embed.js`, `api/_shared/middleware.js` (`sanitizeHtml`),
+`client/src/components/safe-html.tsx`, `client/src/components/RichTextEditor.tsx`,
+`vercel.json` (CSP).
+
+Post and event bodies are stored as HTML that has been through `sanitizeHtml`
+on write and DOMPurify on render. Both allowlists are deliberately narrow, and
+both have to agree — content that only one of them keeps either disappears on
+save or renders as a hole.
+
+An `<iframe>` is the one element whose rules span four files:
+
+1. `shared/video-embed.js` decides which URL may be framed at all. Only
+   YouTube's no-cookie player is allowed, and `youtubeEmbedSrc` rebuilds the
+   src from the video id, so autoplay, referrer and tracking parameters an
+   author pasted never reach the stored markup. Both tiers import it.
+2. `sanitizeHtml` keeps the frame, fixes its attributes (`allow`, `loading`,
+   `allowfullscreen`, `title`) and drops any frame left without a src.
+3. `SafeHtml` re-checks the src in the browser, so content stored before a rule
+   tightened cannot render a frame the current rule rejects.
+4. `vercel.json` must list the same host in `frame-src`, or the browser blocks
+   a frame both sanitizers approved and the visitor sees an empty box.
+   `scripts/smoke-tests.mjs` cross-checks the CSP against the shared host.
+
+The sanitizer strips the wrapper `<div data-youtube-video>` that
+`@tiptap/extension-youtube` renders, so a stored video is a bare `<iframe>`.
+The stock extension only parses its own wrapper, which would silently drop the
+video when a post is reopened for editing — `RichTextEditor.tsx` extends
+`parseHTML` to recognise the bare frame too. Its paste handler is off on
+purpose: a pasted YouTube link should stay a link, not become a player.

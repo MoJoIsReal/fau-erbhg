@@ -4,6 +4,7 @@ import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import Underline from '@tiptap/extension-underline';
+import Youtube, { getAttributesFromYoutubeEmbedUrl, isValidYoutubeUrl } from '@tiptap/extension-youtube';
 import {
   Bold,
   Italic,
@@ -20,6 +21,7 @@ import {
   AlignRight,
   Link as LinkIcon,
   Image as ImageIcon,
+  Video as VideoIcon,
   Heading1,
   Heading2,
   Heading3
@@ -40,6 +42,23 @@ interface RichTextEditorProps {
 }
 
 const SAFE_LINK_PROTOCOLS = /^(https?:|mailto:|tel:)/i;
+// The server stores a bare <iframe>: its sanitizer drops the wrapper <div> the
+// extension renders, and with it the only selector the stock parser matches. A
+// post reopened for editing would lose its video, so recognise the frame itself.
+const YoutubeEmbed = Youtube.extend({
+  parseHTML() {
+    return [
+      { tag: 'div[data-youtube-video] iframe' },
+      {
+        tag: 'iframe[src]',
+        getAttrs: (element) =>
+          getAttributesFromYoutubeEmbedUrl((element as HTMLElement).getAttribute('src') || '')
+            ? null
+            : false,
+      },
+    ];
+  },
+});
 const ACTIVE_BUTTON_CLASS = 'bg-neutral-200 dark:bg-neutral-800';
 
 function isSafeLink(url: string) {
@@ -52,6 +71,8 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
+  const [videoDialogOpen, setVideoDialogOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState("");
   const toolbarLabels = {
     bold: t.contentPage.bold,
     italic: t.contentPage.italic,
@@ -69,6 +90,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     codeBlock: t.contentPage.codeBlock,
     link: t.contentPage.link,
     image: t.contentPage.image,
+    video: t.contentPage.video,
     undo: t.contentPage.undo,
     redo: t.contentPage.redo,
   };
@@ -92,6 +114,19 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
+      }),
+      YoutubeEmbed.configure({
+        // The no-cookie player is the only frame source the CSP in vercel.json
+        // allows, and the only one the sanitizers keep.
+        nocookie: true,
+        // Videos go in through the toolbar button. Without this, every pasted
+        // YouTube link — including the ones that belong in a list of resources
+        // — would silently turn into a full-width player.
+        addPasteHandler: false,
+        // 16:9, the ratio index.css keeps the frame at in both the editor and
+        // the published post once the sanitizer has stripped these attributes.
+        width: 640,
+        height: 360,
       }),
     ],
     content,
@@ -137,6 +172,30 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     editor.chain().focus().extendMarkRange('link').setLink({ href: trimmedUrl }).run();
     setLinkDialogOpen(false);
   }, [editor, language, linkUrl, toast]);
+
+  const addVideo = useCallback(() => {
+    setVideoUrl("");
+    setVideoDialogOpen(true);
+  }, []);
+
+  const applyVideo = useCallback(() => {
+    if (!editor) return;
+
+    const trimmedUrl = videoUrl.trim();
+    // setYoutubeVideo rejects a non-YouTube url by returning false, but it does
+    // so silently — check first so the author is told why nothing happened.
+    if (!isValidYoutubeUrl(trimmedUrl)) {
+      toast({
+        variant: 'destructive',
+        title: t.contentPage.invalidVideoUrl,
+        description: t.contentPage.invalidVideoUrlDescription,
+      });
+      return;
+    }
+
+    editor.chain().focus().setYoutubeVideo({ src: trimmedUrl }).run();
+    setVideoDialogOpen(false);
+  }, [editor, t, toast, videoUrl]);
 
   const handleImageUpload = async (file: File) => {
     try {
@@ -437,6 +496,17 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
         >
           <ImageIcon className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={addVideo}
+          aria-label={toolbarLabels.video}
+          aria-pressed={editor.isActive('youtube')}
+          className={editor.isActive('youtube') ? ACTIVE_BUTTON_CLASS : ''}
+        >
+          <VideoIcon className="h-4 w-4" />
+        </Button>
 
         <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
 
@@ -505,6 +575,39 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
               {linkUrl.trim()
                 ? (t.contentPage.saveLink)
                 : (t.contentPage.removeLink)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={videoDialogOpen} onOpenChange={setVideoDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t.contentPage.addVideo}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="rich-text-video-url">
+              {t.contentPage.videoUrl}
+            </Label>
+            <Input
+              id="rich-text-video-url"
+              value={videoUrl}
+              onChange={(event) => setVideoUrl(event.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  applyVideo();
+                }
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setVideoDialogOpen(false)}>
+              {t.contentPage.cancel}
+            </Button>
+            <Button type="button" onClick={applyVideo}>
+              {t.contentPage.insertVideo}
             </Button>
           </DialogFooter>
         </DialogContent>

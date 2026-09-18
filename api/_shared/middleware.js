@@ -10,6 +10,7 @@ import { redactSensitiveText } from './redact.js';
 import { getDb } from './database.js';
 import { isPasswordChangeRequired } from './password-policy.js';
 import { getJwtConfig } from './jwt-config.js';
+import { YOUTUBE_EMBED_HOST, youtubeEmbedSrc } from '../../shared/video-embed.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -372,6 +373,10 @@ function isCloudinaryImageSrc(src) {
   }
 }
 
+// Fixed for every embed, so an author cannot widen what the frame may do: the
+// permissions YouTube's player needs, and nothing else.
+const IFRAME_ALLOW = 'accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share';
+
 export function sanitizeHtml(html, maxLength = 10000) {
   if (!html || typeof html !== 'string') return '';
 
@@ -379,16 +384,22 @@ export function sanitizeHtml(html, maxLength = 10000) {
     allowedTags: [
       'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's',
       'ul', 'ol', 'li', 'blockquote', 'code', 'pre',
-      'h1', 'h2', 'h3', 'a', 'img'
+      'h1', 'h2', 'h3', 'a', 'img', 'iframe'
     ],
     allowedAttributes: {
       a: ['href', 'target', 'rel'],
-      img: ['src', 'alt']
+      img: ['src', 'alt'],
+      iframe: ['src', 'title', 'allow', 'allowfullscreen', 'loading']
     },
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
     allowedSchemesByTag: {
-      img: ['http', 'https']
+      img: ['http', 'https'],
+      iframe: ['https']
     },
+    // Belt and braces alongside the transform below: sanitize-html drops an
+    // iframe whose src points anywhere else, before our own check runs.
+    allowedIframeHostnames: [YOUTUBE_EMBED_HOST],
+    allowIframeRelativeUrls: false,
     transformTags: {
       a: sanitizeHtmlContent.simpleTransform('a', {
         target: '_blank',
@@ -402,8 +413,27 @@ export function sanitizeHtml(html, maxLength = 10000) {
           return { tagName: 'img', attribs: {} };
         }
         return { tagName: 'img', attribs: { src: attribs.src, alt: attribs.alt || '' } };
+      },
+      // Video embeds are rebuilt from the video id rather than passed through,
+      // so the stored markup is always the same shape no matter what the editor
+      // (or a paste) produced. An unembeddable src leaves the iframe without
+      // one, and exclusiveFilter below then drops the tag entirely.
+      iframe: (tagName, attribs) => {
+        const src = youtubeEmbedSrc(attribs.src || '');
+        if (!src) return { tagName: 'iframe', attribs: {} };
+        return {
+          tagName: 'iframe',
+          attribs: {
+            src,
+            title: 'YouTube',
+            loading: 'lazy',
+            allow: IFRAME_ALLOW,
+            allowfullscreen: 'allowfullscreen'
+          }
+        };
       }
     },
+    exclusiveFilter: (frame) => frame.tag === 'iframe' && !frame.attribs.src,
     disallowedTagsMode: 'discard',
     enforceHtmlBoundary: true
   })

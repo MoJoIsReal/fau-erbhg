@@ -599,6 +599,12 @@ export interface Translations {
     url: string;
     saveLink: string;
     removeLink: string;
+    video: string;
+    addVideo: string;
+    videoUrl: string;
+    insertVideo: string;
+    invalidVideoUrl: string;
+    invalidVideoUrlDescription: string;
   };
   settings: {
     deleted: string;
@@ -1417,6 +1423,12 @@ export const translations: Record<Language, Translations> = {
       url: "URL",
       saveLink: "Lagre lenke",
       removeLink: "Fjern lenke",
+      video: "Video",
+      addVideo: "Legg til video",
+      videoUrl: "YouTube-lenke",
+      insertVideo: "Sett inn video",
+      invalidVideoUrl: "Ugyldig videolenke",
+      invalidVideoUrlDescription: "Lim inn en YouTube-lenke, for eksempel https://www.youtube.com/watch?v=xxxxxxxxxxx",
     },
     settings: {
       deleted: "Slettet!",
@@ -2233,6 +2245,12 @@ export const translations: Record<Language, Translations> = {
       url: "URL",
       saveLink: "Save link",
       removeLink: "Remove link",
+      video: "Video",
+      addVideo: "Add video",
+      videoUrl: "YouTube link",
+      insertVideo: "Insert video",
+      invalidVideoUrl: "Invalid video link",
+      invalidVideoUrlDescription: "Paste a YouTube link, for example https://www.youtube.com/watch?v=xxxxxxxxxxx",
     },
     settings: {
       deleted: "Deleted!",
