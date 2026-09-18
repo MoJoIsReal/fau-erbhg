@@ -106,6 +106,7 @@ calendar, calendar feed, newsletter invariants),
 | Email / newsletter sending | `api/_shared/{email,newsletter,delivery,contact-emails}.js` |
 | Uploads | `api/upload.js` + `api/_shared/upload-validation.js` |
 | Scheduled work | `api/cron/event-reminders.js`, schedules in `vercel.json` |
+| Video embeds (sanitizer + CSP) | `shared/video-embed.js`, and the four files [`docs/subsystems.md`](docs/subsystems.md) names |
 | Roles/enums shared by both tiers | `shared/constants.js` |
 
 ## Conventions

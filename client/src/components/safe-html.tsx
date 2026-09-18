@@ -1,4 +1,5 @@
 import DOMPurify from "dompurify";
+import { youtubeEmbedSrc } from "@shared/video-embed";
 import { cn } from "@/lib/utils";
 
 interface SafeHtmlProps {
@@ -24,6 +25,18 @@ if (typeof window !== "undefined") {
         node.removeAttribute("src");
       }
     }
+
+    // Same rule as the server sanitizer: only YouTube's no-cookie player, with
+    // the src rebuilt from the video id. A frame that fails it loses its src
+    // and is dropped below, so no other origin can be framed into the page.
+    if (node.tagName === "IFRAME") {
+      const src = youtubeEmbedSrc(node.getAttribute("src") || "");
+      if (src) {
+        node.setAttribute("src", src);
+      } else {
+        node.removeAttribute("src");
+      }
+    }
   });
 }
 
@@ -34,9 +47,9 @@ function sanitizeClientHtml(html: string) {
     ALLOWED_TAGS: [
       "p", "br", "strong", "b", "em", "i", "u", "s",
       "ul", "ol", "li", "blockquote", "code", "pre",
-      "h1", "h2", "h3", "a", "img"
+      "h1", "h2", "h3", "a", "img", "iframe"
     ],
-    ALLOWED_ATTR: ["href", "src", "alt"],
+    ALLOWED_ATTR: ["href", "src", "alt", "title", "allow", "allowfullscreen", "loading"],
     ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto|tel):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
   });
   const template = document.createElement("template");
@@ -45,6 +58,12 @@ function sanitizeClientHtml(html: string) {
   template.content.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((node) => {
     node.setAttribute("target", "_blank");
     node.setAttribute("rel", "noopener noreferrer");
+  });
+
+  // The hook above empties the src of a frame it does not recognise; drop the
+  // element itself so the page has no blank box where a video used to be.
+  template.content.querySelectorAll("iframe:not([src])").forEach((node) => {
+    node.remove();
   });
 
   return template.innerHTML;

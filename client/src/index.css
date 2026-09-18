@@ -250,6 +250,26 @@
   color: #bfdbfe;
 }
 
+/* Video embeds. The sanitizers strip every class and dimension attribute, so
+   the stored markup is a bare <iframe> that has to be sized here — in the
+   editor (.ProseMirror) and on the public post (.safe-html) alike. */
+.ProseMirror div[data-youtube-video],
+.safe-html iframe {
+  margin: 1.5em 0;
+}
+
+.ProseMirror div[data-youtube-video] iframe,
+.safe-html iframe {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+  border: 0;
+  border-radius: 0.5rem;
+  background-color: #000;
+}
+
 .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;
