@@ -409,6 +409,11 @@ function testClientRegressionGuards() {
     /entry\.entryType === "closed"/,
     'Upcoming-items hook should include closed yearly calendar entries',
   );
+  assert.match(
+    upcomingItemsHook,
+    /daysWithEvent\.has\(dayKey\(entry\.date\)\)/,
+    'Upcoming-items hook should drop yearly day events on days a signup event already covers',
+  );
   const layout = readFileSync(new URL('../client/src/components/layout.tsx', import.meta.url), 'utf8');
   assert.match(
     layout,

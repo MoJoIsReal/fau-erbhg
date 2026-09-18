@@ -8,6 +8,13 @@ export type UpcomingItem =
   | { kind: "event"; date: string; event: Event }
   | { kind: "yearly"; date: string; entry: YearlyCalendarEntry };
 
+// "YYYY-MM-DD" out of any ISO date string, so an event and a yearly entry on
+// the same day compare equal regardless of a trailing time part.
+function dayKey(date: string): string {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(String(date ?? ""));
+  return match ? match[1] : String(date ?? "");
+}
+
 /**
  * Merged, date-sorted list of what happens next: active events plus the
  * yearly-calendar entries parents should see (closed days always; day events
@@ -40,14 +47,26 @@ export function useUpcomingItems(): UpcomingItem[] {
     .filter((event) => event.status === "active" && new Date(event.date).getTime() >= todayMs)
     .map((event) => ({ kind: "event" as const, date: event.date, event }));
 
+  // Days that already carry a real FAU event. The yearly calendar is the
+  // printed årskalender, so the same happening is usually written up twice:
+  // once as a signup event with time, place and description, and once as a
+  // plain day_event row. Listing both turned "Hva skjer fremover" into pairs
+  // of near-duplicate cards ("Høstdugnad" next to "Foreldredugnad i regi av
+  // FAU"), so the event wins here and the day_event is dropped. Nothing is
+  // lost: the yearly-calendar tab still shows every row.
+  const daysWithEvent = new Set(eventItems.map((item) => dayKey(item.date)));
+
   const yearlyItems: UpcomingItem[] = [...currentYearEntries, ...nextYearEntries]
     .filter((entry) => {
       if (!entry.date || new Date(entry.date).getTime() < todayMs) return false;
       // "Closed" days (planleggingsdag, ferie etc.) always surface so parents
-      // see them without anyone having to flag them.
+      // see them without anyone having to flag them — "barnehagen er stengt"
+      // is never a duplicate of an event, even when both fall on one day.
       if (entry.entryType === "closed") return true;
-      // Day events only show when at least one homepage flag is set.
+      // Day events only show when at least one homepage flag is set, and only
+      // when no event already covers that day.
       if (entry.entryType === "day_event") {
+        if (daysWithEvent.has(dayKey(entry.date))) return false;
         return entry.showOnHomepage === true || entry.showForParents === true;
       }
       return false;
