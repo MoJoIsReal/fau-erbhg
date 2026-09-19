@@ -690,6 +690,15 @@ export interface Translations {
     eventsIncludedHint: string;
     notes: string;
     tagline: string;
+    dragAndDrop: {
+      instructions: string;
+      onDragStart: string;
+      onDragOver: string;
+      onDragOverNoTarget: string;
+      onDragEnd: string;
+      onDragEndNoTarget: string;
+      onDragCancel: string;
+    };
     entryTypes: {
       weekEvent: string;
       dayEvent: string;
@@ -1490,6 +1499,16 @@ export const translations: Record<Language, Translations> = {
       excelTemplateErrorTitle: "Klarte ikke å laste ned Excel-mal",
       excelTemplateErrorDescription: "Noe gikk galt under nedlasting av Excel-malen. Prøv igjen om litt.",
       addEntry: "Legg til",
+      dragAndDrop: {
+        instructions:
+          "Trykk mellomrom eller Enter for å flytte oppføringen. Bruk piltastene for å velge ny plassering, mellomrom eller Enter for å slippe, og Escape for å avbryte.",
+        onDragStart: "Flytter oppføringen {item}.",
+        onDragOver: "Oppføringen {item} er nå over {target}.",
+        onDragOverNoTarget: "Oppføringen {item} er ikke over et gyldig felt.",
+        onDragEnd: "Oppføringen {item} ble flyttet til {target}.",
+        onDragEndNoTarget: "Oppføringen {item} ble sluppet uten å bli flyttet.",
+        onDragCancel: "Flyttingen av {item} ble avbrutt.",
+      },
       noEntries: "Ingenting registrert ennå.",
       currentAndUpcomingMonths: "Denne og kommende måneder",
       currentAndUpcomingMonthsDescription: "Her ligger måneden vi er i nå og resten av barnehageåret fremover.",
@@ -2312,6 +2331,16 @@ export const translations: Record<Language, Translations> = {
       excelTemplateErrorTitle: "Could not download Excel template",
       excelTemplateErrorDescription: "Something went wrong while downloading the Excel template. Please try again in a moment.",
       addEntry: "Add entry",
+      dragAndDrop: {
+        instructions:
+          "Press space or Enter to pick the entry up. Use the arrow keys to choose a new position, space or Enter to drop it, and Escape to cancel.",
+        onDragStart: "Picked up the entry {item}.",
+        onDragOver: "The entry {item} is now over {target}.",
+        onDragOverNoTarget: "The entry {item} is not over a valid slot.",
+        onDragEnd: "The entry {item} was moved to {target}.",
+        onDragEndNoTarget: "The entry {item} was dropped without being moved.",
+        onDragCancel: "Moving {item} was cancelled.",
+      },
       noEntries: "Nothing scheduled yet.",
       currentAndUpcomingMonths: "This and upcoming months",
       currentAndUpcomingMonthsDescription: "This section starts with the current month and continues through the rest of the kindergarten year.",

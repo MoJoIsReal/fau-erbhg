@@ -1,5 +1,12 @@
 # Review Remediation Tasks — 2026-09-18 audit
 
+> **Phase 1 is complete** (2026-09-19): SEC-001, DB-001, REL-001, TEST-001 and
+> A11Y-001 are implemented, verified and marked `[x]` below. The DB-001 fix was
+> verified by executing the rewritten statement — including the concurrent
+> last-seat race — against a real PostgreSQL 16 instance, and ships with a
+> repair migration (`migrations/0012_registration_capacity_repair.sql`) for rows
+> that already drifted. Phase 2 is the next block of work.
+
 Derived from [`REPO_REVIEW.md`](REPO_REVIEW.md) and [`TRACEABILITY_MATRIX.md`](TRACEABILITY_MATRIX.md).
 Companion to the existing [`docs/review-backlog.md`](docs/review-backlog.md) — **read DOC-001
 first**, because that file's checkbox state is wrong on 11 of its 28 items.
@@ -37,7 +44,7 @@ DOC-002 · and each A11Y task after A11Y-001.
 
 ---
 
-## [ ] SEC-001 — Fix quadratic backtracking in `sanitizeText` and rate-limit before sanitizing
+## [x] SEC-001 — Fix quadratic backtracking in `sanitizeText` and rate-limit before sanitizing
 
 **Priority:** P0 · **Severity:** Critical · **Confidence:** Confirmed (measured twice) · **Effort:** Small · **Area:** Security / Availability
 
@@ -98,7 +105,7 @@ SEC-005 (same function, different defect — consider fixing together), REL-003.
 
 ---
 
-## [ ] DB-001 — Rewrite the registration CTE so `events` is updated at most once
+## [x] DB-001 — Rewrite the registration CTE so `events` is updated at most once
 
 **Priority:** P0 · **Severity:** Critical · **Confidence:** Confirmed (executed on PostgreSQL 16) · **Effort:** Large · **Area:** Database / Data correctness
 
@@ -171,7 +178,7 @@ DB-002, TEST-004. Supersedes nothing in `docs/review-backlog.md` (DB-003 there c
 
 ---
 
-## [ ] REL-001 — Add the two missing imports in the cron handler
+## [x] REL-001 — Add the two missing imports in the cron handler
 
 **Priority:** P0 · **Severity:** High · **Confidence:** Confirmed (runtime repro) · **Effort:** Trivial · **Area:** Reliability
 
@@ -222,7 +229,7 @@ TEST-001 (root cause), MAINT-010 (same failure shape), OBS-001.
 
 ---
 
-## [ ] TEST-001 — Type-check the backend so undefined identifiers cannot ship
+## [x] TEST-001 — Type-check the backend so undefined identifiers cannot ship
 
 **Priority:** P0 · **Severity:** High · **Confidence:** Confirmed (scan reproduced) · **Effort:** Small · **Area:** Testing / Tooling
 
@@ -280,7 +287,7 @@ REL-001, TEST-002, MAINT-010.
 
 ---
 
-## [ ] A11Y-001 — Make yearly-calendar entries operable by keyboard
+## [x] A11Y-001 — Make yearly-calendar entries operable by keyboard
 
 **Priority:** P0 · **Severity:** Critical · **Confidence:** Confirmed (static) · **Effort:** Medium · **Area:** Accessibility
 **WCAG:** 2.1.1 Keyboard (Level A) — primary; 2.5.7 Dragging Movements (Level AA)

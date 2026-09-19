@@ -623,8 +623,16 @@ Verified strengths, not merely "no defect found":
 
 ## 14. Remediation roadmap
 
-### Phase 1 — Stop-the-line (do before any feature work)
-`SEC-001` · `DB-001` · `REL-001` · `TEST-001` · `A11Y-001`
+### Phase 1 — Stop-the-line (do before any feature work) — **COMPLETE (2026-09-19)**
+~~`SEC-001` · `DB-001` · `REL-001` · `TEST-001` · `A11Y-001`~~
+
+All five are implemented and verified; see `REVIEW_TASKS.md` for the per-task
+acceptance criteria that were met. Verification highlights: the ReDoS is gone
+(256 KB went from 11 192 ms to 0.2 ms, and cost is now flat in input size); the
+rewritten registration statement was executed against PostgreSQL 16, including
+the concurrent last-seat race, and a repair migration reconciles rows that
+already drifted; the missing imports are guarded by both a compiler ratchet and
+a unit test that fails with `ReferenceError` if they are removed again.
 
 Four of the five are small. `SEC-001` is a reordering (truncate before the regex, and move
 `checkRateLimit` above sanitization). `REL-001` is two import lines — but land `TEST-001`

@@ -74,6 +74,37 @@ test('newsletter outbox releases a failed delivery with backoff and does not mar
   );
 });
 
+// The production-gated branch is the one that shipped a ReferenceError: the
+// failure test above passes under node:test because NODE_ENV is unset there, so
+// `if (NODE_ENV === 'production')` never ran and never touched the undefined
+// name. Re-running the same failure with NODE_ENV=production is what would have
+// caught it, so it is pinned here.
+test('a failed delivery still reports to the error tracker under NODE_ENV=production', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousDsn = process.env.SENTRY_DSN;
+  process.env.NODE_ENV = 'production';
+  delete process.env.SENTRY_DSN; // keep Sentry.captureException from opening a socket
+  t.after(() => {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousDsn !== undefined) process.env.SENTRY_DSN = previousDsn;
+  });
+
+  const { sql, calls } = scriptedSql([delivery()], 1);
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async () => {
+    throw new Error('SMTP temporarily unavailable');
+  });
+
+  assert.equal(result.failed, 1);
+  assert.equal(result.sent, 0);
+  assert.equal(
+    calls.some(({ statement }) => statement.includes("SET status = 'pending', claimed_at = NULL")),
+    true,
+  );
+});
+
 test('newsletter outbox skips a subscriber who is no longer active', async () => {
   const { sql, calls } = scriptedSql([
     delivery({ email: null, subscriberStatus: 'unsubscribed' }),

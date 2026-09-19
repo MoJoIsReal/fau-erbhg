@@ -125,3 +125,45 @@ test('htmlToPlainText strips nested tag remnants instead of splicing a new tag',
   assert.equal(htmlToPlainText('<scr<b>ipt>alert(1)</scr</b>ipt>').includes('<script>'), false);
   assert.equal(htmlToPlainText('<p>Klippet midt i en ta'), 'Klippet midt i en ta');
 });
+
+// `on\w+\s*=\s*["'][^"']*["']` had no `=` to anchor on, so on a run of "ondata"
+// the engine started at each "on", let `\w+` consume the remainder, then
+// backtracked one character at a time. That is quadratic: 256 KB took 11 s.
+// The cap did not help, because the old sanitizeText truncated only at the end,
+// after both regex passes had already scanned the whole request body.
+// api/contact.js reaches this unauthenticated and (before this was fixed) did
+// so before rate limiting, so one request could burn the whole 30 s
+// function budget in vercel.json.
+test('sanitizeText does not backtrack quadratically on a long handler-like run', () => {
+  const payload = 'ondata'.repeat(100_000); // ~600 KB, larger than any real field
+  const startedAt = process.hrtime.bigint();
+  sanitizeText(payload, 5000);
+  const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+
+  // Pre-fix this was ~45 s. The bound makes it independent of input length, so
+  // 50 ms is generous even on a slow CI runner.
+  assert.ok(elapsedMs < 50, `sanitizeText took ${elapsedMs.toFixed(0)} ms on a ${payload.length}-char input`);
+});
+
+test('sanitizeText cost does not grow with input beyond the bound', () => {
+  const time = (chars) => {
+    const input = 'ondata'.repeat(chars / 6);
+    const startedAt = process.hrtime.bigint();
+    sanitizeText(input, 5000);
+    return Number(process.hrtime.bigint() - startedAt) / 1e6;
+  };
+  time(32 * 1024); // warm up, so the first call's JIT cost is not attributed below
+  const small = time(32 * 1024);
+  const large = time(256 * 1024);
+
+  // Quadratic growth would be ~64x here. Allow a wide margin for timer noise on
+  // sub-millisecond measurements; anything near quadratic blows straight past it.
+  assert.ok(large < small * 8 + 20, `32KB took ${small.toFixed(2)} ms but 256KB took ${large.toFixed(2)} ms`);
+});
+
+test('sanitizeText still enforces maxLength and keeps Norwegian prose intact', () => {
+  assert.equal(sanitizeText('a'.repeat(5000), 100).length, 100);
+  assert.equal(sanitizeText('Vi møtes kl. 18:30 i gymsalen.'), 'Vi møtes kl. 18:30 i gymsalen.');
+  assert.equal(sanitizeText('Hei, æøå ÆØÅ — helt vanlig tekst!'), 'Hei, æøå ÆØÅ — helt vanlig tekst!');
+  assert.equal(sanitizeText('onerror="alert(1)" hei'), 'hei');
+});

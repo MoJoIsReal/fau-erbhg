@@ -1,0 +1,16 @@
+{
+  // The backend is plain .js by design (see AGENTS.md: api/ runs unbundled), so
+  // the root tsconfig has checkJs off and tsc reports nothing about it. That
+  // left no tool in the repo able to see an undefined identifier in api/ or
+  // shared/ — which is how two unimported symbols reached production inside
+  // error-only branches. This config checks those files for that class of
+  // mistake without demanding full type annotations on untyped JS.
+  "extends": "./tsconfig.json",
+  "include": ["api/**/*.js", "shared/**/*.js"],
+  "compilerOptions": {
+    "checkJs": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo.api"
+  }
+}

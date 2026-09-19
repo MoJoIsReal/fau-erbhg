@@ -6,6 +6,7 @@ import {
   sanitizeText,
   sanitizeEmail,
   sanitizePhone,
+  findOversizedField,
 } from './_shared/middleware.js';
 import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
@@ -38,6 +39,13 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(204).end();
     }
 
+    // Refuse an abusive body before spending anything on it. This endpoint is
+    // public and unauthenticated, so the cheapest checks go first.
+    const oversizedField = findOversizedField(req.body);
+    if (oversizedField) {
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+    }
+
     // Validate required fields
     if (!subject || !message) {
       return res.status(400).json({
@@ -51,6 +59,22 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({
         error: 'Invalid subject type'
       });
+    }
+
+    const sql = getDb();
+
+    // The per-IP limit needs no sanitized value, so it runs before sanitization
+    // rather than after it. Previously every request — including the 400th from
+    // one address — was fully sanitized before the limiter was consulted, which
+    // meant the limiter could not protect the work it was meant to bound.
+    const ipRateLimit = await checkRateLimit(sql, {
+      key: rateLimitKey(req, 'contact-ip', ''),
+      limit: CONTACT_MAX_ATTEMPTS,
+      windowSeconds: CONTACT_WINDOW_SECONDS
+    });
+    if (!ipRateLimit.allowed) {
+      res.setHeader('Retry-After', String(ipRateLimit.retryAfter));
+      return res.status(429).json({ error: 'Too many messages. Try again later.' });
     }
 
     // For anonymous submissions, we don't require name/email
@@ -74,23 +98,17 @@ export default withApiHandler(async function handler(req, res) {
       });
     }
 
-    const sql = getDb();
+    // Per-identifier limit: needs the sanitized address, so it necessarily runs
+    // after sanitization. The IP limit above already bounded the work.
     const contactIdentifier = isAnonymous ? 'anonymous' : sanitizedEmail;
-    const [rateLimit, ipRateLimit] = await Promise.all([
-      checkRateLimit(sql, {
-        key: rateLimitKey(req, 'contact', contactIdentifier),
-        limit: CONTACT_MAX_ATTEMPTS,
-        windowSeconds: CONTACT_WINDOW_SECONDS
-      }),
-      checkRateLimit(sql, {
-        key: rateLimitKey(req, 'contact-ip', ''),
-        limit: CONTACT_MAX_ATTEMPTS,
-        windowSeconds: CONTACT_WINDOW_SECONDS
-      })
-    ]);
+    const rateLimit = await checkRateLimit(sql, {
+      key: rateLimitKey(req, 'contact', contactIdentifier),
+      limit: CONTACT_MAX_ATTEMPTS,
+      windowSeconds: CONTACT_WINDOW_SECONDS
+    });
 
-    if (!rateLimit.allowed || !ipRateLimit.allowed) {
-      res.setHeader('Retry-After', String(Math.max(rateLimit.retryAfter, ipRateLimit.retryAfter)));
+    if (!rateLimit.allowed) {
+      res.setHeader('Retry-After', String(rateLimit.retryAfter));
       return res.status(429).json({ error: 'Too many messages. Try again later.' });
     }
 
@@ -203,6 +221,13 @@ async function handleNewsletterSubscribe(req, res) {
     // Honeypot: humans never see/fill this field.
     if (website) {
       return res.status(204).end();
+    }
+
+    // Public and unauthenticated, same as the contact form above: refuse an
+    // abusive body before sanitizing anything.
+    const oversizedField = findOversizedField(req.body);
+    if (oversizedField) {
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
     }
 
     const sanitizedEmail = sanitizeEmail(email);

@@ -1150,6 +1150,55 @@ testYearlyCalendarTodayMarker();
 testYearlyCalendarConstants();
 testYearlyCalendarNewsletterSupport();
 testYearlyCalendarTitleNormalization();
+
+// PostgreSQL does not apply a second update to a row already updated by the
+// same statement (manual 7.8.2, "Data-Modifying Statements in WITH"): the
+// second one is silently skipped, no error, no returned row. The registration
+// handler used to rely on exactly that — a capacity_update CTE incremented
+// events.current_attendees and a rollback_capacity CTE tried to undo it when no
+// registration was inserted. The rollback never ran, so every duplicate signup
+// permanently consumed a seat and capacity-limited events eventually refused
+// genuine parents. Guard the shape, not the symptom: the registration statement
+// must contain exactly one UPDATE of `events`.
+function testRegistrationUpdatesEventRowOnce() {
+  const registrations = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
+  const statementStart = registrations.indexOf('WITH target_event AS');
+  assert.ok(statementStart !== -1, 'Registration CTE should start with a target_event lookup');
+  const statementEnd = registrations.indexOf('AS registration', statementStart);
+  assert.ok(statementEnd !== -1, 'Registration CTE should project the inserted registration');
+  const statement = registrations.slice(statementStart, statementEnd);
+
+  const eventUpdates = statement.match(/UPDATE\s+events\b/g) ?? [];
+  assert.equal(
+    eventUpdates.length,
+    1,
+    `Registration statement must UPDATE events exactly once (found ${eventUpdates.length}); `
+      + 'a compensating second UPDATE of the same row is silently skipped by PostgreSQL',
+  );
+
+  assert.doesNotMatch(
+    statement,
+    /rollback_capacity/,
+    'rollback_capacity cannot work: it updates a row the same statement already updated',
+  );
+
+  // The single UPDATE must be conditional on the insert having happened, or the
+  // counter inflates again on the duplicate-email and ON CONFLICT paths.
+  assert.match(
+    statement,
+    /UPDATE events[\s\S]*?EXISTS \(SELECT 1 FROM inserted_registration\)/,
+    'The events UPDATE must be gated on a registration actually being inserted',
+  );
+
+  // Concurrent signups for the last seat are serialized by locking the event row.
+  assert.match(
+    statement,
+    /FOR UPDATE/,
+    'target_event must lock the event row so concurrent signups cannot both pass the capacity check',
+  );
+}
+
+testRegistrationUpdatesEventRowOnce();
 testYearlyCalendarValidNorwegianRow();
 testYearlyCalendarValidCamelCaseRow();
 testYearlyCalendarInvalidRows();
