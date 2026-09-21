@@ -6,6 +6,7 @@ import {
   calendarKindForEventType,
   calendarKindSource,
   calendarWeekKey,
+  compareSpanningEntries,
   describeEventSignup,
   groupCalendarEntriesByWeek,
   isoWeekRange,
@@ -15,6 +16,7 @@ import {
   normalizeEvent,
   normalizeYearlyEntry,
   parseCalendarDate,
+  schoolYearWeeks,
 } from '../shared/calendar-entries.js';
 
 function event(overrides = {}) {
@@ -344,4 +346,66 @@ test('week-spanning entries are never touched by the duplicate rule', () => {
     entries: [entry({ id: 1, weekNumber: 39, title: 'Fiskesuppe' })],
   });
   assert.equal(merged.length, 2);
+});
+
+test('the week band orders varmmat first wherever it is rendered', () => {
+  const merged = mergeCalendarEntries({
+    entries: [
+      entry({ id: 1, entryType: 'week_event', weekNumber: 39, title: 'Brannvernuke' }),
+      entry({ id: 2, entryType: 'note', weekNumber: 39, title: 'Uteuke' }),
+      entry({ id: 3, entryType: 'food', weekNumber: 39, title: 'Fiskesuppe' }),
+    ],
+  });
+
+  // The list groups and sorts for itself; the month grid's week rail sorts the
+  // same entries with the same comparator, so the two must agree.
+  const fromList = groupCalendarEntriesByWeek(merged)[0].spanning.map((e) => e.title);
+  const fromRail = [...merged].sort(compareSpanningEntries).map((e) => e.title);
+
+  assert.deepEqual(fromList, ['Fiskesuppe', 'Brannvernuke', 'Uteuke']);
+  assert.deepEqual(fromRail, fromList);
+});
+
+test('a kindergarten year runs August to July with no week lost or doubled', () => {
+  const weeks = schoolYearWeeks(2026);
+
+  assert.equal(weeks[0].month, 8);
+  assert.equal(weeks[0].year, 2026);
+  assert.equal(weeks[weeks.length - 1].month, 7);
+  assert.equal(weeks[weeks.length - 1].year, 2027);
+
+  // 52 or 53 weeks, every one starting on a Monday, seven days apart.
+  assert.ok(weeks.length >= 52 && weeks.length <= 53, `got ${weeks.length} weeks`);
+  for (const week of weeks) assert.equal(week.monday.getDay(), 1);
+  for (let i = 1; i < weeks.length; i++) {
+    assert.equal(Math.round((weeks[i].monday - weeks[i - 1].monday) / 86400000), 7);
+  }
+
+  // Each (weekYear, week) appears exactly once — a week straddling two months
+  // belongs to the month of its Thursday, not to both.
+  const keys = weeks.map((w) => calendarWeekKey(w.weekYear, w.week));
+  assert.equal(new Set(keys).size, keys.length);
+
+  // Months appear in kindergarten-year order, August first and January in the
+  // new calendar year.
+  assert.deepEqual([...new Set(weeks.map((w) => w.month))], [8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7]);
+  assert.ok(weeks.filter((w) => w.month === 1).every((w) => w.year === 2027));
+});
+
+test('the school year covers the weeks its own entries fall in', () => {
+  const weeks = schoolYearWeeks(2026);
+  const keys = new Set(weeks.map((w) => calendarWeekKey(w.weekYear, w.week)));
+
+  const merged = mergeCalendarEntries({
+    events: [
+      event({ id: 1, date: '2026-09-25' }),
+      event({ id: 2, date: '2026-12-30', type: 'event' }),
+      event({ id: 3, date: '2027-06-11', type: 'event' }),
+    ],
+    entries: [entry({ id: 1, year: 2026, month: 12, weekNumber: 53 })],
+  });
+
+  for (const item of merged) {
+    assert.ok(keys.has(calendarWeekKey(item.weekYear, item.week)), `${item.title} fell outside the year`);
+  }
 });

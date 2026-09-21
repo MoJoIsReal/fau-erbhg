@@ -268,15 +268,20 @@ function testClientRegressionGuards() {
     'API error handling should parse JSON response bodies instead of throwing raw text only',
   );
 
-  const eventsPage = readFileSync(new URL('../client/src/pages/events.tsx', import.meta.url), 'utf8');
-  const cancelMutationBlock = eventsPage.slice(
-    eventsPage.indexOf('const cancelMutation'),
-    eventsPage.indexOf('const handleRegisterClick'),
+  // Event editing moved off the events page and into the calendar's editor
+  // tools; these rules moved with it.
+  const editorTools = readFileSync(
+    new URL('../client/src/components/calendar-editor-tools.tsx', import.meta.url),
+    'utf8',
+  );
+  const cancelMutationBlock = editorTools.slice(
+    editorTools.indexOf('const cancelMutation'),
+    editorTools.indexOf('const deleteMutation'),
   );
   assert.match(
     cancelMutationBlock,
     /invalidateQueries\(\{\s*queryKey:\s*\["\/api\/events"\]\s*\}\)/s,
-    'Cancelling an event must invalidate the public events query used by the page',
+    'Cancelling an event must invalidate the public events query the calendar reads',
   );
   assert.equal(
     cancelMutationBlock.includes('queryKey: ["/api/secure/events"]'),
@@ -284,9 +289,14 @@ function testClientRegressionGuards() {
     'Cancelling an event must not invalidate the unused /api/secure/events key',
   );
   assert.match(
-    eventsPage,
+    editorTools,
     /getApiErrorBody\(error\)/,
     'Event delete errors should read structured API error bodies',
+  );
+  assert.match(
+    editorTools,
+    /hasRegistrations/,
+    'Deleting an event with registrations must explain the refusal, not show a generic error',
   );
 
   const contentPage = readFileSync(new URL('../client/src/pages/content.tsx', import.meta.url), 'utf8');
@@ -337,9 +347,9 @@ function testClientRegressionGuards() {
     'Attendee tooltip must not treat query-key segments as URL path segments',
   );
   assert.match(
-    eventsPage,
-    /<AttendeeTooltip\s+eventId=\{event\.id\}/,
-    'Council event cards with registrations must render the corrected attendee tooltip',
+    editorTools,
+    /<AttendeeTooltip\s+eventId=\{entry\.event\.id\}/,
+    'The calendar detail panel must render the corrected attendee tooltip for editors',
   );
 
   const app = readFileSync(new URL('../client/src/App.tsx', import.meta.url), 'utf8');

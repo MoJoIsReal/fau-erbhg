@@ -78,10 +78,23 @@ export function mergeCalendarEntries(input?: {
   now?: Date;
 }): CalendarEntry[];
 
+export function compareSpanningEntries(a: CalendarEntry, b: CalendarEntry): number;
+
 export function groupCalendarEntriesByWeek(
   entries: CalendarEntry[],
   options?: { fromWeekKey?: number | null },
 ): CalendarWeekGroup[];
+
+export type SchoolYearWeek = {
+  week: number;
+  weekYear: number;
+  /** 1-12, the month this week's Thursday falls in. */
+  month: number;
+  year: number;
+  monday: Date;
+};
+
+export function schoolYearWeeks(schoolYear: number): SchoolYearWeek[];
 
 export function mondayOfIsoWeek(weekYear: number, weekNumber: number): Date;
 export function isoWeekRange(weekYear: number, weekNumber: number): { start: Date; end: Date };

@@ -90,12 +90,31 @@ export interface Translations {
   calendar: {
     title: string;
     subtitle: string;
-    upcomingTab: string;
-    upcomingTabHint: string;
-    yearlyTab: string;
-    yearlyTabHint: string;
-    combinedTab: string;
-    combinedTabHint: string;
+    viewLabel: string;
+    listView: string;
+    monthView: string;
+    yearView: string;
+    yearViewHint: string;
+    quietWeek: string;
+    detailEmpty: string;
+    detailPlace: string;
+    detailWeek: string;
+    detailDeadline: string;
+    detailSignup: string;
+    noDescription: string;
+    editorLabel: string;
+    openYearlyEditor: string;
+    newEntry: string;
+    newPickerHint: string;
+    newEventButton: string;
+    newEventHint: string;
+    newYearlyHint: string;
+    staffCannotCreateEvents: string;
+    excelScopeNote: string;
+    confirmCancelTitle: string;
+    confirmCancelBody: string;
+    confirmDeleteBody: string;
+    weekRailHint: string;
     week: string;
     thisWeek: string;
     allWeek: string;
@@ -957,12 +976,36 @@ export const translations: Record<Language, Translations> = {
     calendar: {
       title: "Kalender",
       subtitle: "Alt som skjer i Erdal Barnehage, samlet på ett sted",
-      upcomingTab: "Hva skjer",
-      upcomingTabHint: "Arrangementer, møter og dugnader du kan melde deg på.",
-      yearlyTab: "Årskalender",
-      yearlyTabHint: "Faste datoer for barnehageåret: planleggingsdager, ferier og temauker.",
-      combinedTab: "Kalender",
-      combinedTabHint: "Alt uke for uke — arrangementer, møter, varmmat og stengte dager i én liste.",
+      viewLabel: "Visning",
+      listView: "Liste",
+      monthView: "Måned",
+      yearView: "År",
+      yearViewHint:
+        "Hele barnehageåret, én rad per uke. Rolige uker vises som rolige — det er dem du leter etter når noe skal planlegges.",
+      quietWeek: "rolig uke",
+      detailEmpty: "Velg noe i kalenderen for å se detaljene her.",
+      detailPlace: "Sted",
+      detailWeek: "Uke",
+      detailDeadline: "Påmeldingsfrist",
+      detailSignup: "Påmelding",
+      noDescription: "Ingen beskrivelse lagt inn.",
+      editorLabel: "Redaktør",
+      openYearlyEditor: "Rediger årskalenderen",
+      newEntry: "Nytt i kalenderen",
+      newPickerHint: "Velg hva du legger inn — resten av skjemaet retter seg etter valget.",
+      newEventButton: "Arrangement med påmelding",
+      newEventHint: "Deltakerliste, maks antall, påmeldingsfrist og varsel på nyhetsbrevet.",
+      newYearlyHint: "Uke eller dato, farge, og om den skal vises på forsiden.",
+      staffCannotCreateEvents:
+        "Som ansatt kan du legge inn i årskalenderen, men ikke opprette arrangementer med påmelding — de krever FAU-rolle.",
+      excelScopeNote:
+        "Excel-mal og import dekker årskalenderen for valgt barnehageår. Arrangementer med påmelding redigeres enkeltvis, fordi de har deltakerlister og frister en regnearkrad ikke kan bære.",
+      confirmCancelTitle: "Avlyse arrangementet?",
+      confirmCancelBody:
+        "Arrangementet har påmeldte, så det kan ikke slettes. Det blir stående i kalenderen med gjennomstreket tittel, slik at de påmeldte ser at det er avlyst.",
+      confirmDeleteBody: "Ingen er påmeldt, så oppføringen kan slettes. Dette kan ikke angres.",
+      weekRailHint:
+        "Ukekolonnen til venstre viser det som varer hele uken — varmmat, temauker og beskjeder. Rutene viser dagene.",
       week: "Uke",
       thisWeek: "Denne uken",
       allWeek: "hele uken",
@@ -1818,12 +1861,36 @@ export const translations: Record<Language, Translations> = {
     calendar: {
       title: "Calendar",
       subtitle: "Everything happening at Erdal Kindergarten, in one place",
-      upcomingTab: "What's on",
-      upcomingTabHint: "Events, meetings and working bees you can sign up for.",
-      yearlyTab: "Yearly calendar",
-      yearlyTabHint: "Fixed dates for the kindergarten year: planning days, holidays and theme weeks.",
-      combinedTab: "Calendar",
-      combinedTabHint: "Everything week by week — events, meetings, hot meals and closed days in one list.",
+      viewLabel: "View",
+      listView: "List",
+      monthView: "Month",
+      yearView: "Year",
+      yearViewHint:
+        "The whole kindergarten year, one row per week. Quiet weeks are shown as quiet — those are the ones you are looking for when something needs planning.",
+      quietWeek: "quiet week",
+      detailEmpty: "Pick something in the calendar to see the details here.",
+      detailPlace: "Place",
+      detailWeek: "Week",
+      detailDeadline: "Registration deadline",
+      detailSignup: "Registration",
+      noDescription: "No description added.",
+      editorLabel: "Editor",
+      openYearlyEditor: "Edit the yearly calendar",
+      newEntry: "New in the calendar",
+      newPickerHint: "Choose what you are adding — the rest of the form follows from it.",
+      newEventButton: "Event with signup",
+      newEventHint: "Attendee list, maximum, registration deadline and newsletter notice.",
+      newYearlyHint: "Week or date, colour, and whether it shows on the front page.",
+      staffCannotCreateEvents:
+        "As staff you can add to the yearly calendar, but not create events with signup — those need a council role.",
+      excelScopeNote:
+        "The Excel template and import cover the yearly calendar for the selected kindergarten year. Events with signup are edited one at a time, because they carry attendee lists and deadlines a spreadsheet row cannot.",
+      confirmCancelTitle: "Cancel this event?",
+      confirmCancelBody:
+        "People have signed up, so it cannot be deleted. It stays in the calendar with its title struck through, so those who signed up can see it is cancelled.",
+      confirmDeleteBody: "Nobody has signed up, so the entry can be deleted. This cannot be undone.",
+      weekRailHint:
+        "The week column on the left carries what lasts all week — hot meals, theme weeks and notices. The cells carry the days.",
       week: "Week",
       thisWeek: "This week",
       allWeek: "all week",

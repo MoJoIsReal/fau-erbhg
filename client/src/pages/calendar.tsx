@@ -1,43 +1,23 @@
 import { lazy, Suspense } from "react";
-import { Link, useRoute } from "wouter";
-import { CalendarClock, CalendarDays, CalendarRange, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
-// Both views are heavy (the yearly calendar pulls in dnd-kit, and the event
-// calendar its own grid), so only the active tab is fetched.
-const CalendarEntryList = lazy(() => import("@/components/calendar-entry-list"));
-const Events = lazy(() => import("@/pages/events"));
-const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
-
-export type CalendarTab = "combined" | "upcoming" | "yearly";
-
-const TAB_PATH: Record<CalendarTab, string> = {
-  combined: "/kalender",
-  upcoming: "/kalender/arrangementer",
-  yearly: "/kalender/arskalender",
-};
-
-function TabLoader() {
-  return (
-    <div className="flex justify-center py-16" role="status" aria-live="polite">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    </div>
-  );
-}
+// Heavy enough to be worth splitting: the month grid, the year strip and the
+// editor modals all hang off it.
+const CalendarViews = lazy(() => import("@/components/calendar-views"));
 
 /**
- * Events and the yearly calendar used to be two top-level pages that both
- * showed kindergarten dates without explaining which belonged where — parents
- * had to guess twice. They are one page with two tabs now: "what's happening"
- * for things you sign up for, "yearly calendar" for the fixed dates of the
- * kindergarten year.
+ * The calendar.
+ *
+ * Events and the yearly calendar used to be two pages, then two tabs, and
+ * both times a parent planning a single week had to look in both places — a
+ * foreldremøte on Wednesday in one, a planleggingsdag on Friday in the other.
+ * They are one calendar now, with list, month and year as views of it and the
+ * old division reduced to what it always was: two groups of filter chips.
  */
 export default function CalendarPage() {
   const { t, language } = useLanguage();
-  const [isYearlyRoute] = useRoute("/kalender/arskalender");
-  const [isEventsRoute] = useRoute("/kalender/arrangementer");
-  const activeTab: CalendarTab = isYearlyRoute ? "yearly" : isEventsRoute ? "upcoming" : "combined";
 
   usePageMeta({
     title: t.calendar.title,
@@ -45,78 +25,26 @@ export default function CalendarPage() {
       language === "no"
         ? "Samlet kalender for Erdal Barnehage, uke for uke: arrangementer og møter du kan melde deg på, ukens varmmat, temauker og planleggingsdager."
         : "One calendar for Erdal Kindergarten, week by week: events and meetings you can sign up for, weekly hot meals, theme weeks and planning days.",
-    path: TAB_PATH[activeTab],
+    path: "/kalender",
   });
-
-  const tabs: { id: CalendarTab; label: string; hint: string; icon: typeof CalendarClock }[] = [
-    {
-      id: "combined",
-      label: t.calendar.combinedTab,
-      hint: t.calendar.combinedTabHint,
-      icon: CalendarRange,
-    },
-    {
-      id: "upcoming",
-      label: t.calendar.upcomingTab,
-      hint: t.calendar.upcomingTabHint,
-      icon: CalendarClock,
-    },
-    {
-      id: "yearly",
-      label: t.calendar.yearlyTab,
-      hint: t.calendar.yearlyTabHint,
-      icon: CalendarDays,
-    },
-  ];
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">
+        <h1 className="mb-2 font-heading text-3xl font-bold text-neutral-900 dark:text-neutral-50">
           {t.calendar.title}
         </h1>
         <p className="text-neutral-600 dark:text-neutral-300">{t.calendar.subtitle}</p>
       </div>
 
-      {/* Tabs are real links so each view is bookmarkable and the browser
-          back button moves between them. */}
-      <div className="border-b border-neutral-200 dark:border-neutral-800">
-        <nav className="-mb-px flex gap-1" aria-label={t.calendar.title}>
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = tab.id === activeTab;
-            return (
-              <Link
-                key={tab.id}
-                href={TAB_PATH[tab.id]}
-                aria-current={isActive ? "page" : undefined}
-                title={tab.hint}
-                className={`flex items-center gap-2 border-b-2 px-3 py-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 sm:px-4 ${
-                  isActive
-                    ? "border-primary text-primary"
-                    : "border-transparent text-neutral-600 hover:border-neutral-300 hover:text-neutral-900 dark:text-neutral-300 dark:hover:border-neutral-700 dark:hover:text-neutral-50"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{tab.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      <p className="text-sm text-neutral-500 dark:text-neutral-400">
-        {tabs.find((tab) => tab.id === activeTab)?.hint}
-      </p>
-
-      <Suspense fallback={<TabLoader />}>
-        {activeTab === "combined" ? (
-          <CalendarEntryList />
-        ) : activeTab === "upcoming" ? (
-          <Events embedded />
-        ) : (
-          <YearlyCalendar embedded />
-        )}
+      <Suspense
+        fallback={
+          <div className="flex justify-center py-16" role="status" aria-live="polite">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        }
+      >
+        <CalendarViews />
       </Suspense>
     </div>
   );
