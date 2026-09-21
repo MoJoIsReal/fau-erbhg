@@ -641,9 +641,17 @@ and no noise) in the same change, or the hole stays open. `A11Y-001` is a `Keybo
 plus an `onKeyDown`. `DB-001` is the real work: restructure the CTE so `events` is touched at
 most once, and add a data repair for rows that have already drifted.
 
-### Phase 2 — Functional integrity
-`REL-002` · `PERF-001` · `MAINT-001` · `MAINT-002` · `MAINT-003` · `TRACE-001` · `TRACE-002`
-· `PERF-002` · `TRACE-006`
+### Phase 2 — Functional integrity — **COMPLETE (2026-09-21)**
+~~`REL-002` · `PERF-001` · `MAINT-001` · `MAINT-002` · `MAINT-003` · `TRACE-001` · `TRACE-002`
+· `PERF-002` · `TRACE-006`~~ — plus `MAINT-004`, `PERF-004` and `TRACE-003/004/005`, which
+shared a root cause with items already being changed.
+
+Worth recording: the first attempt at `MAINT-001` keyed import identity on title + type +
+date, which fixed the reported defect and broke the opposite case — an entry whose date was
+corrected in the sheet stopped being recognised as an edit. An existing smoke test caught it.
+Identity is now a pairing within a title+type bucket: one entry matched by one row pairs
+wherever it sits, several on either side pair only on an exact position, and anything that
+cannot be paired unambiguously is held back rather than guessed.
 
 *Depends on Phase 1* (REL-002 and PERF-001 both assume REL-001 is fixed, or the run still
 dies on the first failure). REL-002 and PERF-001 must land together: widening the claim

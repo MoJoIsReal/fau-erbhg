@@ -45,7 +45,27 @@ export function getApiErrorMessage(error: unknown, fallback = "An unexpected err
   return fallback;
 }
 
+// Both cookies live exactly 2 hours. When they expire, every council endpoint
+// starts returning 401 while `GET /api/auth` returns `200 null` — so nothing
+// told the client its session was gone. The header kept showing the user as
+// signed in and each list query turned its 401 into `data = []`, rendering the
+// EMPTY state: the inbox and the whole blog looked deleted. Clearing the auth
+// key the first time any request 401s is what turns that into a re-login.
+let onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  onUnauthorized = handler;
+}
+
+function notifyUnauthorized() {
+  onUnauthorized?.();
+}
+
 async function throwIfResNotOk(res: Response) {
+  if (res.status === 401) {
+    notifyUnauthorized();
+  }
+
   if (!res.ok) {
     const text = await res.text();
     let body: ApiErrorBody | string | null = text || null;
@@ -126,8 +146,9 @@ export const getQueryFn: <T>(options: {
       credentials: "include",
     });
 
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    if (res.status === 401) {
+      notifyUnauthorized();
+      if (unauthorizedBehavior === "returnNull") return null;
     }
 
     await throwIfResNotOk(res);

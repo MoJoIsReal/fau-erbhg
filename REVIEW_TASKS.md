@@ -1,5 +1,9 @@
 # Review Remediation Tasks — 2026-09-18 audit
 
+> **Phase 2 is complete** (2026-09-21): REL-002 + PERF-001, PERF-002, MAINT-001,
+> MAINT-002, MAINT-003, MAINT-004, TRACE-001 through TRACE-006 and PERF-004 are
+> implemented and verified. The P2 table below marks each one done.
+>
 > **Phase 1 is complete** (2026-09-19): SEC-001, DB-001, REL-001, TEST-001 and
 > A11Y-001 are implemented, verified and marked `[x]` below. The DB-001 fix was
 > verified by executing the rewritten statement — including the concurrent
@@ -347,7 +351,7 @@ A11Y-010 (grid semantics), A11Y-021 (target size). Matches open backlog item **A
 
 ---
 
-## [ ] REL-002 + PERF-001 — Make newsletter delivery actually deliver (land together)
+## [x] REL-002 + PERF-001 — Make newsletter delivery actually deliver (land together)
 
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed (REL-002, static) / High (PERF-001) · **Effort:** Medium · **Area:** Reliability / Performance
 
@@ -410,7 +414,7 @@ PERF-002 (same shape, reminders), DB-003, DB-004, OBS-002.
 
 ---
 
-## [ ] MAINT-001 — Give the Excel import an identity beyond the title
+## [x] MAINT-001 — Give the Excel import an identity beyond the title
 
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed (repro) · **Effort:** Medium · **Area:** Data correctness
 
@@ -461,7 +465,7 @@ MAINT-002, MAINT-004, MAINT-005, TEST-003.
 
 ---
 
-## [ ] MAINT-002 — Stop the Excel import wiping `weekday_start` / `weekday_end`
+## [x] MAINT-002 — Stop the Excel import wiping `weekday_start` / `weekday_end`
 
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed · **Effort:** Trivial · **Area:** Data correctness
 
@@ -507,7 +511,7 @@ MAINT-001, MAINT-005. Related to open backlog item **TRACE-004**.
 
 ---
 
-## [ ] MAINT-003 — Validate event `time`, and make feed omissions observable
+## [x] MAINT-003 — Validate event `time`, and make feed omissions observable
 
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed (repro) · **Effort:** Small · **Area:** Data correctness / Reliability
 
@@ -557,7 +561,7 @@ OBS-002.
 
 ---
 
-## [ ] TRACE-001 — Recover gracefully when the 2-hour session expires
+## [x] TRACE-001 — Recover gracefully when the 2-hour session expires
 
 **Priority:** P1 · **Severity:** High · **Confidence:** High · **Effort:** Medium · **Area:** Frontend / UX
 
@@ -838,15 +842,15 @@ Each is independently actionable; full evidence is in `REPO_REVIEW.md` §5.
 | **DB-002** | Stop `current_attendees` drifting | `api/registrations.js`, `api/cron/event-reminders.js:333-339` | Preferred: make it derived (`COALESCE(SUM(attendee_count),0)` in `mapEvent`'s query) and drop the counter. Otherwise add a nightly reconcile — note that only stops drift being *permanent*, it does not fix DB-001. |
 | **DB-003** | Bound `newsletter_deliveries` growth | `migrations/`, `api/cron/event-reminders.js` | Retention for terminal rows; stop copying the item body per subscriber (join at send time). |
 | **DB-004** | Stop the zombie news post | `api/cron/event-reminders.js:285-295` | A truncated broadcast no longer leaves a post that is re-queued nightly forever. Depends on REL-002. |
-| **PERF-002** | Raise/continue the reminder cap | `api/cron/event-reminders.js:17,367-403` | An event with 60 registrations gets 60 reminders. Throughput is not the constraint (25 messages ≈ 3-5 s); the cap is arbitrary. Loop until the claim returns empty or a deadline hits. |
+| **PERF-002** ✅ | Raise/continue the reminder cap | `api/cron/event-reminders.js:17,367-403` | An event with 60 registrations gets 60 reminders. Throughput is not the constraint (25 messages ≈ 3-5 s); the cap is arbitrary. Loop until the claim returns empty or a deadline hits. |
 | **PERF-003** | Cache `/kalender.ics` | `vercel.json`, `api/events.js` | A short `s-maxage` on the feed path only. Confirm what `Cache-Control` it actually returns today (`curl -sI`) — `headers` match pre-rewrite. |
-| **PERF-004** | Don't fetch 500 posts to render one | `client/src/pages/news-post.tsx:30-34` | Add a single-post read (an `&id=` filter on the existing resource — no new serverless function needed, preserving the Hobby budget). |
-| **TRACE-002** | Give `secure-settings.js` row mappers | `api/secure-settings.js`, `client/src/pages/content.tsx:175` | `mapBlogPost(row)` used for GET/POST/PUT, mirroring `mapEvent`/`mapEntry`. Post-save the card keeps its date and badge, and a subsequent toggle cannot reset `published_date` to today. |
-| **TRACE-003** | Fix the registration-delete rollback | `client/src/components/event-registrations-view.tsx:38-90` | Snapshot `["/api/events"]` too and restore both in `onError`, or move invalidations to `onSettled`. Deleting the same registration twice leaves the header count correct. |
-| **TRACE-004** | Surface user-delete failures | `client/src/components/staff-users-section.tsx:74-85` | Add `onError` + success toast, matching the sibling `createMutation` in the same file. (The `res.status !== 204 && !res.ok` guard is dead — `apiRequest` throws on any non-2xx.) |
-| **TRACE-005** | Make board-member save recoverable | `client/src/pages/settings.tsx:149-175` | Report which member failed and invalidate in a `finally` so the UI resyncs to what actually persisted. |
-| **TRACE-006** | Standardize id validation and delete semantics | `api/documents.js:14`, `api/secure-settings.js:79,113,207,248,367,467` | A shared `requireIntId(req, res)`; every DELETE/PUT checks affected rows and returns 404 when none. `?id=abc` returns 400, not 500. Matches open backlog item **TRACE-006**. |
-| **MAINT-004** | Detect intra-sheet duplicate titles | `shared/yearly-calendar-utils.js:390-449` | Two sheet rows with the same title do not both silently create. Fix with MAINT-001. |
+| **PERF-004** ✅ | Don't fetch 500 posts to render one | `client/src/pages/news-post.tsx:30-34` | Add a single-post read (an `&id=` filter on the existing resource — no new serverless function needed, preserving the Hobby budget). |
+| **TRACE-002** ✅ | Give `secure-settings.js` row mappers | `api/secure-settings.js`, `client/src/pages/content.tsx:175` | `mapBlogPost(row)` used for GET/POST/PUT, mirroring `mapEvent`/`mapEntry`. Post-save the card keeps its date and badge, and a subsequent toggle cannot reset `published_date` to today. |
+| **TRACE-003** ✅ | Fix the registration-delete rollback | `client/src/components/event-registrations-view.tsx:38-90` | Snapshot `["/api/events"]` too and restore both in `onError`, or move invalidations to `onSettled`. Deleting the same registration twice leaves the header count correct. |
+| **TRACE-004** ✅ | Surface user-delete failures | `client/src/components/staff-users-section.tsx:74-85` | Add `onError` + success toast, matching the sibling `createMutation` in the same file. (The `res.status !== 204 && !res.ok` guard is dead — `apiRequest` throws on any non-2xx.) |
+| **TRACE-005** ✅ | Make board-member save recoverable | `client/src/pages/settings.tsx:149-175` | Report which member failed and invalidate in a `finally` so the UI resyncs to what actually persisted. |
+| **TRACE-006** ✅ | Standardize id validation and delete semantics | `api/documents.js:14`, `api/secure-settings.js:79,113,207,248,367,467` | A shared `requireIntId(req, res)`; every DELETE/PUT checks affected rows and returns 404 when none. `?id=abc` returns 400, not 500. Matches open backlog item **TRACE-006**. |
+| **MAINT-004** ✅ | Detect intra-sheet duplicate titles | `shared/yearly-calendar-utils.js:390-449` | Two sheet rows with the same title do not both silently create. Fix with MAINT-001. |
 | **MAINT-005** | Stop clearing homepage flags on non-`day_event` | `shared/yearly-calendar-utils.js:172,185-186` | Decide first: either enforce "day_event only" on write (making the diff dead code) or carry the value through for all dated types. Today the write path allows what the import then clears. |
 | **MAINT-006** | Harden `validateImportDecision` | `shared/yearly-calendar-utils.js:459-461` | `Object.hasOwn` or a `Map`. `{"status":"toString","action":"ignore"}` returns a validation error instead of a 500 that aborts the whole batch. |
 | **MAINT-007** | Fix photo-slot grid alignment and midnight wrap | `shared/photo-slots.js:51-126` | Misaligned/negative offsets are rounded onto the grid rather than dropped from the occupancy set; `formatMinutesOffset` returns `null` past 24 h instead of wrapping. |

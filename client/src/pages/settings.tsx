@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Save } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
 import StaffUsersSection from "@/components/staff-users-section";
 import NewsletterSubscribersSection from "@/components/newsletter-subscribers-section";
 
@@ -150,30 +150,50 @@ export default function Settings() {
       return;
     }
 
+    // A mid-loop failure persists every member before it and none after, so the
+    // error has to name which one stopped it — a bare "could not save changes"
+    // left the list looking fully saved while only part of it was written.
+    // The refetch runs either way, so what is on screen is what actually
+    // persisted rather than the optimistic local state.
+    let failedMember: { name?: string } | null = null;
+    let failure: unknown = null;
+
     try {
       for (const member of members) {
-        if (member.id) {
-          // Update existing
-          await updateMutation.mutateAsync({ id: member.id, member });
-        } else {
-          // Create new
-          await createMutation.mutateAsync(member);
+        try {
+          if (member.id) {
+            // Update existing
+            await updateMutation.mutateAsync({ id: member.id, member });
+          } else {
+            // Create new
+            await createMutation.mutateAsync(member);
+          }
+        } catch (error) {
+          failedMember = member;
+          failure = error;
+          break;
         }
       }
-
+    } finally {
       await queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=board-members"] });
+    }
 
-      toast({
-        title: t.settings.saved,
-        description: t.settings.boardMembersHaveBeen,
-      });
-    } catch (error) {
+    if (failure) {
+      const reason = getApiErrorMessage(failure, t.settings.couldNotSaveChanges);
       toast({
         variant: "destructive",
         title: t.settings.error,
-        description: t.settings.couldNotSaveChanges,
+        description: failedMember?.name
+          ? `${failedMember.name}: ${reason}`
+          : reason,
       });
+      return;
     }
+
+    toast({
+      title: t.settings.saved,
+      description: t.settings.boardMembersHaveBeen,
+    });
   };
 
   // ===== KINDERGARTEN INFO MANAGEMENT =====

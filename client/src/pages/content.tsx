@@ -85,13 +85,16 @@ export default function Content() {
     }
   }, [blogPosts]);
 
+  // TanStack matches key ELEMENTS, and every blog-post key here is a different
+  // single string, so a prefix match cannot cover them — enumerating was
+  // correct. A predicate is used instead of a growing list so a new variant
+  // (the single-post permalink read, a new category) cannot be forgotten.
   const invalidateBlogPostQueries = async () => {
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&category=news"] }),
-      queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=blog-posts&category=tips"] }),
-    ]);
+    await queryClient.invalidateQueries({
+      predicate: (query) =>
+        typeof query.queryKey[0] === "string" &&
+        query.queryKey[0].startsWith("/api/secure-settings?resource=blog-posts"),
+    });
   };
 
   const createPostMutation = useMutation({

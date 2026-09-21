@@ -373,35 +373,123 @@ export function diffYearlyCalendarEntry(existingEntry, payload) {
   return changes;
 }
 
-// An entry's identity is its title AND where it sits in the year. Matching on
-// the title alone bound every sheet row sharing a title to the same database
-// row: a year with three "Planleggingsdag" entries offered two of them as
-// updates of the first one, so approving the preview destroyed one entry and
-// never created the other two. Dated types are keyed by date, week-based types
-// by their start week.
-function importIdentityKey({ title, entryType, date, weekNumber }) {
-  const normalizedTitle = normalizeYearlyCalendarTitle(title);
-  const position = date ?? (weekNumber != null ? `w${weekNumber}` : '');
-  return `${normalizedTitle}\u0000${entryType ?? ''}\u0000${position}`;
+// Pairing sheet rows to existing entries.
+//
+// Matching on the normalised title alone bound every same-titled sheet row to
+// the same database row: a year with three "Planleggingsdag" entries offered
+// two of them as an update of the first, so approving the preview overwrote one
+// entry twice and never created the other two.
+//
+// Matching on title + date instead is too strict the other way — it stops
+// recognising an entry whose date was corrected in the sheet, which is an edit,
+// not a new entry.
+//
+// So: bucket both sides by title + entryType, then pair within each bucket.
+// One row against one entry pairs regardless of position (the date-correction
+// case). Where either side has several, pair only on an exact position match,
+// and leave anything that cannot be paired unambiguously as new or ambiguous
+// rather than guessing.
+function titleTypeKey({ title, entryType }) {
+  return `${normalizeYearlyCalendarTitle(title)}\u0000${entryType ?? ''}`;
+}
+
+function positionOf({ date, weekNumber }) {
+  if (date) return `d:${date}`;
+  if (weekNumber != null) return `w:${weekNumber}`;
+  return '';
 }
 
 export function buildImportPreview({ schoolYear, existingEntries, rows }) {
-  const entriesByIdentity = new Map();
+  const existingByKey = new Map();
 
   for (const entry of existingEntries ?? []) {
     const entrySchoolYear = getEntryField(entry, 'schoolYear');
     if (entrySchoolYear !== null && entrySchoolYear !== schoolYear) continue;
 
     const normalizedEntry = normalizeExistingEntry(entry);
-    const key = importIdentityKey(normalizedEntry);
-    const entries = entriesByIdentity.get(key) ?? [];
-    entries.push(normalizedEntry);
-    entriesByIdentity.set(key, entries);
+    const key = titleTypeKey(normalizedEntry);
+    const bucket = existingByKey.get(key) ?? [];
+    bucket.push(normalizedEntry);
+    existingByKey.set(key, bucket);
   }
 
-  const previewRows = (rows ?? []).map((row) => {
-    const rowNumber = row.rowNumber;
-    const validation = validateYearlyCalendarImportRow({ rowNumber, schoolYear, row });
+  // Validate every row first, so pairing can see the whole sheet at once.
+  const validated = (rows ?? []).map((row) => ({
+    row,
+    rowNumber: row.rowNumber,
+    validation: validateYearlyCalendarImportRow({ rowNumber: row.rowNumber, schoolYear, row }),
+  }));
+
+  const rowsByKey = new Map();
+  validated.forEach((item, index) => {
+    if (!item.validation.ok) return;
+    const key = titleTypeKey(item.validation.payload);
+    const bucket = rowsByKey.get(key) ?? [];
+    bucket.push(index);
+    rowsByKey.set(key, bucket);
+  });
+
+  // index -> { match } | { ambiguous: candidates }
+  const pairing = new Map();
+
+  for (const [key, rowIndexes] of rowsByKey) {
+    const candidates = existingByKey.get(key) ?? [];
+
+    // Exactly one of each: this is the same entry, wherever it now sits.
+    if (candidates.length === 1 && rowIndexes.length === 1) {
+      pairing.set(rowIndexes[0], { match: candidates[0] });
+      continue;
+    }
+
+    // Otherwise only an exact position match may claim an entry, and each
+    // entry may be claimed once.
+    const claimed = new Set();
+    const unpaired = [];
+    const wanted = new Map();
+    for (const index of rowIndexes) {
+      const position = positionOf(validated[index].validation.payload);
+      const bucket = wanted.get(position) ?? [];
+      bucket.push(index);
+      wanted.set(position, bucket);
+    }
+
+    for (const [position, indexes] of wanted) {
+      const matches = candidates.filter((entry) => positionOf(entry) === position);
+
+      // Two sheet rows describing the same entry: neither may act on it.
+      if (indexes.length > 1) {
+        for (const index of indexes) pairing.set(index, { ambiguous: matches });
+        matches.forEach((entry) => claimed.add(entry));
+        continue;
+      }
+
+      const [index] = indexes;
+      if (matches.length === 1 && !claimed.has(matches[0])) {
+        claimed.add(matches[0]);
+        pairing.set(index, { match: matches[0] });
+      } else if (matches.length > 1) {
+        pairing.set(index, { ambiguous: matches });
+      } else {
+        unpaired.push(index);
+      }
+    }
+
+    // A row with no positional match is only genuinely new once nothing in the
+    // bucket could still be it. While an unclaimed same-titled entry remains,
+    // we cannot tell whether the author moved that entry or added another one,
+    // so say so instead of guessing — guessing "new" silently creates a
+    // duplicate, and guessing "update" silently overwrites the wrong entry.
+    for (const index of unpaired) {
+      const unclaimed = candidates.filter((entry) => !claimed.has(entry));
+      if (unclaimed.length > 0) {
+        pairing.set(index, { ambiguous: unclaimed });
+      }
+      // else: left unpaired, which reads as "new" below.
+    }
+  }
+
+  const previewRows = validated.map((item, index) => {
+    const { row, rowNumber, validation } = item;
 
     if (!validation.ok) {
       return {
@@ -413,9 +501,20 @@ export function buildImportPreview({ schoolYear, existingEntries, rows }) {
       };
     }
 
-    const matches = entriesByIdentity.get(importIdentityKey(validation.payload)) ?? [];
+    const resolution = pairing.get(index);
 
-    if (matches.length === 0) {
+    if (resolution?.ambiguous) {
+      return {
+        rowNumber,
+        status: 'ambiguous',
+        payload: validation.payload,
+        matches: resolution.ambiguous,
+        original: row,
+        defaultAction: 'ignore',
+      };
+    }
+
+    if (!resolution?.match) {
       return {
         rowNumber,
         status: 'new',
@@ -425,24 +524,13 @@ export function buildImportPreview({ schoolYear, existingEntries, rows }) {
       };
     }
 
-    if (matches.length > 1) {
-      return {
-        rowNumber,
-        status: 'ambiguous',
-        payload: validation.payload,
-        matches,
-        original: row,
-        defaultAction: 'ignore',
-      };
-    }
-
-    const changes = diffYearlyCalendarEntry(matches[0], validation.payload);
+    const changes = diffYearlyCalendarEntry(resolution.match, validation.payload);
     if (changes.length === 0) {
       return {
         rowNumber,
         status: 'unchanged',
         payload: validation.payload,
-        existing: matches[0],
+        existing: resolution.match,
         original: row,
         defaultAction: 'ignore',
       };
@@ -452,42 +540,19 @@ export function buildImportPreview({ schoolYear, existingEntries, rows }) {
       rowNumber,
       status: 'changed',
       payload: validation.payload,
-      existing: matches[0],
+      existing: resolution.match,
       changes,
       original: row,
       defaultAction: 'ignore',
     };
   });
 
-  // Two rows in the SAME sheet that resolve to the same entry are ambiguous
-  // too. Previously they both created on the first import, and from the second
-  // import on they were permanently ambiguous (matches.length > 1), so the
-  // sheet could never update them again — only add more duplicates.
-  const identityCounts = new Map();
-  for (const row of previewRows) {
-    if (row.status === 'invalid') continue;
-    const key = row.existing ? `id:${row.existing.id}` : importIdentityKey(row.payload);
-    identityCounts.set(key, (identityCounts.get(key) ?? 0) + 1);
-  }
-
-  const resolvedRows = previewRows.map((row) => {
-    if (row.status === 'invalid' || row.status === 'ambiguous') return row;
-    const key = row.existing ? `id:${row.existing.id}` : importIdentityKey(row.payload);
-    if ((identityCounts.get(key) ?? 0) <= 1) return row;
-    return {
-      ...row,
-      status: 'ambiguous',
-      matches: row.existing ? [row.existing] : [],
-      defaultAction: 'ignore',
-    };
-  });
-
   const counts = { new: 0, unchanged: 0, changed: 0, invalid: 0, ambiguous: 0 };
-  for (const row of resolvedRows) {
+  for (const row of previewRows) {
     counts[row.status] += 1;
   }
 
-  return { schoolYear, rows: resolvedRows, counts };
+  return { schoolYear, rows: previewRows, counts };
 }
 
 export function validateImportDecision({ status, action }) {
