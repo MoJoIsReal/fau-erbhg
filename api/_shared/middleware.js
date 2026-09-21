@@ -11,6 +11,7 @@ import { getDb } from './database.js';
 import { isPasswordChangeRequired } from './password-policy.js';
 import { getJwtConfig } from './jwt-config.js';
 import { YOUTUBE_EMBED_HOST, youtubeEmbedSrc } from '../../shared/video-embed.js';
+import { getRequestId, logEvent, requestFields, setRequestActor } from './log.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -84,29 +85,75 @@ export function handleCorsPreFlight(req, res) {
  */
 export function withApiHandler(handler) {
   return async function wrappedHandler(req, res) {
+    const startedAt = Date.now();
     applySecurityHeaders(res, req.headers.origin);
+
+    // Echoed so a parent reporting a problem can quote one id that matches both
+    // our log lines and Vercel's own. Set before anything can return early.
+    const requestId = getRequestId(req);
+    if (requestId) res.setHeader?.('X-Request-Id', requestId);
+
     if (handleCorsPreFlight(req, res)) return;
 
     try {
-      return await handler(req, res);
+      const result = await handler(req, res);
+      const status = res.statusCode ?? 200;
+      if (status < 200 || status >= 300) {
+        // Every rejected request gets exactly one line. A 4xx is the handler
+        // working as designed, so it is a warning rather than an error, but it
+        // still has to be attributable: which route, which multiplexed
+        // resource, and which council member.
+        logEvent(status >= 500 ? 'error' : 'warn', 'api.request_failed', {
+          ...requestFields(req),
+          status,
+          durationMs: Date.now() - startedAt,
+        });
+      } else if (req.method !== 'GET' && req.method !== 'HEAD') {
+        // A successful mutation was previously logged nowhere at all, so there
+        // was no way to answer "who archived that post?" after the fact. Reads
+        // stay unlogged: they are the bulk of the traffic and carry no change.
+        logEvent('info', 'api.mutation', {
+          ...requestFields(req),
+          status,
+          durationMs: Date.now() - startedAt,
+        });
+      }
+      return result;
     } catch (error) {
-      return handleError(res, error);
+      return await handleError(res, error, 500, req, startedAt);
     }
   };
 }
 
 /**
- * Error response handler
+ * Error response handler. Writes one structured log line, delivers the event to
+ * Sentry (awaited — see the note below) and sends the redacted response.
  * @param {Object} res - Response object
  * @param {Error} error - Error object
  * @param {number} statusCode - HTTP status code (default: 500)
+ * @param {Object|null} req - Request object, for the log line's request context
+ * @param {number|null} startedAt - Date.now() at the start of the request
+ * @returns {Promise<any>}
  */
-export function handleError(res, error, statusCode = 500) {
-  console.error('API Error:', safeErrorForLog(error));
+export async function handleError(res, error, statusCode = 500, req = null, startedAt = null) {
+  const safe = safeErrorForLog(error);
+  logEvent(statusCode >= 500 ? 'error' : 'warn', 'api.error', {
+    ...requestFields(req),
+    status: statusCode,
+    durationMs: startedAt === null ? undefined : Date.now() - startedAt,
+    errorName: safe?.name,
+    errorCode: safe?.code,
+    message: safe?.message,
+  });
+  // The stack stays on its own line: it is multi-line and would make the
+  // structured line above unparseable as one JSON object.
+  if (safe?.stack) console.error('API Error stack:', safe.stack);
 
-  // Log error to Sentry in production
+  // Awaited, not fire-and-forget. See api/_shared/sentry.js — on Vercel the
+  // instance freezes the moment this response is written, so an unawaited
+  // capture frequently never reached Sentry at all.
   if (process.env.NODE_ENV === 'production' && statusCode >= 500) {
-    Sentry.captureException(error);
+    await Sentry.captureException(error);
   }
 
   // Don't expose internal error details in production
@@ -132,8 +179,18 @@ export function parseCookies(req) {
   return cookieHeader.split(';').reduce((cookies, cookie) => {
     const [name, ...rest] = cookie.split('=');
     const value = rest.join('=').trim();
-    if (name) {
+    if (!name) return cookies;
+    try {
       cookies[name.trim()] = decodeURIComponent(value);
+    } catch {
+      // A malformed percent-sequence in ONE cookie used to throw a URIError out
+      // of parseCookies, which every authenticated route calls before it does
+      // anything else — so a single bad cookie turned every endpoint into a
+      // 500, logout included, and the user could not clear it without opening
+      // devtools. Keep the raw value: a cookie we cannot decode will not match
+      // a token comparison, which is the correct outcome, and the request
+      // proceeds to its normal 401/403.
+      cookies[name.trim()] = value;
     }
     return cookies;
   }, {});
@@ -288,6 +345,9 @@ export async function requireAuth(req, res, sqlClient = null, options = {}) {
     res.status(401).json({ error: 'Unauthorized' });
     return null;
   }
+
+  // From here on every log line about this request can name who made it.
+  setRequestActor(req, user);
 
   if (user.passwordChangeRequired && !options.allowPasswordChangeRequired) {
     res.status(403).json({

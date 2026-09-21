@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { sendEventReminders } from '../api/cron/event-reminders.js';
+import { isAuthorizedCron, sendEventReminders } from '../api/cron/event-reminders.js';
 
 process.env.GMAIL_USER = 'sender@example.test';
 process.env.GMAIL_APP_PASSWORD = 'test-only-password';
@@ -110,4 +110,56 @@ test('the run stops claiming once the budget is spent', async () => {
 
   assert.deepEqual(result, { claimed: 0, sent: 0, failed: 0 });
   assert.equal(calls.length, 0, 'an expired budget should not even claim a batch');
+});
+
+// SEC-004. Without CRON_SECRET this used to authorize anyone whenever NODE_ENV
+// was not exactly 'production'. An anonymous GET to this route sends mail and
+// runs the irreversible GDPR retention DELETE, against a caller-supplied
+// ?date=, so a preview deployment — or a production deployment that simply
+// never had NODE_ENV set — was wide open.
+test('cron authorization fails closed when no secret is configured', async (t) => {
+  const previousSecret = process.env.CRON_SECRET;
+  const previousNodeEnv = process.env.NODE_ENV;
+  t.after(() => {
+    if (previousSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = previousSecret;
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  });
+
+  delete process.env.CRON_SECRET;
+
+  for (const nodeEnv of ['development', 'preview', 'production', undefined]) {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+
+    assert.equal(
+      isAuthorizedCron({ headers: {} }),
+      false,
+      `an unauthenticated cron request must be rejected with NODE_ENV=${nodeEnv}`,
+    );
+    assert.equal(
+      isAuthorizedCron({ headers: { authorization: 'Bearer anything' } }),
+      false,
+      `no secret means no bearer token can match with NODE_ENV=${nodeEnv}`,
+    );
+  }
+});
+
+test('cron authorization accepts only the configured secret', async (t) => {
+  const previousSecret = process.env.CRON_SECRET;
+  t.after(() => {
+    if (previousSecret === undefined) delete process.env.CRON_SECRET;
+    else process.env.CRON_SECRET = previousSecret;
+  });
+
+  process.env.CRON_SECRET = 'a-test-only-cron-secret';
+
+  assert.equal(
+    isAuthorizedCron({ headers: { authorization: 'Bearer a-test-only-cron-secret' } }),
+    true,
+  );
+  assert.equal(isAuthorizedCron({ headers: { authorization: 'Bearer wrong' } }), false);
+  assert.equal(isAuthorizedCron({ headers: {} }), false);
+  assert.equal(isAuthorizedCron({}), false);
 });

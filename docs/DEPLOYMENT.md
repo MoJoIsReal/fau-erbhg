@@ -73,7 +73,7 @@ CRON_SECRET=<generate-a-secure-random-string-for-vercel-cron>
   `fau-erdal-barnehage-web`. The server rejects missing, shorter-than-32, and
   obvious placeholder secrets. Deploying this binding invalidates legacy JWTs
   without issuer/audience, so existing users will need to sign in again once.
-- Generate `CRON_SECRET` the same way. Vercel Cron requests must include it as `Authorization: Bearer <CRON_SECRET>`; without it the cron endpoint rejects all requests in production.
+- Generate `CRON_SECRET` the same way. Vercel Cron requests must include it as `Authorization: Bearer <CRON_SECRET>`. The cron endpoint fails closed: with no `CRON_SECRET` set it rejects every request, in **all** environments including previews and local runs. It used to authorize anyone whenever `NODE_ENV` was not exactly `production`, and that route sends mail and runs the irreversible GDPR retention delete — so set it everywhere the crons should run, and leave it unset everywhere they should not.
 
 #### Cloudinary
 ```

@@ -20,6 +20,16 @@ function delivery(overrides = {}) {
   };
 }
 
+// The release statement now parameterizes the status it writes, because a
+// delivery that has run out of attempts is retired to 'failed' rather than put
+// back as 'pending'. Asserting on the bound value rather than on the SQL text
+// says which of the two actually happened.
+function releasedStatus(calls) {
+  const release = calls.find(({ statement }) =>
+    statement.includes('SET status = ?, claimed_at = NULL'));
+  return release ? release.values[0] : null;
+}
+
 function scriptedSql(claimedDeliveries, remaining = 0) {
   const calls = [];
   const sql = async (strings, ...values) => {
@@ -64,10 +74,7 @@ test('newsletter outbox releases a failed delivery with backoff and does not mar
   assert.equal(result.sent, 0);
   assert.equal(result.failed, 1);
   assert.equal(result.remaining, 1);
-  assert.equal(
-    calls.some(({ statement }) => statement.includes("SET status = 'pending', claimed_at = NULL")),
-    true,
-  );
+  assert.equal(releasedStatus(calls), 'pending');
   assert.equal(
     calls.some(({ statement }) => statement.includes("SET status = 'sent', sent_at = NOW()")),
     false,
@@ -99,10 +106,59 @@ test('a failed delivery still reports to the error tracker under NODE_ENV=produc
 
   assert.equal(result.failed, 1);
   assert.equal(result.sent, 0);
-  assert.equal(
-    calls.some(({ statement }) => statement.includes("SET status = 'pending', claimed_at = NULL")),
-    true,
-  );
+  assert.equal(releasedStatus(calls), 'pending');
+});
+
+// A subscriber whose address can never be delivered to used to hold its row
+// 'pending' forever. The source item is only stamped once nothing of it is
+// still pending, so the post stayed queued and re-sent itself to everyone who
+// subscribed afterwards, and the row could never be aged out either.
+test('a delivery that has exhausted its attempts is retired rather than retried forever', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const { sql, calls } = scriptedSql([delivery({ attempts: 5 })], 0);
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async () => {
+    throw new Error('550 5.1.1 recipient does not exist');
+  });
+
+  assert.equal(result.failed, 1);
+  assert.equal(result.abandoned, 1);
+  assert.equal(releasedStatus(calls), 'failed');
+});
+
+test('a delivery below the attempt bound is still retried', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const { sql, calls } = scriptedSql([delivery({ attempts: 4 })], 1);
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async () => {
+    throw new Error('SMTP temporarily unavailable');
+  });
+
+  assert.equal(result.abandoned, 0);
+  assert.equal(releasedStatus(calls), 'pending');
+});
+
+// The body is no longer copied into one row per subscriber; it is read from the
+// item at send time, with the stored column as the fallback for rows queued
+// before that change.
+test('the queued row carries no copy of the item body', async () => {
+  const { sql, calls } = scriptedSql([delivery()]);
+
+  await broadcastNewsletter(sql, '2026-09-10', async () => {});
+
+  const insert = calls.find(({ statement }) =>
+    statement.includes('INSERT INTO newsletter_deliveries'));
+  assert.ok(insert, 'the run should queue due items');
+  assert.match(insert.statement, /SELECT d\.item_type, d\.item_id, s\.id, d\.title, NULL::text/);
+
+  const claim = calls.find(({ statement }) => statement.includes('WITH candidates AS'));
+  assert.ok(claim, 'the run should claim a batch');
+  for (const source of ['events ev', 'yearly_calendar_entries yc', 'blog_posts bp']) {
+    assert.ok(
+      claim.statement.includes(`LEFT JOIN ${source} ON`),
+      `the claim should read the body from ${source} at send time`,
+    );
+  }
 });
 
 test('newsletter outbox skips a subscriber who is no longer active', async () => {

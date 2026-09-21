@@ -13,6 +13,7 @@ import {
 import { htmlToPlainText, truncatePlainText } from '../../shared/html-text.js';
 import { redactSensitiveText } from '../_shared/redact.js';
 import { reportProviderError } from '../_shared/provider-errors.js';
+import { logEvent } from '../_shared/log.js';
 import {
   DELIVERY_CONCURRENCY,
   deliveryMessageId,
@@ -26,6 +27,21 @@ import {
 const MAX_REMINDERS_PER_RUN = 100;
 const MAX_NEWSLETTER_EMAILS_PER_RUN = 300;
 
+// After this many failed sends a delivery is given up on and marked 'failed',
+// which is terminal. Without a bound, one address that can never be delivered
+// to — a closed mailbox, a domain that has gone away — kept its row 'pending'
+// forever. The source item is only stamped once nothing of it is still pending,
+// so the post stayed unstamped, was re-queued on every nightly run, and mailed
+// itself to everyone who subscribed months later. The row could not be aged out
+// either, because retention only collects rows that have reached a terminal
+// state. One attempt per nightly run makes this about five days of trying.
+const MAX_DELIVERY_ATTEMPTS = 5;
+
+// Terminal delivery rows are kept for this long so a council member can still
+// ask what went out last month, then collected. The table is one row per item
+// per subscriber and nothing else ever deleted from it.
+const DELIVERY_RETENTION_DAYS = 90;
+
 // vercel.json gives these functions maxDuration: 30. Stop sending at 25 s so
 // the run exits under its own control — a kill at 30 s leaves rows claimed as
 // 'processing' with no send record. Previously the claim query flipped the
@@ -37,11 +53,16 @@ function deadlineFrom(startedAt = Date.now()) {
   return startedAt + RUN_BUDGET_MS;
 }
 
-function isAuthorizedCron(req) {
-  if (!process.env.CRON_SECRET) {
-    return process.env.NODE_ENV !== 'production';
-  }
-  return req.headers.authorization === `Bearer ${process.env.CRON_SECRET}`;
+// Fails closed. Without CRON_SECRET set this used to authorize anyone whenever
+// NODE_ENV was not exactly 'production' — and an anonymous GET to this route
+// sends mail and runs the irreversible GDPR retention DELETE, against a
+// caller-supplied ?date=. A preview deployment, or a production deployment that
+// simply never had NODE_ENV set, was wide open. `.env.example` documents
+// CRON_SECRET; local runs set it there.
+export function isAuthorizedCron(req) {
+  const secret = process.env.CRON_SECRET;
+  if (!secret) return false;
+  return req.headers?.authorization === `Bearer ${secret}`;
 }
 
 function formatOsloDate(date) {
@@ -131,19 +152,19 @@ function formatLongDate(dateStr, language) {
 // leaves processing rows reclaimable after the lease expires.
 export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
   if (!isEmailConfigured()) {
-    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, remaining: 0, reason: 'email-not-configured' };
+    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, abandoned: 0, remaining: 0, reason: 'email-not-configured' };
   }
 
   const queued = await sql`
     WITH due_items AS (
-      SELECT 'event'::text AS item_type, id AS item_id, title, description, date AS event_date
+      SELECT 'event'::text AS item_type, id AS item_id, title, date AS event_date
       FROM events
       WHERE date = ${targetDate}
         AND status = 'active'
         AND notify_newsletter = true
         AND newsletter_sent_at IS NULL
       UNION ALL
-      SELECT 'calendar'::text, id, title, description, date
+      SELECT 'calendar'::text, id, title, date
       FROM yearly_calendar_entries
       WHERE date = ${targetDate}
         AND entry_type IN ('day_event', 'closed')
@@ -154,9 +175,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
       -- goes out on the first run after it is flagged. It rides the same
       -- outbox, so event_date carries the run's date to keep the claim query
       -- (and its index) unchanged.
-      -- Only a teaser is copied per subscriber: a full article (up to 50k
-      -- chars) would be duplicated across every delivery row for nothing.
-      SELECT 'news'::text, id, title, left(content, 4000), ${targetDate}::text
+      SELECT 'news'::text, id, title, ${targetDate}::text
       FROM blog_posts
       WHERE status = 'published'
         AND notify_newsletter = true
@@ -165,7 +184,13 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     INSERT INTO newsletter_deliveries (
       item_type, item_id, subscriber_id, title, description, event_date
     )
-    SELECT d.item_type, d.item_id, s.id, d.title, d.description, d.event_date
+    -- The body is deliberately not copied. It used to be written into one row
+    -- per subscriber — up to 4 000 characters of a news article, duplicated
+    -- across every delivery — which is the single reason this table grows the
+    -- way it does. The claim query below reads the body from the item itself at
+    -- send time, which also means a typo corrected between queueing and sending
+    -- actually goes out corrected.
+    SELECT d.item_type, d.item_id, s.id, d.title, NULL::text, d.event_date
     FROM due_items d
     CROSS JOIN newsletter_subscribers s
     WHERE s.status = 'active'
@@ -207,11 +232,21 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
       RETURNING d.*
     )
     SELECT c.id, c.item_type as "itemType", c.item_id as "itemId",
-           c.title, c.description, c.event_date as "eventDate",
+           COALESCE(ev.title, yc.title, bp.title, c.title) AS title,
+           COALESCE(ev.description, yc.description, left(bp.content, 4000), c.description)
+             AS description,
+           c.event_date as "eventDate",
            c.attempts, s.email, s.language, s.status as "subscriberStatus",
            s.unsubscribe_token as "unsubscribeToken"
     FROM claimed c
     LEFT JOIN newsletter_subscribers s ON s.id = c.subscriber_id
+    -- The body is read from the item here rather than carried on the row. The
+    -- stored columns are still the last fallback, which is what keeps rows
+    -- queued before this change — and rows whose item has since been deleted —
+    -- sendable exactly as they were.
+    LEFT JOIN events ev ON c.item_type = 'event' AND ev.id = c.item_id
+    LEFT JOIN yearly_calendar_entries yc ON c.item_type = 'calendar' AND yc.id = c.item_id
+    LEFT JOIN blog_posts bp ON c.item_type = 'news' AND bp.id = c.item_id
     ORDER BY c.id
   `;
 
@@ -219,6 +254,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
   let failed = 0;
   let skipped = 0;
   let deferred = 0;
+  let abandoned = 0;
 
   await runWithConcurrency(deliveries, DELIVERY_CONCURRENCY, async (delivery) => {
     // Out of time: hand the row straight back as pending so it is picked up by
@@ -275,12 +311,25 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     } catch (emailError) {
       const retryAt = nextAttemptAt(delivery.attempts);
       const safeError = redactSensitiveText(emailError?.message || String(emailError)).substring(0, 500);
+      const exhausted = Number(delivery.attempts) >= MAX_DELIVERY_ATTEMPTS;
       await sql`
         UPDATE newsletter_deliveries
-        SET status = 'pending', claimed_at = NULL, next_attempt_at = ${retryAt},
-            last_error = ${safeError}, updated_at = NOW()
+        SET status = ${exhausted ? 'failed' : 'pending'},
+            claimed_at = NULL,
+            next_attempt_at = ${retryAt},
+            last_error = ${safeError},
+            updated_at = NOW()
         WHERE id = ${delivery.id} AND status = 'processing'
       `;
+      if (exhausted) {
+        abandoned += 1;
+        logEvent('warn', 'newsletter.delivery_abandoned', {
+          deliveryId: delivery.id,
+          itemType: delivery.itemType,
+          itemId: delivery.itemId,
+          attempts: Number(delivery.attempts),
+        });
+      }
       failed += 1;
       reportProviderError('Failed to send newsletter delivery', emailError);
     }
@@ -347,6 +396,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     failed,
     skipped,
     deferred,
+    abandoned,
     remaining: remainingRows[0]?.count || 0,
   };
 }
@@ -358,6 +408,57 @@ async function cleanupExpiredRateLimits(sql) {
     DELETE FROM api_rate_limits
     WHERE reset_at < NOW() - INTERVAL '7 days'
     RETURNING key
+  `;
+  return deleted.length;
+}
+
+// `events.current_attendees` is written by the registration statement and the
+// delete statement, and until now nothing ever checked it against the rows it
+// is supposed to count — the GDPR retention cleanup below deletes registrations
+// without touching it at all, so every purge left the counter permanently high.
+// Readers no longer see this value (api/events.js derives what it shows), but
+// the capacity check still compares against it under FOR UPDATE, so it has to
+// be brought back to the truth.
+//
+// The `d.stored` re-check is what makes this safe to run against live traffic:
+// a registration racing this statement holds the event row's FOR UPDATE lock,
+// so the UPDATE blocks, and on unblocking PostgreSQL re-evaluates the WHERE
+// clause against the new row version. The counter it just incremented no longer
+// matches the value this statement read, so the row is skipped rather than
+// rolled back to a stale sum. The next run picks up anything skipped.
+export async function reconcileEventAttendeeCounts(sql) {
+  const repaired = await sql`
+    WITH drifted AS (
+      SELECT e.id,
+             COALESCE(e.current_attendees, 0) AS stored,
+             COALESCE(SUM(r.attendee_count), 0)::int AS actual
+      FROM events e
+      LEFT JOIN event_registrations r ON r.event_id = e.id
+      GROUP BY e.id, e.current_attendees
+      HAVING COALESCE(e.current_attendees, 0)
+             IS DISTINCT FROM COALESCE(SUM(r.attendee_count), 0)::int
+    )
+    UPDATE events e
+    SET current_attendees = d.actual
+    FROM drifted d
+    WHERE e.id = d.id
+      AND COALESCE(e.current_attendees, 0) = d.stored
+    RETURNING e.id
+  `;
+  return repaired.length;
+}
+
+// newsletter_deliveries is one row per item per subscriber and, before this,
+// nothing ever deleted from it: every event, calendar entry and news post left
+// a permanent row for every subscriber who was active at the time. Terminal
+// rows are the whole history after DELIVERY_RETENTION_DAYS, so they are
+// collected; anything still pending or processing is left alone, however old.
+async function cleanupDeliveryHistory(sql) {
+  const deleted = await sql`
+    DELETE FROM newsletter_deliveries
+    WHERE status IN ('sent', 'skipped', 'failed')
+      AND updated_at < NOW() - (${DELIVERY_RETENTION_DAYS} * INTERVAL '1 day')
+    RETURNING id
   `;
   return deleted.length;
 }
@@ -527,14 +628,26 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   const retention = await cleanupPrivacyRetention(sql);
+  // After the retention delete, not before: the purge is the one writer that
+  // reliably leaves the counter above the rows that remain.
+  const attendeeCountsRepaired = await reconcileEventAttendeeCounts(sql);
   const expiredRateLimitsDeleted = await cleanupExpiredRateLimits(sql);
-  logRun('reminders', { ...reminders, ...retention, expiredRateLimitsDeleted });
+  const deliveryHistoryDeleted = await cleanupDeliveryHistory(sql);
+  logRun('reminders', {
+    ...reminders,
+    ...retention,
+    attendeeCountsRepaired,
+    expiredRateLimitsDeleted,
+    deliveryHistoryDeleted,
+  });
   return res.status(200).json({
     success: true,
     targetDate,
     sent: reminders.sent,
     failed: reminders.failed,
     retention,
+    attendeeCountsRepaired,
     expiredRateLimitsDeleted,
+    deliveryHistoryDeleted,
   });
 });

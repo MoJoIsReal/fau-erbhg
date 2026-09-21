@@ -39,7 +39,7 @@ client/src/         React SPA. pages/ = routes, components/ = features,
 api/*.js            The entire backend: 8 Vercel serverless route handlers
 api/cron/           Scheduled handler (Vercel Cron)
 api/_shared/        Backend-only helpers: middleware, database, email,
-                    cloudinary, rate-limit, newsletter, delivery, sentry
+                    cloudinary, rate-limit, newsletter, delivery, sentry, log
 shared/             Code used by BOTH tiers (see "The shared/ boundary")
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
 tests/*.test.mjs    node:test suites; scripts/smoke-tests.mjs is the second tier
@@ -105,6 +105,7 @@ calendar, calendar feed, newsletter invariants),
 | Table shape, shared types, insert schemas | `shared/schema.ts` + a `migrations/*.sql` |
 | Email / newsletter sending | `api/_shared/{email,newsletter,delivery,contact-emails}.js` |
 | Uploads | `api/upload.js` + `api/_shared/upload-validation.js` |
+| Structured logs, request ids | `api/_shared/log.js` (`withApiHandler` calls it) |
 | Scheduled work | `api/cron/event-reminders.js`, schedules in `vercel.json` |
 | Video embeds (sanitizer + CSP) | `shared/video-embed.js`, and the four files [`docs/subsystems.md`](docs/subsystems.md) names |
 | Roles/enums shared by both tiers | `shared/constants.js` |

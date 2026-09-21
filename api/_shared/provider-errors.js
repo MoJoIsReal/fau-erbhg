@@ -1,3 +1,4 @@
+import { waitUntil } from '@vercel/functions';
 import Sentry from './sentry.js';
 import { redactSensitiveText } from './redact.js';
 
@@ -19,7 +20,11 @@ export function reportProviderError(context, error) {
     const captured = new Error(`${context}: ${safe.message}`);
     captured.name = safe.name;
     if (safe.code) captured.code = safe.code;
-    Sentry.captureException(captured);
+    // captureException is awaitable now, but these are reported from inside
+    // callbacks that must not hold the response open. waitUntil keeps the
+    // instance alive until the capture finishes; outside a Vercel request
+    // context it is a no-op, which is the old fire-and-forget behaviour.
+    waitUntil(Sentry.captureException(captured));
   }
   return safe;
 }

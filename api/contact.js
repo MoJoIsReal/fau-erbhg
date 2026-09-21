@@ -160,7 +160,7 @@ export default withApiHandler(async function handler(req, res) {
 
     return res.status(201).json(contactMessage);
   } catch (error) {
-    return handleError(res, error);
+    return handleError(res, error, 500, req);
   }
 });
 
@@ -297,7 +297,7 @@ async function handleNewsletterSubscribe(req, res) {
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    return handleError(res, error);
+    return handleError(res, error, 500, req);
   }
 }
 
@@ -334,7 +334,7 @@ async function handleNewsletterConfirm(req, res) {
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    return handleError(res, error);
+    return handleError(res, error, 500, req);
   }
 }
 
@@ -367,6 +367,6 @@ async function handleNewsletterUnsubscribe(req, res) {
     // Idempotent + non-enumerable: always report success.
     return res.status(200).json({ success: true });
   } catch (error) {
-    return handleError(res, error);
+    return handleError(res, error, 500, req);
   }
 }

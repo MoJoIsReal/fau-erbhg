@@ -15,6 +15,16 @@ import { publicBaseUrl } from './_shared/newsletter.js';
 // client (and any cache merge) sees one schema. `mapEvent` is the single
 // place that defines that shape; queries select/return raw rows and map here.
 
+// `events.current_attendees` is a stored counter with three writers and, until
+// migration 0012, no way back once it drifted. What every reader actually wants
+// is the sum of the registrations that exist right now, so the read paths
+// compute it (see ATTENDEE_COUNT_SELECT) and hand it over as
+// `derived_attendees`. The stored column survives only as the value the
+// capacity check locks and compares under FOR UPDATE in api/registrations.js;
+// nothing renders it any more, so a drifted counter can no longer show a parent
+// the wrong number of free seats. Writes that do not join the registrations
+// fall back to the stored value, which is correct for them by construction — a
+// freshly inserted event has no registrations at all.
 function mapEvent(row) {
   return {
     id: row.id,
@@ -25,7 +35,7 @@ function mapEvent(row) {
     location: row.location,
     customLocation: row.custom_location,
     maxAttendees: row.max_attendees,
-    currentAttendees: row.current_attendees,
+    currentAttendees: row.derived_attendees ?? row.current_attendees,
     registrationDeadline: row.registration_deadline,
     type: row.type,
     status: row.status,
@@ -58,17 +68,36 @@ function feedCutoffDate(now = new Date()) {
   return cutoff.toISOString().slice(0, 10);
 }
 
+// Set here rather than in vercel.json. Header rules there are matched against
+// the pre-rewrite path, so the `/api/(.*)` no-store rule never sees
+// /kalender.ics — production was returning `public, max-age=0,
+// must-revalidate`, i.e. two database queries for every poll from every
+// subscribed calendar client, none of them cached at the edge.
+//
+// The feed is entirely public and is rebuilt from data that changes a few times
+// a week, so a short shared cache costs nothing: a stale entry is at most ten
+// minutes behind, which is well inside how often calendar clients refresh
+// anyway. `stale-while-revalidate` keeps subscribers served while the edge
+// refetches. The query string (`?lang=en`) is part of the cache key.
+export const CALENDAR_FEED_CACHE_CONTROL =
+  'public, max-age=300, s-maxage=600, stale-while-revalidate=3600';
+
 async function respondWithCalendarFeed(req, res, sql) {
   const since = feedCutoffDate();
   const language = req.query.lang === 'en' ? 'en' : 'no';
 
   const [eventRows, entryRows] = await Promise.all([
     sql`
-      SELECT *
-      FROM events
-      WHERE status IN ('active', 'cancelled')
-        AND date >= ${since}
-      ORDER BY date ASC, time ASC
+      SELECT e.*,
+             (
+               SELECT COALESCE(SUM(r.attendee_count), 0)::int
+               FROM event_registrations r
+               WHERE r.event_id = e.id
+             ) AS derived_attendees
+      FROM events e
+      WHERE e.status IN ('active', 'cancelled')
+        AND e.date >= ${since}
+      ORDER BY e.date ASC, e.time ASC
     `,
     sql`
       SELECT id, title, description, entry_type, date, start_time, end_time
@@ -102,6 +131,7 @@ async function respondWithCalendarFeed(req, res, sql) {
 
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', 'inline; filename="fau-erdal-barnehage.ics"');
+  res.setHeader('Cache-Control', CALENDAR_FEED_CACHE_CONTROL);
   return res.status(200).send(feed);
 }
 
@@ -140,10 +170,15 @@ export default withApiHandler(async function handler(req, res) {
     }
 
     const events = await sql`
-      SELECT *
-      FROM events
-      WHERE status IN ('active', 'cancelled')
-      ORDER BY date ASC, time ASC
+      SELECT e.*,
+             (
+               SELECT COALESCE(SUM(r.attendee_count), 0)::int
+               FROM event_registrations r
+               WHERE r.event_id = e.id
+             ) AS derived_attendees
+      FROM events e
+      WHERE e.status IN ('active', 'cancelled')
+      ORDER BY e.date ASC, e.time ASC
     `;
 
     return res.status(200).json(events.map(mapEvent));
@@ -265,7 +300,11 @@ export default withApiHandler(async function handler(req, res) {
           no_signup = ${noSignup || false},
           notify_newsletter = ${notifyNewsletter === true}
       WHERE id = ${eventId}
-      RETURNING *
+      RETURNING *, (
+        SELECT COALESCE(SUM(r.attendee_count), 0)::int
+        FROM event_registrations r
+        WHERE r.event_id = events.id
+      ) AS derived_attendees
     `;
 
     if (updated.length === 0) {
@@ -287,7 +326,11 @@ export default withApiHandler(async function handler(req, res) {
         UPDATE events
         SET status = 'cancelled'
         WHERE id = ${eventId}
-        RETURNING *
+        RETURNING *, (
+          SELECT COALESCE(SUM(r.attendee_count), 0)::int
+          FROM event_registrations r
+          WHERE r.event_id = events.id
+        ) AS derived_attendees
       `;
 
       if (cancelled.length === 0) {
