@@ -332,25 +332,76 @@ export async function requireRole(req, res, allowedRoles, sqlClient = null, opti
 // ordinary Norwegian prose such as "Kontaktdata: ..." intact while still
 // catching a leading "data:text/html,...".
 const SCRIPTING_SCHEME = /(?<![\w.-])(?:javascript|vbscript|data)\s*:/gi;
-const INLINE_EVENT_HANDLER = /on\w+\s*=\s*["'][^"']*["']/gi;
+
+// Every quantifier here is bounded. The previous `on\w+\s*=\s*["'][^"']*["']`
+// had no `=` to anchor on, so on an attacker-chosen run like "ondata" repeated
+// the engine started at each "on", let `\w+` swallow the rest of the string,
+// then backtracked a character at a time looking for an `=` that never came —
+// quadratic. 256 KB of that took 11 s, and the field is reachable
+// unauthenticated, so one request could burn the whole 30 s function budget.
+// Real handler names are short and real values are not megabytes long, so
+// bounding each part costs nothing and removes the catastrophic case.
+const INLINE_EVENT_HANDLER = /\bon[a-z]{1,20}\s{0,10}=\s{0,10}["'][^"']{0,2000}["']/gi;
+
+// Bytes allowed through the regex passes per character of output budget. The
+// passes below only ever shorten the string, so anything beyond this cannot
+// affect the first `maxLength` characters of the result — it is pure work.
+const SANITIZE_INPUT_FACTOR = 4;
 
 // A single pass lets a nested payload reassemble itself once the inner copy is
 // cut out ("javajavascript:script:" leaves "javascript:"), so repeat until the
-// string stops changing.
+// string stops changing. Capped: each pass strictly shortens the string, so a
+// handful is always enough in practice, and the cap means no input can make
+// this loop expensive.
+const MAX_STABILIZING_PASSES = 8;
+
 function removeUntilStable(value, pattern) {
   let current = value;
   let previous;
+  let passes = 0;
   do {
     previous = current;
     current = current.replace(pattern, '');
-  } while (current !== previous);
+    passes += 1;
+  } while (current !== previous && passes < MAX_STABILIZING_PASSES);
   return current;
+}
+
+// Upper bound on any single raw request field, applied before sanitization.
+// Comfortably above every real field (the largest plain-text field is a 5 000
+// character contact message) and far below what it takes to make the
+// sanitizers expensive, so this only ever rejects abuse.
+export const MAX_RAW_FIELD_LENGTH = 64 * 1024;
+
+/**
+ * Name of the first top-level field that exceeds the raw-length cap, or null.
+ * Handlers call this before sanitizing so an abusive body is refused with a
+ * 413 instead of being silently truncated — and, on public endpoints, before
+ * the rate limiter is consulted, so oversized bodies cost nothing to reject.
+ * @param {Record<string, unknown>} body
+ * @param {number} maxLength
+ * @returns {string|null}
+ */
+export function findOversizedField(body, maxLength = MAX_RAW_FIELD_LENGTH) {
+  if (!body || typeof body !== 'object') return null;
+  for (const [key, value] of Object.entries(body)) {
+    if (typeof value === 'string' && value.length > maxLength) return key;
+  }
+  return null;
 }
 
 export function sanitizeText(text, maxLength = 1000) {
   if (!text || typeof text !== 'string') return '';
 
-  const withoutBrackets = text.replace(/[<>]/g, ''); // Remove potential HTML tags
+  // Bound the input BEFORE any regex runs. sanitizeHtml already does this
+  // (it slices to maxLength on the way in); sanitizeText used to truncate only
+  // at the very end, so the cap did nothing to limit the work and the full
+  // request body was scanned no matter how short the stored value would be.
+  const bounded = text.length > maxLength * SANITIZE_INPUT_FACTOR
+    ? text.slice(0, maxLength * SANITIZE_INPUT_FACTOR)
+    : text;
+
+  const withoutBrackets = bounded.replace(/[<>]/g, ''); // Remove potential HTML tags
   const withoutSchemes = removeUntilStable(withoutBrackets, SCRIPTING_SCHEME);
 
   return removeUntilStable(withoutSchemes, INLINE_EVENT_HANDLER)

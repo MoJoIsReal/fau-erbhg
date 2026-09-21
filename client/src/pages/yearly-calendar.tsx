@@ -4,7 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Pencil, Calendar as CalendarIcon, Clock, Utensils, Sticker, GripVertical, ChevronLeft, ChevronRight, Download, Loader2, FileSpreadsheet, Upload } from "lucide-react";
 import {
   DndContext,
+  type Announcements,
   type DragEndEvent,
+  KeyboardSensor,
   MouseSensor,
   TouchSensor,
   useSensor,
@@ -319,17 +321,36 @@ function DraggableEntry({ entry, canEdit, onClick, className, style, children, t
     disabled: !canEdit,
   });
 
+  // Space is dnd-kit's pick-up/drop key (see the KeyboardSensor config on the
+  // page); Enter opens the edit modal. Splitting them this way gives a keyboard
+  // user both actions on the same element. Previously the element carried only
+  // onClick, so a focused entry responded to no key at all — it could be tabbed
+  // to and then neither moved nor opened.
+  const dndKeyDown = listeners?.onKeyDown as ((event: React.KeyboardEvent) => void) | undefined;
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (onClick && event.key === "Enter") {
+      event.preventDefault();
+      onClick();
+      return;
+    }
+    dndKeyDown?.(event);
+  };
+
+  // A viewer without edit rights gets a plain, non-focusable chip rather than
+  // something that takes a tab stop and then does nothing.
+  const interactionProps = canEdit
+    ? { ...listeners, ...attributes, onKeyDown: handleKeyDown, onClick }
+    : {};
+
   return (
     <div
       ref={setNodeRef}
-      onClick={onClick}
       title={title}
       className={`${className ?? ""} ${canEdit ? "cursor-grab active:cursor-grabbing touch-none select-none" : ""} ${
         isDragging ? "opacity-60 z-50 relative" : ""
       }`}
       style={{ ...style, transform: CSS.Translate.toString(transform) }}
-      {...listeners}
-      {...attributes}
+      {...interactionProps}
     >
       {children}
     </div>
@@ -460,9 +481,18 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
 
   // Mouse: require small movement to start drag (so taps still fire onClick).
   // Touch: require a 200ms long-press (so vertical scrolling still works).
+  // Keyboard: the only way a keyboard or switch user can move an entry at all.
+  // Without it a focused entry accepted no input whatsoever, which locked the
+  // staff role out of the one task the role exists for.
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, {
+      // Enter is left to DraggableEntry, which uses it to open the edit modal.
+      // dnd-kit binds both Space and Enter by default, which would have made the
+      // modal unreachable from the keyboard.
+      keyboardCodes: { start: ["Space"], cancel: ["Escape"], end: ["Space"] },
+    })
   );
 
   const entriesKey = `/api/yearly-calendar?schoolYear=${schoolYear}`;
@@ -476,6 +506,32 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
   const { data: events = [] } = useQuery<Event[]>({
     queryKey: ["/api/events"],
   });
+
+  // dnd-kit ships English announcements by default, which a screen reader would
+  // read out to a Norwegian user mid-drag. These come from i18n.ts like all
+  // other copy.
+  const dndStrings = t.yearlyCalendar.dragAndDrop;
+  const entryTitleById = (id: string | number) => {
+    const entry = entries.find((candidate) => `entry-${candidate.id}` === String(id));
+    return entry?.title ?? String(id);
+  };
+  const fill = (template: string, values: Record<string, string>) =>
+    template.replace(/\{(\w+)\}/g, (match, key) => values[key] ?? match);
+
+  const dndAnnouncements: Announcements = {
+    onDragStart: ({ active }) =>
+      fill(dndStrings.onDragStart, { item: entryTitleById(active.id) }),
+    onDragOver: ({ active, over }) =>
+      over
+        ? fill(dndStrings.onDragOver, { item: entryTitleById(active.id), target: String(over.id) })
+        : fill(dndStrings.onDragOverNoTarget, { item: entryTitleById(active.id) }),
+    onDragEnd: ({ active, over }) =>
+      over
+        ? fill(dndStrings.onDragEnd, { item: entryTitleById(active.id), target: String(over.id) })
+        : fill(dndStrings.onDragEndNoTarget, { item: entryTitleById(active.id) }),
+    onDragCancel: ({ active }) =>
+      fill(dndStrings.onDragCancel, { item: entryTitleById(active.id) }),
+  };
 
   const eventsByDate = useMemo(() => {
     const byDate = new Map<string, Event[]>();
@@ -671,7 +727,15 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={rectIntersection} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={rectIntersection}
+      onDragEnd={handleDragEnd}
+      accessibility={{
+        announcements: dndAnnouncements,
+        screenReaderInstructions: { draggable: dndStrings.instructions },
+      }}
+    >
       <div className="space-y-8">
         {/* Hero strip */}
         <div className="yearly-hero rounded-3xl bg-gradient-to-r from-[#2C5F41] via-[#4A8C5F] to-[#FF6B35] text-white p-6 sm:p-8 shadow-lg relative overflow-hidden">

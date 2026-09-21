@@ -8,7 +8,8 @@ import {
   sanitizeText,
   sanitizeEmail,
   sanitizePhone,
-  sanitizeNumber
+  sanitizeNumber,
+  findOversizedField
 } from './_shared/middleware.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
@@ -94,6 +95,32 @@ export default withApiHandler(async function handler(req, res) {
     // Public access - Create new registration
     const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames } = req.body;
 
+    // Public and unauthenticated: refuse an abusive body, then let the per-IP
+    // limiter see the request, before spending anything on sanitization.
+    // `childrenNames` in particular is a JSON array that fans out to up to 100
+    // separate sanitizeText calls.
+    const oversizedField = findOversizedField(req.body);
+    if (oversizedField) {
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+    }
+
+    const registrationIpRateLimit = await checkRateLimit(sql, {
+      key: rateLimitKey(req, 'register-ip', ''),
+      limit: REGISTRATION_MAX_ATTEMPTS,
+      windowSeconds: REGISTRATION_WINDOW_SECONDS
+    });
+    if (!registrationIpRateLimit.allowed) {
+      res.setHeader('Retry-After', String(registrationIpRateLimit.retryAfter));
+      return res.status(429).json({
+        // `language` is still raw here — sanitization happens below, after the
+        // limiter. Only an exact 'en' switches language; anything else falls
+        // back to Norwegian, same as sanitizedLanguage would.
+        error: language === 'en'
+          ? 'Too many registrations from this device. Try again later.'
+          : 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
+      });
+    }
+
     // Sanitize inputs
     const sanitizedName = sanitizeText(name, 100);
     const sanitizedEmail = sanitizeEmail(email);
@@ -157,26 +184,18 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: 'Valid event ID required' });
     }
 
+    // Per-(IP, event, email) limit: needs the sanitized address, so it runs
+    // after sanitization. The per-IP limit at the top of this branch already
+    // bounded the work an unthrottled caller could cause.
     const registrationRateLimitKey = rateLimitKey(req, 'register', `${eventIdNum}:${sanitizedEmail}`);
-    const registrationIpRateLimitKey = rateLimitKey(req, 'register-ip', '');
-    const [registrationRateLimit, registrationIpRateLimit] = await Promise.all([
-      checkRateLimit(sql, {
-        key: registrationRateLimitKey,
-        limit: REGISTRATION_MAX_ATTEMPTS,
-        windowSeconds: REGISTRATION_WINDOW_SECONDS
-      }),
-      checkRateLimit(sql, {
-        key: registrationIpRateLimitKey,
-        limit: REGISTRATION_MAX_ATTEMPTS,
-        windowSeconds: REGISTRATION_WINDOW_SECONDS
-      })
-    ]);
+    const registrationRateLimit = await checkRateLimit(sql, {
+      key: registrationRateLimitKey,
+      limit: REGISTRATION_MAX_ATTEMPTS,
+      windowSeconds: REGISTRATION_WINDOW_SECONDS
+    });
 
-    if (!registrationRateLimit.allowed || !registrationIpRateLimit.allowed) {
-      res.setHeader(
-        'Retry-After',
-        String(Math.max(registrationRateLimit.retryAfter, registrationIpRateLimit.retryAfter))
-      );
+    if (!registrationRateLimit.allowed) {
+      res.setHeader('Retry-After', String(registrationRateLimit.retryAfter));
       return res.status(429).json({
         error: sanitizedLanguage === 'no'
           ? 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
@@ -251,18 +270,19 @@ export default withApiHandler(async function handler(req, res) {
               AND COALESCE(no_signup, false) = false
               AND COALESCE(vigilo_signup, false) = false
               AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
+            -- Locks the event row for the duration of this statement, so two
+            -- parents racing for the last seat are serialized: the second one
+            -- re-reads current_attendees after the first commits. The row mark
+            -- also stops PostgreSQL inlining this CTE, so it is evaluated once.
+            FOR UPDATE
           ),
-          capacity_update AS (
-            UPDATE events
-            SET current_attendees = current_attendees + ${requestedAttendees}
-            WHERE id = ${eventIdNum}
-              AND EXISTS (SELECT 1 FROM target_event)
-              AND (
-                (SELECT type FROM target_event) = 'foto'
-                OR (SELECT max_attendees FROM target_event) IS NULL
-                OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= (SELECT max_attendees FROM target_event)
-              )
-            RETURNING *
+          capacity_available AS (
+            SELECT EXISTS (
+              SELECT 1 FROM target_event
+              WHERE type = 'foto'
+                 OR max_attendees IS NULL
+                 OR COALESCE(current_attendees, 0) + ${requestedAttendees} <= max_attendees
+            ) AS ok
           ),
           inserted_registration AS (
             INSERT INTO event_registrations (
@@ -272,7 +292,8 @@ export default withApiHandler(async function handler(req, res) {
               ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
               ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
               ${childrenNamesParam}, ${photoSlotsParam}
-            WHERE EXISTS (SELECT 1 FROM capacity_update)
+            WHERE EXISTS (SELECT 1 FROM target_event)
+              AND (SELECT ok FROM capacity_available)
               AND NOT EXISTS (
                 SELECT 1 FROM event_registrations
                 WHERE event_id = ${eventIdNum} AND lower(email) = lower(${sanitizedEmail})
@@ -289,17 +310,24 @@ export default withApiHandler(async function handler(req, res) {
             ) AS slots(slot)
             RETURNING id
           ),
-          rollback_capacity AS (
+          capacity_update AS (
+            -- The ONLY write to the events row in this statement, and it happens
+            -- only if a registration was actually inserted. The previous shape
+            -- incremented first and tried to undo that with a second UPDATE of
+            -- the same row; PostgreSQL does not apply a second update to a row
+            -- already updated by the same statement (see the manual, 7.8.2
+            -- "Data-Modifying Statements in WITH"), so the compensating update
+            -- was silently skipped and every duplicate signup permanently
+            -- consumed a seat.
             UPDATE events
-            SET current_attendees = GREATEST(0, current_attendees - ${requestedAttendees})
+            SET current_attendees = COALESCE(current_attendees, 0) + ${requestedAttendees}
             WHERE id = ${eventIdNum}
-              AND EXISTS (SELECT 1 FROM capacity_update)
-              AND NOT EXISTS (SELECT 1 FROM inserted_registration)
-            RETURNING id
+              AND EXISTS (SELECT 1 FROM inserted_registration)
+            RETURNING *
           )
           SELECT
             (SELECT COUNT(*)::int FROM target_event) AS "eventExists",
-            (SELECT COUNT(*)::int FROM capacity_update) AS "capacityReserved",
+            (SELECT ok FROM capacity_available) AS "capacityAvailable",
             (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
             (SELECT COUNT(*)::int FROM reserved_slots) AS "reservedSlotCount",
             (SELECT row_to_json(capacity_update) FROM capacity_update) AS event,
@@ -323,7 +351,7 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(404).json({ error: 'Event not found or not active' });
     }
 
-    if (!registrationState.capacityReserved) {
+    if (!registrationState.capacityAvailable) {
       return res.status(400).json({
         error: 'Event is at capacity',
         available: registrationState.available || 0

@@ -7,6 +7,7 @@ import {
 } from '../_shared/newsletter.js';
 import { htmlToPlainText, truncatePlainText } from '../../shared/html-text.js';
 import { redactSensitiveText } from '../_shared/redact.js';
+import { reportProviderError } from '../_shared/provider-errors.js';
 import {
   DELIVERY_CONCURRENCY,
   deliveryMessageId,
@@ -244,10 +245,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
         WHERE id = ${delivery.id} AND status = 'processing'
       `;
       failed += 1;
-      console.error('Failed to send newsletter delivery:', safeError);
-      if (process.env.NODE_ENV === 'production') {
-        Sentry.captureException(new Error(safeError));
-      }
+      reportProviderError('Failed to send newsletter delivery', emailError);
     }
   });
 
