@@ -1160,6 +1160,31 @@ testYearlyCalendarTitleNormalization();
 // permanently consumed a seat and capacity-limited events eventually refused
 // genuine parents. Guard the shape, not the symptom: the registration statement
 // must contain exactly one UPDATE of `events`.
+
+// A backtick inside a SQL comment terminates the JavaScript template literal
+// that the query lives in. tsc reports it, but as a bare "',' expected" a few
+// lines away from the real cause, so name it here where the message can say
+// what actually happened.
+function testNoBackticksInsideSqlComments() {
+  const files = [
+    'api/registrations.js', 'api/events.js', 'api/contact.js', 'api/documents.js',
+    'api/auth.js', 'api/upload.js', 'api/yearly-calendar.js', 'api/secure-settings.js',
+    'api/cron/event-reminders.js',
+  ];
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    source.split('\n').forEach((line, index) => {
+      const comment = line.match(/^\s*--\s(.*)$/);
+      if (comment && comment[1].includes('`')) {
+        assert.fail(
+          `${file}:${index + 1} has a backtick inside a SQL comment, which ends the `
+            + 'surrounding template literal. Write the term without backticks.',
+        );
+      }
+    });
+  }
+}
+
 function testRegistrationUpdatesEventRowOnce() {
   const registrations = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
   const statementStart = registrations.indexOf('WITH target_event AS');
@@ -1198,6 +1223,7 @@ function testRegistrationUpdatesEventRowOnce() {
   );
 }
 
+testNoBackticksInsideSqlComments();
 testRegistrationUpdatesEventRowOnce();
 testYearlyCalendarValidNorwegianRow();
 testYearlyCalendarValidCamelCaseRow();

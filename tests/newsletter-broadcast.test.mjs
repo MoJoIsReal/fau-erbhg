@@ -161,3 +161,79 @@ test('news posts are queued by flag, independent of the run date', async () => {
 
   assert.match(queueStatement, /FROM blog_posts WHERE status = 'published' AND notify_newsletter = true AND newsletter_sent_at IS NULL/);
 });
+
+// The claim window used to be `event_date = targetDate` while the cron runs
+// once a day, so a delivery that failed (or was left 'processing' by a crashed
+// run) could never be claimed again: the next run looks at a different date.
+// Retry was structurally dead for event and calendar items, and the stranded
+// row also blocked its source item from ever being stamped.
+test('the claim window reaches deliveries left over from an earlier date', async () => {
+  const { sql, calls } = scriptedSql([delivery({ eventDate: '2026-09-08' })]);
+
+  await broadcastNewsletter(sql, '2026-09-10', async () => {});
+
+  const claim = calls.find(({ statement }) => statement.includes('WITH candidates AS'));
+  assert.ok(claim, 'the run should issue a claim query');
+  assert.match(
+    claim.statement,
+    /event_date <= \?/,
+    'claim must use <= targetDate so an older pending row is still reachable',
+  );
+  assert.doesNotMatch(
+    claim.statement,
+    /WHERE event_date = \?/,
+    'a single-date claim window strands every delivery that misses its own run',
+  );
+});
+
+// Stamping keyed off the date had the same shape of bug: an item whose
+// deliveries only finished on a later run was never stamped, so it stayed
+// queued for rebroadcast every night.
+test('source items are stamped from their deliveries, not from the run date', async () => {
+  const { sql, calls } = scriptedSql([delivery()]);
+
+  await broadcastNewsletter(sql, '2026-09-10', async () => {});
+
+  for (const table of ['events', 'yearly_calendar_entries']) {
+    const stamp = calls.find(
+      ({ statement }) =>
+        statement.includes(`UPDATE ${table}`) && statement.includes('newsletter_sent_at = NOW()'),
+    );
+    assert.ok(stamp, `${table} should be stamped`);
+    assert.match(
+      stamp.statement,
+      /newsletter_sent_at IS NULL/,
+      `${table} stamping must be keyed off delivery state, not the run date`,
+    );
+    assert.doesNotMatch(
+      stamp.statement,
+      /e\.date = \?/,
+      `${table} stamping must not be scoped to a single run date`,
+    );
+  }
+});
+
+// A run killed at maxDuration leaves every claimed-but-unsent row stuck in
+// 'processing'. The budget makes the run hand rows back itself instead.
+test('a delivery is released rather than sent once the run budget is spent', async () => {
+  const { sql, calls } = scriptedSql([delivery()], 1);
+  let sendCount = 0;
+
+  const expiredDeadline = Date.now() - 1;
+  const result = await broadcastNewsletter(
+    sql,
+    '2026-09-10',
+    async () => { sendCount += 1; },
+    expiredDeadline,
+  );
+
+  assert.equal(sendCount, 0, 'no message should be sent after the deadline');
+  assert.equal(result.deferred, 1);
+  assert.equal(result.sent, 0);
+  assert.equal(
+    calls.some(({ statement }) =>
+      statement.includes("SET status = 'pending', claimed_at = NULL") && !statement.includes('next_attempt_at')),
+    true,
+    'the row must be handed back as pending, not left claimed',
+  );
+});
