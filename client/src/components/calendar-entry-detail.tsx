@@ -22,9 +22,9 @@ interface CalendarEntryDetailProps {
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-t px-3 py-2 text-sm first:border-t-0 dark:border-neutral-800">
+    <div className="flex items-baseline justify-between gap-4 border-t border-neutral-100 px-3 py-2 text-sm first:border-t-0 dark:border-neutral-900">
       <dt className="shrink-0 text-neutral-500 dark:text-neutral-400">{label}</dt>
-      <dd className="min-w-0 text-right font-medium text-neutral-900 dark:text-neutral-50">{children}</dd>
+      <dd className="min-w-0 text-right text-neutral-900 dark:text-neutral-50">{children}</dd>
     </div>
   );
 }
@@ -79,13 +79,13 @@ export default function CalendarEntryDetail({
   const signup = entry.signup;
 
   return (
-    <div className="space-y-4 px-4 py-4">
-      <div>
-        <span className={`text-xs font-semibold uppercase tracking-wide ${style.text}`}>
+    <div className="space-y-4 p-5">
+      <div className={`border-l-2 pl-3 ${style.bar}`}>
+        <span className={`text-xs font-medium uppercase tracking-[0.1em] ${style.text}`}>
           {t.calendar.kinds[entry.kind]}
         </span>
         <h2
-          className={`mt-1 font-heading text-xl font-bold text-neutral-900 dark:text-neutral-50 ${
+          className={`mt-0.5 font-heading text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50 ${
             entry.cancelled ? "line-through" : ""
           }`}
         >
@@ -106,7 +106,7 @@ export default function CalendarEntryDetail({
         <p className="text-sm italic text-neutral-500 dark:text-neutral-400">{t.calendar.noDescription}</p>
       )}
 
-      <dl className="rounded-lg border dark:border-neutral-800">
+      <dl className="rounded-lg border border-neutral-200 dark:border-neutral-800">
         {entry.location && <Fact label={t.calendar.detailPlace}>{entry.location}</Fact>}
         <Fact label={t.calendar.detailWeek}>
           <span className="tabular-nums">

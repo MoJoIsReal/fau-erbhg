@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
@@ -14,17 +13,41 @@ interface CalendarViewProps {
   onEntryClick: (entry: CalendarEntry) => void;
 }
 
-// Two entries per cell keeps a busy day from stretching the whole row; the
-// rest are counted, and the week list is there for anyone who wants them all.
-const MAX_ENTRIES_PER_DAY = 2;
+// Three per cell, three in the rail: past that a busy week stretches the row
+// so far that the month stops reading as a month. The rest are counted, and
+// the week list is there for anyone who wants all of them.
+const MAX_PER_CELL = 3;
+
+function EntryLine({
+  entry,
+  onClick,
+}: {
+  entry: CalendarEntry;
+  onClick: (entry: CalendarEntry) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(entry)}
+      title={entry.title}
+      className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] leading-tight text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary dark:text-neutral-200 dark:hover:bg-neutral-800"
+    >
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${KIND_STYLE[entry.kind].dot}`} aria-hidden="true" />
+      {entry.startTime && (
+        <span className="shrink-0 tabular-nums text-neutral-400 dark:text-neutral-500">{entry.startTime}</span>
+      )}
+      <span className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}>{entry.title}</span>
+    </button>
+  );
+}
 
 /**
- * The month as a grid, with a wide week column down the left.
+ * The month as a grid, with a week column down the left.
  *
- * That column is what lets one grid carry both calendars: everything that
- * lasts a whole week (ukens varmmat, temauker, beskjeder) lives in the rail,
- * and everything tied to a date lives in the day cells. Neither has to be
- * squeezed into the other's shape — a week of hot meals was never a Monday.
+ * That column is what lets one grid carry both calendars: everything lasting a
+ * whole week (ukens varmmat, temauker, beskjeder) lives in the rail, and
+ * everything tied to a date lives in the day cells. Neither has to be squeezed
+ * into the other's shape — a week of hot meals was never a Monday.
  */
 export default function CalendarView({ entries, onEntryClick }: CalendarViewProps) {
   const { language, t } = useLanguage();
@@ -34,7 +57,6 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
   const month = currentDate.getMonth() + 1;
   const weeks = useMemo(() => weeksOfMonth(year, month), [year, month]);
 
-  // Dated entries by ISO date, week-spanning ones kept apart for the rail.
   const { byDate, spanning } = useMemo(() => {
     const dated = new Map<string, CalendarEntry[]>();
     const weekly: CalendarEntry[] = [];
@@ -66,12 +88,12 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
     year: "numeric",
   });
 
-  // Weekday headers come from the first week's own days, so the locale is
+  // Weekday headers come from the first week's own days, so the locale stays
   // formatDate's business rather than a hardcoded list per language.
   const weekdayNames = weeks[0]?.days.map((day) => formatDate(day.date, language, { weekday: "short" })) ?? [];
 
   // Same ordering as the week list's band — varmmat first — so the rail and
-  // the list do not disagree about what the week leads with.
+  // the list never disagree about what a week leads with.
   const railEntriesFor = (weekNumber: number, weekYear: number) =>
     spanning
       .filter(
@@ -80,143 +102,111 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
       )
       .sort(compareSpanningEntries);
 
+  const columns = "grid grid-cols-[8.5rem_repeat(7,minmax(0,1fr))]";
+
   return (
-    <Card>
-      <CardContent className="p-3 sm:p-4">
-        <div className="mb-4 flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigateMonth("prev")}
-            aria-label={t.events.previousMonth}
-          >
+    <div className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="flex items-center justify-between px-4 py-3 sm:px-5">
+        <h3 className="font-heading text-lg font-semibold capitalize text-neutral-900 dark:text-neutral-50">
+          {monthYearText}
+        </h3>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => navigateMonth("prev")} aria-label={t.events.previousMonth}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <h3 className="flex items-center space-x-2 text-lg font-semibold text-neutral-900 dark:text-neutral-50">
-            <CalendarIcon className="h-5 w-5" aria-hidden="true" />
-            <span>{monthYearText}</span>
-          </h3>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigateMonth("next")}
-            aria-label={t.events.nextMonth}
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigateMonth("next")} aria-label={t.events.nextMonth}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
+      </div>
 
-        {/* The grid needs its eight columns to stay readable, so on a phone it
-            scrolls sideways inside its own container rather than collapsing. */}
-        <div className="overflow-x-auto">
-          <div className="min-w-[660px] overflow-hidden rounded-lg border dark:border-neutral-800">
-            <div className="grid grid-cols-[7rem_repeat(7,minmax(0,1fr))] bg-neutral-100 dark:bg-neutral-900">
-              <div className="px-2 py-2 text-xs font-medium uppercase tracking-wide text-neutral-600 dark:text-neutral-300">
-                {t.calendar.week}
-              </div>
-              {weekdayNames.map((name, index) => (
-                <div
-                  key={name + index}
-                  className="border-l px-2 py-2 text-xs font-medium uppercase tracking-wide text-neutral-600 dark:border-neutral-800 dark:text-neutral-300"
-                >
-                  {name}
-                </div>
-              ))}
+      {/* Eight columns need room to stay readable, so on a phone the grid
+          scrolls sideways inside its own container rather than collapsing. */}
+      <div className="overflow-x-auto border-t border-neutral-200 dark:border-neutral-800">
+        <div className="min-w-[720px]">
+          <div className={`${columns} border-b border-neutral-200 dark:border-neutral-800`}>
+            <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+              {t.calendar.week}
             </div>
+            {weekdayNames.map((name, index) => (
+              <div
+                key={name + index}
+                className="px-2 py-2 text-[11px] font-medium uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500"
+              >
+                {name}
+              </div>
+            ))}
+          </div>
 
-            {weeks.map((week) => {
-              const weekYear = isoWeekYear(week.days[0].date);
-              const railEntries = railEntriesFor(week.weekNumber, weekYear);
+          {weeks.map((week, weekIndex) => {
+            const weekYear = isoWeekYear(week.days[0].date);
+            const railEntries = railEntriesFor(week.weekNumber, weekYear);
 
-              return (
-                <div
-                  key={`${weekYear}-${week.weekNumber}`}
-                  className="grid grid-cols-[7rem_repeat(7,minmax(0,1fr))] border-t dark:border-neutral-800"
-                >
-                  <div className="flex flex-col gap-1 bg-neutral-50 px-2 py-2 dark:bg-neutral-900/60">
-                    <span className="text-xs font-semibold tabular-nums text-neutral-700 dark:text-neutral-200">
-                      {t.calendar.week} {week.weekNumber}
+            return (
+              <div
+                key={`${weekYear}-${week.weekNumber}`}
+                className={`${columns} ${
+                  weekIndex > 0 ? "border-t border-neutral-100 dark:border-neutral-900" : ""
+                }`}
+              >
+                <div className="flex flex-col gap-0.5 border-r border-neutral-200 bg-neutral-50/60 px-2 py-2 dark:border-neutral-800 dark:bg-neutral-900/40">
+                  <span className="px-1 text-xs font-semibold tabular-nums text-neutral-400 dark:text-neutral-500">
+                    {week.weekNumber}
+                  </span>
+                  {railEntries.slice(0, MAX_PER_CELL).map((entry) => (
+                    <EntryLine key={entry.id} entry={entry} onClick={onEntryClick} />
+                  ))}
+                  {railEntries.length > MAX_PER_CELL && (
+                    <span className="px-1 text-[11px] text-neutral-400 dark:text-neutral-500">
+                      +{railEntries.length - MAX_PER_CELL} {t.events.more}
                     </span>
-                    {railEntries.map((entry) => (
-                      <button
-                        key={entry.id}
-                        type="button"
-                        onClick={() => onEntryClick(entry)}
-                        className={`border-l-4 pl-1.5 text-left text-[11px] leading-tight text-neutral-700 dark:text-neutral-200 ${
-                          KIND_STYLE[entry.kind].border
+                  )}
+                </div>
+
+                {week.days.map((day) => {
+                  const iso = toCalendarIsoDate(day.date);
+                  const dayEntries = byDate.get(iso) ?? [];
+                  const isToday = iso === todayIso;
+
+                  return (
+                    <div
+                      key={iso}
+                      className={`flex min-h-[92px] flex-col gap-0.5 px-1 py-2 ${
+                        day.isWeekend ? "bg-neutral-50/50 dark:bg-neutral-900/20" : ""
+                      }`}
+                    >
+                      <span
+                        className={`ml-1 text-xs tabular-nums ${
+                          isToday
+                            ? "grid h-5 w-5 place-items-center rounded-full bg-primary font-semibold text-primary-foreground"
+                            : day.inMonth
+                              ? "text-neutral-500 dark:text-neutral-400"
+                              : "text-neutral-300 dark:text-neutral-700"
                         }`}
                       >
-                        <span
-                          className={`block text-[10px] font-semibold uppercase tracking-wide ${
-                            KIND_STYLE[entry.kind].text
-                          }`}
-                        >
-                          {t.calendar.kinds[entry.kind]}
+                        {day.date.getDate()}
+                      </span>
+
+                      {dayEntries.slice(0, MAX_PER_CELL).map((entry) => (
+                        <EntryLine key={entry.id} entry={entry} onClick={onEntryClick} />
+                      ))}
+                      {dayEntries.length > MAX_PER_CELL && (
+                        <span className="px-1 text-[11px] text-neutral-400 dark:text-neutral-500">
+                          +{dayEntries.length - MAX_PER_CELL} {t.events.more}
                         </span>
-                        {entry.title}
-                      </button>
-                    ))}
-                  </div>
-
-                  {week.days.map((day) => {
-                    const iso = toCalendarIsoDate(day.date);
-                    const dayEntries = byDate.get(iso) ?? [];
-                    const isToday = iso === todayIso;
-
-                    return (
-                      <div
-                        key={iso}
-                        className={`flex min-h-[86px] flex-col gap-1 border-l p-1 dark:border-neutral-800 ${
-                          day.inMonth ? "" : "bg-neutral-50/70 dark:bg-neutral-900/40"
-                        } ${day.isWeekend ? "bg-neutral-50 dark:bg-neutral-900/30" : ""}`}
-                      >
-                        <span
-                          className={`text-xs tabular-nums ${
-                            isToday
-                              ? "grid h-5 w-5 place-items-center rounded-full bg-primary font-bold text-primary-foreground"
-                              : day.inMonth
-                                ? "text-neutral-600 dark:text-neutral-300"
-                                : "text-neutral-400 dark:text-neutral-600"
-                          }`}
-                        >
-                          {day.date.getDate()}
-                        </span>
-
-                        {dayEntries.slice(0, MAX_ENTRIES_PER_DAY).map((entry) => (
-                          <button
-                            key={entry.id}
-                            type="button"
-                            onClick={() => onEntryClick(entry)}
-                            title={entry.title}
-                            className={`truncate rounded border border-l-4 px-1 py-0.5 text-left text-[11px] leading-tight ${
-                              KIND_STYLE[entry.kind].chip
-                            } ${KIND_STYLE[entry.kind].border} ${
-                              entry.cancelled ? "line-through opacity-70" : ""
-                            }`}
-                          >
-                            {entry.startTime && (
-                              <span className="mr-1 tabular-nums opacity-75">{entry.startTime}</span>
-                            )}
-                            {entry.title}
-                          </button>
-                        ))}
-
-                        {dayEntries.length > MAX_ENTRIES_PER_DAY && (
-                          <span className="px-1 text-[11px] text-neutral-500 dark:text-neutral-400">
-                            +{dayEntries.length - MAX_ENTRIES_PER_DAY} {t.events.more}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
+      </div>
 
-        <p className="mt-3 text-xs text-neutral-600 dark:text-neutral-300">{t.calendar.weekRailHint}</p>
-      </CardContent>
-    </Card>
+      <p className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400 sm:px-5">
+        {t.calendar.weekRailHint}
+      </p>
+    </div>
   );
 }
