@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { EditorSurface } from "@/components/site/cards";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, getApiErrorBody, getApiErrorMessage } from "@/lib/queryClient";
@@ -163,11 +164,12 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     setCreating(target);
   };
 
+  // The editor's own strip of the page, on a sand surface with a dashed edge
+  // and a label of its own. The guide is explicit that admin actions must not
+  // sit among the public filters (§11), and the dashed border is what tells a
+  // logged-in editor at a glance which controls the parents can also see.
   const toolbar = !canEditYearly ? null : (
-    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-hairline bg-sand px-4 py-3">
-      <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-subtle">
-        {t.calendar.editorLabel}
-      </span>
+    <EditorSurface label={t.calendar.editorLabel} hint={t.calendar.excelScopeNote}>
       <Button size="sm" onClick={() => setPickerOpen(true)}>
         <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
         {t.calendar.newEntry}
@@ -193,8 +195,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           {t.calendar.openYearlyEditor}
         </Link>
       </Button>
-      <p className="basis-full text-xs text-subtle">{t.calendar.excelScopeNote}</p>
-    </div>
+    </EditorSurface>
   );
 
   const actionsFor = (entry: CalendarEntry): ReactNode => {
@@ -206,8 +207,8 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     const showRegistrations = entry.event && signup?.mode === "registration";
 
     return (
-      <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3">
-        <span className="basis-full text-[11px] uppercase tracking-[0.1em] text-subtle">
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-dashed border-hairline pt-4">
+        <span className="basis-full text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
           {t.calendar.editorLabel}
         </span>
         <Button

@@ -73,7 +73,9 @@ export const ILLUSTRATION_HOME = set(
   heroHome560Jpg,
   heroHome900Jpg,
   560,
-  900,
+  // The 900px variant stops at the crop's own 852px rather than being
+  // upscaled, and the descriptor has to say so or the browser picks wrongly.
+  852,
   852,
   809,
   "50% 50%",
@@ -112,7 +114,8 @@ export const ILLUSTRATION_FJORD = set(
   bannerFjord800Jpg,
   bannerFjord1400Jpg,
   800,
-  1400,
+  // Like the home crop, the wide variant stops at the source's own width.
+  1090,
   1090,
   339,
   "60% 55%",

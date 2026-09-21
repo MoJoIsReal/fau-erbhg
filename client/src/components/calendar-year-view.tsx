@@ -18,10 +18,14 @@ const MAX_DOTS = 3;
  * The kindergarten year as twelve small month calendars.
  *
  * Nothing here is readable as text, and that is the point: this view answers
- * "when is it busy, and when is it quiet" at a glance, and hands the month
- * over to the month view for anything more. Each day that has something gets
- * a dot per kind, so a week of planning days looks different from a week with
- * one dugnad in it.
+ * "when is it busy, and when is it quiet" at a glance, then hands the month
+ * over to the month view for anything more (guide §10C). Each day that has
+ * something gets a dot per kind, so a week of planning days looks different
+ * from a week with one dugnad in it.
+ *
+ * The grid follows the guide's breakpoints — 1 column on a phone, 2 on a
+ * tablet, 3 from desktop — and each month card names how many entries it
+ * holds, because a colour-blind reader cannot count the dots by hue.
  */
 export default function CalendarYearView({ entries, schoolYear, onMonthPick }: CalendarYearViewProps) {
   const { language, t } = useLanguage();
@@ -47,7 +51,10 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
   // business rather than a hardcoded list per language.
   const weekdayInitials = useMemo(() => {
     const week = weeksOfMonth(months[0].year, months[0].month)[0];
-    return week.days.map((day) => formatDate(day.date, language, { weekday: "narrow" }));
+    return week.days.map((day) => ({
+      narrow: formatDate(day.date, language, { weekday: "narrow" }),
+      long: formatDate(day.date, language, { weekday: "long" }),
+    }));
   }, [months, language]);
 
   return (
@@ -57,32 +64,51 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
           const weeks = weeksOfMonth(ref.year, ref.month);
           const isCurrentMonth =
             ref.year === now.getFullYear() && ref.month === now.getMonth() + 1;
+          const monthName = formatDate(new Date(ref.year, ref.month - 1, 1), language, {
+            month: "long",
+          });
+          const count = weeks.reduce(
+            (total, week) =>
+              total +
+              week.days.filter(
+                (day) => day.inMonth && (byDate.get(toCalendarIsoDate(day.date))?.length ?? 0) > 0,
+              ).length,
+            0,
+          );
 
           return (
             <button
               key={`${ref.year}-${ref.month}`}
               type="button"
               onClick={() => onMonthPick(ref)}
-              className={`rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
+              className={`rounded-card border p-4 text-left transition-colors duration-micro ease-guide ${
                 isCurrentMonth
-                  ? "border-accent/50 bg-accent/5 ring-1 ring-accent/20"
-                  : "border-hairline bg-white hover:border-hairline"
+                  ? "border-brand/40 bg-green-50/50"
+                  : "border-hairline bg-surface hover:border-brand/30 hover:bg-green-50/40"
               }`}
             >
-              <h3 className="font-heading text-base font-semibold capitalize text-ink">
-                {formatDate(new Date(ref.year, ref.month - 1, 1), language, { month: "long" })}{" "}
-                <span className="font-normal tabular-nums text-subtle">
-                  {ref.year}
-                </span>
-              </h3>
+              <div className="flex items-baseline justify-between gap-3">
+                <h3 className="text-h4 font-bold capitalize text-ink">
+                  {monthName}{" "}
+                  <span className="font-normal tabular-nums text-subtle">{ref.year}</span>
+                </h3>
+                {/* The number of marked days in words as well as dots, so the
+                    "where is it busy" question does not depend on colour. */}
+                {count > 0 && (
+                  <span className="shrink-0 rounded-pill bg-green-50 px-2 py-0.5 text-micro font-semibold tabular-nums text-brand">
+                    {count}
+                  </span>
+                )}
+              </div>
 
               <div className="mt-3 grid grid-cols-7 gap-y-1">
-                {weekdayInitials.map((initial, index) => (
+                {weekdayInitials.map((day, index) => (
                   <span
                     key={index}
-                    className="text-center text-[10px] font-medium uppercase text-subtle"
+                    className="text-center text-micro font-semibold uppercase text-subtle"
+                    aria-hidden="true"
                   >
-                    {initial}
+                    {day.narrow}
                   </span>
                 ))}
 
@@ -95,9 +121,9 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
                     return (
                       <span key={iso} className="flex flex-col items-center gap-0.5 pb-0.5">
                         <span
-                          className={`grid h-5 w-5 place-items-center rounded-full text-[11px] tabular-nums ${
+                          className={`grid h-5 w-5 place-items-center rounded-pill text-micro tabular-nums ${
                             isToday
-                              ? "bg-accent font-semibold text-accent-foreground"
+                              ? "bg-brand font-bold text-primary-foreground"
                               : day.inMonth
                                 ? "text-copy"
                                 : "text-subtle/60"
@@ -109,7 +135,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
                           {dayEntries.slice(0, MAX_DOTS).map((entry) => (
                             <span
                               key={entry.id}
-                              className={`h-1.5 w-1.5 rounded-full ${KIND_STYLE[entry.kind].dot}`}
+                              className={`h-1.5 w-1.5 rounded-pill ${KIND_STYLE[entry.kind].dot}`}
                               aria-hidden="true"
                             />
                           ))}
@@ -124,7 +150,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
         })}
       </div>
 
-      <p className="text-xs text-subtle">{t.calendar.yearViewHint}</p>
+      <p className="text-small text-subtle">{t.calendar.yearViewHint}</p>
     </div>
   );
 }

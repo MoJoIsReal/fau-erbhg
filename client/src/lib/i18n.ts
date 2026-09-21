@@ -97,7 +97,6 @@ export interface Translations {
     safety: string;
     cooperation: string;
     engagement: string;
-    heroHand: string;
     heroImageAlt: string;
     heroCalendarCta: string;
     heroContactCta: string;
@@ -156,6 +155,7 @@ export interface Translations {
     yearIntro: string;
     tagline: string;
     noEventsThisWeek: string;
+    noEventsThisDay: string;
     weeklyFood: string;
     reminderTitle: string;
     reminderBody: string;
@@ -179,6 +179,7 @@ export interface Translations {
     filterSignup: string;
     filterKindergarten: string;
     showAllTypes: string;
+    filtersLabel: string;
     typesOn: string;
     showEarlier: string;
     nothingMatches: string;
@@ -995,7 +996,7 @@ export const translations: Record<Language, Translations> = {
       tipsTricks: "Tips & triks",
       news: "Nyheter",
       by: "av",
-      readMore: "Les mer →",
+      readMore: "Les mer",
       children: "barn",
       director: "Styrer:",
       loadingInformation: "Laster informasjon...",
@@ -1018,7 +1019,7 @@ export const translations: Record<Language, Translations> = {
       shareIdeas: "Del dine ideer",
       shareIdeasDesc: "Kom med forslag til forbedringer og nye initiativ",
       nextMeeting: "Neste møte",
-      moreInfo: "Mer informasjon →",
+      moreInfo: "Mer informasjon",
       aboutKindergarten: "Om Barnehagen",
       address: "Kontakt:",
       municipality: "Adresse:",
@@ -1034,12 +1035,11 @@ export const translations: Record<Language, Translations> = {
       vara: "Vara:",
       fauDescription: "Foreldrenes arbeidsutvalg (FAU) er foreldrenes egen frivillige forening. Vi jobber for å ivareta foreldrenes interesser og bidra til et godt miljø for barna i barnehagen.",
       upcomingEvents: "Hva skjer fremover",
-      seeAllEvents: "Se hele kalenderen →",
+      seeAllEvents: "Se hele kalenderen",
       noEvents: "Ingen planlagte arrangementer",
       safety: "Trygghet",
       cooperation: "Samarbeid",
       engagement: "Engasjement",
-      heroHand: "Små mennesker, store dager",
       heroImageAlt: "Illustrasjon: to barn på tur mot et treskilt med ordene lek, mestring og glede",
       heroCalendarCta: "Se hva som skjer",
       heroContactCta: "Ta kontakt",
@@ -1099,6 +1099,7 @@ export const translations: Record<Language, Translations> = {
       yearIntro: "Få en rask oversikt over hele året. Klikk på en måned for å se detaljer.",
       tagline: "Små mennesker, store dager",
       noEventsThisWeek: "Ingen planlagte arrangementer denne uken.",
+      noEventsThisDay: "Ingenting er lagt inn denne dagen.",
       weeklyFood: "Ukens varmmat:",
       reminderTitle: "Vil du ha påminnelser om viktige datoer?",
       reminderBody: "Legg til kalenderen i mobil eller nettbrett, så går du ikke glipp av noe.",
@@ -1126,6 +1127,7 @@ export const translations: Record<Language, Translations> = {
       filterSignup: "Påmelding",
       filterKindergarten: "Barnehagen",
       showAllTypes: "Vis alt",
+      filtersLabel: "Filtre",
       typesOn: "typer på",
       showEarlier: "Vis tidligere uker",
       nothingMatches: "Ingen oppføringer igjen med disse filtrene.",
@@ -1312,7 +1314,7 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "Du vil ikke lenger motta nyhetsbrev fra FAU Erdal Barnehage.",
       unsubErrorTitle: "Noe gikk galt",
       unsubErrorDesc: "Kunne ikke melde deg av. Prøv igjen senere.",
-      footerLink: "📧 Meld deg på nyhetsbrev",
+      footerLink: "Meld deg på nyhetsbrev",
       admin: {
         title: "Nyhetsbrev-abonnenter",
         description: "Foreldre som har bekreftet påmelding til nyhetsbrevet. Påminnelser sendes automatisk dagen før arrangementer som er huket av, og nyhetssaker som er huket av sendes ved neste utsending.",
@@ -1936,7 +1938,7 @@ export const translations: Record<Language, Translations> = {
       tipsTricks: "Tips & Tricks",
       news: "News",
       by: "by",
-      readMore: "Read more →",
+      readMore: "Read more",
       children: "children",
       director: "Director:",
       loadingInformation: "Loading information...",
@@ -1959,7 +1961,7 @@ export const translations: Record<Language, Translations> = {
       shareIdeas: "Share your ideas",
       shareIdeasDesc: "Come up with suggestions for improvements and new initiatives",
       nextMeeting: "Next meeting",
-      moreInfo: "More information →",
+      moreInfo: "More information",
       aboutKindergarten: "About the Kindergarten",
       address: "Address:",
       municipality: "Address:",
@@ -1974,13 +1976,12 @@ export const translations: Record<Language, Translations> = {
       member: "Member:",
       vara: "Deputy member:",
       fauDescription: "The Parents' Council Working Committee (FAU) is the parents' own voluntary association. We work to safeguard parents' interests and contribute to a good environment for the children in the kindergarten.",
-      seeAllEvents: "See the full calendar →",
+      seeAllEvents: "See the full calendar",
       upcomingEvents: "What's coming up",
       noEvents: "No Scheduled Events",
       safety: "Safety",
       cooperation: "Cooperation",
       engagement: "Engagement",
-      heroHand: "Small people, big days",
       heroImageAlt: "Illustration: two children walking towards a wooden sign reading play, mastery and joy",
       heroCalendarCta: "See what's on",
       heroContactCta: "Get in touch",
@@ -2040,6 +2041,7 @@ export const translations: Record<Language, Translations> = {
       yearIntro: "A quick look at the whole year. Pick a month to see it in detail.",
       tagline: "Small people, big days",
       noEventsThisWeek: "Nothing planned this week.",
+      noEventsThisDay: "Nothing is scheduled on this day.",
       weeklyFood: "This week's hot meal:",
       reminderTitle: "Want reminders for the dates that matter?",
       reminderBody: "Add the calendar to your phone or tablet so nothing slips past you.",
@@ -2067,6 +2069,7 @@ export const translations: Record<Language, Translations> = {
       filterSignup: "Signup",
       filterKindergarten: "Kindergarten",
       showAllTypes: "Show all",
+      filtersLabel: "Filters",
       typesOn: "types on",
       showEarlier: "Show earlier weeks",
       nothingMatches: "Nothing left with these filters.",
@@ -2253,7 +2256,7 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "You will no longer receive newsletters from FAU Erdal Kindergarten.",
       unsubErrorTitle: "Something went wrong",
       unsubErrorDesc: "Could not unsubscribe you. Please try again later.",
-      footerLink: "📧 Subscribe to newsletter",
+      footerLink: "Subscribe to newsletter",
       admin: {
         title: "Newsletter subscribers",
         description: "Parents who have confirmed their newsletter subscription. Reminders are sent automatically the day before flagged events, and flagged news posts go out on the next send.",
