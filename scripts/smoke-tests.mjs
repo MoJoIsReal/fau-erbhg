@@ -440,8 +440,11 @@ function testClientRegressionGuards() {
     'Newsletter cron should include closed yearly calendar entries',
   );
 
-  // The footer's next-meeting logic lives in the shared useUpcomingItems hook
-  // (also used by the homepage); the layout must consume it.
+  // "What happens next" is filtered in the shared useUpcomingItems hook, so
+  // the rules live in one tested place; the homepage must consume it rather
+  // than growing its own copy. (The footer used to render a next-meeting
+  // block from the same hook; it no longer does, so every page but the
+  // homepage is spared those three queries.)
   const upcomingItemsHook = readFileSync(new URL('../client/src/hooks/useUpcomingItems.ts', import.meta.url), 'utf8');
   assert.match(
     upcomingItemsHook,
@@ -458,12 +461,13 @@ function testClientRegressionGuards() {
     /daysWithEvent\.has\(dayKey\(entry\.date\)\)/,
     'Upcoming-items hook should drop yearly day events on days a signup event already covers',
   );
-  const layout = readFileSync(new URL('../client/src/components/layout.tsx', import.meta.url), 'utf8');
+  const homePage = readFileSync(new URL('../client/src/pages/home.tsx', import.meta.url), 'utf8');
   assert.match(
-    layout,
+    homePage,
     /useUpcomingItems\(\)/,
-    'Footer next meeting should come from the shared useUpcomingItems hook',
+    'The homepage\'s upcoming list should come from the shared useUpcomingItems hook',
   );
+  const layout = readFileSync(new URL('../client/src/components/layout.tsx', import.meta.url), 'utf8');
   assert.match(
     layout,
     /SheetContent[^>]+overflow-y-auto/,

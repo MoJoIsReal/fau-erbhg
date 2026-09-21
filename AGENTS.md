@@ -143,7 +143,7 @@ separate utility, and a page uses at most three of 400/600/700.
 **Reach for `components/site/` before writing markup.** `PageHero`,
 `Section`/`SectionHeader`/`Surface`/`EmptyState`, `FilterChip`/
 `SegmentedControl`/`StatusPill`, `InfoBanner`/`IllustrationBanner`,
-`LinkCard`/`EditorSurface`, and `Artwork` + the illustration library. Cards are
+`EditorSurface`, and `Artwork` + the illustration library. Cards are
 not the default container — the guide asks for spacing and typography first —
 and editor-only controls always go inside `EditorSurface`, never among the
 public filters.

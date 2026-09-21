@@ -11,6 +11,7 @@ import {
 import { isoWeek } from "@shared/yearly-calendar-display";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { useCalendarEntries } from "@/hooks/useCalendarEntries";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
@@ -145,6 +146,19 @@ export default function CalendarViews() {
   const editor = useCalendarEditor({ schoolYear });
   const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
 
+  // Month and year are tablet-and-up views. On a phone a month grid is a worse
+  // version of the list — a wall of dots you then have to tap to read a single
+  // line — so below the guide's mobile breakpoint the switch is not offered and
+  // the list is simply what the calendar is. `mode` itself is left untouched,
+  // so someone who chose "Måned" on a laptop still finds it there.
+  const compact = !useMediaQuery("(min-width: 640px)");
+  const view = compact ? "list" : mode;
+
+  // The kindergarten-year picker only changes the year view and the editor's
+  // export scope; it does nothing to the list. On a phone, where the list is
+  // the only public view, it would be a control that appears to do nothing.
+  const showSchoolYear = !compact || editor.toolbar !== null;
+
   const modes = [
     {
       id: "list" as const,
@@ -164,19 +178,19 @@ export default function CalendarViews() {
   ];
 
   const heading =
-    mode === "month"
+    view === "month"
       ? formatDate(new Date(monthCursor.year, monthCursor.month - 1, 1), language, {
           month: "long",
           year: "numeric",
         })
-      : mode === "year"
+      : view === "year"
         ? `${t.calendar.yearHeading} ${schoolYear}/${schoolYear + 1}`
         : t.calendar.listHeading;
 
   const intro =
-    mode === "month"
+    view === "month"
       ? t.calendar.monthIntro
-      : mode === "year"
+      : view === "year"
         ? t.calendar.yearIntro
         : t.calendar.listIntro;
 
@@ -206,7 +220,7 @@ export default function CalendarViews() {
         tone="green"
         priority
         eyebrow={t.calendar.title}
-        title={<span className={mode === "month" ? "capitalize" : undefined}>{heading}</span>}
+        title={<span className={view === "month" ? "capitalize" : undefined}>{heading}</span>}
         lead={intro}
         hand={t.calendar.tagline}
         illustration={{ art: ILLUSTRATION_CALENDAR, alt: "" }}
@@ -217,27 +231,31 @@ export default function CalendarViews() {
           list are the thing worth keeping on screen. */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <SegmentedControl
-            options={modes}
-            value={mode}
-            onChange={changeMode}
-            label={t.calendar.viewLabel}
-          />
+          {!compact && (
+            <SegmentedControl
+              options={modes}
+              value={mode}
+              onChange={changeMode}
+              label={t.calendar.viewLabel}
+            />
+          )}
 
-          <label className="flex items-center gap-2 text-small text-subtle">
-            {t.yearlyCalendar.schoolYearLabel}
-            <select
-              value={schoolYear}
-              onChange={(event) => setSchoolYear(Number(event.target.value))}
-              className="h-11 rounded-token border border-hairline bg-surface px-3 text-small font-semibold text-ink"
-            >
-              {schoolYearOptions.map((year) => (
-                <option key={year} value={year}>
-                  {year}/{year + 1}
-                </option>
-              ))}
-            </select>
-          </label>
+          {showSchoolYear && (
+            <label className="flex items-center gap-2 text-small text-subtle">
+              {t.yearlyCalendar.schoolYearLabel}
+              <select
+                value={schoolYear}
+                onChange={(event) => setSchoolYear(Number(event.target.value))}
+                className="h-11 rounded-token border border-hairline bg-surface px-3 text-small font-semibold text-ink"
+              >
+                {schoolYearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}/{year + 1}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         <div>
@@ -296,7 +314,7 @@ export default function CalendarViews() {
 
       {editor.toolbar}
 
-      {mode === "list" ? (
+      {view === "list" ? (
         <CalendarEntryList
           entries={visible}
           fromWeekKey={showPast ? null : currentWeekKey}
@@ -314,7 +332,7 @@ export default function CalendarViews() {
             </div>
           }
         >
-          {mode === "month" ? (
+          {view === "month" ? (
             <CalendarView
               entries={visible}
               month={monthCursor}

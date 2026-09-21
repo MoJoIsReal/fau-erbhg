@@ -1,19 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import {
-  ArrowRight,
-  CalendarDays,
-  Clock,
-  ExternalLink,
-  FileText,
-  HandHeart,
-  Heart,
-  MapPin,
-  MessageCircle,
-  Sparkles,
-  Users,
-  UtensilsCrossed,
-} from "lucide-react";
+import { ArrowRight, CalendarDays, Clock, Heart, MapPin, Sparkles, Users } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
@@ -24,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import PageHero from "@/components/site/page-hero";
 import { SectionHeader, Surface, EmptyState } from "@/components/site/section";
 import { StatusPill } from "@/components/site/controls";
-import { LinkCard } from "@/components/site/cards";
 import { IllustrationBanner } from "@/components/site/banners";
 import { ILLUSTRATION_HOME, ILLUSTRATION_SIGNPOST } from "@/components/site/illustrations";
 
@@ -124,50 +110,6 @@ export default function Home() {
     queryKey: ["/api/secure-settings?resource=kindergarten-info"],
   });
 
-  const usefulLinks = [
-    {
-      href: "https://vigilo.no",
-      title: t.home.linkVigilo,
-      description: t.home.linkVigiloDesc,
-      icon: <MessageCircle className="h-5 w-5" aria-hidden="true" />,
-      external: true,
-    },
-    {
-      href: "https://askoy.kommune.no/tjenester/barnehagen/barnehagene-pa-askoy/kommunalebarnehager/erdal-barnehage",
-      title: t.home.linkKommune,
-      description: t.home.linkKommuneDesc,
-      icon: <ExternalLink className="h-5 w-5" aria-hidden="true" />,
-      external: true,
-    },
-    {
-      href: "https://www.helsedirektoratet.no/retningslinjer/mat-og-maltider-i-barnehagen",
-      title: t.home.linkMeals,
-      description: t.home.linkMealsDesc,
-      icon: <UtensilsCrossed className="h-5 w-5" aria-hidden="true" />,
-      external: true,
-    },
-    {
-      href: "https://foreldreutvalgene.no/fub/",
-      title: t.home.linkFub,
-      description: t.home.linkFubDesc,
-      icon: <HandHeart className="h-5 w-5" aria-hidden="true" />,
-      external: true,
-    },
-    {
-      href: "/files",
-      title: t.home.linkDocuments,
-      description: t.home.linkDocumentsDesc,
-      icon: <FileText className="h-5 w-5" aria-hidden="true" />,
-      external: false,
-    },
-    {
-      href: "https://www.facebook.com/groups/1674520382805077",
-      title: t.home.linkFacebook,
-      description: t.home.linkFacebookDesc,
-      icon: <Users className="h-5 w-5" aria-hidden="true" />,
-      external: true,
-    },
-  ];
 
   return (
     <div className="section-rhythm">
@@ -402,19 +344,6 @@ export default function Home() {
           </div>
         </section>
       )}
-
-      <section aria-labelledby="home-links">
-        <SectionHeader
-          id="home-links"
-          title={t.home.usefulLinks}
-          description={t.home.usefulLinksLead}
-        />
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {usefulLinks.map((link) => (
-            <LinkCard key={link.href} {...link} externalLabel={t.ui.externalLink} />
-          ))}
-        </div>
-      </section>
 
       {/* The standing explanation of who we are and where the kindergarten is.
           Open sections with a rule between them rather than two more cards. */}
