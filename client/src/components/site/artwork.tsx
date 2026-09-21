@@ -1,3 +1,4 @@
+import { useIsDarkTheme } from "@/hooks/useIsDarkTheme";
 import type { IllustrationSet } from "./illustrations";
 
 interface ArtworkProps {
@@ -23,6 +24,12 @@ interface ArtworkProps {
  * ratio so nothing jumps while it loads, and `object-position` taken from the
  * artwork's own focal point so children and signs survive a narrow frame
  * rather than being centre-cropped out of it (guide §14).
+ *
+ * In the dark theme it serves the night drawing of the same scene instead.
+ * That is a swap, not an overlay: the theme is a class the user can set
+ * against their system preference, so it cannot be a `prefers-color-scheme`
+ * source in the `<picture>`, and rendering both and hiding one would download
+ * two illustrations to show one. Only the chosen file is ever fetched.
  */
 export default function Artwork({
   illustration,
@@ -31,20 +38,26 @@ export default function Artwork({
   priority = false,
   sizes = "100vw",
 }: ArtworkProps) {
+  const isDark = useIsDarkTheme();
+  const art = isDark ? illustration.dark : illustration;
+
   return (
     <picture>
-      <source type="image/webp" srcSet={illustration.srcSet} sizes={sizes} />
-      <source type="image/jpeg" srcSet={illustration.jpgSrcSet} sizes={sizes} />
+      <source type="image/webp" srcSet={art.srcSet} sizes={sizes} />
+      <source type="image/jpeg" srcSet={art.jpgSrcSet} sizes={sizes} />
       <img
-        src={illustration.jpg}
+        // Keyed on the theme so the browser starts the night file rather than
+        // holding the day one until its replacement has decoded.
+        key={isDark ? "dark" : "light"}
+        src={art.jpg}
         alt={alt}
         aria-hidden={alt === "" ? true : undefined}
-        width={illustration.width}
-        height={illustration.height}
+        width={art.width}
+        height={art.height}
         loading={priority ? "eager" : "lazy"}
         decoding={priority ? "async" : "async"}
         fetchPriority={priority ? "high" : "auto"}
-        style={{ objectPosition: illustration.focus }}
+        style={{ objectPosition: art.focus }}
         className={`h-full w-full object-cover ${className}`}
       />
     </picture>

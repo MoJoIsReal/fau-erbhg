@@ -22,6 +22,30 @@ import heroContact840 from "@/assets/illustrations/hero-contact-840.webp";
 import heroContact1400 from "@/assets/illustrations/hero-contact-1400.webp";
 import heroContact840Jpg from "@/assets/illustrations/hero-contact-840.jpg";
 import heroContact1400Jpg from "@/assets/illustrations/hero-contact-1400.jpg";
+import heroHomeDark782 from "@/assets/illustrations/hero-home-dark-782.webp";
+import heroHomeDark1120 from "@/assets/illustrations/hero-home-dark-1120.webp";
+import heroHomeDark782Jpg from "@/assets/illustrations/hero-home-dark-782.jpg";
+import heroHomeDark1120Jpg from "@/assets/illustrations/hero-home-dark-1120.jpg";
+import bannerValuesDark620 from "@/assets/illustrations/banner-values-dark-620.webp";
+import bannerValuesDark960 from "@/assets/illustrations/banner-values-dark-960.webp";
+import bannerValuesDark620Jpg from "@/assets/illustrations/banner-values-dark-620.jpg";
+import bannerValuesDark960Jpg from "@/assets/illustrations/banner-values-dark-960.jpg";
+import heroCalendarDark840 from "@/assets/illustrations/hero-calendar-dark-840.webp";
+import heroCalendarDark1400 from "@/assets/illustrations/hero-calendar-dark-1400.webp";
+import heroCalendarDark840Jpg from "@/assets/illustrations/hero-calendar-dark-840.jpg";
+import heroCalendarDark1400Jpg from "@/assets/illustrations/hero-calendar-dark-1400.jpg";
+import heroNewsDark840 from "@/assets/illustrations/hero-news-dark-840.webp";
+import heroNewsDark1400 from "@/assets/illustrations/hero-news-dark-1400.webp";
+import heroNewsDark840Jpg from "@/assets/illustrations/hero-news-dark-840.jpg";
+import heroNewsDark1400Jpg from "@/assets/illustrations/hero-news-dark-1400.jpg";
+import heroDocumentsDark840 from "@/assets/illustrations/hero-documents-dark-840.webp";
+import heroDocumentsDark1400 from "@/assets/illustrations/hero-documents-dark-1400.webp";
+import heroDocumentsDark840Jpg from "@/assets/illustrations/hero-documents-dark-840.jpg";
+import heroDocumentsDark1400Jpg from "@/assets/illustrations/hero-documents-dark-1400.jpg";
+import heroContactDark840 from "@/assets/illustrations/hero-contact-dark-840.webp";
+import heroContactDark1400 from "@/assets/illustrations/hero-contact-dark-1400.webp";
+import heroContactDark840Jpg from "@/assets/illustrations/hero-contact-dark-840.jpg";
+import heroContactDark1400Jpg from "@/assets/illustrations/hero-contact-dark-1400.jpg";
 
 /**
  * The illustration library.
@@ -53,15 +77,39 @@ import heroContact1400Jpg from "@/assets/illustrations/hero-contact-1400.jpg";
  * `focus` is the object-position used when the frame is narrower than the
  * artwork: it names what must survive the crop — children, signs, the
  * mailbox — rather than defaulting to the centre.
+ *
+ * Every illustration has a night sibling, drawn as the same scene after dark
+ * and stored beside the original as `<name>-dark.png`. Dark mode is a
+ * re-anchored theme rather than a dimmed one, and a daylight photograph in it
+ * is the one thing tokens cannot fix, so `Artwork` serves the night file
+ * whenever the dark theme is on. The crops are the light ones, rectangle for
+ * rectangle, because the scenes are drawn to the same geometry — Kontakt is
+ * the exception, and says why below.
  */
 export interface Illustration {
   webp: string;
   jpg: string;
+  srcSet: string;
+  jpgSrcSet: string;
   /** Intrinsic width/height of the source crop, to reserve layout space. */
   width: number;
   height: number;
   /** object-position for narrow frames. */
   focus: string;
+}
+
+/**
+ * The night sibling's four files, and the three numbers that only a night
+ * crop of different proportions needs to restate.
+ */
+interface DarkSources {
+  small: string;
+  large: string;
+  smallJpg: string;
+  largeJpg: string;
+  width?: number;
+  height?: number;
+  focus?: string;
 }
 
 function set(
@@ -74,7 +122,8 @@ function set(
   width: number,
   height: number,
   focus: string,
-): Illustration & { srcSet: string; jpgSrcSet: string } {
+  dark: DarkSources,
+): Illustration & { dark: Illustration } {
   return {
     webp: large,
     jpg: largeJpg,
@@ -83,6 +132,15 @@ function set(
     width,
     height,
     focus,
+    dark: {
+      webp: dark.large,
+      jpg: dark.largeJpg,
+      srcSet: `${dark.small} ${smallWidth}w, ${dark.large} ${largeWidth}w`,
+      jpgSrcSet: `${dark.smallJpg} ${smallWidth}w, ${dark.largeJpg} ${largeWidth}w`,
+      width: dark.width ?? width,
+      height: dark.height ?? height,
+      focus: dark.focus ?? focus,
+    },
   };
 }
 
@@ -116,6 +174,12 @@ export const ILLUSTRATION_HOME = set(
   // one, and what must survive it is the signpost and the children's faces,
   // not their boots.
   "50% 20%",
+  {
+    small: heroHomeDark782,
+    large: heroHomeDark1120,
+    smallJpg: heroHomeDark782Jpg,
+    largeJpg: heroHomeDark1120Jpg,
+  },
 );
 
 /**
@@ -135,6 +199,12 @@ export const ILLUSTRATION_VALUES = set(
   1672,
   941,
   "55% 55%",
+  {
+    small: bannerValuesDark620,
+    large: bannerValuesDark960,
+    smallJpg: bannerValuesDark620Jpg,
+    largeJpg: bannerValuesDark960Jpg,
+  },
 );
 
 /**
@@ -155,6 +225,12 @@ export const ILLUSTRATION_CALENDAR = set(
   1672,
   613,
   "58% 55%",
+  {
+    small: heroCalendarDark840,
+    large: heroCalendarDark1400,
+    smallJpg: heroCalendarDark840Jpg,
+    largeJpg: heroCalendarDark1400Jpg,
+  },
 );
 
 /**
@@ -175,6 +251,12 @@ export const ILLUSTRATION_NEWS = set(
   1672,
   551,
   "50% 50%",
+  {
+    small: heroNewsDark840,
+    large: heroNewsDark1400,
+    smallJpg: heroNewsDark840Jpg,
+    largeJpg: heroNewsDark1400Jpg,
+  },
 );
 
 /**
@@ -197,6 +279,12 @@ export const ILLUSTRATION_DOCUMENTS = set(
   1672,
   811,
   "50% 60%",
+  {
+    small: heroDocumentsDark840,
+    large: heroDocumentsDark1400,
+    smallJpg: heroDocumentsDark840Jpg,
+    largeJpg: heroDocumentsDark1400Jpg,
+  },
 );
 
 /**
@@ -218,6 +306,20 @@ export const ILLUSTRATION_CONTACT = set(
   1916,
   821,
   "60% 55%",
+  // The night scene is a different drawing, not a repaint: the mailbox and
+  // robin move to the right, the parent and child are gone and so is the
+  // handwritten "Ta gjerne kontakt", and it was delivered 1672×941 where the
+  // day version is 1916×821. It is cropped to a band of the same proportions
+  // (0, 60, 1672×717) so the hero keeps one shape in both themes, taking the
+  // moon and the whole postbox and leaving the foreground flowers.
+  {
+    small: heroContactDark840,
+    large: heroContactDark1400,
+    smallJpg: heroContactDark840Jpg,
+    largeJpg: heroContactDark1400Jpg,
+    width: 1672,
+    height: 717,
+  },
 );
 
 export type IllustrationSet = ReturnType<typeof set>;

@@ -1,9 +1,10 @@
 # Source illustrations
 
-The six commissioned originals, one per page, at the resolution they were
-delivered in (~2.4MB PNG each). **Nothing here is served.** They live outside
-`client/` on purpose: `client/public/` is copied verbatim into the Vercel
-deploy, so keeping them there shipped 14MB of unresized PNG to every visitor.
+The six commissioned originals, one per page, each with a `-dark` sibling
+drawn as the same scene after nightfall, at the resolution they were delivered
+in (~2.4MB PNG each). **Nothing here is served.** They live outside `client/`
+on purpose: `client/public/` is copied verbatim into the Vercel deploy, so
+keeping them there shipped 14MB of unresized PNG to every visitor.
 
 What ships is the webp/jpg pair derived from each into
 `client/src/assets/illustrations/`, which Vite fingerprints and which
@@ -36,10 +37,20 @@ for (const w of [small, large]) {
 Then update the `width`/`height` passed to `set()` in `illustrations.ts` —
 they are the crop's dimensions, and the layout reserves space from them.
 
+## The dark siblings
+
+`<source>-dark.png` derives to `<name>-dark-<w>.{webp,jpg}` through the same
+loop, and `Artwork` serves it whenever the dark theme is on. Use the *same*
+crop rectangle as the daylight version: the night scenes are drawn to the same
+geometry, so the two themes then frame the same thing. `contact-mailbox-dark`
+is the one exception — it was delivered 1672×941 where the day version is
+1916×821, so it is cropped to (0, 60, 1672×717) to keep the hero's proportions,
+which `illustrations.ts` records beside the set.
+
 ## The two rules a crop has to obey
 
 1. Wherever a signpost appears it reads **FOR BARNA / SAMMEN / ENGASJEMENT**,
-   complete. Never two of the three.
+   complete. Never two of the three. This holds in both themes.
 2. A crop may keep the artwork's own handwritten aside. It may never keep
    lettering that repeats the page's own heading, or a line the page already
    prints as HTML. "Små mennesker, store dager" stays a secondary brand

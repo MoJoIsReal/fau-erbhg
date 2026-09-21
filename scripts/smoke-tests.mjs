@@ -380,6 +380,26 @@ function testClientRegressionGuards() {
     'Week-spanning entries must not be stacked into the Monday cell of their week',
   );
 
+  const illustrations = readFileSync(
+    new URL('../client/src/components/site/illustrations.ts', import.meta.url),
+    'utf8',
+  );
+  assert.equal(
+    (illustrations.match(/smallJpg: \w+Dark\d+Jpg,/g) ?? []).length,
+    (illustrations.match(/^export const ILLUSTRATION_/gm) ?? []).length,
+    'Every illustration must ship a dark sibling alongside its daylight crop',
+  );
+
+  const artwork = readFileSync(
+    new URL('../client/src/components/site/artwork.tsx', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    artwork,
+    /const art = isDark \? illustration\.dark : illustration;/,
+    'Artwork must serve the night illustration when the dark theme is on',
+  );
+
   const filesPage = readFileSync(new URL('../client/src/pages/files.tsx', import.meta.url), 'utf8');
   assert.match(
     filesPage,
