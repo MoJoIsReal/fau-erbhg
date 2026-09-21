@@ -30,9 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { formatDate } from "@/lib/i18n";
-import { useUpcomingItems } from "@/hooks/useUpcomingItems";
-import { StatusPill } from "@/components/site/controls";
 import LoginModal from "./login-modal";
 import PasswordChangeModal from "./password-change-modal";
 import LanguageToggle from "./language-toggle";
@@ -70,10 +67,6 @@ export default function Layout({ children }: LayoutProps) {
   const isAdmin = user?.role === "admin";
   const isCouncil = user?.role === "admin" || user?.role === "member";
 
-  // Next visible item for the footer, from the same hook (and the same three
-  // cached queries) as the homepage's "Hva skjer fremover" section.
-  const nextMeeting = useUpcomingItems()[0];
-
   // The guide's recommended order: Hjem | Aktuelt | Kalender | Dokumenter |
   // Kontakt. News and tips share one page with a category switch, so
   // "Aktuelt" is a plain link rather than a dropdown.
@@ -110,17 +103,25 @@ export default function Layout({ children }: LayoutProps) {
     isAdmin && { href: "/settings", icon: SettingsIcon, label: t.header.settings },
   ].filter(Boolean) as { href: string; icon: LucideIcon; label: string }[];
 
-  const footerLinks = [
+  // The resources parents reach for, gathered in the footer where they are on
+  // every page rather than only at the bottom of the home page. Ordered by how
+  // often a parent actually needs them, not alphabetically.
+  const usefulLinks = [
+    { href: "https://vigilo.no", label: t.footer.vigilo },
     { href: "https://www.facebook.com/groups/1674520382805077", label: t.footer.facebook },
     {
       href: "https://askoy.kommune.no/tjenester/barnehagen/barnehagene-pa-askoy/kommunalebarnehager/erdal-barnehage",
       label: t.footer.website,
     },
     {
+      href: "https://www.helsedirektoratet.no/retningslinjer/mat-og-maltider-i-barnehagen",
+      label: t.footer.meals,
+    },
+    { href: "https://foreldreutvalgene.no/fub/", label: t.footer.fubLink },
+    {
       href: "https://barnehagefakta.no/barnehage/974600838/erdal-barnehage",
       label: t.footer.barnehageFakta,
     },
-    { href: "https://foreldreutvalgene.no/fub/", label: t.footer.fubLink },
   ];
 
   const navLinkClass = (active: boolean) =>
@@ -397,15 +398,17 @@ export default function Layout({ children }: LayoutProps) {
             </ul>
           </nav>
 
-          <nav aria-labelledby="footer-info">
+          {/* Two columns from tablet up: six links in one stack would run
+              longer than the footer's other groups and unbalance the row. */}
+          <nav aria-labelledby="footer-useful" className="md:col-span-2">
             <h2
-              id="footer-info"
+              id="footer-useful"
               className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle"
             >
-              {t.footer.contactInfo}
+              {t.footer.usefulLinks}
             </h2>
-            <ul className="mt-4 space-y-2.5 text-small">
-              {footerLinks.map((link) => (
+            <ul className="mt-4 grid gap-2.5 text-small sm:grid-cols-2">
+              {usefulLinks.map((link) => (
                 <li key={link.href}>
                   <a
                     href={link.href}
@@ -421,52 +424,6 @@ export default function Layout({ children }: LayoutProps) {
               ))}
             </ul>
           </nav>
-
-          <div>
-            <h2 className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
-              {t.footer.nextMeeting}
-            </h2>
-            <div className="mt-4 rounded-card border border-hairline bg-surface p-4">
-              {nextMeeting ? (
-                <>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="font-semibold text-ink">
-                      {nextMeeting.kind === "event"
-                        ? nextMeeting.event.title
-                        : nextMeeting.entry.title}
-                    </p>
-                    {nextMeeting.kind !== "event" &&
-                      nextMeeting.entry.entryType === "closed" && (
-                        <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>
-                      )}
-                  </div>
-                  <p className="mt-1 text-small text-subtle">
-                    {formatDate(
-                      nextMeeting.kind === "event"
-                        ? nextMeeting.event.date
-                        : (nextMeeting.entry.date as string),
-                      language,
-                      { weekday: "long", day: "numeric", month: "long" },
-                    )}
-                    {nextMeeting.kind === "event" && nextMeeting.event.time
-                      ? ` · ${nextMeeting.event.time}`
-                      : ""}
-                  </p>
-                  {nextMeeting.kind === "event" && nextMeeting.event.location && (
-                    <p className="text-small text-subtle">{nextMeeting.event.location}</p>
-                  )}
-                  <Link
-                    href="/kalender"
-                    className="mt-3 inline-block text-small font-semibold text-brand hover:underline"
-                  >
-                    {t.home.moreInfo}
-                  </Link>
-                </>
-              ) : (
-                <p className="text-small text-subtle">{t.home.noEvents}</p>
-              )}
-            </div>
-          </div>
         </div>
 
         <div className="border-t border-hairline">

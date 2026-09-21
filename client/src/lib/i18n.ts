@@ -109,20 +109,6 @@ export interface Translations {
     nextUpLabel: string;
     comingDates: string;
     openCalendar: string;
-    usefulLinks: string;
-    usefulLinksLead: string;
-    linkVigilo: string;
-    linkVigiloDesc: string;
-    linkKommune: string;
-    linkKommuneDesc: string;
-    linkMeals: string;
-    linkMealsDesc: string;
-    linkFub: string;
-    linkFubDesc: string;
-    linkFacebook: string;
-    linkFacebookDesc: string;
-    linkDocuments: string;
-    linkDocumentsDesc: string;
     practicalInfo: string;
     closingTitle: string;
     closingBody: string;
@@ -540,8 +526,9 @@ export interface Translations {
     barnehageFakta: string;
     fubLink: string;
     hours: string;
-    nextMeeting: string;
-    parentMeeting: string;
+    usefulLinks: string;
+    vigilo: string;
+    meals: string;
     privacy: string;
     copyright: string;
   };
@@ -1065,20 +1052,6 @@ export const translations: Record<Language, Translations> = {
       nextUpLabel: "Neste ut",
       comingDates: "Nærmeste datoer",
       openCalendar: "Åpne kalenderen",
-      usefulLinks: "Nyttige lenker",
-      usefulLinksLead: "Stedene foreldre oftest trenger – samlet på ett sted.",
-      linkVigilo: "Vigilo",
-      linkVigiloDesc: "Meldinger, fravær og samtykke mellom hjem og barnehage.",
-      linkKommune: "Erdal barnehage",
-      linkKommuneDesc: "Askøy kommunes egen side om barnehagen.",
-      linkMeals: "Mat og måltider",
-      linkMealsDesc: "Kostholdsrådene barnehagen følger, fra Helsedirektoratet.",
-      linkFub: "FUB",
-      linkFubDesc: "Råd og veiledning for foreldre i barnehage.",
-      linkFacebook: "Facebook-gruppen",
-      linkFacebookDesc: "Den uformelle praten mellom foreldre i barnehagen.",
-      linkDocuments: "Dokumenter",
-      linkDocumentsDesc: "Referater, vedtekter og budsjett til nedlasting.",
       practicalInfo: "Praktisk informasjon",
       closingTitle: "Har du en idé, eller lyst til å bidra?",
       closingBody: "Det trengs ikke mye. En melding, en time på dugnad eller et innspill på neste foreldremøte er nok til å utgjøre en forskjell.",
@@ -1498,8 +1471,9 @@ export const translations: Record<Language, Translations> = {
       barnehageFakta: "Barnehagefakta",
       fubLink: "FUB – råd og veiledning for foreldre",
       hours: "",
-      nextMeeting: "Neste Arrangement",
-      parentMeeting: "FAU-møte",
+      usefulLinks: "Nyttige lenker",
+      vigilo: "Vigilo",
+      meals: "Mat og måltider i barnehagen",
       privacy: "Personvern",
       copyright: "© 2025 FAU Erdal Barnehage. Alle rettigheter reservert."
     },
@@ -2020,20 +1994,6 @@ export const translations: Record<Language, Translations> = {
       nextUpLabel: "Next up",
       comingDates: "Coming dates",
       openCalendar: "Open the calendar",
-      usefulLinks: "Useful links",
-      usefulLinksLead: "The places parents need most often, gathered in one spot.",
-      linkVigilo: "Vigilo",
-      linkVigiloDesc: "Messages, absence and consent between home and kindergarten.",
-      linkKommune: "Erdal kindergarten",
-      linkKommuneDesc: "Askøy municipality's own page about the kindergarten.",
-      linkMeals: "Food and meals",
-      linkMealsDesc: "The dietary advice the kindergarten follows, from the Directorate of Health.",
-      linkFub: "FUB",
-      linkFubDesc: "Advice and guidance for kindergarten parents.",
-      linkFacebook: "The Facebook group",
-      linkFacebookDesc: "The informal conversation between parents at the kindergarten.",
-      linkDocuments: "Documents",
-      linkDocumentsDesc: "Minutes, statutes and budgets to download.",
       practicalInfo: "Practical information",
       closingTitle: "Got an idea, or want to help out?",
       closingBody: "It doesn't take much. A message, an hour at a work day or a word at the next parents' meeting is enough to make a difference.",
@@ -2453,8 +2413,9 @@ export const translations: Record<Language, Translations> = {
       barnehageFakta: "Barnehagefakta",
       fubLink: "FUB – advice and guidance for parents",
       hours: "",
-      nextMeeting: "Next Event",
-      parentMeeting: "FAU meeting",
+      usefulLinks: "Useful links",
+      vigilo: "Vigilo",
+      meals: "Food and meals in kindergarten",
       privacy: "Privacy",
       copyright: "© 2025 FAU Erdal Kindergarten. All rights reserved."
     },

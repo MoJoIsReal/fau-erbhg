@@ -33,9 +33,10 @@ const MAX_PER_CELL = 3;
  * (guide §10B).
  *
  * Below 640px the grid drops its event labels and shows dots only, with the
- * agenda under the selected day doing the reading. That is the guide's
- * recommendation for narrow screens, and it is what removes the horizontal
- * scroll the old 680px-wide grid forced on a phone.
+ * agenda under the selected day doing the reading. The calendar page no longer
+ * offers this view on a phone — it only ever renders from 640px up — so those
+ * rules are a safety net for a resize and for anyone embedding the grid in a
+ * narrower column, not the primary mobile design.
  */
 export default function CalendarView({
   entries,
