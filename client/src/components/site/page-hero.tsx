@@ -46,6 +46,13 @@ export interface PageHeroProps {
   nativeRatio?: boolean;
   /** The page's own weight. Display is for the site's front door only. */
   titleSize?: "display" | "h1";
+  /**
+   * Let the hero reach past the reading container on a wide screen. `split`
+   * always does; `editorial` and `compact` only when the page asks, because a
+   * page that already bleeds its whole body (Kalender) would otherwise pull
+   * the margins out twice.
+   */
+  wide?: boolean;
   /** Only the first hero a visitor meets should preload its artwork. */
   priority?: boolean;
 }
@@ -75,6 +82,7 @@ export default function PageHero({
   tone = "sand",
   nativeRatio = false,
   titleSize,
+  wide = false,
   priority = false,
 }: PageHeroProps) {
   const isSplit = layout === "split";
@@ -131,7 +139,7 @@ export default function PageHero({
 
   if (layout === "editorial" && illustration) {
     return (
-      <section className={`overflow-hidden rounded-hero ${TONE[tone]}`}>
+      <section className={`${wide ? "bleed-wide " : ""}overflow-hidden rounded-hero ${TONE[tone]}`}>
         <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14">{text}</div>
         <div
           className={bandRatio ? "" : "aspect-[16/8] sm:aspect-[16/6] lg:aspect-[16/5]"}
@@ -141,7 +149,7 @@ export default function PageHero({
             illustration={illustration.art}
             alt={illustration.alt}
             priority={priority}
-            sizes="(min-width: 1200px) 1200px, 100vw"
+            sizes="(min-width: 1360px) 1288px, (min-width: 1232px) 1136px, 100vw"
           />
         </div>
       </section>
@@ -149,7 +157,7 @@ export default function PageHero({
   }
 
   return (
-    <section className={`overflow-hidden rounded-hero ${TONE[tone]}`}>
+    <section className={`${wide ? "bleed-wide " : ""}overflow-hidden rounded-hero ${TONE[tone]}`}>
       <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14">{text}</div>
       {illustration && (
         <div className="aspect-[16/6] sm:aspect-[5/1]">
@@ -157,7 +165,7 @@ export default function PageHero({
             illustration={illustration.art}
             alt={illustration.alt}
             priority={priority}
-            sizes="(min-width: 1200px) 1200px, 100vw"
+            sizes="(min-width: 1360px) 1288px, (min-width: 1232px) 1136px, 100vw"
           />
         </div>
       )}

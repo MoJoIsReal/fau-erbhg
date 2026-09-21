@@ -129,7 +129,15 @@ export const ILLUSTRATION_TOGETHER = set(
   "45% 55%",
 );
 
-/** The full fjord view with the handwritten tagline. Calendar hero. */
+/**
+ * The fjord at golden hour, cropped below banner_bottom's own handwriting.
+ *
+ * The source carries "Små mennesker, store dager" across its sky, and the
+ * hero band clipped it mid-word. The tagline is a real sentence on the page
+ * already, so the picture gives it up: everything from y=274 down, which
+ * starts just under the heart (ink ends at y=271) and just above the sun
+ * (y=280), and keeps the children, the log and the meadow. Calendar hero.
+ */
 export const ILLUSTRATION_CALENDAR = set(
   heroCalendar840,
   heroCalendar1400,
@@ -137,9 +145,9 @@ export const ILLUSTRATION_CALENDAR = set(
   heroCalendar1400Jpg,
   840,
   1400,
-  1672,
-  941,
-  "58% 62%",
+  1400,
+  514,
+  "58% 55%",
 );
 
 /** Meadow and fjord at golden hour, no lettering. Aktuelt hero. */
@@ -154,7 +162,13 @@ export const ILLUSTRATION_DOCUMENTS = one(
   "55% 60%",
 );
 
-/** Rock, daisies and a hand-drawn heart over the water. Kontakt hero. */
-export const ILLUSTRATION_CONTACT = one(heroContact800, heroContact800Jpg, 800, 281, "50% 55%");
+/**
+ * Rock, daisies and the village across the water. Kontakt hero.
+ *
+ * Cropped from y=46 down: the source's hand-drawn heart sat against the top
+ * edge and the band clipped it into a stray mark, so the crop starts just
+ * below where that ink ends (y=43).
+ */
+export const ILLUSTRATION_CONTACT = one(heroContact800, heroContact800Jpg, 800, 235, "50% 55%");
 
 export type IllustrationSet = ReturnType<typeof set>;

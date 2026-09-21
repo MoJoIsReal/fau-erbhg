@@ -1,10 +1,17 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { ChevronDown, Wrench } from "lucide-react";
 
 interface EditorSurfaceProps {
   children: ReactNode;
   label: string;
   /** Shown beside the label to explain what these controls are for. */
   hint?: string;
+  /**
+   * Start folded away behind its own label. For a toolbar that sits above
+   * public content, where an editor opens it deliberately rather than having
+   * it occupy the page for every visit.
+   */
+  collapsible?: boolean;
 }
 
 /**
@@ -16,19 +23,51 @@ interface EditorSurfaceProps {
  * the controls is a courtesy, the handler's role check is the actual
  * boundary.
  */
-export function EditorSurface({ children, label, hint }: EditorSurfaceProps) {
+export function EditorSurface({ children, label, hint, collapsible = false }: EditorSurfaceProps) {
+  const [open, setOpen] = useState(false);
+  const body = (
+    <>
+      {hint && <p className="mb-3 text-micro text-subtle">{hint}</p>}
+      <div className="flex flex-wrap items-center gap-2">{children}</div>
+    </>
+  );
+
+  // Muted surface, dashed edge, its own label — and, where it sits above
+  // public content, folded away until an editor asks for it. The guide is
+  // explicit that admin tools must never carry more visual weight than what
+  // parents came to read (guide v1.1 §21).
   return (
     <section
       aria-label={label}
       className="rounded-card border border-dashed border-hairline bg-muted px-4 py-4 sm:px-5"
     >
-      <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
-          {label}
-        </h2>
-        {hint && <p className="text-micro text-subtle">{hint}</p>}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+      {collapsible ? (
+        <>
+          <button
+            type="button"
+            onClick={() => setOpen((wasOpen) => !wasOpen)}
+            aria-expanded={open}
+            className="flex min-h-[44px] w-full items-center gap-2 text-left text-micro font-semibold uppercase tracking-[0.14em] text-subtle"
+          >
+            <Wrench className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{label}</span>
+            <ChevronDown
+              className={`ml-auto h-4 w-4 shrink-0 transition-transform duration-micro ease-guide ${
+                open ? "rotate-180" : ""
+              }`}
+              aria-hidden="true"
+            />
+          </button>
+          {open && <div className="pt-3">{body}</div>}
+        </>
+      ) : (
+        <>
+          <h2 className="mb-3 text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
+            {label}
+          </h2>
+          {body}
+        </>
+      )}
     </section>
   );
 }

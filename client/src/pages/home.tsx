@@ -107,6 +107,7 @@ export default function Home() {
         tone="sand"
         titleSize="display"
         nativeRatio
+        wide
         priority
         title={t.home.title}
         lead={t.home.welcomeDescription}
@@ -347,14 +348,17 @@ export default function Home() {
           }
         />
         {kindergartenInfo ? (
+          // min-w-0 on each cell: a grid track is floored at its items'
+          // min-content width, and the unbroken contact address is wider than
+          // a 375px column, so without it the whole grid grows past the page.
           <dl className="grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-2">
-            <div className="bg-surface px-5 py-5">
+            <div className="min-w-0 bg-surface px-5 py-5">
               <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
                 {t.home.municipality}
               </dt>
               <dd className="mt-1.5 font-semibold text-ink">{kindergartenInfo.address}</dd>
             </div>
-            <div className="bg-surface px-5 py-5">
+            <div className="min-w-0 bg-surface px-5 py-5">
               <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
                 {t.home.openingHours}
               </dt>
@@ -362,7 +366,7 @@ export default function Home() {
                 {kindergartenInfo.openingHours}
               </dd>
             </div>
-            <div className="bg-surface px-5 py-5">
+            <div className="min-w-0 bg-surface px-5 py-5">
               <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
                 {t.home.aboutKindergarten}
               </dt>
@@ -375,7 +379,7 @@ export default function Home() {
                 </a>
               </dd>
             </div>
-            <div className="bg-surface px-5 py-5">
+            <div className="min-w-0 bg-surface px-5 py-5">
               <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
                 {t.home.fauTitle}
               </dt>

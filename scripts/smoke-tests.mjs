@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { sanitizeHtml } from '../api/_shared/middleware.js';
 import { rateLimitKey } from '../api/_shared/rate-limit.js';
@@ -104,6 +105,47 @@ function testVideoEmbedCsp() {
     safeHtml,
     /youtubeEmbedSrc/,
     'SafeHtml must validate frame sources with the same shared helper as the server',
+  );
+}
+
+function testThemeScriptHashIsInCsp() {
+  const html = readFileSync(new URL('../client/index.html', import.meta.url), 'utf8');
+
+  // The one executable inline script in the document is the pre-paint theme
+  // switch. ld+json blocks are data, not script, and are skipped.
+  const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)([^>]*)>([\s\S]*?)<\/script>/g)].filter(
+    ([, attrs]) => !/type\s*=\s*["']application\/ld\+json["']/.test(attrs),
+  );
+  assert.equal(
+    inline.length,
+    1,
+    'client/index.html should carry exactly one executable inline script (the theme switch)',
+  );
+
+  const [, , body] = inline[0];
+  assert.match(body, /prefers-color-scheme/, 'the inline script must still resolve the system theme');
+  assert.match(body, /classList\.toggle\("dark"/, 'the inline script must still set the dark class');
+
+  const hash = `sha256-${createHash('sha256').update(body, 'utf8').digest('base64')}`;
+
+  const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const cspHeader = vercelConfig.headers
+    ?.flatMap((entry) => entry.headers ?? [])
+    .find((header) => header.key === 'Content-Security-Policy');
+  assert.ok(cspHeader, 'vercel.json should still set a Content-Security-Policy');
+
+  const scriptSrc = cspHeader.value
+    .split(';')
+    .map((directive) => directive.trim())
+    .find((directive) => directive === 'script-src' || directive.startsWith('script-src '));
+  assert.ok(scriptSrc, 'CSP must declare a script-src directive');
+
+  // Editing the script without re-hashing it would leave the theme blocked in
+  // production and every dark-mode visitor back to a white flash, and nothing
+  // else in the build would notice.
+  assert.ok(
+    scriptSrc.split(/\s+/).slice(1).includes(`'${hash}'`),
+    `CSP script-src must allow the inline theme script: expected '${hash}'`,
   );
 }
 
@@ -1487,5 +1529,6 @@ testYearlyCalendarImportPreview();
 testYearlyCalendarImportPreviewFiltersDbShapedSchoolYear();
 testYearlyCalendarImportPreviewNormalizesDbShapedMatch();
 testYearlyCalendarImportDecisionMatrix();
+testThemeScriptHashIsInCsp();
 
 console.log('Smoke tests passed');

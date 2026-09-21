@@ -55,6 +55,17 @@
   --color-surface-raised: #FFFFFF;
   --color-surface-soft: #F1F6F1;
 
+  /* The calendar is a working surface and carries a little more contrast
+     than the rest of the page in both themes (guide v1.1 §22). */
+  --color-calendar-cell: #FFFFFF;
+  --color-calendar-cell-hover: #EFF6EF;
+  --color-calendar-grid: #DCE6E1;
+  /* A day belonging to the neighbouring month is the page showing through
+     the grid. It has to sit *behind* the working cell in both themes, and
+     the generic soft surface cannot: it is lighter than the cell in dark
+     mode, which would make the days that do not count the raised ones. */
+  --color-calendar-outside: #F5F2EC;
+
   /* The guide's --color-muted is 4.30:1 on white and 3.99:1 on sand, below
      the 4.5:1 the same guide requires of normal text. It stays as specified
      for icons, rules and decorative marks; metadata *text* uses this
@@ -207,6 +218,7 @@
   --color-calendar-cell: #122920;
   --color-calendar-cell-hover: #193429;
   --color-calendar-grid: #28453A;
+  --color-calendar-outside: #0C1E18;
 
   /* Category hues lightened until they clear 4.5:1 on every dark surface
      they can land on, including their own tint. */
@@ -357,16 +369,19 @@
     }
   }
 
-  /* A section that may reach past the reading container. The negative
-     margin is exactly the difference between the two, so the band lines up
-     with the viewport rather than guessing. */
+  /* A section that may reach past the reading container. It only engages
+     once the viewport is genuinely wider than the wide container — below
+     that the page is already using its full width, and pulling the margins
+     out would push the section past the viewport instead of into spare
+     room. The negative margin is exactly the difference between the two
+     containers, so the band lines up rather than guessing. */
   .bleed-wide {
-    margin-inline: calc((var(--container) - var(--container-wide)) / 2);
+    margin-inline: 0;
   }
 
-  @media (max-width: 1023px) {
+  @media (min-width: 1360px) {
     .bleed-wide {
-      margin-inline: 0;
+      margin-inline: calc((var(--container) - var(--container-wide)) / 2);
     }
   }
 

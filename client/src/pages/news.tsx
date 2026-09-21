@@ -109,13 +109,15 @@ export default function News() {
 
   return (
     <div className="section-rhythm">
+      {/* Aktuelt opens on words, not a band: the lead story right below it
+          already carries the page's one picture, and running the same
+          artwork twice on one screen made the hero read as a duplicate
+          (guide v1.1 §21, "Aktuelt"). */}
       <PageHero
-        layout="editorial"
+        layout="compact"
         tone="sand"
-        priority
         title={t.navigation.updates}
         lead={t.newsPage.heroLead}
-        illustration={{ art: ILLUSTRATION_NEWS, alt: "" }}
       >
         <div className="flex flex-wrap gap-2" role="group" aria-label={t.newsPage.category}>
           {categoryChip("/news", t.newsPage.categoryNews, !isTips)}

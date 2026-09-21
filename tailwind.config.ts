@@ -127,6 +127,12 @@ export default {
         copy: "var(--color-text)",
         subtle: "var(--color-text-muted)",
         hairline: "var(--color-border)",
+        calendar: {
+          cell: "var(--color-calendar-cell)",
+          hover: "var(--color-calendar-cell-hover)",
+          grid: "var(--color-calendar-grid)",
+          outside: "var(--color-calendar-outside)",
+        },
         surface: {
           DEFAULT: "var(--color-surface)",
           raised: "var(--color-surface-raised)",

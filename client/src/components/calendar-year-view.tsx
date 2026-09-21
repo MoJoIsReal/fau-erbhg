@@ -59,7 +59,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
         {months.map((ref) => {
           const weeks = weeksOfMonth(ref.year, ref.month);
           const isCurrentMonth =
@@ -81,31 +81,31 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
               key={`${ref.year}-${ref.month}`}
               type="button"
               onClick={() => onMonthPick(ref)}
-              className={`rounded-card border p-4 text-left transition-colors duration-micro ease-guide ${
+              className={`rounded-card border p-5 text-left transition-colors duration-micro ease-guide ${
                 isCurrentMonth
-                  ? "border-brand/40 bg-green-50/50"
-                  : "border-hairline bg-surface hover:border-brand/30 hover:bg-green-50/40"
+                  ? "border-brand/40 bg-green-50/60"
+                  : "border-calendar-grid bg-calendar-cell hover:border-brand/30 hover:bg-calendar-hover"
               }`}
             >
               <div className="flex items-baseline justify-between gap-3">
-                <h3 className="text-h4 font-bold capitalize text-ink">
+                <h3 className="text-h3 font-bold capitalize tracking-tight text-ink">
                   {monthName}{" "}
                   <span className="font-normal tabular-nums text-subtle">{ref.year}</span>
                 </h3>
                 {/* The number of marked days in words as well as dots, so the
                     "where is it busy" question does not depend on colour. */}
                 {count > 0 && (
-                  <span className="shrink-0 rounded-pill bg-green-50 px-2 py-0.5 text-micro font-semibold tabular-nums text-brand">
+                  <span className="shrink-0 rounded-pill bg-green-50 px-2.5 py-1 text-micro font-semibold tabular-nums text-brand">
                     {count}
                   </span>
                 )}
               </div>
 
-              <div className="mt-3 grid grid-cols-7 gap-y-1">
+              <div className="mt-4 grid grid-cols-7 gap-y-1.5">
                 {weekdayInitials.map((day, index) => (
                   <span
                     key={index}
-                    className="text-center text-micro font-semibold uppercase text-subtle"
+                    className="text-center text-label font-semibold uppercase text-subtle"
                     aria-hidden="true"
                   >
                     {day.narrow}
@@ -121,7 +121,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
                     return (
                       <span key={iso} className="flex flex-col items-center gap-0.5 pb-0.5">
                         <span
-                          className={`grid h-5 w-5 place-items-center rounded-pill text-micro tabular-nums ${
+                          className={`grid h-7 w-7 place-items-center rounded-pill text-micro tabular-nums ${
                             isToday
                               ? "bg-brand font-bold text-primary-foreground"
                               : day.inMonth

@@ -145,14 +145,14 @@ export default function CalendarView({
           {/* Week number in its own narrow rail from tablet up: the whole
               kindergarten year is spoken about in week numbers, so the grid
               should let you find "uke 38" without counting. */}
-          <div className="grid grid-cols-7 border-b border-hairline bg-sand sm:grid-cols-[2.5rem_repeat(7,minmax(0,1fr))]">
-            <div className="hidden items-center justify-center py-2.5 text-micro font-semibold uppercase tracking-[0.1em] text-subtle sm:flex">
+          <div className="grid grid-cols-7 border-b border-calendar-grid bg-surface-soft sm:grid-cols-[3rem_repeat(7,minmax(0,1fr))]">
+            <div className="hidden items-center justify-center py-3 text-label font-semibold uppercase tracking-[0.1em] text-subtle sm:flex">
               {t.calendar.week}
             </div>
             {weekdayNames.map((name, index) => (
               <div
                 key={index}
-                className="py-2.5 text-center text-micro font-semibold uppercase tracking-[0.06em] text-subtle sm:px-2 sm:text-left sm:text-small sm:normal-case sm:tracking-normal"
+                className="py-3 text-center text-micro font-semibold uppercase tracking-[0.06em] text-subtle sm:px-3 sm:text-left sm:text-body sm:normal-case sm:tracking-normal"
               >
                 <span className="sm:hidden" aria-hidden="true">
                   {name.narrow}
@@ -168,11 +168,11 @@ export default function CalendarView({
           {weeks.map((week, weekIndex) => (
             <div
               key={`${isoWeekYear(week.days[0].date)}-${week.weekNumber}`}
-              className={`grid grid-cols-7 sm:grid-cols-[2.5rem_repeat(7,minmax(0,1fr))] ${
-                weekIndex > 0 ? "border-t border-hairline" : ""
+              className={`grid grid-cols-7 sm:grid-cols-[3rem_repeat(7,minmax(0,1fr))] ${
+                weekIndex > 0 ? "border-t border-calendar-grid" : ""
               }`}
             >
-              <div className="hidden items-start justify-center border-r border-hairline bg-sand pt-2 text-micro font-semibold tabular-nums text-subtle sm:flex">
+              <div className="hidden items-start justify-center border-r border-calendar-grid bg-surface-soft pt-3 text-micro font-semibold tabular-nums text-subtle sm:flex">
                 {week.weekNumber}
               </div>
 
@@ -187,12 +187,12 @@ export default function CalendarView({
                 return (
                   <div
                     key={iso}
-                    className={`min-h-[60px] px-1 py-1.5 transition-colors duration-micro ease-guide sm:min-h-[112px] sm:px-2 sm:py-2 ${
+                    className={`min-h-[68px] px-1 py-2 transition-colors duration-micro ease-guide sm:min-h-[132px] sm:px-2.5 sm:py-2.5 ${
                       isSelected
                         ? "bg-green-50"
                         : day.inMonth
-                          ? "hover:bg-green-50/50"
-                          : "bg-sand/70"
+                          ? "bg-calendar-cell hover:bg-calendar-hover"
+                          : "bg-calendar-outside"
                     }`}
                   >
                     <button
@@ -211,11 +211,11 @@ export default function CalendarView({
                       </span>
                       <span
                         aria-hidden="true"
-                        className={`grid h-8 w-8 place-items-center rounded-pill text-small tabular-nums transition-colors duration-micro ease-guide ${
+                        className={`grid h-9 w-9 place-items-center rounded-pill text-body tabular-nums transition-colors duration-micro ease-guide ${
                           isToday
-                            ? "bg-brand font-bold text-primary-foreground"
+                            ? "bg-brand font-bold text-primary-foreground shadow-[0_0_0_3px_var(--color-green-50)]"
                             : isSelected
-                              ? "font-bold text-brand ring-2 ring-brand/40"
+                              ? "bg-green-50 font-bold text-brand ring-2 ring-brand/50"
                               : day.inMonth
                                 ? "font-semibold text-ink"
                                 : "font-normal text-subtle"

@@ -169,7 +169,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
   // sit among the public filters (§11), and the dashed border is what tells a
   // logged-in editor at a glance which controls the parents can also see.
   const toolbar = !canEditYearly ? null : (
-    <EditorSurface label={t.calendar.editorLabel} hint={t.calendar.excelScopeNote}>
+    <EditorSurface collapsible label={t.calendar.editorLabel} hint={t.calendar.excelScopeNote}>
       <Button size="sm" onClick={() => setPickerOpen(true)}>
         <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
         {t.calendar.newEntry}
