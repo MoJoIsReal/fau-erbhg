@@ -146,7 +146,7 @@ export default function Admin() {
   ];
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8">
+    <div className="mx-auto max-w-5xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-ink">
           {language === "no" ? `Hei, ${user?.name?.split(" ")[0] ?? ""}` : `Hi, ${user?.name?.split(" ")[0] ?? ""}`}
@@ -180,12 +180,12 @@ export default function Admin() {
                       >
                         <Icon className="h-5 w-5" />
                       </div>
-                      <h2 className="font-heading text-lg font-semibold text-ink">
+                      <h2 className="text-lg font-semibold text-ink">
                         {card.title}
                       </h2>
                     </div>
                     {card.attention && (
-                      <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
+                      <span className="rounded-pill bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
                         {t.adminPage.waiting}
                       </span>
                     )}

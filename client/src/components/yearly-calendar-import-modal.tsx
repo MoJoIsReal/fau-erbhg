@@ -632,7 +632,6 @@ export default function YearlyCalendarImportModal({
             type="button"
             onClick={() => commitMutation.mutate()}
             disabled={!preview || selectedImportCount === 0 || isBusy}
-            className="bg-[#FF6B35] text-white hover:bg-[#FF5722]"
           >
             {commitMutation.isPending ? (
               <>

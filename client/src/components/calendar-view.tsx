@@ -217,7 +217,7 @@ export default function CalendarView({
                               ? "font-bold text-brand ring-2 ring-brand/40"
                               : day.inMonth
                                 ? "font-semibold text-ink"
-                                : "text-subtle/60"
+                                : "font-normal text-subtle"
                         }`}
                       >
                         {day.date.getDate()}

@@ -57,7 +57,7 @@ export default function AttendeeTooltip({
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <button type="button" className={`flex items-center text-accent cursor-help ${className}`}>
+          <button type="button" className={`flex cursor-help items-center text-brand ${className}`}>
             <Users className="h-4 w-4 mr-1" aria-hidden="true" />
             <span>
               {attendeeCount} {t.events.attendees2}

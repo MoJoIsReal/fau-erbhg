@@ -299,7 +299,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
                   }
                 >
                   <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[kind].dot}`}
+                    className={`h-2 w-2 shrink-0 rounded-pill ${KIND_STYLE[kind].dot}`}
                     aria-hidden="true"
                   />
                   {t.calendar.kinds[kind]}

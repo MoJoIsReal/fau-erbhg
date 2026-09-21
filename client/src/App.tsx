@@ -34,7 +34,7 @@ function PageLoader() {
       aria-live="polite"
     >
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <div className="animate-spin rounded-pill h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
         <p className="text-subtle">
           {t.common.loading}
         </p>
@@ -52,7 +52,7 @@ function NotFound() {
         <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-subtle">
           404
         </p>
-        <h1 className="mb-3 font-heading text-2xl font-bold text-ink">
+        <h1 className="mb-3 text-2xl font-bold text-ink">
           {t.common.pageNotFound}
         </h1>
         <p className="mb-6 text-subtle">

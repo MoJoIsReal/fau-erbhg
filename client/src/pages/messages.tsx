@@ -155,9 +155,17 @@ export default function Messages() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'new':
-        return <Badge className="bg-blue-500">{t.messagesPage.new}</Badge>;
+        return (
+          <Badge className="border-transparent bg-cat-mote-tint text-cat-mote-text">
+            {t.messagesPage.new}
+          </Badge>
+        );
       case 'responded':
-        return <Badge className="bg-green-500">{t.messagesPage.responded}</Badge>;
+        return (
+          <Badge className="border-transparent bg-cat-dugnad-tint text-cat-dugnad-text">
+            {t.messagesPage.responded}
+          </Badge>
+        );
       case 'archived':
         return <Badge variant="secondary">{t.messagesPage.archived}</Badge>;
       default:
@@ -223,7 +231,7 @@ export default function Messages() {
       count: respondedMessages.length,
       icon: Check,
       numberClass: "text-green-600 dark:text-green-300",
-      iconClass: "text-green-500",
+      iconClass: "text-brand",
     },
     {
       key: 'archived',
@@ -236,7 +244,7 @@ export default function Messages() {
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
+    <div className="mx-auto max-w-6xl">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-ink">
           {t.messagesPage.messages}

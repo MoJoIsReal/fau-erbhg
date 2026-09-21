@@ -86,7 +86,7 @@ export function EditorSurface({ children, label, hint }: EditorSurfaceProps) {
   return (
     <section
       aria-label={label}
-      className="rounded-card border border-dashed border-hairline bg-sand px-4 py-4 sm:px-5"
+      className="rounded-card border border-dashed border-hairline bg-muted px-4 py-4 sm:px-5"
     >
       <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
         <h2 className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle">

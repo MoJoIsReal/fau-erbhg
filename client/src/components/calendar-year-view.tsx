@@ -126,7 +126,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
                               ? "bg-brand font-bold text-primary-foreground"
                               : day.inMonth
                                 ? "text-copy"
-                                : "text-subtle/60"
+                                : "font-normal text-subtle"
                           }`}
                         >
                           {day.date.getDate()}

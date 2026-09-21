@@ -389,7 +389,7 @@ function EventChip({ event, label, cancelledLabel, compact = false }: EventChipP
       href="/kalender"
       title={tooltip}
       aria-label={tooltip}
-      className={`${compact ? "text-xs rounded-md px-2 py-1" : "text-[11px] rounded px-1.5 py-1"} bg-[#FF6B35] text-white shadow-sm flex items-start gap-1 max-w-full hover:bg-[#e55a27] ${
+      className={`${compact ? "text-xs rounded-md px-2 py-1" : "text-[11px] rounded px-1.5 py-1"} bg-brand text-primary-foreground shadow-sm flex items-start gap-1 max-w-full hover:bg-brand-hover ${
         isCancelled ? "opacity-70 line-through" : ""
       }`}
     >

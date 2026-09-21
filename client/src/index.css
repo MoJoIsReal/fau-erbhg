@@ -60,38 +60,40 @@
   /* --- Calendar categories (guide §7) ---
      `dot` is the guide's published hue, darkened only where it failed the
      3:1 the guide requires of meaningful graphics. `text` is the AA-safe
-     sibling used when the category name itself is tinted, and `tint` is the
-     wash for a surface that belongs to exactly one entry. Category is never
+     sibling used when the category name itself is tinted — held to 4.5:1
+     against the page, a card, green-50 *and* its own tint, because a chip
+     puts the label on the last of those. `tint` is the wash for a surface
+     that belongs to exactly one entry. Category is never
      carried by colour alone — every use pairs the dot with the label. */
   --cat-arrangement-dot: #E76F51;
-  --cat-arrangement-text: #D0411D;
+  --cat-arrangement-text: #C23C1B;
   --cat-arrangement-tint: #FAECE8;
   --cat-mote-dot: #2F80ED;
-  --cat-mote-text: #146EE7;
+  --cat-mote-text: #1367D8;
   --cat-mote-tint: #E8F0FA;
   --cat-dugnad-dot: #0F6B46;
   --cat-dugnad-text: #0F6B46;
   --cat-dugnad-tint: #E8FAF3;
   --cat-foto-dot: #7655D6;
-  --cat-foto-text: #6B49D0;
+  --cat-foto-text: #714FD5;
   --cat-foto-tint: #EDE8FA;
   --cat-internt-dot: #667085;
-  --cat-internt-text: #5C6577;
+  --cat-internt-text: #636C81;
   --cat-internt-tint: #EFF0F3;
   --cat-bhgdag-dot: #3B82F6;
-  --cat-bhgdag-text: #166AF4;
+  --cat-bhgdag-text: #0B61ED;
   --cat-bhgdag-tint: #E8EFFA;
   --cat-varmmat-dot: #CB8208;
-  --cat-varmmat-text: #A06707;
+  --cat-varmmat-text: #956006;
   --cat-varmmat-tint: #FAF3E8;
   --cat-temauke-dot: #7655D6;
-  --cat-temauke-text: #6B49D0;
+  --cat-temauke-text: #714FD5;
   --cat-temauke-tint: #EDE8FA;
   --cat-stengt-dot: #D64545;
-  --cat-stengt-text: #C93030;
+  --cat-stengt-text: #C72C2C;
   --cat-stengt-tint: #FAE8E8;
   --cat-beskjed-dot: #737373;
-  --cat-beskjed-text: #6B6B6B;
+  --cat-beskjed-text: #6C6C6C;
   --cat-beskjed-tint: #F1F1F1;
 
   /* --- Radius (guide §5) --- */
@@ -168,7 +170,9 @@
   --color-primary-active: #8FE0B8;
   --color-sage: #3C5E4C;
   --color-green-50: #163024;
-  --color-sand: #0D1A16;
+  /* A shade above --background so the footer and sand-toned heroes still
+     read as their own surface in the dark theme. */
+  --color-sand: #12211C;
   --color-peach: #35281F;
   --color-blue-50: #16252F;
   --color-orange: #E0A264;

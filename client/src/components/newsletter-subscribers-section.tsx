@@ -98,7 +98,7 @@ export default function NewsletterSubscribersSection() {
                   {s.name && <div className="text-xs text-subtle truncate">{s.name}</div>}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusClass(s.status)}`}>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-pill ${statusClass(s.status)}`}>
                     {statusLabel(s.status)}
                   </span>
                   <AlertDialog>

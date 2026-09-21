@@ -371,7 +371,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
               <button
                 type="button"
                 onClick={() => setColor("")}
-                className={`h-7 w-7 rounded-full border-2 bg-surface text-subtle text-xs flex items-center justify-center ${
+                className={`h-7 w-7 rounded-pill border-2 bg-surface text-subtle text-xs flex items-center justify-center ${
                   !color ? "border-ink ring-2 ring-hairline" : "border-hairline"
                 }`}
                 title={t.yearlyCalendar.colors.none}
@@ -387,7 +387,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                     type="button"
                     onClick={() => setColor(c)}
                     style={{ backgroundColor: PRESET_HEX[c] }}
-                    className={`h-7 w-7 rounded-full border-2 ${
+                    className={`h-7 w-7 rounded-pill border-2 ${
                       selected ? "border-ink ring-2 ring-hairline" : "border-surface shadow"
                     }`}
                     title={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
@@ -397,7 +397,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
               })}
               <input
                 type="color"
-                value={HEX_RE.test(color) ? color : "#ff6b35"}
+                value={HEX_RE.test(color) ? color : "#F4A261"}
                 onChange={(e) => setColor(e.target.value)}
                 className="h-7 w-8 rounded cursor-pointer border border-hairline p-0"
                 aria-label={t.yearlyCalendar.modal.color}
@@ -455,7 +455,6 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending || !title || !entryType}
-              className="bg-[#FF6B35] hover:bg-[#FF5722] text-white"
             >
               {saveMutation.isPending ? t.yearlyCalendar.modal.saving : t.yearlyCalendar.modal.save}
             </Button>

@@ -285,7 +285,7 @@ export default function Content() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div className="mx-auto max-w-4xl">
       <Card className="p-6">
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-ink mb-2">
@@ -540,7 +540,7 @@ export default function Content() {
                       </div>
                     </div>
                     <p className="text-sm text-subtle mb-2">
-                      <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+                      <span className="mr-2 rounded-pill bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         {(post.category || "news") === "tips"
                           ? t.contentPage.tipsTricks
                           : t.contentPage.news}
