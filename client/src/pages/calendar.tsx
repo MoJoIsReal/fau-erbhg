@@ -29,13 +29,11 @@ export default function CalendarPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="mb-2 font-heading text-3xl font-bold text-neutral-900 dark:text-neutral-50">
-          {t.calendar.title}
-        </h1>
-        <p className="text-neutral-600 dark:text-neutral-300">{t.calendar.subtitle}</p>
-      </div>
+    <div>
+      {/* The calendar's own header band carries the visible heading, and it
+          changes with the view. The page keeps an h1 for the document
+          outline and for anyone arriving by screen reader. */}
+      <h1 className="sr-only">{t.calendar.title}</h1>
 
       <Suspense
         fallback={

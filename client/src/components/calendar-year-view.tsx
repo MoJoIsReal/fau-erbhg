@@ -3,151 +3,128 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { CalendarEntry } from "@shared/calendar-entries";
-import {
-  calendarWeekKey,
-  compareSpanningEntries,
-  isoWeekYear,
-  parseCalendarDate,
-  schoolYearWeeks,
-} from "@shared/calendar-entries";
-import { isoWeek } from "@shared/yearly-calendar-display";
+import { monthsForSchoolYear, toCalendarIsoDate, weeksOfMonth } from "@shared/yearly-calendar-display";
 
 interface CalendarYearViewProps {
   entries: CalendarEntry[];
   schoolYear: number;
-  onEntryClick: (entry: CalendarEntry) => void;
+  onMonthPick: (month: { year: number; month: number }) => void;
 }
 
+// At this size a day can show three dots before they stop being countable.
+const MAX_DOTS = 3;
+
 /**
- * The whole kindergarten year, one row per ISO week, months down the margin.
+ * The kindergarten year as twelve small month calendars.
  *
- * This is the yearly calendar without being a separate page: same entries,
- * same filters, just denser. A year holds several hundred entries, so they are
- * set as plain text with a small dot rather than as filled chips — fifty-two
- * rows of coloured pills is a pattern, not a calendar. Quiet weeks stay
- * visible as quiet: when you are hunting for a free Saturday for a dugnad, the
- * empty rows are the answer.
+ * Nothing here is readable as text, and that is the point: this view answers
+ * "when is it busy, and when is it quiet" at a glance, and hands the month
+ * over to the month view for anything more. Each day that has something gets
+ * a dot per kind, so a week of planning days looks different from a week with
+ * one dugnad in it.
  */
-export default function CalendarYearView({ entries, schoolYear, onEntryClick }: CalendarYearViewProps) {
+export default function CalendarYearView({ entries, schoolYear, onMonthPick }: CalendarYearViewProps) {
   const { language, t } = useLanguage();
+  const todayIso = toCalendarIsoDate(new Date());
+  const now = new Date();
 
-  const weeks = useMemo(() => schoolYearWeeks(schoolYear), [schoolYear]);
-
-  const byWeek = useMemo(() => {
-    const map = new Map<number, CalendarEntry[]>();
+  // Only dated entries can sit on a day. A week-long temauke would otherwise
+  // paint seven identical dots and drown everything that actually happens.
+  const byDate = useMemo(() => {
+    const map = new Map<string, CalendarEntry[]>();
     for (const entry of entries) {
-      for (let week = entry.week; week <= entry.weekEnd; week++) {
-        const key = calendarWeekKey(entry.weekYear, week);
-        const forWeek = map.get(key);
-        if (forWeek) forWeek.push(entry);
-        else map.set(key, [entry]);
-      }
-    }
-    // Week-wide entries lead each row, as they do in the list's band and the
-    // month grid's rail; dated ones follow in date order.
-    for (const list of map.values()) {
-      list.sort((a, b) => {
-        if (!a.date && !b.date) return compareSpanningEntries(a, b);
-        if (!a.date) return -1;
-        if (!b.date) return 1;
-        return a.sortKey - b.sortKey || a.title.localeCompare(b.title, "no");
-      });
+      if (!entry.date) continue;
+      const forDay = map.get(entry.date);
+      if (forDay) forDay.push(entry);
+      else map.set(entry.date, [entry]);
     }
     return map;
   }, [entries]);
 
-  const today = new Date();
-  const currentWeekKey = calendarWeekKey(isoWeekYear(today), isoWeek(today));
+  const months = useMemo(() => monthsForSchoolYear(schoolYear), [schoolYear]);
 
-  const months = useMemo(() => {
-    const groups: { key: string; month: number; year: number; weeks: typeof weeks }[] = [];
-    for (const week of weeks) {
-      const key = `${week.year}-${week.month}`;
-      const last = groups[groups.length - 1];
-      if (last && last.key === key) last.weeks.push(week);
-      else groups.push({ key, month: week.month, year: week.year, weeks: [week] });
-    }
-    return groups;
-  }, [weeks]);
+  // Weekday initials, taken from a real week so the locale stays formatDate's
+  // business rather than a hardcoded list per language.
+  const weekdayInitials = useMemo(() => {
+    const week = weeksOfMonth(months[0].year, months[0].month)[0];
+    return week.days.map((day) => formatDate(day.date, language, { weekday: "narrow" }));
+  }, [months, language]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-      {months.map((group, index) => (
-        <section
-          key={group.key}
-          className={index > 0 ? "border-t border-neutral-200 dark:border-neutral-800" : ""}
-        >
-          <h3 className="sticky top-0 z-10 bg-neutral-50/90 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500 backdrop-blur dark:bg-neutral-900/80 dark:text-neutral-400 sm:px-5">
-            <span className="capitalize">
-              {formatDate(new Date(group.year, group.month - 1, 1), language, { month: "long" })}
-            </span>{" "}
-            <span className="font-normal tabular-nums text-neutral-400 dark:text-neutral-500">{group.year}</span>
-          </h3>
+    <div className="space-y-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {months.map((ref) => {
+          const weeks = weeksOfMonth(ref.year, ref.month);
+          const isCurrentMonth =
+            ref.year === now.getFullYear() && ref.month === now.getMonth() + 1;
 
-          <ul className="divide-y divide-neutral-100 dark:divide-neutral-900">
-            {group.weeks.map((week) => {
-              const key = calendarWeekKey(week.weekYear, week.week);
-              const weekEntries = byWeek.get(key) ?? [];
-              const isNow = key === currentWeekKey;
+          return (
+            <button
+              key={`${ref.year}-${ref.month}`}
+              type="button"
+              onClick={() => onMonthPick(ref)}
+              className={`rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
+                isCurrentMonth
+                  ? "border-accent/50 bg-accent/5 ring-1 ring-accent/20"
+                  : "border-neutral-200 bg-white hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+              }`}
+            >
+              <h3 className="font-heading text-base font-semibold capitalize text-neutral-900 dark:text-neutral-50">
+                {formatDate(new Date(ref.year, ref.month - 1, 1), language, { month: "long" })}{" "}
+                <span className="font-normal tabular-nums text-neutral-400 dark:text-neutral-500">
+                  {ref.year}
+                </span>
+              </h3>
 
-              return (
-                <li
-                  key={key}
-                  className={`grid grid-cols-[2.25rem_minmax(0,1fr)] items-baseline gap-3 px-4 py-1.5 sm:px-5 ${
-                    isNow ? "bg-primary/5" : ""
-                  }`}
-                >
+              <div className="mt-3 grid grid-cols-7 gap-y-1">
+                {weekdayInitials.map((initial, index) => (
                   <span
-                    className={`text-right text-xs tabular-nums ${
-                      isNow ? "font-semibold text-primary" : "text-neutral-400 dark:text-neutral-500"
-                    }`}
+                    key={index}
+                    className="text-center text-[10px] font-medium uppercase text-neutral-400 dark:text-neutral-500"
                   >
-                    {week.week}
+                    {initial}
                   </span>
+                ))}
 
-                  {weekEntries.length === 0 ? (
-                    <span className="text-xs text-neutral-300 dark:text-neutral-700">—</span>
-                  ) : (
-                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
-                      {weekEntries.map((entry) => {
-                        const date = entry.date ? parseCalendarDate(entry.date) : null;
-                        return (
-                          <button
-                            key={`${key}-${entry.id}`}
-                            type="button"
-                            onClick={() => onEntryClick(entry)}
-                            title={entry.title}
-                            className="flex max-w-full items-baseline gap-1.5 text-left text-[13px] leading-snug text-neutral-700 transition-colors hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary dark:text-neutral-300 dark:hover:text-neutral-50"
-                          >
+                {weeks.flatMap((week) =>
+                  week.days.map((day) => {
+                    const iso = toCalendarIsoDate(day.date);
+                    const dayEntries = day.inMonth ? (byDate.get(iso) ?? []) : [];
+                    const isToday = iso === todayIso;
+
+                    return (
+                      <span key={iso} className="flex flex-col items-center gap-0.5 pb-0.5">
+                        <span
+                          className={`grid h-5 w-5 place-items-center rounded-full text-[11px] tabular-nums ${
+                            isToday
+                              ? "bg-accent font-semibold text-accent-foreground"
+                              : day.inMonth
+                                ? "text-neutral-700 dark:text-neutral-200"
+                                : "text-neutral-300 dark:text-neutral-700"
+                          }`}
+                        >
+                          {day.date.getDate()}
+                        </span>
+                        <span className="flex h-1.5 items-center gap-[2px]">
+                          {dayEntries.slice(0, MAX_DOTS).map((entry) => (
                             <span
-                              className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-full ${
-                                KIND_STYLE[entry.kind].dot
-                              }`}
+                              key={entry.id}
+                              className={`h-1.5 w-1.5 rounded-full ${KIND_STYLE[entry.kind].dot}`}
                               aria-hidden="true"
                             />
-                            {date && (
-                              <span className="shrink-0 tabular-nums text-neutral-400 dark:text-neutral-500">
-                                {formatDate(date, language, { day: "numeric", month: "short" })}
-                              </span>
-                            )}
-                            <span className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}>
-                              {entry.title}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
+                          ))}
+                        </span>
+                      </span>
+                    );
+                  }),
+                )}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
-      <p className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400 sm:px-5">
-        {t.calendar.yearViewHint}
-      </p>
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.yearViewHint}</p>
     </div>
   );
 }

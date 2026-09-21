@@ -102,6 +102,19 @@ export interface Translations {
     detailDeadline: string;
     detailSignup: string;
     noDescription: string;
+    allTypes: string;
+    allDay: string;
+    detailTimePrefix: string;
+    listHeading: string;
+    listIntro: string;
+    monthIntro: string;
+    yearHeading: string;
+    yearIntro: string;
+    tagline: string;
+    noEventsThisWeek: string;
+    weeklyFood: string;
+    reminderTitle: string;
+    reminderBody: string;
     editorLabel: string;
     openYearlyEditor: string;
     newEntry: string;
@@ -989,6 +1002,20 @@ export const translations: Record<Language, Translations> = {
       detailDeadline: "Påmeldingsfrist",
       detailSignup: "Påmelding",
       noDescription: "Ingen beskrivelse lagt inn.",
+      allTypes: "Alle",
+      allDay: "Hele dagen",
+      detailTimePrefix: "Kl.",
+      listHeading: "Alt som skjer i Erdal Barnehage",
+      listIntro:
+        "En oversiktlig kalender for barnehageåret. Her finner du arrangementer, møter og viktige datoer.",
+      monthIntro: "En oversikt over alle aktivitetene denne måneden. Klikk på en dato for å se mer informasjon.",
+      yearHeading: "Barnehageåret",
+      yearIntro: "Få en rask oversikt over hele året. Klikk på en måned for å se detaljer.",
+      tagline: "Små mennesker, store dager",
+      noEventsThisWeek: "Ingen planlagte arrangementer denne uken.",
+      weeklyFood: "Ukens varmmat:",
+      reminderTitle: "Vil du ha påminnelser om viktige datoer?",
+      reminderBody: "Legg til kalenderen i mobil eller nettbrett, så går du ikke glipp av noe.",
       editorLabel: "Redaktør",
       openYearlyEditor: "Rediger årskalenderen",
       newEntry: "Nytt i kalenderen",
@@ -1874,6 +1901,20 @@ export const translations: Record<Language, Translations> = {
       detailDeadline: "Registration deadline",
       detailSignup: "Registration",
       noDescription: "No description added.",
+      allTypes: "All",
+      allDay: "All day",
+      detailTimePrefix: "At",
+      listHeading: "Everything happening at Erdal Kindergarten",
+      listIntro:
+        "A clear calendar for the kindergarten year. Events, meetings and the dates that matter.",
+      monthIntro: "An overview of everything happening this month. Pick a date to see more.",
+      yearHeading: "Kindergarten year",
+      yearIntro: "A quick look at the whole year. Pick a month to see it in detail.",
+      tagline: "Small people, big days",
+      noEventsThisWeek: "Nothing planned this week.",
+      weeklyFood: "This week's hot meal:",
+      reminderTitle: "Want reminders for the dates that matter?",
+      reminderBody: "Add the calendar to your phone or tablet so nothing slips past you.",
       editorLabel: "Editor",
       openYearlyEditor: "Edit the yearly calendar",
       newEntry: "New in the calendar",
