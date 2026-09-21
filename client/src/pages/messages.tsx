@@ -230,18 +230,18 @@ export default function Messages() {
       label: t.messagesPage.archived,
       count: archivedMessages.length,
       icon: Archive,
-      numberClass: "text-neutral-600 dark:text-neutral-300",
-      iconClass: "text-neutral-500 dark:text-neutral-400",
+      numberClass: "text-subtle",
+      iconClass: "text-subtle",
     },
   ];
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
+        <h1 className="text-3xl font-bold text-ink">
           {t.messagesPage.messages}
         </h1>
-        <p className="text-neutral-600 dark:text-neutral-300 mt-2">
+        <p className="text-subtle mt-2">
           {language === "no"
             ? "Administrer henvendelser fra kontaktskjemaet"
             : "Manage contact form submissions"}
@@ -261,18 +261,18 @@ export default function Messages() {
               type="button"
               onClick={() => setStatusFilter(isActive ? 'all' : card.key)}
               aria-pressed={isActive}
-              className="h-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+              className="h-full text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             >
-              <Card className={`h-full ${isActive ? "border-primary ring-1 ring-primary" : "transition-colors hover:border-neutral-300 dark:hover:border-neutral-700"}`}>
+              <Card className={`h-full ${isActive ? "border-primary ring-1 ring-primary" : "transition-colors hover:border-brand/30"}`}>
                 <CardContent className="p-3 sm:p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-400 break-words">{card.label}</p>
+                      <p className="text-xs sm:text-sm text-subtle break-words">{card.label}</p>
                       <p className={`text-xl sm:text-2xl font-bold tabular-nums ${card.numberClass}`}>{card.count}</p>
                     </div>
                     <Icon className={`h-5 w-5 sm:h-8 sm:w-8 shrink-0 ${card.iconClass}`} />
                   </div>
-                  <p className="mt-1 text-[11px] sm:text-xs text-neutral-500 dark:text-neutral-400">
+                  <p className="mt-1 text-[11px] sm:text-xs text-subtle">
                     {isActive
                       ? t.messagesPage.showAll
                       : t.messagesPage.showOnlyThese}
@@ -288,7 +288,7 @@ export default function Messages() {
       <Card>
         <CardContent className="p-4 sm:p-6">
           {visibleMessages.length === 0 ? (
-            <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
+            <p className="text-center text-subtle py-8">
               {messages.length === 0
                 ? t.messagesPage.noMessagesYet
                 : t.messagesPage.noMessagesWithStatus}
@@ -304,9 +304,9 @@ export default function Messages() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-2">
                           {getStatusBadge(message.status)}
-                          <span className="font-semibold text-neutral-900 dark:text-neutral-50 break-words">{getSubjectLabel(message.subject)}</span>
+                          <span className="font-semibold text-ink break-words">{getSubjectLabel(message.subject)}</span>
                         </div>
-                        <div className="text-sm text-neutral-600 dark:text-neutral-300 space-y-1">
+                        <div className="text-sm text-subtle space-y-1">
                           {message.name && (
                             <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
                               <User className="h-4 w-4 shrink-0" />
@@ -341,7 +341,7 @@ export default function Messages() {
                             })}
                           </p>
                           {!message.email && (
-                            <p className="text-xs italic text-neutral-500 dark:text-neutral-400">
+                            <p className="text-xs italic text-subtle">
                               {t.messagesPage.cannotReplyAnonymous}
                             </p>
                           )}
@@ -430,7 +430,7 @@ export default function Messages() {
                     <div
                       className={`mt-3 ${expandedMessage === message.id ? '' : 'line-clamp-2'}`}
                     >
-                      <p className="text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap break-words bg-neutral-50 dark:bg-neutral-950 p-3 rounded">
+                      <p className="text-sm text-copy whitespace-pre-wrap break-words bg-sand p-3 rounded">
                         {message.message}
                       </p>
                     </div>
@@ -448,17 +448,17 @@ export default function Messages() {
 
                     {message.responseMessage && (
                       <div className="mt-3 border-l-2 border-green-400 dark:border-green-700 pl-3">
-                        <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                        <p className="text-xs font-medium text-subtle">
                           {t.messagesPage.sentReply}
                         </p>
-                        <p className="mt-1 text-sm text-neutral-700 dark:text-neutral-200 whitespace-pre-wrap break-words">
+                        <p className="mt-1 text-sm text-copy whitespace-pre-wrap break-words">
                           {message.responseMessage}
                         </p>
                       </div>
                     )}
 
                     {message.respondedAt && (
-                      <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-3 italic">
+                      <p className="text-xs text-subtle mt-3 italic">
                         {t.messagesPage.responded}{" "}
                         {new Date(message.respondedAt).toLocaleDateString(language === "no" ? "no-NO" : "en-US")}
                         {message.respondedBy && ` ${t.messagesPage.by} ${message.respondedBy}`}
@@ -493,10 +493,10 @@ export default function Messages() {
           {replyTarget && (
             <div className="space-y-4">
               <div>
-                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-300">
+                <p className="text-xs font-medium text-subtle">
                   {t.messagesPage.originalMessage} — {getSubjectLabel(replyTarget.subject)}
                 </p>
-                <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-neutral-50 dark:bg-neutral-950 p-3 text-sm text-neutral-700 dark:text-neutral-200">
+                <p className="mt-1 max-h-40 overflow-y-auto whitespace-pre-wrap break-words rounded bg-sand p-3 text-sm text-copy">
                   {replyTarget.message}
                 </p>
               </div>
@@ -504,7 +504,7 @@ export default function Messages() {
               <div>
                 <label
                   htmlFor="contact-reply"
-                  className="text-xs font-medium text-neutral-600 dark:text-neutral-300"
+                  className="text-xs font-medium text-subtle"
                 >
                   {t.messagesPage.yourReply}
                 </label>
@@ -518,7 +518,7 @@ export default function Messages() {
                   className="mt-1"
                   disabled={replyMutation.isPending}
                 />
-                <p className="mt-1 text-right text-xs text-neutral-500 dark:text-neutral-400 tabular-nums">
+                <p className="mt-1 text-right text-xs text-subtle tabular-nums">
                   {replyText.length}/{REPLY_MAX_LENGTH}
                 </p>
               </div>

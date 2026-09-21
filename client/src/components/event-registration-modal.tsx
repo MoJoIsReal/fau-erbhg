@@ -203,16 +203,16 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         {/* Scrollable form body */}
         <div className="flex-1 overflow-y-auto overscroll-contain">
           <div className="px-4 pt-3 pb-2 sm:px-6">
-            <div className="p-3 bg-neutral-50 dark:bg-neutral-950 rounded-lg border border-neutral-200 dark:border-neutral-800">
-              <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{event.title}</h4>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">
+            <div className="p-3 bg-sand rounded-lg border border-hairline">
+              <h4 className="font-medium text-ink">{event.title}</h4>
+              <p className="text-sm text-subtle">
                 {new Date(event.date).toLocaleDateString(language === 'no' ? 'no-NO' : 'en-US', {
                   day: 'numeric',
                   month: 'long',
                   year: 'numeric'
                 })} {t.events.at} {event.time}
               </p>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{event.location}</p>
+              <p className="text-sm text-subtle">{event.location}</p>
             </div>
           </div>
 
@@ -296,7 +296,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             {/* Dynamic child name fields for foto events */}
             {isFotoEvent && (
               <div className="space-y-3">
-                <p className="text-sm font-medium text-neutral-700 dark:text-neutral-200">
+                <p className="text-sm font-medium text-copy">
                   {t.events.childrenSFirstNames}
                 </p>
                 {Array.from({ length: attendeeCount || 1 }, (_, i) => (

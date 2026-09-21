@@ -61,10 +61,10 @@ export default function NewsPost() {
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <Card>
           <CardContent className="p-12 text-center">
-            <h1 className="text-xl font-semibold text-neutral-900 dark:text-neutral-50 mb-2">
+            <h1 className="text-xl font-semibold text-ink mb-2">
               {t.newsPage.postNotFound}
             </h1>
-            <p className="text-neutral-600 dark:text-neutral-300 mb-6">
+            <p className="text-subtle mb-6">
               {language === "no"
                 ? "Innlegget kan være avpublisert eller slettet."
                 : "The post may have been unpublished or deleted."}
@@ -98,10 +98,10 @@ export default function NewsPost() {
       <article>
         <Card>
           <CardContent className="p-6 sm:p-8">
-            <h1 className="text-3xl font-bold text-neutral-900 dark:text-neutral-50 mb-3">
+            <h1 className="text-3xl font-bold text-ink mb-3">
               {post.title}
             </h1>
-            <div className="flex items-center text-sm text-neutral-500 dark:text-neutral-400 mb-6">
+            <div className="flex items-center text-sm text-subtle mb-6">
               <Calendar className="h-4 w-4 mr-2" />
               <time dateTime={post.publishedDate}>
                 {formatDate(post.publishedDate, language, {
@@ -118,7 +118,7 @@ export default function NewsPost() {
             </div>
             <SafeHtml
               html={post.content}
-              className="prose prose-neutral max-w-none text-neutral-700 dark:text-neutral-200"
+              className="prose prose-neutral max-w-none text-copy"
             />
           </CardContent>
         </Card>

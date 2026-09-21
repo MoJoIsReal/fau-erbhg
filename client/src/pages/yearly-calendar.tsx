@@ -51,9 +51,9 @@ const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 // client/src/components/yearly-calendar-entry-modal.tsx.
 const ENTRY_COLOR_CLASSES: Record<string, string> = {
   red: "bg-red-500 text-white",
-  yellow: "bg-yellow-300 text-neutral-900",
+  yellow: "bg-yellow-300 text-ink",
   green: "bg-green-500 text-white",
-  orange: "bg-orange-400 text-neutral-900",
+  orange: "bg-orange-400 text-ink",
   blue: "bg-blue-400 text-white",
   pink: "bg-pink-400 text-white",
   purple: "bg-purple-500 text-white",
@@ -76,7 +76,7 @@ function readableTextOn(hex: string): string {
 function defaultColorForType(type: YearlyCalendarEntry["entryType"]): string {
   switch (type) {
     case "food":
-      return "bg-yellow-300 text-neutral-900";
+      return "bg-yellow-300 text-ink";
     case "week_event":
       return "bg-blue-500 text-white";
     case "day_event":
@@ -620,7 +620,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
       description: t.yearlyCalendar.pastMonthsDescription,
       months: monthGroups.past,
       isPast: true,
-      headingClass: "border-neutral-200 bg-neutral-50 text-neutral-700 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200",
+      headingClass: "border-hairline bg-sand text-copy",
     },
   ].filter((group) => group.months.length > 0);
 
@@ -753,7 +753,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
           <div className="mt-5 flex flex-wrap gap-3 items-center">
             <span className="text-sm text-white/80">{t.yearlyCalendar.schoolYearLabel}:</span>
             <Select value={String(schoolYear)} onValueChange={(v) => setSchoolYear(parseInt(v))}>
-              <SelectTrigger className="w-[180px] bg-white dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50">
+              <SelectTrigger className="w-[180px] bg-surface text-ink">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -767,7 +767,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
               <>
                 <Button
                   onClick={() => openCreate({ year: firstDisplayMonth.year, month: firstDisplayMonth.month, entryType: "week_event" })}
-                  className="bg-white dark:bg-neutral-950 text-[#FF6B35] hover:bg-yellow-100 dark:hover:bg-neutral-900 print:hidden"
+                  className="bg-surface text-[#FF6B35] hover:bg-yellow-100 print:hidden"
                 >
                   <Plus className="h-4 w-4 mr-1" />
                   {t.yearlyCalendar.addEntry}
@@ -862,7 +862,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
               <section
                 key={`${year}-${month}`}
                 id={`month-${year}-${month}`}
-                className={`yearly-month-section rounded-3xl bg-[#2C5F41]/95 dark:bg-neutral-900 text-white shadow-xl overflow-hidden border-4 ${theme.ring} ${isPast ? "opacity-80 saturate-[.85]" : ""}`}
+                className={`yearly-month-section rounded-3xl bg-[#2C5F41]/95 text-white shadow-xl overflow-hidden border-4 ${theme.ring} ${isPast ? "opacity-80 saturate-[.85]" : ""}`}
               >
                 <div className={`relative px-6 py-5 bg-gradient-to-br ${theme.gradient} overflow-hidden`}>
                   <span
@@ -897,7 +897,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                             </span>
                           )}
                           {isPast && (
-                            <span className="rounded-full bg-neutral-900/35 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white/80 ring-1 ring-white/20">
+                            <span className="rounded-full bg-sand/35 px-3 py-1 text-xs font-bold uppercase tracking-wide text-white/80 ring-1 ring-white/20">
                               {t.yearlyCalendar.pastMonthBadge}
                             </span>
                           )}
@@ -962,7 +962,7 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                   )}
                 <div className="yearly-month-grid relative grid grid-cols-1 gap-0">
                   {/* Notes section */}
-                  <div className="order-last bg-rose-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-50 p-4 border-t-2 border-[#4A8C5F]/30 dark:border-neutral-800">
+                  <div className="order-last bg-rose-50 text-ink p-4 border-t-2 border-[#4A8C5F]/30">
                     <div className="font-heading font-bold text-[#2C5F41] dark:text-green-200 mb-2 flex items-center gap-2">
                       <Sticker className="h-5 w-5" /> {t.yearlyCalendar.notes}
                     </div>
@@ -973,20 +973,20 @@ export default function YearlyCalendarPage({ embedded = false }: YearlyCalendarP
                             entry={entry}
                             canEdit={canEdit}
                             onClick={canEdit ? () => openEdit(entry) : undefined}
-                            className="bg-white dark:bg-neutral-900 rounded-md px-3 py-2 shadow-sm hover:bg-yellow-50 dark:hover:bg-neutral-800"
+                            className="bg-surface rounded-md px-3 py-2 shadow-sm hover:bg-yellow-50"
                           >
                             <div className="font-medium flex items-center gap-1">
-                              {canEdit && <GripVertical className="h-3 w-3 text-neutral-400 dark:text-neutral-500" aria-hidden />}
+                              {canEdit && <GripVertical className="h-3 w-3 text-subtle" aria-hidden />}
                               {entry.title}
                             </div>
                             {entry.description && (
-                              <div className="text-neutral-600 dark:text-neutral-400 text-xs">{entry.description}</div>
+                              <div className="text-subtle text-xs">{entry.description}</div>
                             )}
                           </DraggableEntry>
                         </li>
                       ))}
                       {noteEntries.length === 0 && (
-                        <li className="text-neutral-500 dark:text-neutral-400 italic text-sm">—</li>
+                        <li className="text-subtle italic text-sm">—</li>
                       )}
                     </ul>
                     {canEdit && (

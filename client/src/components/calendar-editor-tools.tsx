@@ -164,8 +164,8 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
   };
 
   const toolbar = !canEditYearly ? null : (
-    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900/60">
-      <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-hairline bg-sand px-4 py-3">
+      <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-subtle">
         {t.calendar.editorLabel}
       </span>
       <Button size="sm" onClick={() => setPickerOpen(true)}>
@@ -193,7 +193,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           {t.calendar.openYearlyEditor}
         </Link>
       </Button>
-      <p className="basis-full text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.excelScopeNote}</p>
+      <p className="basis-full text-xs text-subtle">{t.calendar.excelScopeNote}</p>
     </div>
   );
 
@@ -206,8 +206,8 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     const showRegistrations = entry.event && signup?.mode === "registration";
 
     return (
-      <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3 dark:border-neutral-800">
-        <span className="basis-full text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+      <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3">
+        <span className="basis-full text-[11px] uppercase tracking-[0.1em] text-subtle">
           {t.calendar.editorLabel}
         </span>
         <Button
@@ -260,13 +260,13 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           <DialogHeader>
             <DialogTitle>{t.calendar.newEntry}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.calendar.newPickerHint}</p>
+          <p className="text-sm text-subtle">{t.calendar.newPickerHint}</p>
 
           <div className="space-y-2">
-            <h3 className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+            <h3 className="text-xs uppercase tracking-wide text-subtle">
               {t.calendar.filterSignup}
             </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.newEventHint}</p>
+            <p className="text-xs text-subtle">{t.calendar.newEventHint}</p>
             <Button
               variant="outline"
               className="w-full justify-start"
@@ -276,17 +276,17 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
               {t.calendar.newEventButton}
             </Button>
             {!canEditEvents && (
-              <p className="border-l-2 border-red-500 pl-2 text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="border-l-2 border-red-500 pl-2 text-xs text-subtle">
                 {t.calendar.staffCannotCreateEvents}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+            <h3 className="text-xs uppercase tracking-wide text-subtle">
               {t.calendar.filterKindergarten}
             </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.newYearlyHint}</p>
+            <p className="text-xs text-subtle">{t.calendar.newYearlyHint}</p>
             <div className="grid grid-cols-2 gap-2">
               {YEARLY_CALENDAR_KINDS.map((kind) => (
                 <Button

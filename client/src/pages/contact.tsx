@@ -134,15 +134,15 @@ export default function Contact() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.contact.title}</h1>
-        <p className="text-neutral-600 dark:text-neutral-300">{t.contact.subtitle}</p>
+        <h1 className="font-heading font-bold text-3xl text-ink mb-2">{t.contact.title}</h1>
+        <p className="text-subtle">{t.contact.subtitle}</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-8">
         {/* Contact Form */}
         <Card>
           <CardContent className="p-6">
-            <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.contact.send}</h3>
+            <h3 className="font-heading font-semibold text-xl text-ink mb-6">{t.contact.send}</h3>
             
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -270,7 +270,7 @@ export default function Contact() {
           {/* Council Members */}
           <Card>
             <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">Foreldrenes arbeidsutvalg (FAU)</h3>
+              <h3 className="font-heading font-semibold text-xl text-ink mb-6">Foreldrenes arbeidsutvalg (FAU)</h3>
               
               <div className="space-y-4">
                 {contactInfo.map((contact, index) => {
@@ -281,10 +281,10 @@ export default function Contact() {
                         <Icon className="h-5 w-5" />
                       </div>
                       <div>
-                        <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{contact.title}</h4>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-1">{contact.description}</p>
+                        <h4 className="font-medium text-ink">{contact.title}</h4>
+                        <p className="text-sm text-subtle mb-1">{contact.description}</p>
                         {contact.email && (
-                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                          <p className="text-sm text-copy">
                             <Mail className="h-3 w-3 inline mr-2" />
                             <a href={`mailto:${contact.email}`} className="hover:text-primary dark:hover:text-primary">
                               {contact.email}
@@ -292,13 +292,13 @@ export default function Contact() {
                           </p>
                         )}
                         {contact.address && (
-                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                          <p className="text-sm text-copy">
                             <MapPin className="h-3 w-3 inline mr-2" />
                             {contact.address}
                           </p>
                         )}
                         {contact.phone && (
-                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                          <p className="text-sm text-copy">
                             <Phone className="h-3 w-3 inline mr-2" />
                             {contact.phone}
                           </p>
@@ -314,10 +314,10 @@ export default function Contact() {
           {/* Newsletter signup */}
           <Card>
             <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-2">
+              <h3 className="font-heading font-semibold text-xl text-ink mb-2">
                 {t.newsletter.title}
               </h3>
-              <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">{t.newsletter.subtitle}</p>
+              <p className="text-sm text-subtle mb-4">{t.newsletter.subtitle}</p>
               <NewsletterSignup />
             </CardContent>
           </Card>

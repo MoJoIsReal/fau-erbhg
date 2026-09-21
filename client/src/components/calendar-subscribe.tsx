@@ -114,19 +114,19 @@ export default function CalendarSubscribe({
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               </Button>
             </div>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">
+            <p className="text-xs text-subtle">
               {t.calendar.subscribeUrlHint}
             </p>
           </div>
 
-          <div className="border-t border-neutral-200 pt-4 dark:border-neutral-800">
+          <div className="border-t border-hairline pt-4">
             <Button asChild variant="ghost" size="sm" className="h-auto min-w-0 whitespace-normal py-2 flex items-center gap-2">
               <a href={httpUrl} download="fau-erdal-barnehage.ics">
                 <Download className="h-4 w-4" aria-hidden="true" />
                 <span>{t.calendar.subscribeDownload}</span>
               </a>
             </Button>
-            <p className="mt-1 text-xs text-neutral-500 dark:text-neutral-400">
+            <p className="mt-1 text-xs text-subtle">
               {t.calendar.subscribeDownloadHint}
             </p>
           </div>

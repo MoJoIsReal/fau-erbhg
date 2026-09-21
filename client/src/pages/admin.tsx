@@ -148,10 +148,10 @@ export default function Admin() {
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
+        <h1 className="text-3xl font-bold text-ink">
           {language === "no" ? `Hei, ${user?.name?.split(" ")[0] ?? ""}` : `Hi, ${user?.name?.split(" ")[0] ?? ""}`}
         </h1>
-        <p className="mt-2 text-neutral-600 dark:text-neutral-300">
+        <p className="mt-2 text-subtle">
           {language === "no"
             ? "Her ser du hva som venter, og hvor du administrerer siden."
             : "See what is waiting, and where to manage the site."}
@@ -175,12 +175,12 @@ export default function Admin() {
                         className={`flex h-10 w-10 items-center justify-center rounded-lg ${
                           card.attention
                             ? "bg-primary/15 text-primary"
-                            : "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300"
+                            : "bg-green-50 text-subtle"
                         }`}
                       >
                         <Icon className="h-5 w-5" />
                       </div>
-                      <h2 className="font-heading text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                      <h2 className="font-heading text-lg font-semibold text-ink">
                         {card.title}
                       </h2>
                     </div>
@@ -190,15 +190,15 @@ export default function Admin() {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-neutral-700 dark:text-neutral-200">
+                  <p className="text-sm text-copy">
                     {card.value && (
-                      <span className="mr-1.5 text-2xl font-bold tabular-nums text-neutral-900 dark:text-neutral-50">
+                      <span className="mr-1.5 text-2xl font-bold tabular-nums text-ink">
                         {card.value}
                       </span>
                     )}
                     {card.valueLabel}
                   </p>
-                  <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">{card.detail}</p>
+                  <p className="mt-1 text-sm text-subtle">{card.detail}</p>
                 </CardContent>
               </Card>
             </Link>
@@ -211,16 +211,16 @@ export default function Admin() {
       <Card className="mt-6">
         <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-300">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-50 text-subtle">
               <Calendar className="h-5 w-5" />
             </div>
             <div>
-              <p className="font-medium text-neutral-900 dark:text-neutral-50">
+              <p className="font-medium text-ink">
                 {nextEvent
                   ? nextEvent.event.title
                   : t.adminPage.noUpcomingEvents}
               </p>
-              <p className="text-sm text-neutral-500 dark:text-neutral-400">
+              <p className="text-sm text-subtle">
                 {nextEvent
                   ? `${formatDate(nextEvent.date, language)}${
                       nextEvent.event.noSignup || nextEvent.event.vigiloSignup

@@ -288,10 +288,10 @@ export default function Content() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <Card className="p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
+          <h2 className="text-xl font-semibold text-ink mb-2">
             {t.contentPage.updatesPosts}
           </h2>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
+          <p className="text-sm text-subtle mb-4">
             {language === "no"
               ? "Administrer nyheter, tips og informasjon som vises på nettsiden. Arkiver gamle innlegg for å skjule dem."
               : "Manage news, tips and information displayed on the website. Archive old posts to hide them."}
@@ -302,7 +302,7 @@ export default function Content() {
               <Plus className="h-4 w-4 mr-2" />
               {t.contentPage.newPost}
             </Button>
-            <div className="flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1" role="group" aria-label={t.contentPage.filterByStatus}>
+            <div className="flex rounded-lg border border-hairline p-1" role="group" aria-label={t.contentPage.filterByStatus}>
               {([
                 ["all", t.contentPage.all],
                 ["published", t.contentPage.published],
@@ -339,7 +339,7 @@ export default function Content() {
                 (post.title ?? "").toLowerCase().includes(searchTerm.trim().toLowerCase());
               if (!isEditingThis && (!matchesStatus || !matchesSearch)) return null;
               return (
-              <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-gray-50 dark:bg-neutral-900/70 opacity-75" : ""}`}>
+              <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-gray-50 opacity-75" : ""}`}>
                 {isEditingThis ? (
                   <div className="space-y-4">
                     <div>
@@ -403,7 +403,7 @@ export default function Content() {
                     {/* A post only reaches subscribers if it is flagged here;
                         the evening cron picks it up on its next run and
                         stamps it so it can never go out twice. */}
-                    <div className="flex flex-row items-start space-x-3 rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
+                    <div className="flex flex-row items-start space-x-3 rounded-md border border-hairline p-3">
                       <Checkbox
                         id={`post-newsletter-${index}`}
                         checked={editablePost.notifyNewsletter === true}
@@ -462,7 +462,7 @@ export default function Content() {
                 ) : (
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-neutral-900 dark:text-neutral-50 flex-1 pr-2">
+                      <h3 className="text-lg font-semibold text-ink flex-1 pr-2">
                         {post.title || (t.contentPage.noTitle)}
                       </h3>
 
@@ -539,7 +539,7 @@ export default function Content() {
                         </DropdownMenu>
                       </div>
                     </div>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-2">
+                    <p className="text-sm text-subtle mb-2">
                       <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         {(post.category || "news") === "tips"
                           ? t.contentPage.tipsTricks
@@ -567,7 +567,7 @@ export default function Content() {
                     <SafeHtml
                       html={post.content}
                       truncate={250}
-                      className="prose prose-sm prose-neutral max-w-none text-neutral-700 dark:text-neutral-300"
+                      className="prose prose-sm prose-neutral max-w-none text-copy"
                     />
                   </div>
                 )}
@@ -576,7 +576,7 @@ export default function Content() {
             })}
 
             {posts.length === 0 && (
-              <p className="text-center text-neutral-500 dark:text-neutral-400 py-8">
+              <p className="text-center text-subtle py-8">
                 {language === "no"
                   ? "Ingen innlegg ennå. Klikk 'Nytt innlegg' for å komme i gang."
                   : "No posts yet. Click 'New post' to get started."}

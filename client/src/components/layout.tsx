@@ -1,6 +1,21 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ChevronDown, Menu, Home, Calendar, CalendarDays, LayoutDashboard, Newspaper, Mail, Folder, LogIn, LogOut, User, Settings as SettingsIcon, MessageSquare } from "lucide-react";
+import {
+  CalendarDays,
+  ChevronDown,
+  ExternalLink,
+  Folder,
+  Home,
+  LayoutDashboard,
+  LogIn,
+  LogOut,
+  Mail,
+  Menu,
+  MessageSquare,
+  Newspaper,
+  Settings as SettingsIcon,
+  User,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import childIcon from "../assets/child.png";
 import { Button } from "@/components/ui/button";
@@ -17,12 +32,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { useUpcomingItems } from "@/hooks/useUpcomingItems";
+import { StatusPill } from "@/components/site/controls";
 import LoginModal from "./login-modal";
 import PasswordChangeModal from "./password-change-modal";
 import LanguageToggle from "./language-toggle";
 import DarkModeToggle from "./dark-mode-toggle";
-
-// Navigation will be translated dynamically
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -32,12 +46,21 @@ interface NavigationItem {
   name: string;
   href: string;
   icon: LucideIcon;
-  children?: NavigationItem[];
   // Extra paths that should highlight this item (e.g. /tips-tricks and the
   // /nyheter/:id permalinks all belong to "Aktuelt").
   matchPrefixes?: string[];
 }
 
+/**
+ * The site chrome: one header, one footer, one content container.
+ *
+ * Header and footer are deliberately light. The guide's §6 asks for a 72px
+ * desktop bar with the logo left and the main pages scannable at a glance,
+ * the active page marked by *one* device — an underline — rather than an
+ * underline and a pill at once. Everything that is not a public page
+ * (language, theme, login, the editor's own destinations) sits to the right
+ * of a separator, because admin functions do not belong in public navigation.
+ */
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -51,9 +74,9 @@ export default function Layout({ children }: LayoutProps) {
   // cached queries) as the homepage's "Hva skjer fremover" section.
   const nextMeeting = useUpcomingItems()[0];
 
-  // "Aktuelt" is a plain link: news and tips live on one page with a category
-  // switch, so the nav no longer needs a dropdown (and an empty Tips category
-  // no longer occupies a menu slot).
+  // The guide's recommended order: Hjem | Aktuelt | Kalender | Dokumenter |
+  // Kontakt. News and tips share one page with a category switch, so
+  // "Aktuelt" is a plain link rather than a dropdown.
   const navigation: NavigationItem[] = [
     { name: t.navigation.home, href: "/", icon: Home },
     {
@@ -62,361 +85,255 @@ export default function Layout({ children }: LayoutProps) {
       icon: Newspaper,
       matchPrefixes: ["/nyheter", "/tips-tricks", "/tips-og-triks"],
     },
-    // Events and the yearly calendar are two tabs of one calendar page now, so
-    // they share a single nav slot. That frees enough room for every item to
-    // sit at top level — nothing hides behind "More" any more.
     {
       name: t.navigation.calendar,
       href: "/kalender",
       icon: CalendarDays,
       matchPrefixes: ["/kalender", "/events", "/arskalender"],
     },
-    { name: t.navigation.contact, href: "/contact", icon: Mail },
     { name: t.navigation.documents, href: "/files", icon: Folder },
+    { name: t.navigation.contact, href: "/contact", icon: Mail },
   ];
-  const primaryNavigation = navigation.slice(0, 5);
-  const secondaryNavigation = navigation.slice(5);
-  const isNavigationItemActive = (item: NavigationItem) =>
+
+  const isActive = (item: NavigationItem) =>
     location === item.href ||
-    Boolean(item.matchPrefixes?.some((prefix) => location === prefix || location.startsWith(`${prefix}/`))) ||
-    Boolean(item.children?.some((child) => child.href === location));
-  const secondaryNavigationIsActive = secondaryNavigation.some(isNavigationItemActive);
-  const desktopNavItemClass = (isActive: boolean) =>
-    `flex min-w-0 items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-2 text-sm font-medium leading-none transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
-      isActive
-        ? "bg-primary/10 text-primary"
-        : "text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 hover:text-primary dark:hover:bg-neutral-900"
+    Boolean(
+      item.matchPrefixes?.some(
+        (prefix) => location === prefix || location.startsWith(`${prefix}/`),
+      ),
+    );
+
+  const editorLinks = [
+    isCouncil && { href: "/admin", icon: LayoutDashboard, label: t.header.overview },
+    isCouncil && { href: "/content", icon: Newspaper, label: t.header.content },
+    isCouncil && { href: "/messages", icon: MessageSquare, label: t.header.messages },
+    isAdmin && { href: "/settings", icon: SettingsIcon, label: t.header.settings },
+  ].filter(Boolean) as { href: string; icon: LucideIcon; label: string }[];
+
+  const footerLinks = [
+    { href: "https://www.facebook.com/groups/1674520382805077", label: t.footer.facebook },
+    {
+      href: "https://askoy.kommune.no/tjenester/barnehagen/barnehagene-pa-askoy/kommunalebarnehager/erdal-barnehage",
+      label: t.footer.website,
+    },
+    {
+      href: "https://barnehagefakta.no/barnehage/974600838/erdal-barnehage",
+      label: t.footer.barnehageFakta,
+    },
+    { href: "https://foreldreutvalgene.no/fub/", label: t.footer.fubLink },
+  ];
+
+  const navLinkClass = (active: boolean) =>
+    `relative flex h-[var(--header-height)] items-center whitespace-nowrap px-3 text-small font-semibold transition-colors duration-micro ease-guide xl:px-4 ${
+      active ? "text-brand" : "text-copy hover:text-brand"
+    }`;
+
+  const mobileLinkClass = (active: boolean) =>
+    `flex min-h-[52px] items-center gap-3 rounded-token px-3 text-body font-semibold transition-colors duration-micro ease-guide ${
+      active ? "bg-green-50 text-brand" : "text-copy hover:bg-green-50"
     }`;
 
   return (
-    <div className="min-h-screen bg-neutral-50 dark:bg-neutral-950 flex flex-col min-w-0">
-      {/* Header */}
-      <header className="bg-white dark:bg-neutral-950 border-b border-transparent dark:border-neutral-800 shadow-sm sticky top-0 z-50">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 py-3 min-h-[4rem] min-w-0 lg:grid-cols-[minmax(220px,auto)_minmax(0,1fr)_auto]">
-            {/* Logo */}
-            <Link href="/" className="flex min-w-0 items-center space-x-3">
-              <div className="w-10 h-10 flex items-center justify-center">
-                <img src={childIcon} alt="FAU Erdal Barnehage" className="w-10 h-10 object-contain" />
-              </div>
-              <div className="min-w-0 flex-1">
-                {/* Site name, not a heading: it's identical on every page, so the
-                    page's own <h1> (in main content) is what should describe that page. */}
-                <p className="font-heading font-bold text-lg text-neutral-900 dark:text-neutral-50 leading-tight">{t.header.title}</p>
-                <p className="text-xs sm:text-sm text-neutral-600 dark:text-neutral-300 leading-tight">{t.header.subtitle}</p>
-              </div>
-            </Link>
+    <div className="flex min-h-screen min-w-0 flex-col bg-background">
+      {/* First stop for a keyboard reader on every page. */}
+      <a
+        href="#main"
+        className="sr-only z-[60] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:rounded-token focus:bg-brand focus:px-4 focus:py-3 focus:text-primary-foreground"
+      >
+        {t.ui.skipToContent}
+      </a>
 
-            {/* Desktop Navigation */}
-            <nav className="hidden min-w-0 flex-nowrap items-center justify-center gap-1 lg:flex">
-              {primaryNavigation.map((item) => {
-                const isActive = isNavigationItemActive(item);
-                if (item.children) {
-                  return (
-                    <DropdownMenu key={item.name}>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          className={desktopNavItemClass(isActive)}
-                        >
-                          <span>{item.name}</span>
-                          <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="start" className="w-48">
-                        {item.children.map((child) => {
-                          const ChildIcon = child.icon;
-                          return (
-                            <DropdownMenuItem key={child.href} asChild>
-                              <Link href={child.href} className="flex w-full items-center gap-2">
-                                <ChildIcon className="h-4 w-4" />
-                                <span>{child.name}</span>
-                              </Link>
-                            </DropdownMenuItem>
-                          );
-                        })}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  );
-                }
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={desktopNavItemClass(isActive)}
+      <header className="sticky top-0 z-50 border-b border-hairline bg-surface/95 backdrop-blur supports-[backdrop-filter]:bg-surface/85">
+        <div className="container-page flex h-[var(--header-height-mobile)] items-center justify-between gap-4 lg:h-[var(--header-height)]">
+          <Link
+            href="/"
+            className="flex min-w-0 items-center gap-3 rounded-token py-1"
+            aria-label={t.header.title}
+          >
+            <img
+              src={childIcon}
+              alt=""
+              aria-hidden="true"
+              width={40}
+              height={40}
+              className="h-9 w-9 shrink-0 object-contain lg:h-10 lg:w-10"
+            />
+            <span className="min-w-0">
+              {/* Site name, not a heading: it is identical on every page, so
+                  the page's own <h1> is what should describe that page. */}
+              <span className="block truncate font-bold leading-tight text-ink">
+                {t.header.title}
+              </span>
+              <span className="hidden truncate text-micro leading-tight text-subtle sm:block">
+                {t.header.subtitle}
+              </span>
+            </span>
+          </Link>
+
+          <nav aria-label={t.ui.menu} className="hidden min-w-0 items-center lg:flex">
+            {navigation.map((item) => {
+              const active = isActive(item);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={navLinkClass(active)}
+                >
+                  {item.name}
+                  {/* The active page is marked by form as well as colour: the
+                      underline is what a reader who cannot separate green from
+                      grey still sees. */}
+                  <span
+                    aria-hidden="true"
+                    className={`absolute inset-x-3 bottom-0 h-[3px] rounded-t-pill bg-brand transition-opacity duration-micro ease-guide xl:inset-x-4 ${
+                      active ? "opacity-100" : "opacity-0"
+                    }`}
+                  />
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="hidden shrink-0 items-center gap-2 border-l border-hairline pl-3 lg:flex">
+            <LanguageToggle />
+            <DarkModeToggle />
+            {isAuthenticated ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex max-w-[200px] items-center gap-2"
+                    aria-label={user?.name || t.ui.account}
                   >
-                    <span>{item.name}</span>
-                  </Link>
-                );
-              })}
-              {secondaryNavigation.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={desktopNavItemClass(secondaryNavigationIsActive)}
-                    >
-                      <span>{t.navigation.more}</span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-52">
-                    {secondaryNavigation.map((item) => {
-                      const Icon = item.icon;
-                      return (
-                        <DropdownMenuItem key={item.href} asChild>
-                          <Link href={item.href} className="flex w-full items-center gap-2">
-                            <Icon className="h-4 w-4" />
-                            <span>{item.name}</span>
-                          </Link>
-                        </DropdownMenuItem>
-                      );
-                    })}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </nav>
+                    <User className="h-4 w-4 shrink-0" />
+                    <span className="hidden truncate xl:inline">{user?.name || "FAU"}</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-70" aria-hidden="true" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="truncate">{user?.name}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {editorLinks.map(({ href, icon: Icon, label }) => (
+                    <DropdownMenuItem key={href} asChild>
+                      <Link href={href} className="flex w-full items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span>{label}</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  ))}
+                  {editorLinks.length > 0 && <DropdownMenuSeparator />}
+                  <DropdownMenuItem
+                    disabled={isLoggingOut}
+                    onSelect={(event) => {
+                      event.preventDefault();
+                      logout();
+                    }}
+                    className="gap-2"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLoginModalOpen(true)}
+                className="flex items-center gap-2"
+              >
+                <LogIn className="h-4 w-4 shrink-0" />
+                <span>{t.header.login}</span>
+              </Button>
+            )}
+          </div>
 
-            {/* Language Toggle, Dark Mode & Auth Controls */}
-            <div className="hidden min-w-0 shrink-0 items-center justify-end gap-2 border-l border-neutral-200 pl-4 dark:border-neutral-800 lg:flex">
-              <LanguageToggle />
-              <DarkModeToggle />
-              {isAuthenticated ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
+          {/* Mobile menu. Not the desktop nav squeezed narrow: the pages come
+              first as a full-width list with room for a thumb, and everything
+              secondary lives under a separator below them (guide §6). */}
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="lg:hidden" aria-label={t.ui.menu}>
+                <Menu className="h-6 w-6" aria-hidden="true" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent
+              side="right"
+              className="flex h-[100dvh] w-full flex-col gap-0 overflow-y-auto overscroll-contain bg-surface p-0 sm:max-w-sm"
+            >
+              <div className="flex items-center gap-3 border-b border-hairline px-5 py-4">
+                <img src={childIcon} alt="" aria-hidden="true" className="h-9 w-9 object-contain" />
+                <div className="min-w-0">
+                  <p className="truncate font-bold leading-tight text-ink">{t.header.title}</p>
+                  <p className="truncate text-micro text-subtle">{t.header.subtitle}</p>
+                </div>
+              </div>
+
+              <nav aria-label={t.ui.menu} className="px-3 py-3">
+                {navigation.map((item) => {
+                  const active = isActive(item);
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      aria-current={active ? "page" : undefined}
+                      className={mobileLinkClass(active)}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                      <span>{item.name}</span>
+                      {active && (
+                        <span className="ml-auto h-2 w-2 rounded-pill bg-brand" aria-hidden="true" />
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="mt-auto border-t border-hairline px-5 py-5">
+                <p className="mb-3 text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
+                  {t.ui.appearance}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <LanguageToggle />
+                  <DarkModeToggle />
+                </div>
+
+                {isAuthenticated && editorLinks.length > 0 && (
+                  <>
+                    <p className="mb-3 mt-6 text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
+                      {t.ui.editorTools}
+                    </p>
+                    <div className="grid gap-2">
+                      {editorLinks.map(({ href, icon: Icon, label }) => (
+                        <Link
+                          key={href}
+                          href={href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex min-h-[48px] items-center gap-3 rounded-token border border-hairline px-3 text-small font-semibold text-copy hover:bg-green-50"
+                        >
+                          <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          <span>{label}</span>
+                        </Link>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <div className="mt-6">
+                  {isAuthenticated ? (
                     <Button
                       variant="outline"
-                      size="sm"
-                      className="flex max-w-[220px] items-center gap-2 px-3"
-                      title={user?.name || "FAU"}
-                      aria-label={user?.name || "FAU"}
-                    >
-                      <User className="h-4 w-4 shrink-0" />
-                      {/* Hide username text at lg (1024-1279) to give the
-                          nav row enough room. Show name at xl+ where there's
-                          space. */}
-                      <span className="hidden truncate xl:inline">{user?.name || "FAU"}</span>
-                      <ChevronDown className="h-4 w-4 shrink-0 opacity-70" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-56">
-                    <DropdownMenuLabel className="truncate">{user?.name}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {isCouncil && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin" className="flex w-full items-center gap-2">
-                          <LayoutDashboard className="h-4 w-4" />
-                          <span>{t.header.overview}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {isCouncil && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/content" className="flex w-full items-center gap-2">
-                          <Newspaper className="h-4 w-4" />
-                          <span>{t.header.content}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {isCouncil && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/messages" className="flex w-full items-center gap-2">
-                          <MessageSquare className="h-4 w-4" />
-                          <span>{t.header.messages}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {isAdmin && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/settings" className="flex w-full items-center gap-2">
-                          <SettingsIcon className="h-4 w-4" />
-                          <span>{t.header.settings}</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    {(isCouncil || isAdmin) && <DropdownMenuSeparator />}
-                    <DropdownMenuItem
+                      onClick={() => logout()}
                       disabled={isLoggingOut}
-                      onSelect={(event) => {
-                        event.preventDefault();
-                        logout();
-                      }}
-                      className="gap-2"
+                      className="w-full"
                     >
                       <LogOut className="h-4 w-4" />
                       <span>{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLoginModalOpen(true)}
-                  className="flex items-center gap-2"
-                  title={t.header.login}
-                  aria-label={t.header.login}
-                >
-                  <LogIn className="h-4 w-4 shrink-0" />
-                  {/* Always label the button: an unnamed icon made login a
-                      guessing game for the handful of FAU members who need it.
-                      Dropping the "Aktuelt" dropdown freed up the nav row. */}
-                  <span>{t.header.login}</span>
-                </Button>
-              )}
-            </div>
-
-            {/* Mobile Menu Button */}
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="justify-self-end lg:hidden"
-                  aria-label={t.header.openMenu}
-                >
-                  <Menu className="h-6 w-6" aria-hidden="true" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" className="h-[100dvh] w-[300px] overflow-y-auto overscroll-contain pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:w-[400px]">
-                <div className="flex items-center space-x-3 mb-8">
-                  <div className="w-8 h-8 flex items-center justify-center">
-                    <img src={childIcon} alt="FAU Erdal Barnehage" className="w-8 h-8 object-contain" />
-                  </div>
-                  <div>
-                    <h2 className="font-heading font-bold text-lg">{t.header.title}</h2>
-                    <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.header.subtitle}</p>
-                  </div>
-                </div>
-                <nav className="space-y-3">
-                  {navigation.map((item) => {
-                    const isActive = isNavigationItemActive(item);
-                    const Icon = item.icon;
-                    if (item.children) {
-                      return (
-                        <div key={item.name} className="space-y-2">
-                          <div
-                            className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg ${
-                              isActive
-                                ? "text-primary bg-primary/10"
-                                : "text-neutral-600 dark:text-neutral-300"
-                            }`}
-                          >
-                            <Icon className="h-5 w-5" />
-                            <span className="font-medium">{item.name}</span>
-                          </div>
-                          <div className="ml-6 space-y-2">
-                            {item.children.map((child) => {
-                              const childIsActive = location === child.href;
-                              const ChildIcon = child.icon;
-                              return (
-                                <Link
-                                  key={child.href}
-                                  href={child.href}
-                                  onClick={() => setMobileMenuOpen(false)}
-                                  className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors ${
-                                    childIsActive
-                                      ? "text-primary bg-primary/10"
-                                      : "text-neutral-600 dark:text-neutral-300 hover:text-primary hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                                  }`}
-                                >
-                                  <ChildIcon className="h-5 w-5" />
-                                  <span className="font-medium">{child.name}</span>
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    }
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`w-full flex items-center space-x-3 px-4 py-2 rounded-lg transition-colors ${
-                          isActive
-                            ? "text-primary bg-primary/10"
-                            : "text-neutral-600 dark:text-neutral-300 hover:text-primary hover:bg-neutral-100 dark:hover:bg-neutral-800"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                        <span className="font-medium">{item.name}</span>
-                      </Link>
-                    );
-                  })}
-                </nav>
-
-                {/* Mobile Language Toggle & Auth Controls */}
-                <div className="border-t border-neutral-200 dark:border-neutral-800 pt-6 mt-6 space-y-4">
-                  <div className="flex justify-center gap-2">
-                    <LanguageToggle />
-                    <DarkModeToggle />
-                  </div>
-                  {isAuthenticated ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-3 px-4 py-2 bg-neutral-100 dark:bg-neutral-800 rounded-lg">
-                        <User className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-                        <span className="font-medium text-neutral-900 dark:text-neutral-50">{user?.name}</span>
-                      </div>
-                      {isCouncil && (
-                        <Link href="/admin">
-                          <Button
-                            variant="outline"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="w-full flex items-center space-x-2"
-                          >
-                            <LayoutDashboard className="h-4 w-4" />
-                            <span>{t.header.overview}</span>
-                          </Button>
-                        </Link>
-                      )}
-                      {isCouncil && (
-                        <Link href="/content">
-                          <Button
-                            variant="outline"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="w-full flex items-center space-x-2"
-                          >
-                            <Newspaper className="h-4 w-4" />
-                            <span>{t.header.content}</span>
-                          </Button>
-                        </Link>
-                      )}
-                      {isCouncil && (
-                        <Link href="/messages">
-                          <Button
-                            variant="outline"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="w-full flex items-center space-x-2"
-                          >
-                            <MessageSquare className="h-4 w-4" />
-                            <span>{t.header.messages}</span>
-                          </Button>
-                        </Link>
-                      )}
-                      {isAdmin && (
-                        <Link href="/settings">
-                          <Button
-                            variant="outline"
-                            onClick={() => setMobileMenuOpen(false)}
-                            className="w-full flex items-center space-x-2"
-                          >
-                            <SettingsIcon className="h-4 w-4" />
-                            <span>{t.header.settings}</span>
-                          </Button>
-                        </Link>
-                      )}
-                      <Button
-                        variant="outline"
-                        onClick={() => logout()}
-                        disabled={isLoggingOut}
-                        className="w-full flex items-center space-x-2"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        <span>{isLoggingOut ? t.header.loggingOut : t.header.logout}</span>
-                      </Button>
-                    </div>
+                    </Button>
                   ) : (
                     <Button
                       variant="outline"
@@ -424,148 +341,148 @@ export default function Layout({ children }: LayoutProps) {
                         setLoginModalOpen(true);
                         setMobileMenuOpen(false);
                       }}
-                      className="w-full flex items-center space-x-2"
+                      className="w-full"
                     >
                       <LogIn className="h-4 w-4" />
                       <span>{t.header.login}</span>
                     </Button>
                   )}
                 </div>
-              </SheetContent>
-            </Sheet>
-          </div>
+              </div>
+            </SheetContent>
+          </Sheet>
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full min-w-0 animate-in fade-in-0 duration-200">
+      <main
+        id="main"
+        className="container-page w-full min-w-0 flex-1 py-10 lg:py-14 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+      >
         {children}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-neutral-900 text-white py-12 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-3 gap-8">
-            <div>
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 flex items-center justify-center">
-                  <img src={childIcon} alt="FAU Erdal Barnehage" className="w-8 h-8 object-contain" />
-                </div>
-                <span className="font-heading font-bold text-lg">{t.header.title}</span>
-              </div>
-              <p className="text-neutral-300 text-sm mb-4">
-                {t.footer.description}
-              </p>
+      {/* Light sand rather than the old near-black slab: the guide's default
+          footer is a quiet extension of the page, held to four groups so it
+          does not become a drawer for everything that fits nowhere else. */}
+      <footer className="mt-auto border-t border-hairline bg-sand">
+        <div className="container-page grid gap-10 py-12 md:grid-cols-2 lg:grid-cols-4 lg:py-16">
+          <div>
+            <div className="flex items-center gap-3">
+              <img src={childIcon} alt="" aria-hidden="true" className="h-8 w-8 object-contain" />
+              <span className="font-bold text-ink">{t.header.title}</span>
             </div>
-            
-            <div>
-              <h4 className="font-heading font-semibold mb-4">{t.footer.contactInfo}</h4>
-              <div className="space-y-2 text-sm text-neutral-300">
-                {t.footer.address && <p>{t.footer.address}</p>}
-                {t.footer.phone && <p>{t.footer.phone}</p>}
-                <a 
-                  href="https://www.facebook.com/groups/1674520382805077"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
-                  {t.footer.facebook}
-                </a>
-                <a 
-                  href="https://askoy.kommune.no/tjenester/barnehagen/barnehagene-pa-askoy/kommunalebarnehager/erdal-barnehage"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
-                  {t.footer.website}
-                </a>
-                <a 
-                  href="https://barnehagefakta.no/barnehage/974600838/erdal-barnehage"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
-                  {t.footer.barnehageFakta}
-                </a>
-                {t.footer.hours && <p>{t.footer.hours}</p>}
-                <a
-                  href="https://foreldreutvalgene.no/fub/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
-                  {t.footer.fubLink}
-                </a>
-                <Link
-                  href="/nyhetsbrev"
-                  className="block text-blue-400 hover:text-blue-300 transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-2 focus-visible:ring-offset-neutral-900"
-                >
+            <p className="mt-4 text-small text-subtle">{t.footer.description}</p>
+          </div>
+
+          <nav aria-labelledby="footer-quick-links">
+            <h2
+              id="footer-quick-links"
+              className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle"
+            >
+              {t.ui.quickLinks}
+            </h2>
+            <ul className="mt-4 space-y-2.5 text-small">
+              {navigation.slice(1).map((item) => (
+                <li key={item.href}>
+                  <Link href={item.href} className="text-copy hover:text-brand hover:underline">
+                    {item.name}
+                  </Link>
+                </li>
+              ))}
+              <li>
+                <Link href="/nyhetsbrev" className="text-copy hover:text-brand hover:underline">
                   {t.newsletter.footerLink}
                 </Link>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-heading font-semibold mb-4">{t.footer.nextMeeting}</h4>
-              <div className="bg-neutral-800 rounded-lg p-4">
-                {nextMeeting ? (
-                  nextMeeting.kind === "event" ? (
-                    <>
-                      <p className="font-medium mb-2">{nextMeeting.event.title}</p>
-                      <p className="text-sm text-neutral-300 mb-1">
-                        {new Date(nextMeeting.event.date).toLocaleDateString(language === 'no' ? 'no-NO' : 'en-US', {
-                          weekday: 'long',
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </p>
-                      <p className="text-sm text-neutral-300 mb-3">
-                        {t.header.at} {nextMeeting.event.time} - {nextMeeting.event.location}
-                      </p>
-                      <Link href="/events" className="text-primary hover:text-white text-sm font-medium">
-                        {t.home.moreInfo}
-                      </Link>
-                    </>
-                  ) : (
-                    <>
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <p className="font-medium">{nextMeeting.entry.title}</p>
-                        {nextMeeting.entry.entryType === "closed" && (
-                          <span className="inline-flex items-center rounded-full bg-red-500/15 px-2 py-0.5 text-[11px] font-medium text-red-200">
-                            {t.yearlyCalendar.closedBadge}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-neutral-300 mb-3">
-                        {formatDate(nextMeeting.entry.date as string, language)}
-                      </p>
-                      <Link href="/arskalender" className="text-primary hover:text-white text-sm font-medium">
-                        {t.home.moreInfo}
-                      </Link>
-                    </>
-                  )
-                ) : (
-                  <p className="text-sm text-neutral-300">{t.home.noEvents}</p>
-                )}
-              </div>
+              </li>
+            </ul>
+          </nav>
+
+          <nav aria-labelledby="footer-info">
+            <h2
+              id="footer-info"
+              className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle"
+            >
+              {t.footer.contactInfo}
+            </h2>
+            <ul className="mt-4 space-y-2.5 text-small">
+              {footerLinks.map((link) => (
+                <li key={link.href}>
+                  <a
+                    href={link.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-start gap-1.5 text-copy hover:text-brand hover:underline"
+                  >
+                    <span>{link.label}</span>
+                    <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <span className="sr-only">({t.ui.externalLink})</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          <div>
+            <h2 className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
+              {t.footer.nextMeeting}
+            </h2>
+            <div className="mt-4 rounded-card border border-hairline bg-surface p-4">
+              {nextMeeting ? (
+                <>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-semibold text-ink">
+                      {nextMeeting.kind === "event"
+                        ? nextMeeting.event.title
+                        : nextMeeting.entry.title}
+                    </p>
+                    {nextMeeting.kind !== "event" &&
+                      nextMeeting.entry.entryType === "closed" && (
+                        <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>
+                      )}
+                  </div>
+                  <p className="mt-1 text-small text-subtle">
+                    {formatDate(
+                      nextMeeting.kind === "event"
+                        ? nextMeeting.event.date
+                        : (nextMeeting.entry.date as string),
+                      language,
+                      { weekday: "long", day: "numeric", month: "long" },
+                    )}
+                    {nextMeeting.kind === "event" && nextMeeting.event.time
+                      ? ` · ${nextMeeting.event.time}`
+                      : ""}
+                  </p>
+                  {nextMeeting.kind === "event" && nextMeeting.event.location && (
+                    <p className="text-small text-subtle">{nextMeeting.event.location}</p>
+                  )}
+                  <Link
+                    href="/kalender"
+                    className="mt-3 inline-block text-small font-semibold text-brand hover:underline"
+                  >
+                    {t.home.moreInfo}
+                  </Link>
+                </>
+              ) : (
+                <p className="text-small text-subtle">{t.home.noEvents}</p>
+              )}
             </div>
           </div>
-          
-          <div className="border-t border-neutral-800 mt-8 pt-8 text-center text-sm text-neutral-400">
-            <Link href="/personvern" className="inline-block mb-2 text-blue-400 hover:text-blue-300 transition-colors">
+        </div>
+
+        <div className="border-t border-hairline">
+          <div className="container-page flex flex-wrap items-center justify-between gap-3 py-5 text-micro text-subtle">
+            <p>{t.footer.copyright}</p>
+            <Link
+              href="/personvern"
+              className="font-semibold text-copy hover:text-brand hover:underline"
+            >
               {t.footer.privacy}
             </Link>
-            <p>{t.footer.copyright}</p>
           </div>
         </div>
       </footer>
 
-      {/* Login Modal */}
-      <LoginModal 
-        isOpen={loginModalOpen} 
-        onClose={() => setLoginModalOpen(false)} 
-      />
+      <LoginModal isOpen={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
       {user?.passwordChangeRequired && <PasswordChangeModal />}
     </div>
   );

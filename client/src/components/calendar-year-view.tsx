@@ -63,15 +63,15 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
               key={`${ref.year}-${ref.month}`}
               type="button"
               onClick={() => onMonthPick(ref)}
-              className={`rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
+              className={`rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
                 isCurrentMonth
                   ? "border-accent/50 bg-accent/5 ring-1 ring-accent/20"
-                  : "border-neutral-200 bg-white hover:border-neutral-300 dark:border-neutral-800 dark:bg-neutral-950 dark:hover:border-neutral-700"
+                  : "border-hairline bg-white hover:border-hairline"
               }`}
             >
-              <h3 className="font-heading text-base font-semibold capitalize text-neutral-900 dark:text-neutral-50">
+              <h3 className="font-heading text-base font-semibold capitalize text-ink">
                 {formatDate(new Date(ref.year, ref.month - 1, 1), language, { month: "long" })}{" "}
-                <span className="font-normal tabular-nums text-neutral-400 dark:text-neutral-500">
+                <span className="font-normal tabular-nums text-subtle">
                   {ref.year}
                 </span>
               </h3>
@@ -80,7 +80,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
                 {weekdayInitials.map((initial, index) => (
                   <span
                     key={index}
-                    className="text-center text-[10px] font-medium uppercase text-neutral-400 dark:text-neutral-500"
+                    className="text-center text-[10px] font-medium uppercase text-subtle"
                   >
                     {initial}
                   </span>
@@ -99,8 +99,8 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
                             isToday
                               ? "bg-accent font-semibold text-accent-foreground"
                               : day.inMonth
-                                ? "text-neutral-700 dark:text-neutral-200"
-                                : "text-neutral-300 dark:text-neutral-700"
+                                ? "text-copy"
+                                : "text-subtle/60"
                           }`}
                         >
                           {day.date.getDate()}
@@ -124,7 +124,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
         })}
       </div>
 
-      <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.yearViewHint}</p>
+      <p className="text-xs text-subtle">{t.calendar.yearViewHint}</p>
     </div>
   );
 }

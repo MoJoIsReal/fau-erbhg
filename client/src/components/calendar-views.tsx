@@ -157,17 +157,17 @@ export default function CalendarViews() {
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 ${
         on
           ? dot
-            ? "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            ? "border-hairline bg-white text-ink hover:border-hairline"
             : "border-accent bg-accent font-medium text-accent-foreground"
-          : "border-neutral-200 bg-white text-neutral-400 hover:text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-600 dark:hover:text-neutral-300"
+          : "border-hairline bg-white text-subtle hover:text-copy"
       }`}
     >
       {dot && (
         <span
-          className={`h-2 w-2 shrink-0 rounded-full ${on ? dot : "bg-neutral-300 dark:bg-neutral-700"}`}
+          className={`h-2 w-2 shrink-0 rounded-full ${on ? dot : "bg-neutral-300"}`}
           aria-hidden="true"
         />
       )}
@@ -185,7 +185,7 @@ export default function CalendarViews() {
 
   if (isError) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+      <div className="rounded-2xl border border-hairline bg-white px-6 py-16 text-center text-subtle">
         {t.calendar.loadFailed}
       </div>
     );
@@ -199,17 +199,17 @@ export default function CalendarViews() {
       <header className="overflow-hidden rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50/60 to-emerald-50 px-6 py-8 dark:from-neutral-900 dark:via-neutral-900 dark:to-emerald-950/40 sm:px-8 sm:py-10">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-xl">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-subtle">
               {t.calendar.title}
             </p>
             <h2
-              className={`mt-2 font-heading text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:text-4xl ${
+              className={`mt-2 font-heading text-3xl font-bold tracking-tight text-ink sm:text-4xl ${
                 mode === "month" ? "capitalize" : ""
               }`}
             >
               {heading}
             </h2>
-            <p className="mt-3 text-neutral-600 dark:text-neutral-300">{intro}</p>
+            <p className="mt-3 text-subtle">{intro}</p>
           </div>
           <p className="font-heading text-lg italic text-accent dark:text-emerald-300">
             {t.calendar.tagline}
@@ -219,7 +219,7 @@ export default function CalendarViews() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div
-          className="inline-flex gap-1 rounded-full bg-neutral-100 p-1 dark:bg-neutral-900"
+          className="inline-flex gap-1 rounded-full bg-green-50 p-1"
           role="group"
           aria-label={t.calendar.viewLabel}
         >
@@ -232,7 +232,7 @@ export default function CalendarViews() {
               className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                 mode === id
                   ? "bg-accent font-medium text-accent-foreground shadow-sm"
-                  : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+                  : "text-subtle hover:text-ink"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -241,12 +241,12 @@ export default function CalendarViews() {
           ))}
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+        <label className="flex items-center gap-2 text-sm text-subtle">
           {t.yearlyCalendar.schoolYearLabel}
           <select
             value={schoolYear}
             onChange={(event) => setSchoolYear(Number(event.target.value))}
-            className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            className="rounded-full border border-hairline bg-white px-3 py-1.5 text-sm text-ink"
           >
             {schoolYearOptions.map((year) => (
               <option key={year} value={year}>
@@ -322,10 +322,10 @@ export default function CalendarViews() {
       <aside className="flex flex-wrap items-center gap-4 rounded-2xl bg-emerald-50/70 px-5 py-4 dark:bg-emerald-950/20">
         <Bell className="h-5 w-5 shrink-0 text-accent dark:text-emerald-300" aria-hidden="true" />
         <div className="min-w-[14rem] flex-1">
-          <p className="font-medium text-neutral-900 dark:text-neutral-50">{t.calendar.reminderTitle}</p>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.calendar.reminderBody}</p>
+          <p className="font-medium text-ink">{t.calendar.reminderTitle}</p>
+          <p className="text-sm text-subtle">{t.calendar.reminderBody}</p>
         </div>
-        <CalendarSubscribe triggerSize="default" triggerClassName="rounded-full bg-white dark:bg-neutral-900" />
+        <CalendarSubscribe triggerSize="default" triggerClassName="rounded-full bg-surface" />
       </aside>
 
       <Sheet

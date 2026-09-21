@@ -96,10 +96,10 @@ export default function StaffUsersSection() {
   return (
     <Card className="p-6">
       <div className="mb-4">
-        <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
+        <h2 className="text-xl font-semibold text-ink mb-2">
           {t.yearlyCalendar.staff.manageTitle}
         </h2>
-        <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.yearlyCalendar.staff.manageDescription}</p>
+        <p className="text-sm text-subtle">{t.yearlyCalendar.staff.manageDescription}</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
@@ -144,18 +144,18 @@ export default function StaffUsersSection() {
       </Button>
 
       <div className="mt-6">
-        <h3 className="font-semibold text-neutral-800 dark:text-neutral-50 mb-2">{t.yearlyCalendar.staff.existingStaff}</h3>
+        <h3 className="font-semibold text-ink mb-2">{t.yearlyCalendar.staff.existingStaff}</h3>
         {isLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin text-neutral-500 dark:text-neutral-400" />
+          <Loader2 className="h-5 w-5 animate-spin text-subtle" />
         ) : staff.length === 0 ? (
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">{t.yearlyCalendar.staff.noStaff}</p>
+          <p className="text-sm text-subtle italic">{t.yearlyCalendar.staff.noStaff}</p>
         ) : (
-          <ul className="divide-y dark:divide-neutral-800 border dark:border-neutral-800 rounded-md">
+          <ul className="divide-y border rounded-md">
             {staff.map((u) => (
               <li key={u.id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
-                  <div className="font-medium text-neutral-900 dark:text-neutral-50 truncate">{u.name}</div>
-                  <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+                  <div className="font-medium text-ink truncate">{u.name}</div>
+                  <div className="text-xs text-subtle truncate">
                     {u.username} - {roleName(u.role)}
                   </div>
                 </div>

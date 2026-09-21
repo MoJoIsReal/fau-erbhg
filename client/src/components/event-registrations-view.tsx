@@ -110,7 +110,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     return (
       <Card>
         <CardContent className="p-6">
-          <div className="text-center text-neutral-600 dark:text-neutral-300">
+          <div className="text-center text-subtle">
             {t.events.loadingRegistrations}
           </div>
         </CardContent>
@@ -155,22 +155,22 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         <CardContent>
           <div className="grid md:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t.events.date}</p>
+              <p className="text-sm text-subtle">{t.events.date}</p>
               <p className="font-medium">{formatDate(event.date, language)}</p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t.events.time}</p>
+              <p className="text-sm text-subtle">{t.events.time}</p>
               <p className="font-medium">{event.time}</p>
             </div>
             <div>
-              <p className="text-sm text-neutral-600 dark:text-neutral-400">{t.events.registered}</p>
+              <p className="text-sm text-subtle">{t.events.registered}</p>
               <div className="flex items-center space-x-2">
                 <Badge variant="secondary" className="flex items-center space-x-1">
                   <Users className="h-3 w-3" />
                   <span>{totalAttendees}</span>
                 </Badge>
                 {event.maxAttendees && (
-                  <span className="text-sm text-neutral-600 dark:text-neutral-400">
+                  <span className="text-sm text-subtle">
                     / {event.maxAttendees} {t.events.maxAttendees}
                   </span>
                 )}
@@ -202,8 +202,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         </CardHeader>
         <CardContent>
           {registrations.length === 0 ? (
-            <div className="text-center py-8 text-neutral-600 dark:text-neutral-300">
-              <Users className="h-12 w-12 mx-auto mb-4 text-neutral-300 dark:text-neutral-600" />
+            <div className="text-center py-8 text-subtle">
+              <Users className="h-12 w-12 mx-auto mb-4 text-subtle/60" />
               <p>{t.events.noRegistrationsYet}</p>
             </div>
           ) : (
@@ -215,10 +215,10 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                 const photoSlots = getPhotoSlots(index);
 
                 return (
-                <div key={registration.id} className="border dark:border-neutral-800 rounded-lg p-4">
+                <div key={registration.id} className="border rounded-lg p-4">
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div className="min-w-0">
-                      <h4 className="font-medium text-neutral-900 dark:text-neutral-50 break-words">{registration.name}</h4>
+                      <h4 className="font-medium text-ink break-words">{registration.name}</h4>
                       <Badge variant="outline" className="mt-1">
                         {isFotoEvent
                           ? `${registration.attendeeCount || 1} ${t.events.children}`
@@ -227,7 +227,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                       </Badge>
                     </div>
                     <div className="flex items-center space-x-2 shrink-0">
-                      <span className="text-sm text-neutral-500 dark:text-neutral-400">#{index + 1}</span>
+                      <span className="text-sm text-subtle">#{index + 1}</span>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button
@@ -280,7 +280,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                         {childrenNames.map((childName: string, i: number) => (
                           <div key={i} className="flex items-center space-x-2 text-sm">
                             <Clock className="h-3 w-3 text-purple-500" />
-                            <span className="text-neutral-900 dark:text-neutral-50">{childName}</span>
+                            <span className="text-ink">{childName}</span>
                             <span className="text-purple-600 dark:text-purple-200 font-medium">
                               {photoSlots[i] || '-'}
                             </span>
@@ -293,14 +293,14 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                   <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2 min-w-0">
                       <div className="flex items-center space-x-2 text-sm min-w-0">
-                        <Mail className="h-4 w-4 shrink-0 text-neutral-500 dark:text-neutral-400" />
+                        <Mail className="h-4 w-4 shrink-0 text-subtle" />
                         <a href={`mailto:${registration.email}`} className="text-primary hover:underline break-all">
                           {registration.email}
                         </a>
                       </div>
                       {registration.phone && (
                         <div className="flex items-center space-x-2 text-sm">
-                          <Phone className="h-4 w-4 shrink-0 text-neutral-500 dark:text-neutral-400" />
+                          <Phone className="h-4 w-4 shrink-0 text-subtle" />
                           <a href={`tel:${registration.phone}`} className="text-primary hover:underline">
                             {registration.phone}
                           </a>
@@ -311,12 +311,12 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                     {registration.comments && (
                       <div className="space-y-2">
                         <div className="flex items-start space-x-2 text-sm">
-                          <MessageSquare className="h-4 w-4 text-neutral-500 dark:text-neutral-400 mt-0.5" />
+                          <MessageSquare className="h-4 w-4 text-subtle mt-0.5" />
                           <div>
-                            <p className="text-neutral-600 dark:text-neutral-400 text-xs mb-1">
+                            <p className="text-subtle text-xs mb-1">
                               {t.events.comment}
                             </p>
-                            <p className="text-neutral-900 dark:text-neutral-50">{registration.comments}</p>
+                            <p className="text-ink">{registration.comments}</p>
                           </div>
                         </div>
                       </div>

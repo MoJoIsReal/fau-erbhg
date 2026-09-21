@@ -499,7 +499,7 @@ export default function YearlyCalendarImportModal({
   };
 
   const renderRow = (row: ImportPreviewRow, index: number) => (
-    <div key={rowKey(row, index)} className="rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
+    <div key={rowKey(row, index)} className="rounded-md border border-hairline p-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
@@ -518,7 +518,7 @@ export default function YearlyCalendarImportModal({
           {row.status === "changed" && (
             <div className="space-y-2">
               {row.changes.map((change) => (
-                <div key={change.field} className="grid gap-2 rounded-md bg-neutral-50 p-2 text-sm dark:bg-neutral-950 sm:grid-cols-[9rem_1fr_1fr]">
+                <div key={change.field} className="grid gap-2 rounded-md bg-sand p-2 text-sm sm:grid-cols-[9rem_1fr_1fr]">
                   <div className="font-medium">{fieldLabel(change.field, change.label)}</div>
                   <div>
                     <span className="text-muted-foreground">{t.yearlyCalendar.importModal.oldValue}: </span>
@@ -596,7 +596,7 @@ export default function YearlyCalendarImportModal({
             <>
               <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-5">
                 {STATUS_ORDER.map((status) => (
-                  <div key={status} className="rounded-md border border-neutral-200 p-2 dark:border-neutral-800">
+                  <div key={status} className="rounded-md border border-hairline p-2">
                     <div className="text-2xl font-semibold">{preview.counts[status]}</div>
                     <div className="text-muted-foreground">{statusLabel(status)}</div>
                   </div>
@@ -624,7 +624,7 @@ export default function YearlyCalendarImportModal({
           )}
         </div>
 
-        <DialogFooter className="border-t border-neutral-200 p-4 dark:border-neutral-800">
+        <DialogFooter className="border-t border-hairline p-4">
           <Button type="button" variant="outline" onClick={onClose} disabled={isBusy}>
             {t.yearlyCalendar.importModal.cancel}
           </Button>

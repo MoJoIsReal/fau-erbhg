@@ -66,7 +66,7 @@ export default function NewsletterSubscribersSection() {
 
   const statusClass = (status: Subscriber["status"]) => {
     if (status === "active") return "text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/40";
-    if (status === "unsubscribed") return "text-neutral-600 bg-neutral-100 dark:text-neutral-300 dark:bg-neutral-800";
+    if (status === "unsubscribed") return "text-subtle bg-green-50";
     return "text-yellow-700 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/40";
   };
 
@@ -75,27 +75,27 @@ export default function NewsletterSubscribersSection() {
   return (
     <Card className="p-6">
       <div className="mb-4">
-        <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
+        <h2 className="text-xl font-semibold text-ink mb-2">
           {t.newsletter.admin.title}
         </h2>
-        <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.newsletter.admin.description}</p>
+        <p className="text-sm text-subtle">{t.newsletter.admin.description}</p>
       </div>
 
       {isLoading ? (
-        <Loader2 className="h-5 w-5 animate-spin text-neutral-500 dark:text-neutral-400" />
+        <Loader2 className="h-5 w-5 animate-spin text-subtle" />
       ) : subscribers.length === 0 ? (
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">{t.newsletter.admin.noSubscribers}</p>
+        <p className="text-sm text-subtle italic">{t.newsletter.admin.noSubscribers}</p>
       ) : (
         <>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-3">
+          <p className="text-sm text-subtle mb-3">
             {activeCount} {t.newsletter.admin.activeCount}
           </p>
-          <ul className="divide-y dark:divide-neutral-800 border dark:border-neutral-800 rounded-md">
+          <ul className="divide-y border rounded-md">
             {subscribers.map((s) => (
               <li key={s.id} className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
-                  <div className="font-medium text-neutral-900 dark:text-neutral-50 truncate">{s.email}</div>
-                  {s.name && <div className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{s.name}</div>}
+                  <div className="font-medium text-ink truncate">{s.email}</div>
+                  {s.name && <div className="text-xs text-subtle truncate">{s.name}</div>}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusClass(s.status)}`}>

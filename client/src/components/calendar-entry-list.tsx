@@ -61,12 +61,12 @@ function DayRow({
   const meta = [time, entry.location].filter(Boolean).join(" · ");
 
   return (
-    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50 sm:px-5">
+    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-3 px-4 py-3 transition-colors hover:bg-green-50 sm:px-5">
       <div className="pt-0.5 leading-tight">
-        <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
+        <div className="text-[11px] font-medium uppercase tracking-wide text-subtle">
           {formatDate(date, language, { weekday: "short" })}
         </div>
-        <div className="text-sm font-medium tabular-nums text-neutral-700 dark:text-neutral-200">
+        <div className="text-sm font-medium tabular-nums text-copy">
           {date.getDate()}. {formatDate(date, language, { month: "short" })}
         </div>
       </div>
@@ -76,14 +76,14 @@ function DayRow({
           <button
             type="button"
             onClick={() => onSelect(entry)}
-            className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+            className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
             <span
               className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[entry.kind].dot}`}
               aria-hidden="true"
             />
             <span
-              className={`font-medium text-neutral-900 hover:underline dark:text-neutral-50 ${
+              className={`font-medium text-ink hover:underline ${
                 entry.cancelled ? "line-through decoration-1" : ""
               }`}
             >
@@ -103,12 +103,12 @@ function DayRow({
           )}
         </div>
 
-        {meta && <p className="mt-0.5 pl-4 text-sm text-neutral-500 dark:text-neutral-400">{meta}</p>}
+        {meta && <p className="mt-0.5 pl-4 text-sm text-subtle">{meta}</p>}
 
         {signup?.mode === "registration" && !entry.cancelled && (
           <div className="mt-2 flex flex-wrap items-center gap-3 pl-4">
             {signup.maxAttendees !== null && (
-              <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
+              <span className="text-sm tabular-nums text-subtle">
                 {signup.currentAttendees}/{signup.maxAttendees} {t.events.attendees}
               </span>
             )}
@@ -122,7 +122,7 @@ function DayRow({
                 {t.events.register}
               </Button>
             ) : (
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+              <span className="text-sm text-subtle">
                 {signup.isFull ? t.events.full : t.events.registrationClosed}
               </span>
             )}
@@ -168,7 +168,7 @@ export default function CalendarEntryList({
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+      <div className="rounded-2xl border border-hairline bg-white px-6 py-16 text-center text-subtle">
         {emptyMessage}
       </div>
     );
@@ -180,7 +180,7 @@ export default function CalendarEntryList({
         <button
           type="button"
           onClick={onShowEarlier}
-          className="text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-50"
+          className="text-sm text-subtle underline-offset-4 hover:text-ink hover:underline"
         >
           {t.calendar.showEarlier}
         </button>
@@ -199,22 +199,22 @@ export default function CalendarEntryList({
         return (
           <section
             key={group.weekKey}
-            className={`overflow-hidden rounded-2xl border bg-white dark:bg-neutral-950 ${
-              isNow ? "border-accent/40 ring-1 ring-accent/20" : "border-neutral-200 dark:border-neutral-800"
+            className={`overflow-hidden rounded-2xl border bg-surface ${
+              isNow ? "border-accent/40 ring-1 ring-accent/20" : "border-hairline"
             }`}
           >
             <div className="flex items-start gap-4 px-4 py-4 sm:px-5">
               <div
                 className={`w-14 shrink-0 rounded-xl px-2 py-2 text-center ${
-                  isNow ? "bg-accent/10" : "bg-neutral-100 dark:bg-neutral-900"
+                  isNow ? "bg-accent/10" : "bg-green-50"
                 }`}
               >
-                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400">
+                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-subtle">
                   {t.calendar.week}
                 </div>
                 <div
                   className={`text-2xl font-bold tabular-nums leading-tight ${
-                    isNow ? "text-accent dark:text-emerald-300" : "text-neutral-900 dark:text-neutral-50"
+                    isNow ? "text-accent dark:text-emerald-300" : "text-ink"
                   }`}
                 >
                   {group.week}
@@ -223,7 +223,7 @@ export default function CalendarEntryList({
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-heading text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                  <h3 className="font-heading text-lg font-semibold text-ink">
                     {range}
                   </h3>
                   {isNow && (
@@ -233,10 +233,10 @@ export default function CalendarEntryList({
                   )}
                 </div>
                 {summary && (
-                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">{summary}</p>
+                  <p className="mt-1 text-sm text-subtle">{summary}</p>
                 )}
                 {group.dated.length === 0 && (
-                  <p className="mt-2 text-sm text-neutral-400 dark:text-neutral-500">
+                  <p className="mt-2 text-sm text-subtle">
                     {t.calendar.noEventsThisWeek}
                   </p>
                 )}
@@ -248,7 +248,7 @@ export default function CalendarEntryList({
                   onClick={() => toggle(group.weekKey)}
                   aria-expanded={isOpen}
                   aria-label={range}
-                  className="shrink-0 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
+                  className="shrink-0 rounded-full p-2 text-subtle transition-colors hover:bg-green-50 hover:text-copy focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 >
                   {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
@@ -256,7 +256,7 @@ export default function CalendarEntryList({
             </div>
 
             {isOpen && group.dated.length > 0 && (
-              <ul className="divide-y divide-neutral-100 border-t border-neutral-100 dark:divide-neutral-900 dark:border-neutral-900">
+              <ul className="divide-y divide-hairline border-t border-hairline">
                 {group.dated.map((entry) => (
                   <DayRow
                     key={entry.id}
@@ -272,7 +272,7 @@ export default function CalendarEntryList({
         );
       })}
 
-      <p className="pt-2 text-center text-xs text-neutral-400 dark:text-neutral-500">{t.calendar.endOfList}</p>
+      <p className="pt-2 text-center text-xs text-subtle">{t.calendar.endOfList}</p>
     </div>
   );
 }

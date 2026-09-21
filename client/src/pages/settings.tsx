@@ -260,10 +260,10 @@ export default function Settings() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
+        <h1 className="text-3xl font-bold text-ink">
           {t.settings.settings}
         </h1>
-        <p className="text-neutral-600 dark:text-neutral-300 mt-2">
+        <p className="text-subtle mt-2">
           {language === "no"
             ? "Administrer FAU-styret og innstillinger for siden"
             : "Manage the FAU board and site settings"}
@@ -286,10 +286,10 @@ export default function Settings() {
       {/* FAU Board Section */}
       <Card className="p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
+          <h2 className="text-xl font-semibold text-ink mb-2">
             {t.settings.fauBoard}
           </h2>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
+          <p className="text-sm text-subtle mb-4">
             {language === "no"
               ? "Definer styremedlemmer og deres roller. Dette vises på forsiden."
               : "Define board members and their roles. This is shown on the homepage."}
@@ -299,7 +299,7 @@ export default function Settings() {
               below — two inputs plus the button never fit on one row there. */}
           <div className="space-y-4">
             {members.map((member, index) => (
-              <div key={member.id || `new-${index}`} className="grid grid-cols-[1fr_auto] items-end gap-3 border-b pb-4 dark:border-neutral-800 sm:flex sm:gap-4 sm:border-0 sm:pb-0">
+              <div key={member.id || `new-${index}`} className="grid grid-cols-[1fr_auto] items-end gap-3 border-b pb-4 sm:flex sm:gap-4 sm:border-0 sm:pb-0">
                 <div className="col-span-2 min-w-0 sm:flex-1">
                   <Label htmlFor={`name-${index}`}>
                     {t.settings.name}
@@ -392,7 +392,7 @@ export default function Settings() {
           </Button>
         </div>
 
-        <div className="flex justify-end gap-4 pt-6 border-t dark:border-neutral-800">
+        <div className="flex justify-end gap-4 pt-6 border-t">
           <Button
             onClick={handleSave}
             disabled={createMutation.isPending || updateMutation.isPending}
@@ -413,10 +413,10 @@ export default function Settings() {
       {/* Kindergarten Info Section */}
       <Card className="p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-neutral-800 dark:text-neutral-50 mb-2">
+          <h2 className="text-xl font-semibold text-ink mb-2">
             {t.settings.kindergartenInformation}
           </h2>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">
+          <p className="text-sm text-subtle mb-4">
             {language === "no"
               ? "Administrer kontaktinformasjon og detaljer om barnehagen som vises på forsiden."
               : "Manage contact information and kindergarten details displayed on the homepage."}
@@ -548,7 +548,7 @@ export default function Settings() {
                       </Button>
                     )}
                     {!kindergartenDirty && (
-                      <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                      <span className="text-sm text-subtle">
                         {t.settings.noUnsavedChanges}
                       </span>
                     )}

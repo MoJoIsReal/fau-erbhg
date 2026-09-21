@@ -106,10 +106,10 @@ export default function Privacy() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">
+        <h1 className="font-heading font-bold text-3xl text-ink mb-2">
           {text.title}
         </h1>
-        <p className="text-neutral-600 dark:text-neutral-300 max-w-3xl">
+        <p className="text-subtle max-w-3xl">
           {text.intro}
         </p>
       </div>
@@ -118,10 +118,10 @@ export default function Privacy() {
         <CardContent className="p-6 space-y-6">
           {text.sections.map((section) => (
             <section key={section.title} className="space-y-2">
-              <h3 className="font-heading text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+              <h3 className="font-heading text-lg font-semibold text-ink">
                 {section.title}
               </h3>
-              <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed">
+              <p className="text-copy leading-relaxed">
                 {section.body}
               </p>
             </section>

@@ -92,7 +92,7 @@ export default function CalendarView({
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="overflow-hidden rounded-2xl border border-hairline bg-white">
         <div className="flex items-center justify-between px-4 py-4 sm:px-5">
           <div className="flex items-center gap-2">
             <Button
@@ -104,7 +104,7 @@ export default function CalendarView({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="font-heading text-lg font-semibold capitalize text-neutral-900 dark:text-neutral-50">
+            <h3 className="font-heading text-lg font-semibold capitalize text-ink">
               {formatDate(new Date(month.year, month.month - 1, 1), language, {
                 month: "long",
                 year: "numeric",
@@ -125,13 +125,13 @@ export default function CalendarView({
           </Button>
         </div>
 
-        <div className="overflow-x-auto border-t border-neutral-200 dark:border-neutral-800">
+        <div className="overflow-x-auto border-t border-hairline">
           <div className="min-w-[680px]">
-            <div className="grid grid-cols-7 border-b border-neutral-100 dark:border-neutral-900">
+            <div className="grid grid-cols-7 border-b border-hairline">
               {weekdayNames.map((name, index) => (
                 <div
                   key={name + index}
-                  className="px-3 py-3 text-sm font-medium capitalize text-neutral-500 dark:text-neutral-400"
+                  className="px-3 py-3 text-sm font-medium capitalize text-subtle"
                 >
                   {name}
                 </div>
@@ -142,7 +142,7 @@ export default function CalendarView({
               <div
                 key={`${isoWeekYear(week.days[0].date)}-${week.weekNumber}`}
                 className={`grid grid-cols-7 ${
-                  weekIndex > 0 ? "border-t border-neutral-100 dark:border-neutral-900" : ""
+                  weekIndex > 0 ? "border-t border-hairline" : ""
                 }`}
               >
                 {week.days.map((day) => {
@@ -160,14 +160,14 @@ export default function CalendarView({
                         isSelected
                           ? "bg-accent/10"
                           : day.inMonth
-                            ? "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-                            : "bg-neutral-50/60 dark:bg-neutral-900/30"
+                            ? "hover:bg-green-50"
+                            : "bg-sand"
                       }`}
                     >
                       <button
                         type="button"
                         onClick={() => setSelectedDay(isSelected ? null : iso)}
-                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 dark:focus-visible:ring-offset-neutral-950"
+                        className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 "
                         aria-pressed={isSelected}
                       >
                         <span
@@ -175,8 +175,8 @@ export default function CalendarView({
                             isToday
                               ? "bg-accent font-semibold text-accent-foreground"
                               : day.inMonth
-                                ? "text-neutral-800 dark:text-neutral-100"
-                                : "text-neutral-300 dark:text-neutral-700"
+                                ? "text-ink"
+                                : "text-subtle/60"
                           }`}
                         >
                           {day.date.getDate()}
@@ -190,7 +190,7 @@ export default function CalendarView({
                             type="button"
                             onClick={() => setSelectedDay(iso)}
                             title={entry.title}
-                            className="flex items-baseline gap-1.5 text-left text-xs leading-snug text-neutral-700 hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent dark:text-neutral-300 dark:hover:text-neutral-50"
+                            className="flex items-baseline gap-1.5 text-left text-xs leading-snug text-copy hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                           >
                             <span
                               className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-full ${
@@ -209,7 +209,7 @@ export default function CalendarView({
                           <button
                             type="button"
                             onClick={() => setExpanded((prev) => new Set(prev).add(iso))}
-                            className="text-left text-xs font-medium text-neutral-500 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent dark:text-neutral-400 dark:hover:text-neutral-50"
+                            className="text-left text-xs font-medium text-subtle hover:text-ink focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                           >
                             +{dayEntries.length - MAX_PER_CELL} {t.events.more}
                           </button>
@@ -225,8 +225,8 @@ export default function CalendarView({
       </div>
 
       {selectedDay && (
-        <div className="rounded-2xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-950">
-          <h3 className="font-heading text-lg font-semibold capitalize text-neutral-900 dark:text-neutral-50">
+        <div className="rounded-2xl border border-hairline bg-white p-5">
+          <h3 className="font-heading text-lg font-semibold capitalize text-ink">
             {formatDate(new Date(selectedDay), language, {
               weekday: "long",
               day: "numeric",
@@ -236,7 +236,7 @@ export default function CalendarView({
           </h3>
 
           {selectedEntries.length === 0 ? (
-            <p className="mt-3 text-sm text-neutral-500 dark:text-neutral-400">
+            <p className="mt-3 text-sm text-subtle">
               {t.calendar.noEventsThisWeek}
             </p>
           ) : (
@@ -259,14 +259,14 @@ export default function CalendarView({
                     </span>
 
                     <h4
-                      className={`font-heading text-xl font-semibold text-neutral-900 dark:text-neutral-50 ${
+                      className={`font-heading text-xl font-semibold text-ink ${
                         entry.cancelled ? "line-through decoration-1" : ""
                       }`}
                     >
                       {entry.title}
                     </h4>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-neutral-500 dark:text-neutral-400">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-subtle">
                       <span className="flex items-center gap-1.5">
                         <Clock className="h-4 w-4" aria-hidden="true" />
                         {time}
@@ -282,14 +282,14 @@ export default function CalendarView({
                     {entry.description && (
                       <SafeHtml
                         html={entry.description}
-                        className="text-sm text-neutral-700 dark:text-neutral-200"
+                        className="text-sm text-copy"
                       />
                     )}
 
                     {entry.signup?.mode === "registration" && !entry.cancelled && (
                       <div className="flex flex-wrap items-center gap-3 pt-1">
                         {entry.signup.maxAttendees !== null && (
-                          <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
+                          <span className="text-sm tabular-nums text-subtle">
                             {entry.signup.currentAttendees}/{entry.signup.maxAttendees} {t.events.attendees}
                           </span>
                         )}

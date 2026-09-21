@@ -10,6 +10,13 @@ import type { CalendarEntryKind } from "@shared/calendar-entries";
  * stay on the neutral surface and are separated by hairlines, which is what
  * lets the titles be the thing you actually read.
  *
+ * The values come from the design guide's category table (§7) by way of the
+ * `--cat-*` tokens in index.css: the published hue drives the dot, an
+ * AA-contrast sibling drives the label text, and a near-white wash is used
+ * only where a surface belongs to exactly one entry. The dot never travels
+ * alone — every use here is paired with the kind's name, because colour on
+ * its own is not an accessible category (§7, rule 10).
+ *
  * `bar` is the one place a kind still paints an edge: the left rule of the
  * detail panel's header, where there is exactly one of them on screen.
  */
@@ -28,66 +35,69 @@ export type CalendarKindStyle = {
   tint: string;
 };
 
+// Written out rather than generated from the kind name: Tailwind scans this
+// file for literal class strings, and a template literal would leave every
+// one of these utilities out of the stylesheet.
 export const KIND_STYLE: Record<CalendarEntryKind, CalendarKindStyle> = {
   arrangement: {
-    dot: "bg-orange-600 dark:bg-orange-400",
-    text: "text-orange-700 dark:text-orange-300",
-    bar: "border-l-orange-600 dark:border-l-orange-400",
-    tint: "bg-orange-50 dark:bg-orange-950/30",
+    dot: "bg-cat-arrangement-dot",
+    text: "text-cat-arrangement-text",
+    bar: "border-l-cat-arrangement-dot",
+    tint: "bg-cat-arrangement-tint",
   },
   mote: {
-    dot: "bg-cyan-700 dark:bg-cyan-400",
-    text: "text-cyan-800 dark:text-cyan-300",
-    bar: "border-l-cyan-700 dark:border-l-cyan-400",
-    tint: "bg-cyan-50 dark:bg-cyan-950/30",
+    dot: "bg-cat-mote-dot",
+    text: "text-cat-mote-text",
+    bar: "border-l-cat-mote-dot",
+    tint: "bg-cat-mote-tint",
   },
   dugnad: {
-    dot: "bg-emerald-700 dark:bg-emerald-400",
-    text: "text-emerald-800 dark:text-emerald-300",
-    bar: "border-l-emerald-700 dark:border-l-emerald-400",
-    tint: "bg-emerald-50 dark:bg-emerald-950/30",
+    dot: "bg-cat-dugnad-dot",
+    text: "text-cat-dugnad-text",
+    bar: "border-l-cat-dugnad-dot",
+    tint: "bg-cat-dugnad-tint",
   },
   foto: {
-    dot: "bg-violet-600 dark:bg-violet-400",
-    text: "text-violet-700 dark:text-violet-300",
-    bar: "border-l-violet-600 dark:border-l-violet-400",
-    tint: "bg-violet-50 dark:bg-violet-950/30",
+    dot: "bg-cat-foto-dot",
+    text: "text-cat-foto-text",
+    bar: "border-l-cat-foto-dot",
+    tint: "bg-cat-foto-tint",
   },
   internt: {
-    dot: "bg-slate-500 dark:bg-slate-400",
-    text: "text-slate-600 dark:text-slate-300",
-    bar: "border-l-slate-500 dark:border-l-slate-400",
-    tint: "bg-slate-100 dark:bg-slate-900/50",
+    dot: "bg-cat-internt-dot",
+    text: "text-cat-internt-text",
+    bar: "border-l-cat-internt-dot",
+    tint: "bg-cat-internt-tint",
   },
   bhgdag: {
-    dot: "bg-blue-600 dark:bg-blue-400",
-    text: "text-blue-700 dark:text-blue-300",
-    bar: "border-l-blue-600 dark:border-l-blue-400",
-    tint: "bg-blue-50 dark:bg-blue-950/30",
+    dot: "bg-cat-bhgdag-dot",
+    text: "text-cat-bhgdag-text",
+    bar: "border-l-cat-bhgdag-dot",
+    tint: "bg-cat-bhgdag-tint",
   },
   varmmat: {
-    dot: "bg-amber-600 dark:bg-amber-400",
-    text: "text-amber-700 dark:text-amber-300",
-    bar: "border-l-amber-600 dark:border-l-amber-400",
-    tint: "bg-amber-50 dark:bg-amber-950/30",
+    dot: "bg-cat-varmmat-dot",
+    text: "text-cat-varmmat-text",
+    bar: "border-l-cat-varmmat-dot",
+    tint: "bg-cat-varmmat-tint",
   },
   temauke: {
-    dot: "bg-indigo-600 dark:bg-indigo-400",
-    text: "text-indigo-700 dark:text-indigo-300",
-    bar: "border-l-indigo-600 dark:border-l-indigo-400",
-    tint: "bg-indigo-50 dark:bg-indigo-950/30",
+    dot: "bg-cat-temauke-dot",
+    text: "text-cat-temauke-text",
+    bar: "border-l-cat-temauke-dot",
+    tint: "bg-cat-temauke-tint",
   },
   stengt: {
-    dot: "bg-red-600 dark:bg-red-400",
-    text: "text-red-700 dark:text-red-300",
-    bar: "border-l-red-600 dark:border-l-red-400",
-    tint: "bg-red-50 dark:bg-red-950/30",
+    dot: "bg-cat-stengt-dot",
+    text: "text-cat-stengt-text",
+    bar: "border-l-cat-stengt-dot",
+    tint: "bg-cat-stengt-tint",
   },
   beskjed: {
-    dot: "bg-stone-500 dark:bg-stone-400",
-    text: "text-stone-600 dark:text-stone-300",
-    bar: "border-l-stone-500 dark:border-l-stone-400",
-    tint: "bg-stone-100 dark:bg-stone-900/50",
+    dot: "bg-cat-beskjed-dot",
+    text: "text-cat-beskjed-text",
+    bar: "border-l-cat-beskjed-dot",
+    tint: "bg-cat-beskjed-tint",
   },
 };
 

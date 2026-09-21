@@ -108,11 +108,11 @@ export default function News() {
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <Card>
           <CardContent className="p-12 text-center" role="alert">
-            <EmptyIcon className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-50 mb-2">
+            <EmptyIcon className="h-12 w-12 text-subtle mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-ink mb-2">
               {pageText.errorTitle}
             </h3>
-            <p className="text-neutral-600 dark:text-neutral-300">
+            <p className="text-subtle">
               {language === "no"
                 ? "Noe gikk galt. Prøv å laste siden på nytt."
                 : "Something went wrong. Please try reloading the page."}
@@ -126,10 +126,10 @@ export default function News() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-50">
+        <h1 className="text-3xl font-bold text-ink">
           {pageText.title}
         </h1>
-        <p className="text-neutral-600 dark:text-neutral-300 mt-2">
+        <p className="text-subtle mt-2">
           {pageText.intro}
         </p>
       </div>
@@ -139,7 +139,7 @@ export default function News() {
           in the nav and on the homepage, and an empty Tips category occupied
           half the dropdown. */}
       <div
-        className="mb-8 flex rounded-lg border border-neutral-200 dark:border-neutral-800 p-1 w-fit"
+        className="mb-8 flex rounded-lg border border-hairline p-1 w-fit"
         role="group"
         aria-label={t.newsPage.category}
       >
@@ -166,11 +166,11 @@ export default function News() {
       {blogPosts.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
-            <EmptyIcon className="h-12 w-12 text-neutral-400 dark:text-neutral-500 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-neutral-900 dark:text-neutral-50 mb-2">
+            <EmptyIcon className="h-12 w-12 text-subtle mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-ink mb-2">
               {pageText.emptyTitle}
             </h3>
-            <p className="text-neutral-600 dark:text-neutral-300">
+            <p className="text-subtle">
               {pageText.emptyDescription}
             </p>
           </CardContent>
@@ -185,12 +185,12 @@ export default function News() {
                 <h2 className="text-2xl font-semibold mb-3">
                   <Link
                     href={`/nyheter/${post.id}`}
-                    className="text-neutral-900 dark:text-neutral-50 hover:text-primary dark:hover:text-primary transition-colors"
+                    className="text-ink hover:text-primary dark:hover:text-primary transition-colors"
                   >
                     {post.title}
                   </Link>
                 </h2>
-                <div className="flex items-center text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+                <div className="flex items-center text-sm text-subtle mb-4">
                   <Calendar className="h-4 w-4 mr-2" />
                   <time dateTime={post.publishedDate}>
                     {formatDate(post.publishedDate, language, {
@@ -207,7 +207,7 @@ export default function News() {
                 </div>
                 <SafeHtml
                   html={post.content}
-                  className="prose prose-neutral max-w-none text-neutral-700 dark:text-neutral-200"
+                  className="prose prose-neutral max-w-none text-copy"
                 />
               </CardContent>
             </Card>

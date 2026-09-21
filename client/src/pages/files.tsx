@@ -166,15 +166,15 @@ export default function Files() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse"></div>
+        <div className="h-8 bg-hairline rounded animate-pulse"></div>
         <div className="grid md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="animate-pulse">
               <CardContent className="p-6">
-                <div className="h-6 bg-neutral-200 dark:bg-neutral-800 rounded mb-4"></div>
+                <div className="h-6 bg-hairline rounded mb-4"></div>
                 <div className="space-y-3">
-                  <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded"></div>
-                  <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded"></div>
+                  <div className="h-4 bg-hairline rounded"></div>
+                  <div className="h-4 bg-hairline rounded"></div>
                 </div>
               </CardContent>
             </Card>
@@ -200,8 +200,8 @@ export default function Files() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.documents.title}</h1>
-          <p className="text-neutral-600 dark:text-neutral-300">{t.documents.subtitle}</p>
+          <h1 className="font-heading font-bold text-3xl text-ink mb-2">{t.documents.title}</h1>
+          <p className="text-subtle">{t.documents.subtitle}</p>
         </div>
         {canManageDocuments && (
           <div className="mt-4 md:mt-0">
@@ -229,26 +229,26 @@ export default function Files() {
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 ${category.color}`}>
                     <Icon className="h-6 w-6" />
                   </div>
-                  <h3 className="font-heading font-semibold text-lg text-neutral-900 dark:text-neutral-50">{category.name}</h3>
+                  <h3 className="font-heading font-semibold text-lg text-ink">{category.name}</h3>
                 </div>
                 
                 <div className="space-y-3">
                   {documents.length === 0 ? (
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">{t.documents.noDocuments}</p>
+                    <p className="text-sm text-subtle italic">{t.documents.noDocuments}</p>
                   ) : (
                     documents.slice(0, 3).map((doc) => {
                       const FileIcon = getFileIcon(doc.mimeType || "");
                       return (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-900/70 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors">
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-sand rounded-lg hover:bg-green-50 transition-colors">
                           <div className="flex items-center flex-1 min-w-0">
                             <FileIcon className="h-4 w-4 text-red-500 mr-3 flex-shrink-0" />
                             <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
-                              <p className="text-xs text-neutral-600 dark:text-neutral-400">
+                              <p className="font-medium text-sm text-ink truncate">{doc.title}</p>
+                              <p className="text-xs text-subtle">
                                 {formatDate(doc.uploadedAt, language)} • {t.documents.uploadedBy} {doc.uploadedBy}
                               </p>
                               {doc.description && (
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">{doc.description}</p>
+                                <p className="text-xs text-subtle mt-1 line-clamp-2">{doc.description}</p>
                               )}
                             </div>
                           </div>
@@ -293,10 +293,10 @@ export default function Files() {
       {/* Recent Activity */}
       <Card>
         <CardContent className="p-6">
-          <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.documents.recentActivity}</h3>
+          <h3 className="font-heading font-semibold text-xl text-ink mb-6">{t.documents.recentActivity}</h3>
           
           {recentActivity.length === 0 ? (
-            <p className="text-neutral-500 dark:text-neutral-400 text-center py-8">{t.documents.noRecentActivity}</p>
+            <p className="text-subtle text-center py-8">{t.documents.noRecentActivity}</p>
           ) : (
             <div className="space-y-4">
               {recentActivity.map((activity, index) => (
@@ -305,12 +305,12 @@ export default function Files() {
                     <Upload className="h-3 w-3 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <p className="text-sm text-neutral-900 dark:text-neutral-200">
+                    <p className="text-sm text-ink">
                       <span className="font-medium">{activity.user}</span>{" "}
                       {t.documents.uploaded}{" "}
                       <span className="font-medium">"{activity.document}"</span>
                     </p>
-                    <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
+                    <p className="text-xs text-subtle mt-1">
                       {formatDate(activity.date, language)}
                     </p>
                   </div>
@@ -339,19 +339,19 @@ export default function Files() {
             {selectedCategory && getDocumentsByCategory(selectedCategory).map((doc) => {
               const DocIcon = getFileIcon(doc.mimeType || "");
               return (
-                <div key={doc.id} className="flex items-start justify-between p-4 border border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/40 rounded-lg gap-3">
+                <div key={doc.id} className="flex items-start justify-between p-4 border border-hairline rounded-lg gap-3">
                   <div className="flex items-start flex-1 min-w-0">
                     <DocIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
+                      <p className="font-medium text-ink truncate">{doc.title}</p>
+                      <p className="text-sm text-subtle">
                         {formatDate(doc.uploadedAt, language)} • {formatFileSize(doc.fileSize, language)}
                       </p>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      <p className="text-sm text-subtle">
                         {t.documents.uploadedBy} {doc.uploadedBy}
                       </p>
                       {doc.description && (
-                        <p className="text-sm text-neutral-500 dark:text-neutral-300 mt-2 bg-neutral-50 dark:bg-neutral-950 p-2 rounded border-l-2 border-neutral-200 dark:border-neutral-800">
+                        <p className="text-sm text-subtle mt-2 bg-sand p-2 rounded border-l-2 border-hairline">
                           {doc.description}
                         </p>
                       )}

@@ -16,8 +16,8 @@ function StatusCard({ status, title, description }: { status: Status; title: str
         {status === "pending" && <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />}
         {status === "success" && <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto" />}
         {status === "error" && <XCircle className="h-10 w-10 text-red-600 mx-auto" />}
-        <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{title}</h3>
-        {description && <p className="text-neutral-600 dark:text-neutral-300">{description}</p>}
+        <h3 className="font-heading font-semibold text-xl text-ink">{title}</h3>
+        {description && <p className="text-subtle">{description}</p>}
       </CardContent>
     </Card>
   );
@@ -105,10 +105,10 @@ export default function Newsletter() {
   return (
     <div className="max-w-xl mx-auto space-y-8">
       <div>
-        <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">
+        <h1 className="font-heading font-bold text-3xl text-ink mb-2">
           {t.newsletter.title}
         </h1>
-        <p className="text-neutral-600 dark:text-neutral-300">{t.newsletter.subtitle}</p>
+        <p className="text-subtle">{t.newsletter.subtitle}</p>
       </div>
       {content}
     </div>
