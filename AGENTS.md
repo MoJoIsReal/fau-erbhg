@@ -200,6 +200,8 @@ Neon database.
 Make the smallest coherent change. Look at a sibling handler/page/test before
 introducing a pattern; this codebase is small and internally consistent, so
 reuse beats invention. Don't refactor code the task didn't ask about, and don't
-"fix" the review backlog opportunistically — [`docs/review-backlog.md`](docs/review-backlog.md)
-tracks 28 open, scoped remediation tasks (durable newsletter delivery, photo-slot
-concurrency, atomicity, a11y) and each has its own acceptance criteria.
+"fix" audit findings opportunistically — each one is a scoped task with its own
+acceptance criteria. The live plan is [`REVIEW_TASKS.md`](REVIEW_TASKS.md) at the
+repository root (the 2026-09-18 audit); [`docs/review-backlog.md`](docs/review-backlog.md)
+is the superseded 2026-09-09 backlog, whose checkbox state is stale and whose task
+IDs mean different things despite reusing the same prefixes.
