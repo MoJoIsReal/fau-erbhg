@@ -288,8 +288,6 @@ export default withApiHandler(async function handler(req, res) {
                   entry_type = ${payload.entryType},
                   week_number = ${payload.weekNumber},
                   week_number_end = ${payload.weekNumberEnd},
-                  weekday_start = ${null},
-                  weekday_end = ${null},
                   date = ${payload.date},
                   title = ${payload.title},
                   description = ${payload.description},

@@ -1165,6 +1165,36 @@ testYearlyCalendarTitleNormalization();
 // that the query lives in. tsc reports it, but as a bare "',' expected" a few
 // lines away from the real cause, so name it here where the message can say
 // what actually happened.
+
+// The Excel import binds a sheet row to an existing entry. Matching on the
+// title alone made every row sharing a title resolve to the same database row,
+// so approving the preview destroyed entries and skipped others. Identity must
+// include where the entry sits in the year.
+function testImportMatchesOnMoreThanTitle() {
+  const utils = readFileSync(new URL('../shared/yearly-calendar-utils.js', import.meta.url), 'utf8');
+  assert.match(
+    utils,
+    /function importIdentityKey/,
+    'buildImportPreview must key existing entries by a composite identity, not by title alone',
+  );
+  assert.doesNotMatch(
+    utils,
+    /entriesByTitle/,
+    'title-only matching binds every same-titled sheet row to one entry',
+  );
+
+  // The import UPDATE must not clear fields the preview never diffed.
+  const yearlyApi = readFileSync(new URL('../api/yearly-calendar.js', import.meta.url), 'utf8');
+  const commitStart = yearlyApi.indexOf("if (action === 'update')");
+  const commitEnd = yearlyApi.indexOf("if (action === 'create')", commitStart);
+  const updateBlock = yearlyApi.slice(commitStart, commitEnd);
+  assert.doesNotMatch(
+    updateBlock,
+    /weekday_start\s*=/,
+    'the import UPDATE must preserve weekday_start/weekday_end — the preview cannot show that they change',
+  );
+}
+
 function testNoBackticksInsideSqlComments() {
   const files = [
     'api/registrations.js', 'api/events.js', 'api/contact.js', 'api/documents.js',
@@ -1224,6 +1254,7 @@ function testRegistrationUpdatesEventRowOnce() {
 }
 
 testNoBackticksInsideSqlComments();
+testImportMatchesOnMoreThanTitle();
 testRegistrationUpdatesEventRowOnce();
 testYearlyCalendarValidNorwegianRow();
 testYearlyCalendarValidCamelCaseRow();
