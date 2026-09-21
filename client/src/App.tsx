@@ -9,6 +9,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 // Lazy load route components for code splitting
 const Home = lazy(() => import("@/pages/home"));
 const CalendarPage = lazy(() => import("@/pages/calendar"));
+// The yearly calendar is no longer a public tab. It stays as the editor
+// surface for the printable årskalender — drag-and-drop month layout and the
+// month-by-month PDF — reached from the calendar's editor toolbar.
+const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 const News = lazy(() => import("@/pages/news"));
 const NewsPost = lazy(() => import("@/pages/news-post"));
 const Contact = lazy(() => import("@/pages/contact"));
@@ -101,8 +105,13 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/kalender" component={CalendarPage} />
-          <Route path="/kalender/arrangementer" component={CalendarPage} />
-          <Route path="/kalender/arskalender" component={CalendarPage} />
+          <Route path="/kalender/arskalender">
+            <YearlyCalendar />
+          </Route>
+          {/* Was the "Hva skjer" tab until the calendar merged into one view. */}
+          <Route path="/kalender/arrangementer">
+            <Redirect to="/kalender" />
+          </Route>
           {/* Retired top-level calendar URLs. Both are still in circulation
               (newsletters, Facebook posts, bookmarks), so they redirect
               rather than 404. */}

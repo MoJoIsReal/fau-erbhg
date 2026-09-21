@@ -134,6 +134,7 @@ export default function CalendarViews() {
       entry={docked}
       onRegister={registerFor}
       actions={docked ? editor.actionsFor(docked) : null}
+      attendeeCount={docked ? editor.attendeeCountFor(docked) : null}
     />
   );
 
@@ -302,6 +303,7 @@ export default function CalendarViews() {
             entry={selected}
             onRegister={registerFor}
             actions={selected ? editor.actionsFor(selected) : null}
+            attendeeCount={selected ? editor.attendeeCountFor(selected) : null}
           />
         </SheetContent>
       </Sheet>

@@ -13,6 +13,11 @@ interface CalendarEntryDetailProps {
   onRegister: (entry: CalendarEntry) => void;
   /** Editor controls, when the viewer may edit this kind of entry. */
   actions?: ReactNode;
+  /**
+   * Replaces the plain attendee count. Editors get the tooltip that names who
+   * is coming; everyone else just sees the number.
+   */
+  attendeeCount?: ReactNode;
 }
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
@@ -31,7 +36,12 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
  * or slid in over it on a narrow one, so a parent comparing two dates never
  * loses the list behind a modal.
  */
-export default function CalendarEntryDetail({ entry, onRegister, actions }: CalendarEntryDetailProps) {
+export default function CalendarEntryDetail({
+  entry,
+  onRegister,
+  actions,
+  attendeeCount,
+}: CalendarEntryDetailProps) {
   const { language, t } = useLanguage();
 
   if (!entry) {
@@ -106,9 +116,11 @@ export default function CalendarEntryDetail({ entry, onRegister, actions }: Cale
         </Fact>
         {signup?.mode === "registration" && signup.maxAttendees !== null && (
           <Fact label={t.events.registered}>
-            <span className="tabular-nums">
-              {signup.currentAttendees}/{signup.maxAttendees}
-            </span>
+            {attendeeCount ?? (
+              <span className="tabular-nums">
+                {signup.currentAttendees}/{signup.maxAttendees}
+              </span>
+            )}
           </Fact>
         )}
         {signup?.deadline && (

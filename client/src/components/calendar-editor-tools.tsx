@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
+import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileSpreadsheet, Plus, Upload, Users } from "lucide-react";
+import { Download, FileSpreadsheet, Plus, Table, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -16,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiErrorBody, getApiErrorMessage } from "@/lib/queryClient";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import type { YearlyCalendarEntryType } from "@shared/yearly-calendar-utils";
@@ -26,6 +27,7 @@ import EventCreationModal from "@/components/event-creation-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
 import YearlyCalendarEntryModal from "@/components/yearly-calendar-entry-modal";
 import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
+import AttendeeTooltip from "@/components/attendee-tooltip";
 
 // The five yearly kinds map straight onto entry_type, so the picker can
 // prefill the form. Events cannot: their type is one field among many in a
@@ -47,6 +49,8 @@ export type CalendarEditor = {
   toolbar: ReactNode;
   modals: ReactNode;
   actionsFor: (entry: CalendarEntry) => ReactNode;
+  /** The attendee count as a tooltip naming who is coming, for editors. */
+  attendeeCountFor: (entry: CalendarEntry) => ReactNode;
 };
 
 /**
@@ -99,7 +103,25 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
       toast({ title: t.events.eventDeleted, description: t.events.eventHasBeenDeleted });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
-    onError: () => toast({ title: t.events.deleteError, variant: "destructive" }),
+    // The handler refuses to delete an event that has registrations, and says
+    // so in the body. Without reading it the user gets "something went wrong"
+    // for a rule they could have acted on.
+    onError: (error: unknown) => {
+      const errorData = getApiErrorBody(error);
+      if (errorData?.hasRegistrations) {
+        toast({
+          title: t.events.cannotDelete,
+          description: t.events.eventHasRegistrationsCannot,
+          variant: "destructive",
+        });
+        return;
+      }
+      toast({
+        title: t.events.couldNotDelete,
+        description: getApiErrorMessage(error, t.events.errorOccurredWhileDeleting),
+        variant: "destructive",
+      });
+    },
   });
 
   const downloadPdf = async () => {
@@ -161,6 +183,15 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
       <Button size="sm" variant="outline" onClick={downloadPdf} disabled={busy !== null}>
         <Download className="mr-1 h-4 w-4" aria-hidden="true" />
         {busy === "pdf" ? t.yearlyCalendar.pdfGenerating : t.yearlyCalendar.downloadAllPdf}
+      </Button>
+      {/* The printable årskalender keeps its own editing surface: a
+          month-by-month layout with drag-and-drop, which a week list and a
+          month grid cannot replace. It is no longer a public tab. */}
+      <Button size="sm" variant="outline" asChild>
+        <Link href="/kalender/arskalender">
+          <Table className="mr-1 h-4 w-4" aria-hidden="true" />
+          {t.calendar.openYearlyEditor}
+        </Link>
       </Button>
       <p className="basis-full text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.excelScopeNote}</p>
     </div>
@@ -330,5 +361,16 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     </>
   );
 
-  return { isEditor: canEditYearly, toolbar, modals, actionsFor };
+  const attendeeCountFor = (entry: CalendarEntry): ReactNode => {
+    if (!canEditEvents || !entry.event || entry.signup?.mode !== "registration") return null;
+    return (
+      <AttendeeTooltip
+        eventId={entry.event.id}
+        attendeeCount={entry.signup.currentAttendees}
+        maxAttendees={entry.signup.maxAttendees}
+      />
+    );
+  };
+
+  return { isEditor: canEditYearly, toolbar, modals, actionsFor, attendeeCountFor };
 }

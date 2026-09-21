@@ -90,12 +90,6 @@ export interface Translations {
   calendar: {
     title: string;
     subtitle: string;
-    upcomingTab: string;
-    upcomingTabHint: string;
-    yearlyTab: string;
-    yearlyTabHint: string;
-    combinedTab: string;
-    combinedTabHint: string;
     viewLabel: string;
     listView: string;
     monthView: string;
@@ -109,6 +103,7 @@ export interface Translations {
     detailSignup: string;
     noDescription: string;
     editorLabel: string;
+    openYearlyEditor: string;
     newEntry: string;
     newPickerHint: string;
     newEventButton: string;
@@ -981,12 +976,6 @@ export const translations: Record<Language, Translations> = {
     calendar: {
       title: "Kalender",
       subtitle: "Alt som skjer i Erdal Barnehage, samlet på ett sted",
-      upcomingTab: "Hva skjer",
-      upcomingTabHint: "Arrangementer, møter og dugnader du kan melde deg på.",
-      yearlyTab: "Årskalender",
-      yearlyTabHint: "Faste datoer for barnehageåret: planleggingsdager, ferier og temauker.",
-      combinedTab: "Kalender",
-      combinedTabHint: "Alt uke for uke — arrangementer, møter, varmmat og stengte dager i én liste.",
       viewLabel: "Visning",
       listView: "Liste",
       monthView: "Måned",
@@ -1001,6 +990,7 @@ export const translations: Record<Language, Translations> = {
       detailSignup: "Påmelding",
       noDescription: "Ingen beskrivelse lagt inn.",
       editorLabel: "Redaktør",
+      openYearlyEditor: "Rediger årskalenderen",
       newEntry: "Nytt i kalenderen",
       newPickerHint: "Velg hva du legger inn — resten av skjemaet retter seg etter valget.",
       newEventButton: "Arrangement med påmelding",
@@ -1871,12 +1861,6 @@ export const translations: Record<Language, Translations> = {
     calendar: {
       title: "Calendar",
       subtitle: "Everything happening at Erdal Kindergarten, in one place",
-      upcomingTab: "What's on",
-      upcomingTabHint: "Events, meetings and working bees you can sign up for.",
-      yearlyTab: "Yearly calendar",
-      yearlyTabHint: "Fixed dates for the kindergarten year: planning days, holidays and theme weeks.",
-      combinedTab: "Calendar",
-      combinedTabHint: "Everything week by week — events, meetings, hot meals and closed days in one list.",
       viewLabel: "View",
       listView: "List",
       monthView: "Month",
@@ -1891,6 +1875,7 @@ export const translations: Record<Language, Translations> = {
       detailSignup: "Registration",
       noDescription: "No description added.",
       editorLabel: "Editor",
+      openYearlyEditor: "Edit the yearly calendar",
       newEntry: "New in the calendar",
       newPickerHint: "Choose what you are adding — the rest of the form follows from it.",
       newEventButton: "Event with signup",
