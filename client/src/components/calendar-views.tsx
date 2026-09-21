@@ -13,7 +13,7 @@ import { isoWeek } from "@shared/yearly-calendar-display";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { useCalendarEntries } from "@/hooks/useCalendarEntries";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { CHIP_OFF, KIND_STYLE } from "@/lib/calendar-kind-style";
+import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
 import CalendarEntryList from "@/components/calendar-entry-list";
 import CalendarEntryDetail from "@/components/calendar-entry-detail";
@@ -138,19 +138,31 @@ export default function CalendarViews() {
     />
   );
 
+  // The chip carries its kind as a dot, not as a fill. Ten filled pills in two
+  // rows read as a colour chart; ten dots read as a legend.
   const renderChips = (kinds: readonly CalendarEntryKind[], label: string) => (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">{label}</span>
+    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+      <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+        {label}
+      </span>
       {kinds.map((kind) => (
         <button
           key={kind}
           type="button"
           onClick={() => toggle(kind)}
           aria-pressed={active[kind]}
-          className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
-            active[kind] ? KIND_STYLE[kind].chip : CHIP_OFF
+          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
+            active[kind]
+              ? "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
+              : "border-transparent bg-transparent text-neutral-400 hover:text-neutral-600 dark:text-neutral-600 dark:hover:text-neutral-400"
           }`}
         >
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${
+              active[kind] ? KIND_STYLE[kind].dot : "bg-neutral-300 dark:bg-neutral-700"
+            }`}
+            aria-hidden="true"
+          />
           {t.calendar.kinds[kind]}
         </button>
       ))}
@@ -183,10 +195,10 @@ export default function CalendarViews() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-2 border-b border-neutral-200 pb-4 dark:border-neutral-800">
+      <div className="flex flex-col gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div
-            className="inline-flex overflow-hidden rounded-lg border border-neutral-300 dark:border-neutral-700"
+            className="inline-flex gap-0.5 rounded-full bg-neutral-100 p-1 dark:bg-neutral-900"
             role="group"
             aria-label={t.calendar.viewLabel}
           >
@@ -196,10 +208,10 @@ export default function CalendarViews() {
                 type="button"
                 onClick={() => setMode(id)}
                 aria-pressed={mode === id}
-                className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   mode === id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-white text-neutral-600 hover:text-neutral-900 dark:bg-neutral-950 dark:text-neutral-300 dark:hover:text-neutral-50"
+                    ? "bg-neutral-900 font-medium text-white shadow-sm dark:bg-neutral-100 dark:text-neutral-900"
+                    : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
                 }`}
               >
                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -215,7 +227,7 @@ export default function CalendarViews() {
                 <select
                   value={schoolYear}
                   onChange={(event) => setSchoolYear(Number(event.target.value))}
-                  className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50"
+                  className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
                 >
                   {schoolYearOptions.map((year) => (
                     <option key={year} value={year}>
@@ -262,7 +274,7 @@ export default function CalendarViews() {
             emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
           />
           {canDock && (
-            <aside className="sticky top-4 rounded-xl border bg-white dark:border-neutral-800 dark:bg-neutral-950">
+            <aside className="sticky top-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
               {detail}
             </aside>
           )}

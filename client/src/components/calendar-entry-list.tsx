@@ -1,21 +1,22 @@
 import { useMemo } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import type { CalendarEntry } from "@shared/calendar-entries";
 import { groupCalendarEntriesByWeek, isoWeekRange } from "@shared/calendar-entries";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate, type Language } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
-import SafeHtml from "@/components/safe-html";
 
-// formatDate already owns the locale mapping, so the date margin gets its
-// weekday and month from there rather than reaching for a locale id here.
-function weekdayAndDay(date: Date, language: Language) {
+function Dot({ kind }: { kind: CalendarEntry["kind"] }) {
+  return <span className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[kind].dot}`} aria-hidden="true" />;
+}
+
+// formatDate owns the locale mapping, so the date margin reads its weekday and
+// month from there rather than reaching for a locale id.
+function dateParts(date: Date, language: Language) {
   return {
     weekday: formatDate(date, language, { weekday: "short" }),
     day: date.getDate(),
-    month: formatDate(date, language, { month: "short" }),
   };
 }
 
@@ -24,33 +25,37 @@ function SignupSide({ entry, onRegister }: { entry: CalendarEntry; onRegister: (
   const signup = entry.signup;
 
   if (entry.cancelled) {
-    return <span className="text-sm font-semibold text-red-600 dark:text-red-300">{t.events.cancelled2}</span>;
+    return (
+      <span className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-300">
+        {t.events.cancelled2}
+      </span>
+    );
   }
   if (!signup) return null;
 
-  if (signup.mode === "internal") {
-    return <span className="text-sm text-neutral-500 dark:text-neutral-400">{t.events.internalEvent}</span>;
-  }
-  if (signup.mode === "vigilo") {
-    return <span className="text-sm text-neutral-500 dark:text-neutral-400">{t.events.registerVigilo}</span>;
-  }
-  if (signup.mode === "none") {
-    return <span className="text-sm text-neutral-500 dark:text-neutral-400">{t.events.noSignupRequired}</span>;
-  }
+  const note = (text: string) => (
+    <span className="text-sm text-neutral-500 dark:text-neutral-400">{text}</span>
+  );
+  if (signup.mode === "internal") return note(t.events.internalEvent);
+  if (signup.mode === "vigilo") return note(t.events.registerVigilo);
+  if (signup.mode === "none") return note(t.events.noSignupRequired);
 
   return (
-    <div className="flex items-center gap-3 sm:flex-col sm:items-end sm:gap-1">
+    <div className="flex items-center gap-3">
       {signup.maxAttendees !== null && (
-        <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
-          {signup.currentAttendees}/{signup.maxAttendees} {t.events.attendees}
+        <span className="flex items-baseline gap-0.5 tabular-nums">
+          <span className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
+            {signup.currentAttendees}
+          </span>
+          <span className="text-sm text-neutral-400 dark:text-neutral-500">/{signup.maxAttendees}</span>
         </span>
       )}
       {signup.isFull ? (
-        <span className="text-sm font-semibold text-neutral-500 dark:text-neutral-400">{t.events.full}</span>
+        note(t.events.full)
       ) : signup.deadlinePassed ? (
-        <span className="text-sm text-neutral-500 dark:text-neutral-400">{t.events.registrationClosed}</span>
+        note(t.events.registrationClosed)
       ) : (
-        <Button size="sm" onClick={() => entry.event && onRegister(entry.event)}>
+        <Button size="sm" variant="outline" onClick={() => entry.event && onRegister(entry.event)}>
           {t.events.register}
         </Button>
       )}
@@ -70,9 +75,8 @@ function DatedRow({
   isSelected: boolean;
 }) {
   const { language, t } = useLanguage();
-  const style = KIND_STYLE[entry.kind];
   const date = new Date(entry.date as string);
-  const { weekday, day, month } = weekdayAndDay(date, language);
+  const { weekday, day } = dateParts(date, language);
   const time = entry.startTime
     ? entry.endTime
       ? `${entry.startTime}–${entry.endTime}`
@@ -82,45 +86,41 @@ function DatedRow({
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-l-4 px-3 py-3 sm:flex-nowrap sm:px-4 ${
-        style.border
-      } ${entry.cancelled ? "opacity-70" : ""} ${
-        isSelected ? "bg-neutral-100 dark:bg-neutral-900" : ""
+      className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors sm:flex-nowrap sm:px-5 ${
+        isSelected ? "bg-neutral-100/70 dark:bg-neutral-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
       }`}
     >
-      <div className="w-11 shrink-0 text-center leading-tight">
-        <div className="text-xs uppercase text-neutral-500 dark:text-neutral-400">{weekday}</div>
-        <div className="text-lg font-bold tabular-nums text-neutral-900 dark:text-neutral-50">{day}</div>
-        <div className="text-xs text-neutral-500 dark:text-neutral-400">{month}</div>
+      <div className="w-10 shrink-0 text-center leading-none">
+        <div className="text-[11px] uppercase text-neutral-400 dark:text-neutral-500">{weekday}</div>
+        <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-neutral-900 dark:text-neutral-50">
+          {day}
+        </div>
       </div>
 
-      <div className="min-w-[12rem] flex-1 basis-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => onSelect(entry)}
-            aria-current={isSelected ? "true" : undefined}
-            className={`text-left font-semibold text-neutral-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:text-neutral-50 dark:focus-visible:ring-offset-neutral-950 ${
-              entry.cancelled ? "line-through" : ""
+      <div className="min-w-[11rem] flex-1 basis-0">
+        <button
+          type="button"
+          onClick={() => onSelect(entry)}
+          aria-current={isSelected ? "true" : undefined}
+          className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+        >
+          <Dot kind={entry.kind} />
+          <span
+            className={`font-medium text-neutral-900 dark:text-neutral-50 ${
+              entry.cancelled ? "line-through decoration-1" : ""
             }`}
           >
             {entry.title}
-          </button>
-          <span className={`text-xs font-semibold uppercase tracking-wide ${style.text}`}>
-            {t.calendar.kinds[entry.kind]}
           </span>
+        </button>
+        <div className="mt-0.5 pl-4 text-sm text-neutral-500 dark:text-neutral-400">
+          <span className={KIND_STYLE[entry.kind].text}>{t.calendar.kinds[entry.kind]}</span>
+          {meta && <span> · {meta}</span>}
         </div>
-        {meta && <div className="text-sm text-neutral-600 dark:text-neutral-300">{meta}</div>}
-        {entry.description && (
-          <SafeHtml
-            html={entry.description}
-            className="mt-1 line-clamp-2 text-sm text-neutral-500 dark:text-neutral-400"
-          />
-        )}
       </div>
 
       {(entry.signup || entry.cancelled) && (
-        <div className="w-full shrink-0 pl-[3.75rem] sm:w-auto sm:pl-0 sm:text-right">
+        <div className="w-full shrink-0 pl-14 sm:w-auto sm:pl-0 sm:text-right">
           <SignupSide entry={entry} onRegister={onRegister} />
         </div>
       )}
@@ -138,27 +138,26 @@ function SpanningRow({
   isSelected: boolean;
 }) {
   const { t } = useLanguage();
-  const style = KIND_STYLE[entry.kind];
   const span =
     entry.weekEnd > entry.week
       ? `${t.calendar.weeksSpan} ${entry.week}–${entry.weekEnd}`
       : t.calendar.allWeek;
 
   return (
-    <li
-      className={`flex items-center gap-3 rounded-md border border-l-4 px-3 py-2 ${style.chip} ${style.border} ${
-        isSelected ? "ring-1 ring-neutral-400 dark:ring-neutral-500" : ""
-      }`}
-    >
+    <li>
       <button
         type="button"
         onClick={() => onSelect(entry)}
         aria-current={isSelected ? "true" : undefined}
-        className="min-w-0 flex-1 text-left text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className={`flex w-full items-center gap-2 px-4 py-1.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary sm:px-5 ${
+          isSelected ? "bg-neutral-100/70 dark:bg-neutral-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
+        }`}
       >
-        <span className="font-semibold">{t.calendar.kinds[entry.kind]}:</span> {entry.title}
+        <Dot kind={entry.kind} />
+        <span className={`shrink-0 ${KIND_STYLE[entry.kind].text}`}>{t.calendar.kinds[entry.kind]}</span>
+        <span className="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-200">{entry.title}</span>
+        <span className="shrink-0 text-xs tabular-nums text-neutral-400 dark:text-neutral-500">{span}</span>
       </button>
-      <span className="shrink-0 text-xs tabular-nums opacity-80">{span}</span>
     </li>
   );
 }
@@ -177,9 +176,9 @@ interface CalendarEntryListProps {
 
 /**
  * The calendar as one week-grouped list. What lasts a whole week (varmmat,
- * temauke, beskjed) sits in a band under the week heading; what happens on a
- * day sits below it with the date in the margin — which is what lets the two
- * former tabs share a single list without either one being squeezed into the
+ * temauke, beskjed) sits in a quiet band under the week heading; what happens
+ * on a day sits below it with the date in the margin — which is what lets the
+ * two former tabs share one list without either being squeezed into the
  * other's shape.
  *
  * Filtering and fetching belong to the calendar container; this renders what
@@ -202,82 +201,93 @@ export default function CalendarEntryList({
     [entries, fromWeekKey],
   );
 
+  if (groups.length === 0) {
+    return (
+      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+        {emptyMessage}
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-4">
+    <div>
       {onShowEarlier && (
-        <Button variant="outline" size="sm" onClick={onShowEarlier}>
+        <button
+          type="button"
+          onClick={onShowEarlier}
+          className="mb-3 text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-50"
+        >
           {t.calendar.showEarlier}
-        </Button>
+        </button>
       )}
 
-      {groups.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-neutral-600 dark:text-neutral-300">
-            {emptyMessage}
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card>
-            <CardContent className="divide-y divide-neutral-200 p-0 dark:divide-neutral-800">
-              {groups.map((group) => {
-                const { start, end } = isoWeekRange(group.weekYear, group.week);
-                const range = `${formatDate(start, language, { day: "numeric", month: "short" })} – ${formatDate(
-                  end,
-                  language,
-                  { day: "numeric", month: "short" },
-                )}`;
-                return (
-                  <section key={group.weekKey} className="py-2">
-                    <h3 className="flex flex-wrap items-baseline gap-2 px-3 pb-1 pt-2 sm:px-4">
-                      <span className="text-sm font-bold tabular-nums text-neutral-900 dark:text-neutral-50">
-                        {t.calendar.week} {group.week}
-                      </span>
-                      <span className="text-xs text-neutral-500 dark:text-neutral-400">{range}</span>
-                      {group.weekKey === currentWeekKey && (
-                        <span className="ml-auto rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary-foreground">
-                          {t.calendar.thisWeek}
-                        </span>
-                      )}
-                    </h3>
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+        {groups.map((group, index) => {
+          const { start, end } = isoWeekRange(group.weekYear, group.week);
+          const range = `${formatDate(start, language, { day: "numeric", month: "short" })} – ${formatDate(
+            end,
+            language,
+            { day: "numeric", month: "short" },
+          )}`;
+          const isNow = group.weekKey === currentWeekKey;
 
-                    {group.spanning.length > 0 && (
-                      <ul className="flex flex-col gap-1 px-3 pb-1 sm:px-4">
-                        {group.spanning.map((entry) => (
-                          <SpanningRow
-                            key={entry.id}
-                            entry={entry}
-                            onSelect={onSelect}
-                            isSelected={entry.id === selectedId}
-                          />
-                        ))}
-                      </ul>
-                    )}
+          return (
+            <section
+              key={group.weekKey}
+              className={index > 0 ? "border-t border-neutral-200 dark:border-neutral-800" : ""}
+            >
+              <h3
+                className={`flex items-baseline gap-3 px-4 pb-2 pt-4 sm:px-5 ${
+                  isNow ? "" : "text-neutral-500 dark:text-neutral-400"
+                }`}
+              >
+                <span
+                  className={`text-xs font-semibold uppercase tracking-[0.12em] tabular-nums ${
+                    isNow ? "text-primary" : "text-neutral-500 dark:text-neutral-400"
+                  }`}
+                >
+                  {t.calendar.week} {group.week}
+                </span>
+                <span className="text-xs text-neutral-400 dark:text-neutral-500">{range}</span>
+                {isNow && (
+                  <span className="ml-auto rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium leading-none text-primary-foreground">
+                    {t.calendar.thisWeek}
+                  </span>
+                )}
+              </h3>
 
-                    {group.dated.length > 0 && (
-                      <ul className="flex flex-col">
-                        {group.dated.map((entry) => (
-                          <DatedRow
-                            key={entry.id}
-                            entry={entry}
-                            onRegister={onRegister}
-                            onSelect={onSelect}
-                            isSelected={entry.id === selectedId}
-                          />
-                        ))}
-                      </ul>
-                    )}
-                  </section>
-                );
-              })}
-            </CardContent>
-          </Card>
+              {group.spanning.length > 0 && (
+                <ul className="pb-1">
+                  {group.spanning.map((entry) => (
+                    <SpanningRow
+                      key={entry.id}
+                      entry={entry}
+                      onSelect={onSelect}
+                      isSelected={entry.id === selectedId}
+                    />
+                  ))}
+                </ul>
+              )}
 
-          <p className="pb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
-            {t.calendar.endOfList}
-          </p>
-        </>
-      )}
+              {group.dated.length > 0 && (
+                <ul className="divide-y divide-neutral-100 border-t border-neutral-100 dark:divide-neutral-900 dark:border-neutral-900">
+                  {group.dated.map((entry) => (
+                    <DatedRow
+                      key={entry.id}
+                      entry={entry}
+                      onRegister={onRegister}
+                      onSelect={onSelect}
+                      isSelected={entry.id === selectedId}
+                    />
+                  ))}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <p className="pt-4 text-center text-xs text-neutral-400 dark:text-neutral-500">{t.calendar.endOfList}</p>
     </div>
   );
 }

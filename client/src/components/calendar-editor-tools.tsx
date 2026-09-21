@@ -164,8 +164,8 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
   };
 
   const toolbar = !canEditYearly ? null : (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2">
-      <span className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900/60">
+      <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
         {t.calendar.editorLabel}
       </span>
       <Button size="sm" onClick={() => setPickerOpen(true)}>
@@ -207,7 +207,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
 
     return (
       <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3 dark:border-neutral-800">
-        <span className="basis-full text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+        <span className="basis-full text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
           {t.calendar.editorLabel}
         </span>
         <Button
@@ -292,11 +292,15 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
                 <Button
                   key={kind}
                   variant="outline"
-                  className={`justify-start border-l-4 ${KIND_STYLE[kind].border}`}
+                  className="justify-start gap-2"
                   onClick={() =>
                     pick({ kind: "yearly", entryType: KIND_TO_ENTRY_TYPE[kind], existing: null })
                   }
                 >
+                  <span
+                    className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[kind].dot}`}
+                    aria-hidden="true"
+                  />
                   {t.calendar.kinds[kind]}
                 </Button>
               ))}
