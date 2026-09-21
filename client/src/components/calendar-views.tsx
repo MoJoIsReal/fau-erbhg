@@ -1,6 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { List, Loader2, CalendarDays, CalendarRange } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Bell, CalendarDays, CalendarRange, List, Loader2 } from "lucide-react";
 import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries";
 import {
   CALENDAR_ENTRY_KINDS,
@@ -13,20 +12,22 @@ import { isoWeek } from "@shared/yearly-calendar-display";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { useCalendarEntries } from "@/hooks/useCalendarEntries";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
 import CalendarEntryList from "@/components/calendar-entry-list";
 import CalendarEntryDetail from "@/components/calendar-entry-detail";
+import CalendarSubscribe from "@/components/calendar-subscribe";
 import { useCalendarEditor } from "@/components/calendar-editor-tools";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 // The grids are only paid for when someone switches to them.
 const CalendarView = lazy(() => import("@/components/calendar-view"));
 const CalendarYearView = lazy(() => import("@/components/calendar-year-view"));
 
 type CalendarViewMode = "list" | "month" | "year";
+export type MonthCursor = { year: number; month: number };
 
 const VIEW_MODES: CalendarViewMode[] = ["list", "month", "year"];
 const STORAGE_KEY = "fau-calendar-view";
@@ -34,10 +35,7 @@ const STORAGE_KEY = "fau-calendar-view";
 // Which view and which filters someone last used is a convenience, not data:
 // it lives in this browser only, and a blocked or cleared store just means
 // everything is on and the list is showing.
-type StoredPreferences = {
-  mode?: CalendarViewMode;
-  off?: CalendarEntryKind[];
-};
+type StoredPreferences = { mode?: CalendarViewMode; off?: CalendarEntryKind[] };
 
 function readPreferences(): StoredPreferences {
   try {
@@ -60,9 +58,7 @@ function allKindsOn(): Record<CalendarEntryKind, boolean> {
 function initialActive(): Record<CalendarEntryKind, boolean> {
   const off = new Set(readPreferences().off ?? []);
   const state = allKindsOn();
-  for (const kind of CALENDAR_ENTRY_KINDS) {
-    if (off.has(kind)) state[kind] = false;
-  }
+  for (const kind of CALENDAR_ENTRY_KINDS) if (off.has(kind)) state[kind] = false;
   return state;
 }
 
@@ -72,31 +68,36 @@ function initialMode(): CalendarViewMode {
 }
 
 /**
- * The combined calendar: one set of entries, one set of filters, and the
- * views that render them. Week list and month grid are two ways of looking at
- * the same data rather than two pages, so the filters and the fetch live here
- * and switching between them keeps what you switched off, switched off.
+ * The combined calendar: one set of entries, one set of filters, and the three
+ * views that render them.
+ *
+ * The heading belongs here rather than to each view, because it is what tells
+ * you where you are — the month you are looking at, or the kindergarten year —
+ * and it changes as you move between them.
  */
 export default function CalendarViews() {
-  const { t } = useLanguage();
+  const { language, t } = useLanguage();
   const { entries, isLoading, isError } = useCalendarEntries();
   const [active, setActive] = useState<Record<CalendarEntryKind, boolean>>(initialActive);
   const [mode, setMode] = useState<CalendarViewMode>(initialMode);
   const [showPast, setShowPast] = useState(false);
   const [selected, setSelected] = useState<CalendarEntry | null>(null);
-  // The sheet is opened by a click, never by a view change: selecting an entry
-  // in the list and then switching to the month grid used to make the panel
-  // spring open over the grid you had just asked to see.
+  // Opening is its own state, set by a click and cleared by a view change, so
+  // switching views cannot make the panel spring open over the view you asked
+  // to see.
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
-  // Wide enough to put the detail beside the list instead of over it. Below
-  // this it slides in as a sheet, which is the same content either way.
-  const canDock = useMediaQuery("(min-width: 1024px)");
-
   const today = new Date();
   const currentWeekKey = calendarWeekKey(isoWeekYear(today), isoWeek(today));
-  const [schoolYear, setSchoolYear] = useState(() => getKindergartenSchoolYear(new Date()));
+  const thisSchoolYear = getKindergartenSchoolYear(new Date());
+  const [schoolYear, setSchoolYear] = useState(thisSchoolYear);
+  // The displayed month lives here so the heading can name it, and so the year
+  // view can hand a month over to the month view.
+  const [monthCursor, setMonthCursor] = useState<MonthCursor>({
+    year: today.getFullYear(),
+    month: today.getMonth() + 1,
+  });
 
   useEffect(() => {
     try {
@@ -109,77 +110,24 @@ export default function CalendarViews() {
 
   const visible = useMemo(() => entries.filter((entry) => active[entry.kind]), [entries, active]);
   const activeCount = CALENDAR_ENTRY_KINDS.filter((kind) => active[kind]).length;
+  const allOn = activeCount === CALENDAR_ENTRY_KINDS.length;
 
   const toggle = (kind: CalendarEntryKind) => setActive((prev) => ({ ...prev, [kind]: !prev[kind] }));
 
-  // One year back and one forward covers what the entries can actually hold:
-  // the hook fetches this school year and the next.
-  const thisSchoolYear = getKindergartenSchoolYear(new Date());
-  const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
-
   const openEntry = (entry: CalendarEntry) => {
     setSelected(entry);
-    if (!canDock || mode !== "list") setSheetOpen(true);
-  };
-
-  const changeMode = (next: CalendarViewMode) => {
-    setSheetOpen(false);
-    setMode(next);
+    setSheetOpen(true);
   };
   const registerFor = (entry: CalendarEntry) => {
     if (entry.event) setSelectedEvent(entry.event);
   };
-
-  // The docked panel is always showing something, so it falls back to the
-  // next thing that actually happens on a day rather than opening on a week
-  // of hot meals.
-  const docked = useMemo(() => {
-    if (selected && active[selected.kind]) return selected;
-    const upcoming = visible.filter((entry) => entry.weekKey >= currentWeekKey);
-    return upcoming.find((entry) => entry.date) ?? upcoming[0] ?? visible[0] ?? null;
-  }, [selected, visible, active, currentWeekKey]);
+  const changeMode = (next: CalendarViewMode) => {
+    setSheetOpen(false);
+    setMode(next);
+  };
 
   const editor = useCalendarEditor({ schoolYear });
-
-  const detail = (
-    <CalendarEntryDetail
-      entry={docked}
-      onRegister={registerFor}
-      actions={docked ? editor.actionsFor(docked) : null}
-      attendeeCount={docked ? editor.attendeeCountFor(docked) : null}
-    />
-  );
-
-  // The chip carries its kind as a dot, not as a fill. Ten filled pills in two
-  // rows read as a colour chart; ten dots read as a legend.
-  const renderChips = (kinds: readonly CalendarEntryKind[], label: string) => (
-    <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-      <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
-        {label}
-      </span>
-      {kinds.map((kind) => (
-        <button
-          key={kind}
-          type="button"
-          onClick={() => toggle(kind)}
-          aria-pressed={active[kind]}
-          className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
-            active[kind]
-              ? "border-neutral-200 bg-white text-neutral-700 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-              : "border-transparent bg-transparent text-neutral-400 hover:text-neutral-600 dark:text-neutral-600 dark:hover:text-neutral-400"
-          }`}
-        >
-          <span
-            className={`h-2 w-2 shrink-0 rounded-full ${
-              active[kind] ? KIND_STYLE[kind].dot : "bg-neutral-300 dark:bg-neutral-700"
-            }`}
-            aria-hidden="true"
-          />
-          {t.calendar.kinds[kind]}
-        </button>
-      ))}
-    </div>
-  );
+  const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
 
   const modes: { id: CalendarViewMode; label: string; icon: typeof List }[] = [
     { id: "list", label: t.calendar.listView, icon: List },
@@ -187,132 +135,199 @@ export default function CalendarViews() {
     { id: "year", label: t.calendar.yearView, icon: CalendarRange },
   ];
 
+  const heading =
+    mode === "month"
+      ? formatDate(new Date(monthCursor.year, monthCursor.month - 1, 1), language, {
+          month: "long",
+          year: "numeric",
+        })
+      : mode === "year"
+        ? `${t.calendar.yearHeading} ${schoolYear}/${schoolYear + 1}`
+        : t.calendar.listHeading;
+
+  const intro =
+    mode === "month"
+      ? t.calendar.monthIntro
+      : mode === "year"
+        ? t.calendar.yearIntro
+        : t.calendar.listIntro;
+
+  const chip = (label: string, on: boolean, onClick: () => void, dot?: string) => (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
+        on
+          ? dot
+            ? "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+            : "border-accent bg-accent font-medium text-accent-foreground"
+          : "border-neutral-200 bg-white text-neutral-400 hover:text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-600 dark:hover:text-neutral-300"
+      }`}
+    >
+      {dot && (
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${on ? dot : "bg-neutral-300 dark:bg-neutral-700"}`}
+          aria-hidden="true"
+        />
+      )}
+      {label}
+    </button>
+  );
+
   if (isLoading) {
     return (
-      <div className="flex justify-center py-16" role="status" aria-live="polite">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex justify-center py-20" role="status" aria-live="polite">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </div>
     );
   }
 
   if (isError) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center text-neutral-600 dark:text-neutral-300">
-          {t.calendar.loadFailed}
-        </CardContent>
-      </Card>
+      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
+        {t.calendar.loadFailed}
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div
-            className="inline-flex gap-0.5 rounded-full bg-neutral-100 p-1 dark:bg-neutral-900"
-            role="group"
-            aria-label={t.calendar.viewLabel}
-          >
-            {modes.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => changeMode(id)}
-                aria-pressed={mode === id}
-                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                  mode === id
-                    ? "bg-neutral-900 font-medium text-white shadow-sm dark:bg-neutral-100 dark:text-neutral-900"
-                    : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-                }`}
-              >
-                <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>{label}</span>
-              </button>
-            ))}
+    <div className="space-y-5">
+      {/* A warm band rather than a plain heading: this is a kindergarten
+          calendar, and the top of the page is the one place that can say so
+          without getting in the way of the dates below. */}
+      <header className="overflow-hidden rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50/60 to-emerald-50 px-6 py-8 dark:from-neutral-900 dark:via-neutral-900 dark:to-emerald-950/40 sm:px-8 sm:py-10">
+        <div className="flex flex-wrap items-end justify-between gap-6">
+          <div className="max-w-xl">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400">
+              {t.calendar.title}
+            </p>
+            <h2
+              className={`mt-2 font-heading text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:text-4xl ${
+                mode === "month" ? "capitalize" : ""
+              }`}
+            >
+              {heading}
+            </h2>
+            <p className="mt-3 text-neutral-600 dark:text-neutral-300">{intro}</p>
           </div>
+          <p className="font-heading text-lg italic text-accent dark:text-emerald-300">
+            {t.calendar.tagline}
+          </p>
+        </div>
+      </header>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
-            {(mode === "year" || editor.isEditor) && (
-              <label className="flex items-center gap-2">
-                <span>{t.yearlyCalendar.schoolYearLabel}</span>
-                <select
-                  value={schoolYear}
-                  onChange={(event) => setSchoolYear(Number(event.target.value))}
-                  className="rounded-md border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
-                >
-                  {schoolYearOptions.map((year) => (
-                    <option key={year} value={year}>
-                      {year}/{year + 1}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <span className="tabular-nums">
-              {activeCount}/{CALENDAR_ENTRY_KINDS.length} {t.calendar.typesOn}
-            </span>
-            {activeCount < CALENDAR_ENTRY_KINDS.length && (
-              <button
-                type="button"
-                onClick={() => setActive(allKindsOn())}
-                className="underline underline-offset-2 hover:text-neutral-900 dark:hover:text-neutral-50"
-              >
-                {t.calendar.showAllTypes}
-              </button>
-            )}
-          </div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          className="inline-flex gap-1 rounded-full bg-neutral-100 p-1 dark:bg-neutral-900"
+          role="group"
+          aria-label={t.calendar.viewLabel}
+        >
+          {modes.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => changeMode(id)}
+              aria-pressed={mode === id}
+              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                mode === id
+                  ? "bg-accent font-medium text-accent-foreground shadow-sm"
+                  : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{label}</span>
+            </button>
+          ))}
         </div>
 
-        {renderChips(EVENT_CALENDAR_KINDS, t.calendar.filterSignup)}
-        {renderChips(YEARLY_CALENDAR_KINDS, t.calendar.filterKindergarten)}
+        <label className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
+          {t.yearlyCalendar.schoolYearLabel}
+          <select
+            value={schoolYear}
+            onChange={(event) => setSchoolYear(Number(event.target.value))}
+            className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+          >
+            {schoolYearOptions.map((year) => (
+              <option key={year} value={year}>
+                {year}/{year + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="space-y-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {chip(t.calendar.allTypes, allOn, () => setActive(allKindsOn()))}
+          {EVENT_CALENDAR_KINDS.map((kind) => (
+            <span key={kind}>
+              {chip(t.calendar.kinds[kind], active[kind], () => toggle(kind), KIND_STYLE[kind].dot)}
+            </span>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {YEARLY_CALENDAR_KINDS.map((kind) => (
+            <span key={kind}>
+              {chip(t.calendar.kinds[kind], active[kind], () => toggle(kind), KIND_STYLE[kind].dot)}
+            </span>
+          ))}
+        </div>
       </div>
 
       {editor.toolbar}
 
-      {/* The cutoff is the list's alone. The month grid and the year strip
-          always show a whole period, so hiding past weeks there would only
-          punch holes in them. */}
       {mode === "list" ? (
-        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
-          <CalendarEntryList
-            entries={visible}
-            fromWeekKey={showPast ? null : currentWeekKey}
-            currentWeekKey={currentWeekKey}
-            onShowEarlier={showPast ? null : () => setShowPast(true)}
-            onRegister={setSelectedEvent}
-            onSelect={openEntry}
-            selectedId={docked?.id ?? null}
-            emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
-          />
-          {canDock && (
-            <aside className="sticky top-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-              {detail}
-            </aside>
-          )}
-        </div>
+        <CalendarEntryList
+          entries={visible}
+          fromWeekKey={showPast ? null : currentWeekKey}
+          currentWeekKey={currentWeekKey}
+          onShowEarlier={showPast ? null : () => setShowPast(true)}
+          onRegister={setSelectedEvent}
+          onSelect={openEntry}
+          emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
+        />
       ) : (
         <Suspense
           fallback={
-            <div className="flex justify-center py-16" role="status" aria-live="polite">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="flex justify-center py-20" role="status" aria-live="polite">
+              <Loader2 className="h-8 w-8 animate-spin text-accent" />
             </div>
           }
         >
           {mode === "month" ? (
-            <CalendarView entries={visible} onEntryClick={openEntry} />
+            <CalendarView
+              entries={visible}
+              month={monthCursor}
+              onMonthChange={setMonthCursor}
+              onRegister={registerFor}
+              editorActionsFor={editor.actionsFor}
+            />
           ) : (
             <CalendarYearView
               entries={visible}
               schoolYear={schoolYear}
-              onEntryClick={openEntry}
+              onMonthPick={(picked) => {
+                setMonthCursor(picked);
+                changeMode("month");
+              }}
             />
           )}
         </Suspense>
       )}
 
-      {/* Below the docking width — and from the month and year views, which
-          have no room to dock — the same detail slides in over the calendar. */}
+      {/* The feed is the one thing that turns this page into something you
+          never have to open again, so it is said out loud at the bottom rather
+          than hidden behind an icon. */}
+      <aside className="flex flex-wrap items-center gap-4 rounded-2xl bg-emerald-50/70 px-5 py-4 dark:bg-emerald-950/20">
+        <Bell className="h-5 w-5 shrink-0 text-accent dark:text-emerald-300" aria-hidden="true" />
+        <div className="min-w-[14rem] flex-1">
+          <p className="font-medium text-neutral-900 dark:text-neutral-50">{t.calendar.reminderTitle}</p>
+          <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.calendar.reminderBody}</p>
+        </div>
+        <CalendarSubscribe triggerSize="default" triggerClassName="rounded-full bg-white dark:bg-neutral-900" />
+      </aside>
+
       <Sheet
         open={sheetOpen && selected !== null}
         onOpenChange={(open) => {

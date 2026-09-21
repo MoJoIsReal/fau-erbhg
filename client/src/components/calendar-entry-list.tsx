@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CalendarEntry } from "@shared/calendar-entries";
 import { groupCalendarEntriesByWeek, isoWeekRange } from "@shared/calendar-entries";
@@ -6,161 +7,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate, type Language } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
-
-function Dot({ kind }: { kind: CalendarEntry["kind"] }) {
-  return <span className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[kind].dot}`} aria-hidden="true" />;
-}
-
-// formatDate owns the locale mapping, so the date margin reads its weekday and
-// month from there rather than reaching for a locale id.
-function dateParts(date: Date, language: Language) {
-  return {
-    weekday: formatDate(date, language, { weekday: "short" }),
-    day: date.getDate(),
-  };
-}
-
-function SignupSide({ entry, onRegister }: { entry: CalendarEntry; onRegister: (event: Event) => void }) {
-  const { t } = useLanguage();
-  const signup = entry.signup;
-
-  if (entry.cancelled) {
-    return (
-      <span className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-300">
-        {t.events.cancelled2}
-      </span>
-    );
-  }
-  if (!signup) return null;
-
-  const note = (text: string) => (
-    <span className="text-sm text-neutral-500 dark:text-neutral-400">{text}</span>
-  );
-  if (signup.mode === "internal") return note(t.events.internalEvent);
-  if (signup.mode === "vigilo") return note(t.events.registerVigilo);
-  if (signup.mode === "none") return note(t.events.noSignupRequired);
-
-  return (
-    <div className="flex items-center gap-3">
-      {signup.maxAttendees !== null && (
-        <span className="flex items-baseline gap-0.5 tabular-nums">
-          <span className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
-            {signup.currentAttendees}
-          </span>
-          <span className="text-sm text-neutral-400 dark:text-neutral-500">/{signup.maxAttendees}</span>
-        </span>
-      )}
-      {signup.isFull ? (
-        note(t.events.full)
-      ) : signup.deadlinePassed ? (
-        note(t.events.registrationClosed)
-      ) : (
-        <Button size="sm" variant="outline" onClick={() => entry.event && onRegister(entry.event)}>
-          {t.events.register}
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function DatedRow({
-  entry,
-  onRegister,
-  onSelect,
-  isSelected,
-}: {
-  entry: CalendarEntry;
-  onRegister: (event: Event) => void;
-  onSelect: (entry: CalendarEntry) => void;
-  isSelected: boolean;
-}) {
-  const { language, t } = useLanguage();
-  const date = new Date(entry.date as string);
-  const { weekday, day } = dateParts(date, language);
-  const time = entry.startTime
-    ? entry.endTime
-      ? `${entry.startTime}–${entry.endTime}`
-      : entry.startTime
-    : "";
-  const meta = [time, entry.location].filter(Boolean).join(" · ");
-
-  return (
-    <li
-      className={`flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 transition-colors sm:flex-nowrap sm:px-5 ${
-        isSelected ? "bg-neutral-100/70 dark:bg-neutral-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-      }`}
-    >
-      <div className="w-10 shrink-0 text-center leading-none">
-        <div className="text-[11px] uppercase text-neutral-400 dark:text-neutral-500">{weekday}</div>
-        <div className="mt-1 text-xl font-semibold tabular-nums tracking-tight text-neutral-900 dark:text-neutral-50">
-          {day}
-        </div>
-      </div>
-
-      <div className="min-w-[11rem] flex-1 basis-0">
-        <button
-          type="button"
-          onClick={() => onSelect(entry)}
-          aria-current={isSelected ? "true" : undefined}
-          className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
-        >
-          <Dot kind={entry.kind} />
-          <span
-            className={`font-medium text-neutral-900 dark:text-neutral-50 ${
-              entry.cancelled ? "line-through decoration-1" : ""
-            }`}
-          >
-            {entry.title}
-          </span>
-        </button>
-        <div className="mt-0.5 pl-4 text-sm text-neutral-500 dark:text-neutral-400">
-          <span className={KIND_STYLE[entry.kind].text}>{t.calendar.kinds[entry.kind]}</span>
-          {meta && <span> · {meta}</span>}
-        </div>
-      </div>
-
-      {(entry.signup || entry.cancelled) && (
-        <div className="w-full shrink-0 pl-14 sm:w-auto sm:pl-0 sm:text-right">
-          <SignupSide entry={entry} onRegister={onRegister} />
-        </div>
-      )}
-    </li>
-  );
-}
-
-function SpanningRow({
-  entry,
-  onSelect,
-  isSelected,
-}: {
-  entry: CalendarEntry;
-  onSelect: (entry: CalendarEntry) => void;
-  isSelected: boolean;
-}) {
-  const { t } = useLanguage();
-  const span =
-    entry.weekEnd > entry.week
-      ? `${t.calendar.weeksSpan} ${entry.week}–${entry.weekEnd}`
-      : t.calendar.allWeek;
-
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onSelect(entry)}
-        aria-current={isSelected ? "true" : undefined}
-        className={`flex w-full items-center gap-2 px-4 py-1.5 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary sm:px-5 ${
-          isSelected ? "bg-neutral-100/70 dark:bg-neutral-900" : "hover:bg-neutral-50 dark:hover:bg-neutral-900/50"
-        }`}
-      >
-        <Dot kind={entry.kind} />
-        <span className={`shrink-0 ${KIND_STYLE[entry.kind].text}`}>{t.calendar.kinds[entry.kind]}</span>
-        <span className="min-w-0 flex-1 truncate text-neutral-700 dark:text-neutral-200">{entry.title}</span>
-        <span className="shrink-0 text-xs tabular-nums text-neutral-400 dark:text-neutral-500">{span}</span>
-      </button>
-    </li>
-  );
-}
 
 interface CalendarEntryListProps {
   entries: CalendarEntry[];
@@ -170,19 +16,130 @@ interface CalendarEntryListProps {
   onShowEarlier: (() => void) | null;
   onRegister: (event: Event) => void;
   onSelect: (entry: CalendarEntry) => void;
-  selectedId: string | null;
   emptyMessage: string;
 }
 
 /**
- * The calendar as one week-grouped list. What lasts a whole week (varmmat,
- * temauke, beskjed) sits in a quiet band under the week heading; what happens
- * on a day sits below it with the date in the margin — which is what lets the
- * two former tabs share one list without either being squeezed into the
- * other's shape.
+ * What the week itself is about, as a sentence rather than a stack of rows.
  *
- * Filtering and fetching belong to the calendar container; this renders what
- * it is handed.
+ * A temauke and the week's hot meal are facts about the whole week, not
+ * things that happen at a time, so they read better as the week's standfirst
+ * than as rows pretending to be events.
+ */
+function weekSummary(spanning: CalendarEntry[], foodLabel: string): string {
+  const parts: string[] = [];
+  for (const entry of spanning) {
+    if (entry.kind === "varmmat") {
+      parts.push(`${foodLabel} ${entry.title}.`);
+      continue;
+    }
+    const detail = entry.description?.replace(/<[^>]*>/g, "").trim();
+    parts.push(detail ? `${entry.title} – ${detail}` : `${entry.title}.`);
+  }
+  return parts.join(" ");
+}
+
+function DayRow({
+  entry,
+  onRegister,
+  onSelect,
+  language,
+}: {
+  entry: CalendarEntry;
+  onRegister: (event: Event) => void;
+  onSelect: (entry: CalendarEntry) => void;
+  language: Language;
+}) {
+  const { t } = useLanguage();
+  const date = new Date(entry.date as string);
+  const signup = entry.signup;
+  const time = entry.startTime
+    ? entry.endTime
+      ? `${t.calendar.detailTimePrefix} ${entry.startTime} – ${entry.endTime}`
+      : `${t.calendar.detailTimePrefix} ${entry.startTime}`
+    : "";
+  const meta = [time, entry.location].filter(Boolean).join(" · ");
+
+  return (
+    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50 sm:px-5">
+      <div className="pt-0.5 leading-tight">
+        <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
+          {formatDate(date, language, { weekday: "short" })}
+        </div>
+        <div className="text-sm font-medium tabular-nums text-neutral-700 dark:text-neutral-200">
+          {date.getDate()}. {formatDate(date, language, { month: "short" })}
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onSelect(entry)}
+            className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+          >
+            <span
+              className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[entry.kind].dot}`}
+              aria-hidden="true"
+            />
+            <span
+              className={`font-medium text-neutral-900 hover:underline dark:text-neutral-50 ${
+                entry.cancelled ? "line-through decoration-1" : ""
+              }`}
+            >
+              {entry.title}
+            </span>
+          </button>
+
+          {entry.kind === "stengt" && (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+              {t.calendar.kinds.stengt}
+            </span>
+          )}
+          {entry.cancelled && (
+            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
+              {t.events.cancelled2}
+            </span>
+          )}
+        </div>
+
+        {meta && <p className="mt-0.5 pl-4 text-sm text-neutral-500 dark:text-neutral-400">{meta}</p>}
+
+        {signup?.mode === "registration" && !entry.cancelled && (
+          <div className="mt-2 flex flex-wrap items-center gap-3 pl-4">
+            {signup.maxAttendees !== null && (
+              <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
+                {signup.currentAttendees}/{signup.maxAttendees} {t.events.attendees}
+              </span>
+            )}
+            {signup.isOpen ? (
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => entry.event && onRegister(entry.event)}
+              >
+                {t.events.register}
+              </Button>
+            ) : (
+              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+                {signup.isFull ? t.events.full : t.events.registrationClosed}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/**
+ * The calendar as a stack of week cards.
+ *
+ * The week is the unit the kindergarten already speaks in, so it is the card:
+ * its number in the margin, what the week is about as a standfirst, and the
+ * days inside it. A week with nothing dated in it still has something to say —
+ * the hot meal, the theme — and says it without pretending to be empty.
  */
 export default function CalendarEntryList({
   entries,
@@ -191,103 +148,131 @@ export default function CalendarEntryList({
   onShowEarlier,
   onRegister,
   onSelect,
-  selectedId,
   emptyMessage,
 }: CalendarEntryListProps) {
   const { language, t } = useLanguage();
+  const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
 
   const groups = useMemo(
     () => groupCalendarEntriesByWeek(entries, { fromWeekKey }),
     [entries, fromWeekKey],
   );
 
+  const toggle = (weekKey: number) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(weekKey)) next.delete(weekKey);
+      else next.add(weekKey);
+      return next;
+    });
+
   if (groups.length === 0) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
         {emptyMessage}
       </div>
     );
   }
 
   return (
-    <div>
+    <div className="space-y-3">
       {onShowEarlier && (
         <button
           type="button"
           onClick={onShowEarlier}
-          className="mb-3 text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-50"
+          className="text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-50"
         >
           {t.calendar.showEarlier}
         </button>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-        {groups.map((group, index) => {
-          const { start, end } = isoWeekRange(group.weekYear, group.week);
-          const range = `${formatDate(start, language, { day: "numeric", month: "short" })} – ${formatDate(
-            end,
-            language,
-            { day: "numeric", month: "short" },
-          )}`;
-          const isNow = group.weekKey === currentWeekKey;
+      {groups.map((group) => {
+        const { start, end } = isoWeekRange(group.weekYear, group.week);
+        const sameMonth = start.getMonth() === end.getMonth();
+        const range = `${start.getDate()}.${
+          sameMonth ? "" : ` ${formatDate(start, language, { month: "long" })}`
+        } – ${end.getDate()}. ${formatDate(end, language, { month: "long" })}`;
+        const isNow = group.weekKey === currentWeekKey;
+        const summary = weekSummary(group.spanning, t.calendar.weeklyFood);
+        const isOpen = !collapsed.has(group.weekKey);
 
-          return (
-            <section
-              key={group.weekKey}
-              className={index > 0 ? "border-t border-neutral-200 dark:border-neutral-800" : ""}
-            >
-              <h3
-                className={`flex items-baseline gap-3 px-4 pb-2 pt-4 sm:px-5 ${
-                  isNow ? "" : "text-neutral-500 dark:text-neutral-400"
+        return (
+          <section
+            key={group.weekKey}
+            className={`overflow-hidden rounded-2xl border bg-white dark:bg-neutral-950 ${
+              isNow ? "border-accent/40 ring-1 ring-accent/20" : "border-neutral-200 dark:border-neutral-800"
+            }`}
+          >
+            <div className="flex items-start gap-4 px-4 py-4 sm:px-5">
+              <div
+                className={`w-14 shrink-0 rounded-xl px-2 py-2 text-center ${
+                  isNow ? "bg-accent/10" : "bg-neutral-100 dark:bg-neutral-900"
                 }`}
               >
-                <span
-                  className={`text-xs font-semibold uppercase tracking-[0.12em] tabular-nums ${
-                    isNow ? "text-primary" : "text-neutral-500 dark:text-neutral-400"
+                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400">
+                  {t.calendar.week}
+                </div>
+                <div
+                  className={`text-2xl font-bold tabular-nums leading-tight ${
+                    isNow ? "text-accent dark:text-emerald-300" : "text-neutral-900 dark:text-neutral-50"
                   }`}
                 >
-                  {t.calendar.week} {group.week}
-                </span>
-                <span className="text-xs text-neutral-400 dark:text-neutral-500">{range}</span>
-                {isNow && (
-                  <span className="ml-auto rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium leading-none text-primary-foreground">
-                    {t.calendar.thisWeek}
-                  </span>
-                )}
-              </h3>
+                  {group.week}
+                </div>
+              </div>
 
-              {group.spanning.length > 0 && (
-                <ul className="pb-1">
-                  {group.spanning.map((entry) => (
-                    <SpanningRow
-                      key={entry.id}
-                      entry={entry}
-                      onSelect={onSelect}
-                      isSelected={entry.id === selectedId}
-                    />
-                  ))}
-                </ul>
-              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="font-heading text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                    {range}
+                  </h3>
+                  {isNow && (
+                    <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
+                      {t.calendar.thisWeek}
+                    </span>
+                  )}
+                </div>
+                {summary && (
+                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">{summary}</p>
+                )}
+                {group.dated.length === 0 && (
+                  <p className="mt-2 text-sm text-neutral-400 dark:text-neutral-500">
+                    {t.calendar.noEventsThisWeek}
+                  </p>
+                )}
+              </div>
 
               {group.dated.length > 0 && (
-                <ul className="divide-y divide-neutral-100 border-t border-neutral-100 dark:divide-neutral-900 dark:border-neutral-900">
-                  {group.dated.map((entry) => (
-                    <DatedRow
-                      key={entry.id}
-                      entry={entry}
-                      onRegister={onRegister}
-                      onSelect={onSelect}
-                      isSelected={entry.id === selectedId}
-                    />
-                  ))}
-                </ul>
+                <button
+                  type="button"
+                  onClick={() => toggle(group.weekKey)}
+                  aria-expanded={isOpen}
+                  aria-label={range}
+                  className="shrink-0 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
+                >
+                  {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                </button>
               )}
-            </section>
-          );
-        })}
-      </div>
+            </div>
 
-      <p className="pt-4 text-center text-xs text-neutral-400 dark:text-neutral-500">{t.calendar.endOfList}</p>
+            {isOpen && group.dated.length > 0 && (
+              <ul className="divide-y divide-neutral-100 border-t border-neutral-100 dark:divide-neutral-900 dark:border-neutral-900">
+                {group.dated.map((entry) => (
+                  <DayRow
+                    key={entry.id}
+                    entry={entry}
+                    onRegister={onRegister}
+                    onSelect={onSelect}
+                    language={language}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        );
+      })}
+
+      <p className="pt-2 text-center text-xs text-neutral-400 dark:text-neutral-500">{t.calendar.endOfList}</p>
     </div>
   );
 }
