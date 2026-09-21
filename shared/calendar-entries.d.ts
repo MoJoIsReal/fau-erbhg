@@ -78,6 +78,8 @@ export function mergeCalendarEntries(input?: {
   now?: Date;
 }): CalendarEntry[];
 
+export function compareSpanningEntries(a: CalendarEntry, b: CalendarEntry): number;
+
 export function groupCalendarEntriesByWeek(
   entries: CalendarEntry[],
   options?: { fromWeekKey?: number | null },

@@ -6,6 +6,7 @@ import {
   calendarKindForEventType,
   calendarKindSource,
   calendarWeekKey,
+  compareSpanningEntries,
   describeEventSignup,
   groupCalendarEntriesByWeek,
   isoWeekRange,
@@ -344,4 +345,22 @@ test('week-spanning entries are never touched by the duplicate rule', () => {
     entries: [entry({ id: 1, weekNumber: 39, title: 'Fiskesuppe' })],
   });
   assert.equal(merged.length, 2);
+});
+
+test('the week band orders varmmat first wherever it is rendered', () => {
+  const merged = mergeCalendarEntries({
+    entries: [
+      entry({ id: 1, entryType: 'week_event', weekNumber: 39, title: 'Brannvernuke' }),
+      entry({ id: 2, entryType: 'note', weekNumber: 39, title: 'Uteuke' }),
+      entry({ id: 3, entryType: 'food', weekNumber: 39, title: 'Fiskesuppe' }),
+    ],
+  });
+
+  // The list groups and sorts for itself; the month grid's week rail sorts the
+  // same entries with the same comparator, so the two must agree.
+  const fromList = groupCalendarEntriesByWeek(merged)[0].spanning.map((e) => e.title);
+  const fromRail = [...merged].sort(compareSpanningEntries).map((e) => e.title);
+
+  assert.deepEqual(fromList, ['Fiskesuppe', 'Brannvernuke', 'Uteuke']);
+  assert.deepEqual(fromRail, fromList);
 });

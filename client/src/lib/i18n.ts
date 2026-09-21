@@ -96,6 +96,10 @@ export interface Translations {
     yearlyTabHint: string;
     combinedTab: string;
     combinedTabHint: string;
+    viewLabel: string;
+    listView: string;
+    monthView: string;
+    weekRailHint: string;
     week: string;
     thisWeek: string;
     allWeek: string;
@@ -963,6 +967,11 @@ export const translations: Record<Language, Translations> = {
       yearlyTabHint: "Faste datoer for barnehageåret: planleggingsdager, ferier og temauker.",
       combinedTab: "Kalender",
       combinedTabHint: "Alt uke for uke — arrangementer, møter, varmmat og stengte dager i én liste.",
+      viewLabel: "Visning",
+      listView: "Liste",
+      monthView: "Måned",
+      weekRailHint:
+        "Ukekolonnen til venstre viser det som varer hele uken — varmmat, temauker og beskjeder. Rutene viser dagene.",
       week: "Uke",
       thisWeek: "Denne uken",
       allWeek: "hele uken",
@@ -1824,6 +1833,11 @@ export const translations: Record<Language, Translations> = {
       yearlyTabHint: "Fixed dates for the kindergarten year: planning days, holidays and theme weeks.",
       combinedTab: "Calendar",
       combinedTabHint: "Everything week by week — events, meetings, hot meals and closed days in one list.",
+      viewLabel: "View",
+      listView: "List",
+      monthView: "Month",
+      weekRailHint:
+        "The week column on the left carries what lasts all week — hot meals, theme weeks and notices. The cells carry the days.",
       week: "Week",
       thisWeek: "This week",
       allWeek: "all week",

@@ -6,7 +6,7 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 
 // Both views are heavy (the yearly calendar pulls in dnd-kit, and the event
 // calendar its own grid), so only the active tab is fetched.
-const CalendarEntryList = lazy(() => import("@/components/calendar-entry-list"));
+const CalendarViews = lazy(() => import("@/components/calendar-views"));
 const Events = lazy(() => import("@/pages/events"));
 const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 
@@ -111,7 +111,7 @@ export default function CalendarPage() {
 
       <Suspense fallback={<TabLoader />}>
         {activeTab === "combined" ? (
-          <CalendarEntryList />
+          <CalendarViews />
         ) : activeTab === "upcoming" ? (
           <Events embedded />
         ) : (

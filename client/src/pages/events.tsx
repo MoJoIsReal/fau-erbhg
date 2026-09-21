@@ -38,6 +38,7 @@ import { apiRequest, getApiErrorBody, getApiErrorMessage } from "@/lib/queryClie
 import { formatDate } from "@/lib/i18n";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import type { Event } from "@shared/schema";
+import { mergeCalendarEntries } from "@shared/calendar-entries";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import EventCreationModal from "@/components/event-creation-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
@@ -102,6 +103,10 @@ export default function Events({ embedded = false }: EventsProps = {}) {
   const { data: events = [], isLoading } = useQuery<Event[]>({
     queryKey: ["/api/events"]
   });
+
+  // This tab shows events only, so it hands the shared month grid the same
+  // normalized shape with just the one source in it.
+  const calendarEntries = useMemo(() => mergeCalendarEntries({ events }), [events]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiRequest("DELETE", `/api/events?id=${id}`),
@@ -343,8 +348,8 @@ export default function Events({ embedded = false }: EventsProps = {}) {
           </div>
         }>
           <CalendarView
-            events={events}
-            onEventClick={handleCalendarEventClick}
+            entries={calendarEntries}
+            onEntryClick={(entry) => entry.event && handleCalendarEventClick(entry.event)}
           />
         </Suspense>
       ) : (

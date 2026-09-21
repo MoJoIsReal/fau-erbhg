@@ -284,9 +284,13 @@ export function mergeCalendarEntries({ events = [], entries = [], now = new Date
  * keeping them apart is what lets one list carry both calendars without
  * pretending a week of hot meals happened on a Monday.
  */
-// Ukens varmmat leads the week band, as it does in the yearly calendar's own
-// sortByTypeAndColor — it is the one line a parent looks for every week.
-function compareSpanning(a, b) {
+/**
+ * Ukens varmmat leads the week band, as it does in the yearly calendar's own
+ * sortByTypeAndColor — it is the one line a parent looks for every week.
+ * Exported so the month grid's week rail orders its entries the same way the
+ * week list does; the two are the same band in two shapes.
+ */
+export function compareSpanningEntries(a, b) {
   const rank = (item) => (item.kind === 'varmmat' ? 0 : 1);
   return rank(a) - rank(b) || a.title.localeCompare(b.title, 'no');
 }
@@ -323,7 +327,7 @@ export function groupCalendarEntriesByWeek(entries, { fromWeekKey = null } = {})
     .sort((a, b) => a.weekKey - b.weekKey)
     .map((group) => ({
       ...group,
-      spanning: group.spanning.sort(compareSpanning),
+      spanning: group.spanning.sort(compareSpanningEntries),
       dated: group.dated.sort((a, b) => a.sortKey - b.sortKey || a.title.localeCompare(b.title, 'no')),
     }));
 }

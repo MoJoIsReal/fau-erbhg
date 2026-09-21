@@ -16,7 +16,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = 'client/src';
-const BUDGET = 45;
+const BUDGET = 44;
 
 const PATTERN = /language === (['"])no\1 \?/g;
 
