@@ -331,8 +331,13 @@ function testClientRegressionGuards() {
   const filesPage = readFileSync(new URL('../client/src/pages/files.tsx', import.meta.url), 'utf8');
   assert.match(
     filesPage,
-    /aria-label=\{language === 'no' \? `Last ned \$\{doc\.title\}` : `Download \$\{doc\.title\}`\}/,
-    'Document download icon buttons must have accessible names',
+    /aria-label=\{`\$\{t\.documents\.download\} \$\{doc\.title\}`\}/,
+    'Document download links must name the document they download',
+  );
+  assert.match(
+    filesPage,
+    /aria-label=\{language === ['"]no['"] \? `Slett \$\{doc\.title\}` : `Delete \$\{doc\.title\}`\}/,
+    'Document delete icon buttons must have accessible names',
   );
 
   const attendeeTooltip = readFileSync(new URL('../client/src/components/attendee-tooltip.tsx', import.meta.url), 'utf8');

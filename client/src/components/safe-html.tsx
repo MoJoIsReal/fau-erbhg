@@ -79,6 +79,12 @@ function excerptFromHtml(sanitizedHtml: string, limit: number): string {
 
   const template = document.createElement("template");
   template.innerHTML = sanitizedHtml;
+  // textContent runs block elements straight together, so a post whose first
+  // paragraph ends a sentence read "…ny sand.Neste dugnad blir…" in the
+  // teaser. Give every block a trailing space before flattening.
+  template.content
+    .querySelectorAll("p, li, h1, h2, h3, blockquote, pre, br")
+    .forEach((node) => node.after(document.createTextNode(" ")));
   const text = (template.content.textContent ?? "").replace(/\s+/g, " ").trim();
 
   if (text.length <= limit) return text;

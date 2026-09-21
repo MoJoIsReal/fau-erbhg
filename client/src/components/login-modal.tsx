@@ -59,14 +59,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-2xl text-center text-[#FF6B35]">
+          <DialogTitle className="text-center text-h3 font-bold tracking-tight text-ink">
             {t.modals.login.title}
           </DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="username" className="text-[#2C5F41]">
+            <Label htmlFor="username">
               {t.modals.login.email}
             </Label>
             <Input
@@ -76,12 +76,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               onChange={(e) => setUsername(e.target.value)}
               placeholder=""
               required
-              className="border-[#4A90A4] focus:border-[#FF6B35]"
             />
           </div>
           
           <div>
-            <Label htmlFor="password" className="text-[#2C5F41]">
+            <Label htmlFor="password">
               {t.modals.login.password}
             </Label>
             <Input
@@ -90,7 +89,6 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="border-[#4A90A4] focus:border-[#FF6B35]"
             />
           </div>
           
@@ -106,7 +104,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </Button>
             <Button
               type="submit"
-              className="flex-1 bg-[#FF6B35] hover:bg-[#FF5722] text-white"
+              className="flex-1"
               disabled={loginMutation.isPending}
             >
               {loginMutation.isPending ? t.modals.login.loggingIn : t.modals.login.login}
@@ -114,9 +112,9 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           </div>
         </form>
         
-        <div className="text-sm text-gray-600 text-center mt-4">
+        <div className="mt-4 text-center text-small text-subtle">
           <p>{t.modals.login.membersOnly}</p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="mt-1 text-micro text-subtle">
             {t.modals.login.contactInfo}
           </p>
         </div>

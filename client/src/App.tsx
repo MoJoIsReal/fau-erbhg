@@ -29,13 +29,13 @@ function PageLoader() {
   const { t } = useLanguage();
   return (
     <div
-      className="min-h-screen w-full flex items-center justify-center bg-neutral-50 dark:bg-neutral-950"
+      className="min-h-screen w-full flex items-center justify-center bg-sand"
       role="status"
       aria-live="polite"
     >
       <div className="text-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-        <p className="text-neutral-600 dark:text-neutral-300">
+        <div className="animate-spin rounded-pill h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+        <p className="text-subtle">
           {t.common.loading}
         </p>
       </div>
@@ -49,13 +49,13 @@ function NotFound() {
   return (
     <div className="flex min-h-[50vh] w-full items-center justify-center">
       <div className="text-center">
-        <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-neutral-500 dark:text-neutral-400">
+        <p className="mb-2 text-sm font-semibold uppercase tracking-wider text-subtle">
           404
         </p>
-        <h1 className="mb-3 font-heading text-2xl font-bold text-neutral-900 dark:text-neutral-50">
+        <h1 className="mb-3 text-2xl font-bold text-ink">
           {t.common.pageNotFound}
         </h1>
-        <p className="mb-6 text-neutral-600 dark:text-neutral-300">
+        <p className="mb-6 text-subtle">
           {t.common.pageNotFoundBody}
         </p>
         <Link href="/">

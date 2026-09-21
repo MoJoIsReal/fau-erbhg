@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CalendarEntry } from "@shared/calendar-entries";
 import { groupCalendarEntriesByWeek, isoWeekRange } from "@shared/calendar-entries";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate, type Language } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
+import { StatusPill } from "@/components/site/controls";
+import { EmptyState } from "@/components/site/section";
 import type { Event } from "@shared/schema";
 
 interface CalendarEntryListProps {
@@ -20,23 +22,20 @@ interface CalendarEntryListProps {
 }
 
 /**
- * What the week itself is about, as a sentence rather than a stack of rows.
+ * What the week itself is about, as facts rather than as rows.
  *
- * A temauke and the week's hot meal are facts about the whole week, not
- * things that happen at a time, so they read better as the week's standfirst
- * than as rows pretending to be events.
+ * A temauke and the week's hot meal apply to the whole week, not to a time on
+ * a day, so they belong in the week's header where they can be read once —
+ * not repeated as five rows pretending to be events.
  */
-function weekSummary(spanning: CalendarEntry[], foodLabel: string): string {
-  const parts: string[] = [];
-  for (const entry of spanning) {
+function weekFacts(spanning: CalendarEntry[], foodLabel: string) {
+  return spanning.map((entry) => {
     if (entry.kind === "varmmat") {
-      parts.push(`${foodLabel} ${entry.title}.`);
-      continue;
+      return { id: entry.id, kind: entry.kind, label: foodLabel, value: entry.title };
     }
     const detail = entry.description?.replace(/<[^>]*>/g, "").trim();
-    parts.push(detail ? `${entry.title} – ${detail}` : `${entry.title}.`);
-  }
-  return parts.join(" ");
+    return { id: entry.id, kind: entry.kind, label: entry.title, value: detail ?? "" };
+  });
 }
 
 function DayRow({
@@ -51,39 +50,43 @@ function DayRow({
   language: Language;
 }) {
   const { t } = useLanguage();
+  const style = KIND_STYLE[entry.kind];
   const date = new Date(entry.date as string);
   const signup = entry.signup;
   const time = entry.startTime
     ? entry.endTime
-      ? `${t.calendar.detailTimePrefix} ${entry.startTime} – ${entry.endTime}`
-      : `${t.calendar.detailTimePrefix} ${entry.startTime}`
+      ? `${entry.startTime}–${entry.endTime}`
+      : entry.startTime
     : "";
   const meta = [time, entry.location].filter(Boolean).join(" · ");
 
   return (
-    <li className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-start gap-3 px-4 py-3 transition-colors hover:bg-neutral-50 dark:hover:bg-neutral-900/50 sm:px-5">
-      <div className="pt-0.5 leading-tight">
-        <div className="text-[11px] font-medium uppercase tracking-wide text-neutral-400 dark:text-neutral-500">
+    <li className="grid grid-cols-[3.25rem_minmax(0,1fr)] items-start gap-4 px-4 py-4 transition-colors duration-micro ease-guide hover:bg-green-50/60 sm:grid-cols-[4rem_minmax(0,1fr)] sm:px-6">
+      {/* The day, as a two-line block. Tabular figures keep the column of
+          dates aligned down a long week (guide §3). */}
+      <div className="pt-0.5 text-center leading-tight">
+        <div className="text-micro font-semibold uppercase tracking-[0.1em] text-subtle">
           {formatDate(date, language, { weekday: "short" })}
         </div>
-        <div className="text-sm font-medium tabular-nums text-neutral-700 dark:text-neutral-200">
-          {date.getDate()}. {formatDate(date, language, { month: "short" })}
+        <div className="text-h4 font-bold tabular-nums text-ink">{date.getDate()}</div>
+        <div className="text-micro text-subtle">
+          {formatDate(date, language, { month: "short" })}
         </div>
       </div>
 
       <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <button
             type="button"
             onClick={() => onSelect(entry)}
-            className="flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950"
+            className="inline-flex max-w-full items-baseline gap-2 text-left"
           >
             <span
-              className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[entry.kind].dot}`}
+              className={`relative top-[-1px] h-2 w-2 shrink-0 rounded-pill ${style.dot}`}
               aria-hidden="true"
             />
             <span
-              className={`font-medium text-neutral-900 hover:underline dark:text-neutral-50 ${
+              className={`font-semibold text-ink hover:text-brand hover:underline ${
                 entry.cancelled ? "line-through decoration-1" : ""
               }`}
             >
@@ -91,24 +94,23 @@ function DayRow({
             </span>
           </button>
 
-          {entry.kind === "stengt" && (
-            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-              {t.calendar.kinds.stengt}
-            </span>
-          )}
-          {entry.cancelled && (
-            <span className="rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700 dark:bg-red-950/40 dark:text-red-300">
-              {t.events.cancelled2}
-            </span>
-          )}
+          {/* The category in words beside its dot, so the colour is never
+              carrying the meaning on its own (guide §7). */}
+          <span className={`text-micro font-semibold ${style.text}`}>
+            {t.calendar.kinds[entry.kind]}
+          </span>
+
+          {/* The kind label above already says "Stengt", so only a cancelled
+              entry needs a pill of its own here. */}
+          {entry.cancelled && <StatusPill tone="warn">{t.events.cancelled2}</StatusPill>}
         </div>
 
-        {meta && <p className="mt-0.5 pl-4 text-sm text-neutral-500 dark:text-neutral-400">{meta}</p>}
+        {meta && <p className="mt-1 pl-4 text-small tabular-nums text-subtle">{meta}</p>}
 
         {signup?.mode === "registration" && !entry.cancelled && (
-          <div className="mt-2 flex flex-wrap items-center gap-3 pl-4">
+          <div className="mt-2.5 flex flex-wrap items-center gap-3 pl-4">
             {signup.maxAttendees !== null && (
-              <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
+              <span className="text-small tabular-nums text-subtle">
                 {signup.currentAttendees}/{signup.maxAttendees} {t.events.attendees}
               </span>
             )}
@@ -116,13 +118,13 @@ function DayRow({
               <Button
                 size="sm"
                 variant="outline"
-                className="rounded-full"
+                className="rounded-pill"
                 onClick={() => entry.event && onRegister(entry.event)}
               >
                 {t.events.register}
               </Button>
             ) : (
-              <span className="text-sm text-neutral-500 dark:text-neutral-400">
+              <span className="text-small text-subtle">
                 {signup.isFull ? t.events.full : t.events.registrationClosed}
               </span>
             )}
@@ -134,12 +136,17 @@ function DayRow({
 }
 
 /**
- * The calendar as a stack of week cards.
+ * The calendar as a stack of weeks.
  *
- * The week is the unit the kindergarten already speaks in, so it is the card:
- * its number in the margin, what the week is about as a standfirst, and the
- * days inside it. A week with nothing dated in it still has something to say —
- * the hot meal, the theme — and says it without pretending to be empty.
+ * The week is the unit the kindergarten already speaks in — the årskalender is
+ * written that way, and so is every message home — so the week is the card:
+ * its number in the margin, what holds for the whole week stated once at the
+ * top, and the dated things inside it. A week with nothing on a given day
+ * still has something to say (the hot meal, the theme) and says it instead of
+ * rendering as empty.
+ *
+ * The current week is marked three ways: a green surface, a green rule, and a
+ * "Denne uken" pill that says so in words (guide §10A).
  */
 export default function CalendarEntryList({
   entries,
@@ -167,20 +174,16 @@ export default function CalendarEntryList({
     });
 
   if (groups.length === 0) {
-    return (
-      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
-        {emptyMessage}
-      </div>
-    );
+    return <EmptyState title={emptyMessage} />;
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {onShowEarlier && (
         <button
           type="button"
           onClick={onShowEarlier}
-          className="text-sm text-neutral-500 underline-offset-4 hover:text-neutral-900 hover:underline dark:text-neutral-400 dark:hover:text-neutral-50"
+          className="text-small font-semibold text-subtle underline-offset-4 hover:text-brand hover:underline"
         >
           {t.calendar.showEarlier}
         </button>
@@ -193,52 +196,62 @@ export default function CalendarEntryList({
           sameMonth ? "" : ` ${formatDate(start, language, { month: "long" })}`
         } – ${end.getDate()}. ${formatDate(end, language, { month: "long" })}`;
         const isNow = group.weekKey === currentWeekKey;
-        const summary = weekSummary(group.spanning, t.calendar.weeklyFood);
+        const facts = weekFacts(group.spanning, t.calendar.weeklyFood);
         const isOpen = !collapsed.has(group.weekKey);
+        const headingId = `week-${group.weekKey}`;
 
         return (
           <section
             key={group.weekKey}
-            className={`overflow-hidden rounded-2xl border bg-white dark:bg-neutral-950 ${
-              isNow ? "border-accent/40 ring-1 ring-accent/20" : "border-neutral-200 dark:border-neutral-800"
+            aria-labelledby={headingId}
+            className={`overflow-hidden rounded-card border ${
+              isNow ? "border-brand/40 bg-green-50/40" : "border-hairline bg-surface"
             }`}
           >
-            <div className="flex items-start gap-4 px-4 py-4 sm:px-5">
+            <div className="flex items-start gap-4 px-4 py-4 sm:px-6 sm:py-5">
               <div
-                className={`w-14 shrink-0 rounded-xl px-2 py-2 text-center ${
-                  isNow ? "bg-accent/10" : "bg-neutral-100 dark:bg-neutral-900"
+                className={`w-14 shrink-0 rounded-token px-2 py-2 text-center ${
+                  isNow ? "bg-brand text-primary-foreground" : "bg-green-50 text-brand"
                 }`}
               >
-                <div className="text-[10px] font-medium uppercase tracking-[0.12em] text-neutral-500 dark:text-neutral-400">
+                <div className="text-micro font-semibold uppercase tracking-[0.1em] opacity-80">
                   {t.calendar.week}
                 </div>
-                <div
-                  className={`text-2xl font-bold tabular-nums leading-tight ${
-                    isNow ? "text-accent dark:text-emerald-300" : "text-neutral-900 dark:text-neutral-50"
-                  }`}
-                >
-                  {group.week}
-                </div>
+                <div className="text-h3 font-bold leading-none tabular-nums">{group.week}</div>
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="font-heading text-lg font-semibold text-neutral-900 dark:text-neutral-50">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                  <h3 id={headingId} className="text-h4 font-bold text-ink">
                     {range}
                   </h3>
-                  {isNow && (
-                    <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-medium text-accent-foreground">
-                      {t.calendar.thisWeek}
-                    </span>
-                  )}
+                  {isNow && <StatusPill tone="now">{t.calendar.thisWeek}</StatusPill>}
                 </div>
-                {summary && (
-                  <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">{summary}</p>
+
+                {/* What holds all week, as labelled facts rather than a run-on
+                    sentence: "Ukens varmmat: fiskegrateng" is a different kind
+                    of statement from "Brannvernuke". */}
+                {facts.length > 0 && (
+                  <dl className="mt-2 space-y-1">
+                    {facts.map((fact) => (
+                      <div key={fact.id} className="flex flex-wrap items-baseline gap-x-2 text-small">
+                        <dt className="inline-flex items-baseline gap-1.5 font-semibold text-ink">
+                          <span
+                            className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
+                              KIND_STYLE[fact.kind].dot
+                            }`}
+                            aria-hidden="true"
+                          />
+                          {fact.label}
+                        </dt>
+                        {fact.value && <dd className="text-copy">{fact.value}</dd>}
+                      </div>
+                    ))}
+                  </dl>
                 )}
+
                 {group.dated.length === 0 && (
-                  <p className="mt-2 text-sm text-neutral-400 dark:text-neutral-500">
-                    {t.calendar.noEventsThisWeek}
-                  </p>
+                  <p className="mt-2 text-small text-subtle">{t.calendar.noEventsThisWeek}</p>
                 )}
               </div>
 
@@ -247,16 +260,25 @@ export default function CalendarEntryList({
                   type="button"
                   onClick={() => toggle(group.weekKey)}
                   aria-expanded={isOpen}
-                  aria-label={range}
-                  className="shrink-0 rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent dark:hover:bg-neutral-900 dark:hover:text-neutral-200"
+                  aria-controls={`${headingId}-days`}
+                  className="grid h-11 w-11 shrink-0 place-items-center rounded-pill text-subtle transition-colors duration-micro ease-guide hover:bg-green-50 hover:text-brand"
                 >
-                  {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  <span className="sr-only">{range}</span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-micro ease-guide ${
+                      isOpen ? "rotate-180" : ""
+                    }`}
+                    aria-hidden="true"
+                  />
                 </button>
               )}
             </div>
 
             {isOpen && group.dated.length > 0 && (
-              <ul className="divide-y divide-neutral-100 border-t border-neutral-100 dark:divide-neutral-900 dark:border-neutral-900">
+              <ul
+                id={`${headingId}-days`}
+                className="divide-y divide-hairline border-t border-hairline bg-surface"
+              >
                 {group.dated.map((entry) => (
                   <DayRow
                     key={entry.id}
@@ -272,7 +294,7 @@ export default function CalendarEntryList({
         );
       })}
 
-      <p className="pt-2 text-center text-xs text-neutral-400 dark:text-neutral-500">{t.calendar.endOfList}</p>
+      <p className="pt-2 text-center text-micro text-subtle">{t.calendar.endOfList}</p>
     </div>
   );
 }

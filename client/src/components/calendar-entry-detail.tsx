@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { StatusPill } from "@/components/site/controls";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
@@ -23,9 +24,9 @@ interface CalendarEntryDetailProps {
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-t border-neutral-100 px-3 py-2 text-sm first:border-t-0 dark:border-neutral-900">
-      <dt className="shrink-0 text-neutral-500 dark:text-neutral-400">{label}</dt>
-      <dd className="min-w-0 text-right text-neutral-900 dark:text-neutral-50">{children}</dd>
+    <div className="flex items-baseline justify-between gap-4 border-t border-hairline px-4 py-3 text-small first:border-t-0">
+      <dt className="shrink-0 text-subtle">{label}</dt>
+      <dd className="min-w-0 text-right font-semibold text-ink">{children}</dd>
     </div>
   );
 }
@@ -47,7 +48,7 @@ export default function CalendarEntryDetail({
 
   if (!entry) {
     return (
-      <p className="px-4 py-10 text-center text-sm text-neutral-500 dark:text-neutral-400">
+      <p className="px-4 py-10 text-center text-small text-subtle">
         {t.calendar.detailEmpty}
       </p>
     );
@@ -83,37 +84,36 @@ export default function CalendarEntryDetail({
     <div className="space-y-4">
       {/* The one surface that belongs to a single entry, so it may carry that
           entry's colour as a wash rather than only as a dot. */}
-      <div className={`px-5 pb-5 pt-5 ${style.tint}`}>
+      <div className={`border-l-4 px-5 pb-6 pt-6 ${style.tint} ${style.bar}`}>
         <span
-          className={`inline-flex items-center gap-2 rounded-full bg-white/70 px-2.5 py-1 text-xs font-medium ${style.text} dark:bg-neutral-950/50`}
+          className={`inline-flex items-center gap-2 rounded-pill bg-surface/80 px-2.5 py-1 text-micro font-semibold ${style.text}`}
         >
-          <span className={`h-2 w-2 rounded-full ${style.dot}`} aria-hidden="true" />
+          <span className={`h-2 w-2 rounded-pill ${style.dot}`} aria-hidden="true" />
           {t.calendar.kinds[entry.kind]}
         </span>
         <h2
-          className={`mt-2 font-heading text-2xl font-semibold leading-tight tracking-tight text-neutral-900 dark:text-neutral-50 ${
+          className={`mt-3 text-h2 font-bold leading-tight tracking-tight text-ink ${
             entry.cancelled ? "line-through" : ""
           }`}
         >
           {entry.title}
         </h2>
-        <p className="mt-1.5 text-sm text-neutral-600 dark:text-neutral-300">{when}</p>
+        <p className="mt-2 text-small text-copy">{when}</p>
         {entry.cancelled && (
-          <p className="mt-2 text-sm font-semibold text-red-600 dark:text-red-300">{t.events.cancelled2}</p>
+          <p className="mt-3">
+            <StatusPill tone="warn">{t.events.cancelled2}</StatusPill>
+          </p>
         )}
       </div>
 
-      <div className="space-y-4 px-5 pb-5">
+      <div className="space-y-5 px-5 pb-6">
       {entry.description ? (
-        <SafeHtml
-          html={entry.description}
-          className="text-sm text-neutral-700 dark:text-neutral-200"
-        />
+        <SafeHtml html={entry.description} className="measure text-small text-copy" />
       ) : (
-        <p className="text-sm italic text-neutral-500 dark:text-neutral-400">{t.calendar.noDescription}</p>
+        <p className="text-small italic text-subtle">{t.calendar.noDescription}</p>
       )}
 
-      <dl className="rounded-xl border border-neutral-200 dark:border-neutral-800">
+      <dl className="rounded-card border border-hairline">
         {entry.location && <Fact label={t.calendar.detailPlace}>{entry.location}</Fact>}
         <Fact label={t.calendar.detailWeek}>
           <span className="tabular-nums">
@@ -137,20 +137,18 @@ export default function CalendarEntryDetail({
       </dl>
 
       {signup?.mode === "registration" && signup.maxAttendees !== null && (
-        <div className={`rounded-xl p-4 ${style.tint}`}>
+        <div className={`rounded-card p-4 ${style.tint}`}>
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-xs uppercase tracking-[0.1em] text-neutral-500 dark:text-neutral-400">
+            <span className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
               {t.events.registered}
             </span>
             {attendeeCount}
           </div>
           <p className="mt-1 flex items-baseline gap-1.5">
-            <span className="font-heading text-3xl font-semibold tabular-nums tracking-tight text-neutral-900 dark:text-neutral-50">
+            <span className="text-h2 font-bold tabular-nums tracking-tight text-ink">
               {signup.currentAttendees}
             </span>
-            <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
-              / {signup.maxAttendees}
-            </span>
+            <span className="text-small tabular-nums text-subtle">/ {signup.maxAttendees}</span>
           </p>
           <div className="mt-3">
             <CalendarSeatMeter

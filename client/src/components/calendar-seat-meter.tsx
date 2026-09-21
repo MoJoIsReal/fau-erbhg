@@ -33,7 +33,7 @@ export default function CalendarSeatMeter({ taken, total, fill }: CalendarSeatMe
           className={`h-6 flex-1 rounded-md ${
             index < filled
               ? (fill ?? "bg-primary/80")
-              : "border border-dashed border-neutral-300 dark:border-neutral-700"
+              : "border border-dashed border-hairline"
           }`}
         />
       ))}

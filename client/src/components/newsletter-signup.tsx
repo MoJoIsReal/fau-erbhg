@@ -81,11 +81,11 @@ export default function NewsletterSignup() {
         />
       </div>
 
-      <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.newsletter.consent}</p>
+      <p className="text-xs text-subtle">{t.newsletter.consent}</p>
 
       <Button
         type="submit"
-        className="w-full bg-primary hover:bg-primary/90"
+        className="w-full"
         disabled={mutation.isPending || !email}
       >
         <Mail className="h-4 w-4 mr-2" />

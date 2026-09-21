@@ -14,6 +14,18 @@ export interface Translations {
     more: string;
     yearlyCalendar: string;
   };
+  // Shared chrome: skip link, menus, footer groups. Anything that appears
+  // on more than one page and belongs to no single one.
+  ui: {
+    skipToContent: string;
+    menu: string;
+    quickLinks: string;
+    externalLink: string;
+    account: string;
+    appearance: string;
+    editorTools: string;
+    aboutFau: string;
+  };
   // Header
   header: {
     overview: string;
@@ -85,6 +97,37 @@ export interface Translations {
     safety: string;
     cooperation: string;
     engagement: string;
+    heroImageAlt: string;
+    heroCalendarCta: string;
+    heroContactCta: string;
+    valueChildrenTitle: string;
+    valueChildrenBody: string;
+    valueTogetherTitle: string;
+    valueTogetherBody: string;
+    valueEngagementTitle: string;
+    valueEngagementBody: string;
+    nextUpLabel: string;
+    comingDates: string;
+    openCalendar: string;
+    usefulLinks: string;
+    usefulLinksLead: string;
+    linkVigilo: string;
+    linkVigiloDesc: string;
+    linkKommune: string;
+    linkKommuneDesc: string;
+    linkMeals: string;
+    linkMealsDesc: string;
+    linkFub: string;
+    linkFubDesc: string;
+    linkFacebook: string;
+    linkFacebookDesc: string;
+    linkDocuments: string;
+    linkDocumentsDesc: string;
+    practicalInfo: string;
+    closingTitle: string;
+    closingBody: string;
+    closingHand: string;
+    closingCta: string;
   };
   // Combined calendar page (events + yearly calendar as tabs)
   calendar: {
@@ -112,6 +155,7 @@ export interface Translations {
     yearIntro: string;
     tagline: string;
     noEventsThisWeek: string;
+    noEventsThisDay: string;
     weeklyFood: string;
     reminderTitle: string;
     reminderBody: string;
@@ -135,6 +179,7 @@ export interface Translations {
     filterSignup: string;
     filterKindergarten: string;
     showAllTypes: string;
+    filtersLabel: string;
     typesOn: string;
     showEarlier: string;
     nothingMatches: string;
@@ -294,6 +339,10 @@ export interface Translations {
       concern: string;
       feedback: string;
     };
+    heroLead: string;
+    formTitle: string;
+    formLead: string;
+    otherWays: string;
   };
   // Newsletter ("nyhetsbrev")
   newsletter: {
@@ -384,6 +433,10 @@ export interface Translations {
     seeAll: string;
     recentActivity: string;
     noRecentActivity: string;
+    heroLead: string;
+    allCategories: string;
+    documentCount: string;
+    openDocument: string;
   };
   // Modals
   modals: {
@@ -525,6 +578,11 @@ export interface Translations {
     backNews: string;
     allTips: string;
     allNews: string;
+    heroLead: string;
+    categoryNews: string;
+    categoryTips: string;
+    loadMore: string;
+    backToList: string;
   };
   adminPage: {
     messages: string;
@@ -916,6 +974,16 @@ export const translations: Record<Language, Translations> = {
       more: "Mer",
       yearlyCalendar: "Årskalender"
     },
+    ui: {
+      skipToContent: "Hopp til innholdet",
+      menu: "Meny",
+      quickLinks: "Snarveier",
+      externalLink: "åpnes i ny fane",
+      account: "Konto",
+      appearance: "Språk og visning",
+      editorTools: "Redaktørverktøy",
+      aboutFau: "Om FAU"
+    },
     header: {
       overview: "Oversikt",
       content: "Innhold",
@@ -941,7 +1009,7 @@ export const translations: Record<Language, Translations> = {
       tipsTricks: "Tips & triks",
       news: "Nyheter",
       by: "av",
-      readMore: "Les mer →",
+      readMore: "Les mer",
       children: "barn",
       director: "Styrer:",
       loadingInformation: "Laster informasjon...",
@@ -964,7 +1032,7 @@ export const translations: Record<Language, Translations> = {
       shareIdeas: "Del dine ideer",
       shareIdeasDesc: "Kom med forslag til forbedringer og nye initiativ",
       nextMeeting: "Neste møte",
-      moreInfo: "Mer informasjon →",
+      moreInfo: "Mer informasjon",
       aboutKindergarten: "Om Barnehagen",
       address: "Kontakt:",
       municipality: "Adresse:",
@@ -980,11 +1048,42 @@ export const translations: Record<Language, Translations> = {
       vara: "Vara:",
       fauDescription: "Foreldrenes arbeidsutvalg (FAU) er foreldrenes egen frivillige forening. Vi jobber for å ivareta foreldrenes interesser og bidra til et godt miljø for barna i barnehagen.",
       upcomingEvents: "Hva skjer fremover",
-      seeAllEvents: "Se hele kalenderen →",
+      seeAllEvents: "Se hele kalenderen",
       noEvents: "Ingen planlagte arrangementer",
       safety: "Trygghet",
       cooperation: "Samarbeid",
-      engagement: "Engasjement"
+      engagement: "Engasjement",
+      heroImageAlt: "Illustrasjon: to barn på tur mot et treskilt med ordene lek, mestring og glede",
+      heroCalendarCta: "Se hva som skjer",
+      heroContactCta: "Ta kontakt",
+      valueChildrenTitle: "For barna",
+      valueChildrenBody: "Alt FAU gjør skal komme barna til gode – i leken, i hverdagen og på tur.",
+      valueTogetherTitle: "Sammen",
+      valueTogetherBody: "Foreldre, ansatte og barnehage drar i samme retning. Vi er bindeleddet.",
+      valueEngagementTitle: "Engasjement",
+      valueEngagementBody: "Alle kan bidra med det de har tid til – en dugnadstime teller like mye som et møte.",
+      nextUpLabel: "Neste ut",
+      comingDates: "Nærmeste datoer",
+      openCalendar: "Åpne kalenderen",
+      usefulLinks: "Nyttige lenker",
+      usefulLinksLead: "Stedene foreldre oftest trenger – samlet på ett sted.",
+      linkVigilo: "Vigilo",
+      linkVigiloDesc: "Meldinger, fravær og samtykke mellom hjem og barnehage.",
+      linkKommune: "Erdal barnehage",
+      linkKommuneDesc: "Askøy kommunes egen side om barnehagen.",
+      linkMeals: "Mat og måltider",
+      linkMealsDesc: "Kostholdsrådene barnehagen følger, fra Helsedirektoratet.",
+      linkFub: "FUB",
+      linkFubDesc: "Råd og veiledning for foreldre i barnehage.",
+      linkFacebook: "Facebook-gruppen",
+      linkFacebookDesc: "Den uformelle praten mellom foreldre i barnehagen.",
+      linkDocuments: "Dokumenter",
+      linkDocumentsDesc: "Referater, vedtekter og budsjett til nedlasting.",
+      practicalInfo: "Praktisk informasjon",
+      closingTitle: "Har du en idé, eller lyst til å bidra?",
+      closingBody: "Det trengs ikke mye. En melding, en time på dugnad eller et innspill på neste foreldremøte er nok til å utgjøre en forskjell.",
+      closingHand: "Vi hører gjerne fra deg",
+      closingCta: "Send oss en melding",
     },
     calendar: {
       title: "Kalender",
@@ -1013,6 +1112,7 @@ export const translations: Record<Language, Translations> = {
       yearIntro: "Få en rask oversikt over hele året. Klikk på en måned for å se detaljer.",
       tagline: "Små mennesker, store dager",
       noEventsThisWeek: "Ingen planlagte arrangementer denne uken.",
+      noEventsThisDay: "Ingenting er lagt inn denne dagen.",
       weeklyFood: "Ukens varmmat:",
       reminderTitle: "Vil du ha påminnelser om viktige datoer?",
       reminderBody: "Legg til kalenderen i mobil eller nettbrett, så går du ikke glipp av noe.",
@@ -1040,6 +1140,7 @@ export const translations: Record<Language, Translations> = {
       filterSignup: "Påmelding",
       filterKindergarten: "Barnehagen",
       showAllTypes: "Vis alt",
+      filtersLabel: "Filtre",
       typesOn: "typer på",
       showEarlier: "Vis tidligere uker",
       nothingMatches: "Ingen oppføringer igjen med disse filtrene.",
@@ -1199,7 +1300,11 @@ export const translations: Record<Language, Translations> = {
         general: "Generell Henvendelse",
         concern: "Bekymring",
         feedback: "Tilbakemelding"
-      }
+      },
+      heroLead: "Har du et spørsmål, en idé eller noe du vil ta opp? Vi svarer så fort vi kan.",
+      formTitle: "Send oss en melding",
+      formLead: "Feltene med stjerne må fylles ut. Velger du «Anonym henvendelse» sender vi meldingen uten navn og kontaktinfo.",
+      otherWays: "Andre måter å nå oss på",
     },
     newsletter: {
       navTitle: "Nyhetsbrev",
@@ -1226,7 +1331,7 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "Du vil ikke lenger motta nyhetsbrev fra FAU Erdal Barnehage.",
       unsubErrorTitle: "Noe gikk galt",
       unsubErrorDesc: "Kunne ikke melde deg av. Prøv igjen senere.",
-      footerLink: "📧 Meld deg på nyhetsbrev",
+      footerLink: "Meld deg på nyhetsbrev",
       admin: {
         title: "Nyhetsbrev-abonnenter",
         description: "Foreldre som har bekreftet påmelding til nyhetsbrevet. Påminnelser sendes automatisk dagen før arrangementer som er huket av, og nyhetssaker som er huket av sendes ved neste utsending.",
@@ -1287,7 +1392,11 @@ export const translations: Record<Language, Translations> = {
       fileSize: "Ukjent størrelse",
       seeAll: "Se alle",
       recentActivity: "Nylig aktivitet",
-      noRecentActivity: "Ingen nylig aktivitet"
+      noRecentActivity: "Ingen nylig aktivitet",
+      heroLead: "Referater, vedtekter og budsjett – til å lese eller laste ned.",
+      allCategories: "Alle",
+      documentCount: "dokumenter",
+      openDocument: "Åpne",
     },
     modals: {
       login: {
@@ -1383,11 +1492,11 @@ export const translations: Record<Language, Translations> = {
       contactInfo: "Informasjon",
       address: "",
       phone: "",
-      email: "✉️ fauerdalbarnehage@gmail.com",
-      facebook: "👥 Facebook-gruppe for foreldre",
-      website: "🌐 Erdal Barnehage nettside",
-      barnehageFakta: "📊 Barnehage Fakta - informasjon",
-      fubLink: "FUB - Råd og veiledning for foreldre",
+      email: "fauerdalbarnehage@gmail.com",
+      facebook: "Facebook-gruppe for foreldre",
+      website: "Erdal Barnehage sin nettside",
+      barnehageFakta: "Barnehagefakta",
+      fubLink: "FUB – råd og veiledning for foreldre",
       hours: "",
       nextMeeting: "Neste Arrangement",
       parentMeeting: "FAU-møte",
@@ -1424,6 +1533,11 @@ export const translations: Record<Language, Translations> = {
       backNews: "Til nyhetene",
       allTips: "Alle tips",
       allNews: "Alle nyheter",
+      heroLead: "Nyheter, referater og praktiske tips fra FAU og barnehagen.",
+      categoryNews: "Nyheter",
+      categoryTips: "Tips & triks",
+      loadMore: "Last flere",
+      backToList: "Tilbake til Aktuelt",
     },
     adminPage: {
       messages: "Meldinger",
@@ -1815,6 +1929,16 @@ export const translations: Record<Language, Translations> = {
       more: "More",
       yearlyCalendar: "Yearly calendar"
     },
+    ui: {
+      skipToContent: "Skip to content",
+      menu: "Menu",
+      quickLinks: "Quick links",
+      externalLink: "opens in a new tab",
+      account: "Account",
+      appearance: "Language and display",
+      editorTools: "Editor tools",
+      aboutFau: "About FAU"
+    },
     header: {
       overview: "Overview",
       content: "Content",
@@ -1840,7 +1964,7 @@ export const translations: Record<Language, Translations> = {
       tipsTricks: "Tips & Tricks",
       news: "News",
       by: "by",
-      readMore: "Read more →",
+      readMore: "Read more",
       children: "children",
       director: "Director:",
       loadingInformation: "Loading information...",
@@ -1863,7 +1987,7 @@ export const translations: Record<Language, Translations> = {
       shareIdeas: "Share your ideas",
       shareIdeasDesc: "Come up with suggestions for improvements and new initiatives",
       nextMeeting: "Next meeting",
-      moreInfo: "More information →",
+      moreInfo: "More information",
       aboutKindergarten: "About the Kindergarten",
       address: "Address:",
       municipality: "Address:",
@@ -1878,12 +2002,43 @@ export const translations: Record<Language, Translations> = {
       member: "Member:",
       vara: "Deputy member:",
       fauDescription: "The Parents' Council Working Committee (FAU) is the parents' own voluntary association. We work to safeguard parents' interests and contribute to a good environment for the children in the kindergarten.",
-      seeAllEvents: "See the full calendar →",
+      seeAllEvents: "See the full calendar",
       upcomingEvents: "What's coming up",
       noEvents: "No Scheduled Events",
       safety: "Safety",
       cooperation: "Cooperation",
-      engagement: "Engagement"
+      engagement: "Engagement",
+      heroImageAlt: "Illustration: two children walking towards a wooden sign reading play, mastery and joy",
+      heroCalendarCta: "See what's on",
+      heroContactCta: "Get in touch",
+      valueChildrenTitle: "For the children",
+      valueChildrenBody: "Everything FAU does should reach the children – in play, in everyday life and on outings.",
+      valueTogetherTitle: "Together",
+      valueTogetherBody: "Parents, staff and kindergarten pulling the same way. We are the link between them.",
+      valueEngagementTitle: "Engagement",
+      valueEngagementBody: "Everyone can contribute what time they have – an hour at a work day counts as much as a meeting.",
+      nextUpLabel: "Next up",
+      comingDates: "Coming dates",
+      openCalendar: "Open the calendar",
+      usefulLinks: "Useful links",
+      usefulLinksLead: "The places parents need most often, gathered in one spot.",
+      linkVigilo: "Vigilo",
+      linkVigiloDesc: "Messages, absence and consent between home and kindergarten.",
+      linkKommune: "Erdal kindergarten",
+      linkKommuneDesc: "Askøy municipality's own page about the kindergarten.",
+      linkMeals: "Food and meals",
+      linkMealsDesc: "The dietary advice the kindergarten follows, from the Directorate of Health.",
+      linkFub: "FUB",
+      linkFubDesc: "Advice and guidance for kindergarten parents.",
+      linkFacebook: "The Facebook group",
+      linkFacebookDesc: "The informal conversation between parents at the kindergarten.",
+      linkDocuments: "Documents",
+      linkDocumentsDesc: "Minutes, statutes and budgets to download.",
+      practicalInfo: "Practical information",
+      closingTitle: "Got an idea, or want to help out?",
+      closingBody: "It doesn't take much. A message, an hour at a work day or a word at the next parents' meeting is enough to make a difference.",
+      closingHand: "We'd love to hear from you",
+      closingCta: "Send us a message",
     },
     calendar: {
       title: "Calendar",
@@ -1912,6 +2067,7 @@ export const translations: Record<Language, Translations> = {
       yearIntro: "A quick look at the whole year. Pick a month to see it in detail.",
       tagline: "Small people, big days",
       noEventsThisWeek: "Nothing planned this week.",
+      noEventsThisDay: "Nothing is scheduled on this day.",
       weeklyFood: "This week's hot meal:",
       reminderTitle: "Want reminders for the dates that matter?",
       reminderBody: "Add the calendar to your phone or tablet so nothing slips past you.",
@@ -1939,6 +2095,7 @@ export const translations: Record<Language, Translations> = {
       filterSignup: "Signup",
       filterKindergarten: "Kindergarten",
       showAllTypes: "Show all",
+      filtersLabel: "Filters",
       typesOn: "types on",
       showEarlier: "Show earlier weeks",
       nothingMatches: "Nothing left with these filters.",
@@ -2098,7 +2255,11 @@ export const translations: Record<Language, Translations> = {
         general: "General Inquiry",
         concern: "Concern",
         feedback: "Feedback"
-      }
+      },
+      heroLead: "Got a question, an idea or something to raise? We answer as soon as we can.",
+      formTitle: "Send us a message",
+      formLead: "Fields marked with a star are required. Choosing an anonymous enquiry sends the message without your name or contact details.",
+      otherWays: "Other ways to reach us",
     },
     newsletter: {
       navTitle: "Newsletter",
@@ -2125,7 +2286,7 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "You will no longer receive newsletters from FAU Erdal Kindergarten.",
       unsubErrorTitle: "Something went wrong",
       unsubErrorDesc: "Could not unsubscribe you. Please try again later.",
-      footerLink: "📧 Subscribe to newsletter",
+      footerLink: "Subscribe to newsletter",
       admin: {
         title: "Newsletter subscribers",
         description: "Parents who have confirmed their newsletter subscription. Reminders are sent automatically the day before flagged events, and flagged news posts go out on the next send.",
@@ -2186,7 +2347,11 @@ export const translations: Record<Language, Translations> = {
       fileSize: "Unknown size",
       seeAll: "See all",
       recentActivity: "Recent Activity",
-      noRecentActivity: "No recent activity"
+      noRecentActivity: "No recent activity",
+      heroLead: "Minutes, statutes and budgets – to read or download.",
+      allCategories: "All",
+      documentCount: "documents",
+      openDocument: "Open",
     },
     modals: {
       login: {
@@ -2282,11 +2447,11 @@ export const translations: Record<Language, Translations> = {
       contactInfo: "Information",
       address: "",
       phone: "",
-      email: "✉️ fauerdalbarnehage@gmail.com", 
-      facebook: "👥 Facebook group for parents",
-      website: "🌐 Erdal Kindergarten website",
-      barnehageFakta: "📊 Barnehage Fakta - information",
-      fubLink: "FUB - Advice and guidance for parents",
+      email: "fauerdalbarnehage@gmail.com", 
+      facebook: "Facebook group for parents",
+      website: "Erdal Kindergarten website",
+      barnehageFakta: "Barnehagefakta",
+      fubLink: "FUB – advice and guidance for parents",
       hours: "",
       nextMeeting: "Next Event",
       parentMeeting: "FAU meeting",
@@ -2323,6 +2488,11 @@ export const translations: Record<Language, Translations> = {
       backNews: "Back to news",
       allTips: "All tips",
       allNews: "All news",
+      heroLead: "News, minutes and practical tips from FAU and the kindergarten.",
+      categoryNews: "News",
+      categoryTips: "Tips & tricks",
+      loadMore: "Load more",
+      backToList: "Back to Updates",
     },
     adminPage: {
       messages: "Messages",

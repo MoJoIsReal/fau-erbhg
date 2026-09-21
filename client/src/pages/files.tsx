@@ -1,9 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,7 +12,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { FileText, Gavel, Calendar, Upload, Download, Plus, Edit, FileSpreadsheet, FileIcon, Trash2 } from "lucide-react";
+import {
+  Download,
+  FileIcon,
+  FileSpreadsheet,
+  FileText,
+  Trash2,
+  Upload,
+  type LucideIcon,
+} from "lucide-react";
 import FileUploadModal from "@/components/file-upload-modal";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -23,15 +28,49 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate, formatFileSize } from "@/lib/i18n";
+import PageHero from "@/components/site/page-hero";
+import { Surface, EmptyState } from "@/components/site/section";
+import { FilterChip } from "@/components/site/controls";
+import { EditorSurface } from "@/components/site/cards";
 import type { Document } from "@shared/schema";
 
+// Images uploaded from inside the rich-text editor are stored as documents
+// under the "editor-image" category with a raw Cloudinary filename. They are
+// not archive documents, so they never appear here; these three categories
+// are the whole public list.
+const CATEGORY_IDS = ["protokoll", "vedtekter", "budsjett"] as const;
+type CategoryId = (typeof CATEGORY_IDS)[number];
+
+/** A short, readable file type from a MIME type, plus its icon. */
+function fileKind(mimeType: string | null | undefined): { icon: LucideIcon; label: string } {
+  const type = mimeType ?? "";
+  if (type.includes("pdf")) return { icon: FileText, label: "PDF" };
+  if (type.includes("sheet") || type.includes("excel"))
+    return { icon: FileSpreadsheet, label: "XLSX" };
+  if (type.includes("word")) return { icon: FileIcon, label: "DOCX" };
+  if (type.startsWith("image/")) return { icon: FileIcon, label: type.slice(6).toUpperCase() };
+  return { icon: FileIcon, label: "FIL" };
+}
+
+/**
+ * Dokumenter.
+ *
+ * The old page split one short archive across three equal cards, each showing
+ * at most three files behind a "see all" that opened a modal — so finding last
+ * month's referat meant guessing a category and then opening a dialog. The
+ * guide asks for a compact list with the type and size as metadata and the
+ * download as the obvious action (§9, §13), so that is what this is: one list,
+ * filterable by category, with every file one click away.
+ */
 export default function Files() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [category, setCategory] = useState<CategoryId | "all">("all");
   const { user } = useAuth();
   const canManageDocuments = user?.role === "admin" || user?.role === "member";
   const { language, t } = useLanguage();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   usePageMeta({
     title: t.documents.title,
     description:
@@ -40,39 +79,23 @@ export default function Files() {
         : "Download minutes, statutes and other documents from FAU Erdal Kindergarten.",
     path: "/files",
   });
-  const queryClient = useQueryClient();
 
-  const categories = [
-    { 
-      id: "protokoll", 
-      name: t.documents.categories.protocol, 
-      icon: FileText, 
-      color: "bg-primary/20 text-primary",
-      description: t.documents.categories.protocolDesc
-    },
-    { 
-      id: "vedtekter", 
-      name: t.documents.categories.regulations, 
-      icon: Gavel, 
-      color: "bg-secondary/20 text-secondary",
-      description: t.documents.categories.regulationsDesc
-    },
-    { 
-      id: "budsjett", 
-      name: t.documents.categories.budget, 
-      icon: Calendar, 
-      color: "bg-accent/20 text-accent",
-      description: t.documents.categories.budgetDesc
-    }
+  const categories: { id: CategoryId; name: string }[] = [
+    { id: "protokoll", name: t.documents.categories.protocol },
+    { id: "vedtekter", name: t.documents.categories.regulations },
+    { id: "budsjett", name: t.documents.categories.budget },
   ];
 
-  const { data: allDocuments = [], isLoading, error } = useQuery<Document[]>({
-    queryKey: ["/api/documents"]
+  const {
+    data: allDocuments = [],
+    isLoading,
+    error,
+  } = useQuery<Document[]>({
+    queryKey: ["/api/documents"],
   });
 
   const deleteDocumentMutation = useMutation({
-    mutationFn: (documentId: number) =>
-      apiRequest("DELETE", `/api/documents?id=${documentId}`),
+    mutationFn: (documentId: number) => apiRequest("DELETE", `/api/documents?id=${documentId}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
       toast({
@@ -80,72 +103,52 @@ export default function Files() {
         description: t.documents.documentWasDeletedSuccessfully,
       });
     },
-    onError: (error: any) => {
+    onError: () => {
       toast({
         title: t.documents.error,
-        description: language === 'no' ? 
-          "Kunne ikke slette dokumentet. Prøv igjen." : 
-          "Could not delete document. Please try again.",
+        description:
+          language === "no"
+            ? "Kunne ikke slette dokumentet. Prøv igjen."
+            : "Could not delete document. Please try again.",
         variant: "destructive",
       });
     },
   });
 
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType?.includes('pdf')) return FileText;
-    if (mimeType?.includes('word')) return FileIcon;
-    if (mimeType?.includes('sheet') || mimeType?.includes('excel')) return FileSpreadsheet;
-    return FileIcon;
-  };
+  // Newest first, and only the three archive categories. Sorted explicitly
+  // rather than trusting the order the API happens to return.
+  const documents = useMemo(
+    () =>
+      allDocuments
+        .filter((doc) => (CATEGORY_IDS as readonly string[]).includes(doc.category))
+        .slice()
+        .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()),
+    [allDocuments],
+  );
 
+  const shown =
+    category === "all" ? documents : documents.filter((doc) => doc.category === category);
+  const countFor = (id: CategoryId) => documents.filter((doc) => doc.category === id).length;
+  const categoryName = (id: string) => categories.find((item) => item.id === id)?.name ?? id;
 
-  const getDocumentsByCategory = (categoryId: string) => {
-    return allDocuments.filter(doc => doc.category === categoryId);
-  };
-
-  // Images uploaded from inside the rich-text editor are stored as documents
-  // under the "editor-image" category with a raw Cloudinary filename. They are
-  // not archive documents, so they must not surface in the activity feed.
-  // Sort explicitly rather than trusting the order the API happens to return.
-  const CATEGORY_IDS = categories.map((category) => category.id);
-  const recentActivity = allDocuments
-    .filter((doc) => CATEGORY_IDS.includes(doc.category))
-    .slice()
-    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())
-    .slice(0, 3)
-    .map(doc => ({
-      type: "upload",
-      user: doc.uploadedBy,
-      document: doc.title,
-      date: doc.uploadedAt
-    }));
-
-  const renderDeleteDocumentButton = (
-    doc: Document,
-    options: { variant?: "ghost" | "outline"; className?: string; showLabel?: boolean } = {}
-  ) => (
+  const deleteButton = (doc: Document) => (
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button
-          variant={options.variant || "ghost"}
-          size="sm"
-          className={options.className}
+          variant="ghost"
+          size="icon"
+          className="text-subtle hover:bg-destructive/10 hover:text-destructive"
           disabled={deleteDocumentMutation.isPending}
-          aria-label={language === 'no' ? `Slett ${doc.title}` : `Delete ${doc.title}`}
+          aria-label={language === "no" ? `Slett ${doc.title}` : `Delete ${doc.title}`}
         >
-          <Trash2 className={`h-4 w-4 ${options.showLabel ? "sm:mr-2" : ""}`} />
-          {options.showLabel && (
-            <span className="hidden sm:inline">{t.documents.delete}</span>
-          )}
+          <Trash2 className="h-4 w-4" />
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {t.documents.deleteDocument}
-          </AlertDialogTitle>
+          <AlertDialogTitle>{t.documents.deleteDocument}</AlertDialogTitle>
           <AlertDialogDescription>
-            {language === 'no'
+            {language === "no"
               ? `Dette sletter "${doc.title}" fra dokumentlisten.`
               : `This deletes "${doc.title}" from the document list.`}
           </AlertDialogDescription>
@@ -163,221 +166,142 @@ export default function Files() {
     </AlertDialog>
   );
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="h-8 bg-neutral-200 dark:bg-neutral-800 rounded animate-pulse"></div>
-        <div className="grid md:grid-cols-3 gap-6">
-          {[1, 2, 3].map((i) => (
-            <Card key={i} className="animate-pulse">
-              <CardContent className="p-6">
-                <div className="h-6 bg-neutral-200 dark:bg-neutral-800 rounded mb-4"></div>
-                <div className="space-y-3">
-                  <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded"></div>
-                  <div className="h-4 bg-neutral-200 dark:bg-neutral-800 rounded"></div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-6">
-        <div className="bg-red-50 border border-red-200 dark:bg-red-950/30 dark:border-red-900/70 rounded-lg p-4">
-          <h3 className="text-red-800 dark:text-red-200 font-medium">Failed to load documents</h3>
-          <p className="text-red-600 dark:text-red-300 text-sm mt-1">{error.message}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-        <div>
-          <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.documents.title}</h1>
-          <p className="text-neutral-600 dark:text-neutral-300">{t.documents.subtitle}</p>
-        </div>
-        {canManageDocuments && (
-          <div className="mt-4 md:mt-0">
-            <Button 
-              onClick={() => setIsUploadModalOpen(true)}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              {t.documents.upload}
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Document Categories */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {categories.map((category) => {
-          const Icon = category.icon;
-          const documents = getDocumentsByCategory(category.id);
-          
-          return (
-            <Card key={category.id}>
-              <CardContent className="p-6">
-                <div className="flex items-center mb-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 ${category.color}`}>
-                    <Icon className="h-6 w-6" />
-                  </div>
-                  <h3 className="font-heading font-semibold text-lg text-neutral-900 dark:text-neutral-50">{category.name}</h3>
-                </div>
-                
-                <div className="space-y-3">
-                  {documents.length === 0 ? (
-                    <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">{t.documents.noDocuments}</p>
-                  ) : (
-                    documents.slice(0, 3).map((doc) => {
-                      const FileIcon = getFileIcon(doc.mimeType || "");
-                      return (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-neutral-50 dark:bg-neutral-900/70 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800/80 transition-colors">
-                          <div className="flex items-center flex-1 min-w-0">
-                            <FileIcon className="h-4 w-4 text-red-500 mr-3 flex-shrink-0" />
-                            <div className="min-w-0 flex-1">
-                              <p className="font-medium text-sm text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
-                              <p className="text-xs text-neutral-600 dark:text-neutral-400">
-                                {formatDate(doc.uploadedAt, language)} • {t.documents.uploadedBy} {doc.uploadedBy}
-                              </p>
-                              {doc.description && (
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">{doc.description}</p>
-                              )}
-                            </div>
-                          </div>
-                          {/* Download and delete are separated: one is routine,
-                              the other destructive, and on a phone they were a
-                              thumb-width apart. */}
-                          <div className="flex items-center gap-1 pl-1 sm:gap-3">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-primary hover:text-primary/90"
-                              onClick={() => window.open(`/api/documents?action=download&id=${doc.id}`, '_blank', 'noopener,noreferrer')}
-                              aria-label={language === 'no' ? `Last ned ${doc.title}` : `Download ${doc.title}`}
-                            >
-                              <Download className="h-4 w-4" />
-                            </Button>
-                            {canManageDocuments && renderDeleteDocumentButton(doc, {
-                                className: "text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30",
-                              })}
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-
-                {documents.length > 3 && (
-                  <Button 
-                    variant="ghost" 
-                    className="w-full mt-4 text-primary hover:text-primary/90 text-sm font-medium"
-                    onClick={() => setSelectedCategory(category.id)}
-                  >
-                    {t.documents.seeAll} {category.name.toLowerCase()} →
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Recent Activity */}
-      <Card>
-        <CardContent className="p-6">
-          <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.documents.recentActivity}</h3>
-          
-          {recentActivity.length === 0 ? (
-            <p className="text-neutral-500 dark:text-neutral-400 text-center py-8">{t.documents.noRecentActivity}</p>
-          ) : (
-            <div className="space-y-4">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex items-start">
-                  <div className="w-8 h-8 bg-primary/20 rounded-full flex items-center justify-center mr-4 flex-shrink-0 mt-1">
-                    <Upload className="h-3 w-3 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm text-neutral-900 dark:text-neutral-200">
-                      <span className="font-medium">{activity.user}</span>{" "}
-                      {t.documents.uploaded}{" "}
-                      <span className="font-medium">"{activity.document}"</span>
-                    </p>
-                    <p className="text-xs text-neutral-600 dark:text-neutral-400 mt-1">
-                      {formatDate(activity.date, language)}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* File Upload Modal */}
-      <FileUploadModal
-        isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+    <div className="section-rhythm">
+      {/* No illustration here on purpose: a file list is a utility, and the
+          guide asks for rhythm across the site rather than a picture on top
+          of every page. */}
+      <PageHero
+        tone="blue"
+        title={t.documents.title}
+        lead={t.documents.heroLead}
       />
 
-      {/* Category Detail Modal */}
-      <Dialog open={!!selectedCategory} onOpenChange={(open) => { if (!open) setSelectedCategory(null); }}>
-        <DialogContent className="flex flex-col gap-0 p-0 top-0 left-0 translate-x-0 translate-y-0 w-full max-w-none h-dvh max-h-dvh rounded-none sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-2xl sm:h-auto sm:max-h-[90dvh] sm:rounded-lg">
-          <div className="flex-shrink-0 px-4 pt-4 pb-3 pr-12 border-b border-border sm:px-6 sm:pt-6 sm:pb-4">
-            <DialogTitle className="text-base font-semibold sm:text-lg">
-              {categories.find(c => c.id === selectedCategory)?.name}
-            </DialogTitle>
-          </div>
-          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-3 sm:px-6 space-y-3">
-            {selectedCategory && getDocumentsByCategory(selectedCategory).map((doc) => {
-              const DocIcon = getFileIcon(doc.mimeType || "");
-              return (
-                <div key={doc.id} className="flex items-start justify-between p-4 border border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/40 rounded-lg gap-3">
-                  <div className="flex items-start flex-1 min-w-0">
-                    <DocIcon className="h-5 w-5 text-red-500 mr-3 flex-shrink-0 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-neutral-900 dark:text-neutral-50 truncate">{doc.title}</p>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">
-                        {formatDate(doc.uploadedAt, language)} • {formatFileSize(doc.fileSize, language)}
-                      </p>
-                      <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                        {t.documents.uploadedBy} {doc.uploadedBy}
-                      </p>
-                      {doc.description && (
-                        <p className="text-sm text-neutral-500 dark:text-neutral-300 mt-2 bg-neutral-50 dark:bg-neutral-950 p-2 rounded border-l-2 border-neutral-200 dark:border-neutral-800">
-                          {doc.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(`/api/documents?action=download&id=${doc.id}`, '_blank', 'noopener,noreferrer')}
-                      aria-label={language === 'no' ? `Last ned ${doc.title}` : `Download ${doc.title}`}
-                    >
-                      <Download className="h-4 w-4 sm:mr-2" />
-                      <span className="hidden sm:inline">{t.documents.download}</span>
-                    </Button>
-                    {canManageDocuments && renderDeleteDocumentButton(doc, {
-                        variant: "outline",
-                        className: "text-destructive hover:text-destructive border-destructive/30 hover:border-destructive/50 hover:bg-destructive/10",
-                      })}
-                  </div>
+      {canManageDocuments && (
+        <EditorSurface label={t.ui.editorTools}>
+          <Button size="sm" onClick={() => setIsUploadModalOpen(true)}>
+            <Upload className="h-4 w-4" aria-hidden="true" />
+            {t.documents.upload}
+          </Button>
+        </EditorSurface>
+      )}
+
+      <section aria-label={t.documents.title}>
+        <div className="mb-6 flex flex-wrap items-center gap-2" role="group">
+          <FilterChip
+            label={t.documents.allCategories}
+            pressed={category === "all"}
+            onClick={() => setCategory("all")}
+            count={documents.length}
+          />
+          {categories.map((item) => (
+            <FilterChip
+              key={item.id}
+              label={item.name}
+              pressed={category === item.id}
+              onClick={() => setCategory(item.id)}
+              count={countFor(item.id)}
+            />
+          ))}
+        </div>
+
+        {isLoading ? (
+          <Surface className="divide-y divide-hairline" aria-busy={true}>
+            {[0, 1, 2, 3].map((row) => (
+              <div key={row} className="flex items-center gap-4 p-4">
+                <div className="h-10 w-10 shrink-0 animate-pulse rounded-token bg-green-50" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-2/3 animate-pulse rounded bg-green-50" />
+                  <div className="h-3 w-1/3 animate-pulse rounded bg-green-50" />
                 </div>
+              </div>
+            ))}
+          </Surface>
+        ) : error ? (
+          <EmptyState
+            isError
+            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+            title={t.documents.error}
+            description={error.message}
+          />
+        ) : shown.length === 0 ? (
+          <EmptyState
+            icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+            title={t.documents.noDocuments}
+            description={t.documents.noDocumentsDesc}
+          />
+        ) : (
+          <Surface as="ul" className="divide-y divide-hairline">
+            {shown.map((doc) => {
+              const { icon: Icon, label: kindLabel } = fileKind(doc.mimeType);
+              const downloadUrl = `/api/documents?action=download&id=${doc.id}`;
+              return (
+                <li
+                  key={doc.id}
+                  className="flex flex-wrap items-start gap-4 p-4 transition-colors duration-micro ease-guide hover:bg-green-50/50 sm:flex-nowrap sm:items-center sm:p-5"
+                >
+                  <span
+                    className="grid h-10 w-10 shrink-0 place-items-center rounded-token bg-green-50 text-brand"
+                    aria-hidden="true"
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-ink">{doc.title}</p>
+                    {/* Category, format, size and date on one metadata line —
+                        the four things that tell you whether this is the file
+                        you came for (guide §9). */}
+                    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-small text-subtle">
+                      <span>{categoryName(doc.category)}</span>
+                      <span aria-hidden="true">·</span>
+                      <span>{kindLabel}</span>
+                      {doc.fileSize ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span className="tabular-nums">
+                            {formatFileSize(doc.fileSize, language)}
+                          </span>
+                        </>
+                      ) : null}
+                      <span aria-hidden="true">·</span>
+                      <time dateTime={String(doc.uploadedAt)} className="tabular-nums">
+                        {formatDate(doc.uploadedAt, language)}
+                      </time>
+                    </p>
+                    {doc.description && (
+                      <p className="measure mt-1.5 text-small text-copy">{doc.description}</p>
+                    )}
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button variant="outline" size="sm" asChild>
+                      {/* A real link rather than a window.open call, so it can
+                          be opened in a new tab, copied or saved like any
+                          other file. */}
+                      <a
+                        href={downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        // Every row's link reads the same two words otherwise,
+                        // so the name always carries the document's title —
+                        // at every width, not only where the label is hidden.
+                        aria-label={`${t.documents.download} ${doc.title}`}
+                      >
+                        <Download className="h-4 w-4" aria-hidden="true" />
+                        <span className="hidden sm:inline">{t.documents.download}</span>
+                      </a>
+                    </Button>
+                    {canManageDocuments && deleteButton(doc)}
+                  </div>
+                </li>
               );
             })}
-          </div>
-        </DialogContent>
-      </Dialog>
+          </Surface>
+        )}
+      </section>
+
+      <FileUploadModal isOpen={isUploadModalOpen} onClose={() => setIsUploadModalOpen(false)} />
     </div>
   );
 }

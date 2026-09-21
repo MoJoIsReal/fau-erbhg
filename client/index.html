@@ -11,6 +11,23 @@
     <meta name="geo.region" content="NO-12" />
     <meta name="geo.placename" content="Askøy" />
     
+    <!-- Fonts. Loaded here rather than through an @import in the stylesheet:
+         an @import is discovered only after the CSS has been fetched and
+         parsed, so the two requests run in series. preconnect + a non-blocking
+         link starts the font fetch alongside the stylesheet instead.
+         Only the weights the type scale uses are requested (guide §18). -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Caveat:wght@600&display=swap"
+    />
+
+    <!-- The page ground, so the browser chrome matches it. A single value:
+         the app's theme is a class the user toggles, not the OS preference,
+         so a prefers-color-scheme pair here would be wrong half the time. -->
+    <meta name="theme-color" content="#F9F6F1" />
+
     <!-- Favicon -->
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="shortcut icon" type="image/png" href="/favicon.png" />

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { EditorSurface } from "@/components/site/cards";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, getApiErrorBody, getApiErrorMessage } from "@/lib/queryClient";
@@ -163,11 +164,12 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     setCreating(target);
   };
 
+  // The editor's own strip of the page, on a sand surface with a dashed edge
+  // and a label of its own. The guide is explicit that admin actions must not
+  // sit among the public filters (§11), and the dashed border is what tells a
+  // logged-in editor at a glance which controls the parents can also see.
   const toolbar = !canEditYearly ? null : (
-    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900/60">
-      <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
-        {t.calendar.editorLabel}
-      </span>
+    <EditorSurface label={t.calendar.editorLabel} hint={t.calendar.excelScopeNote}>
       <Button size="sm" onClick={() => setPickerOpen(true)}>
         <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
         {t.calendar.newEntry}
@@ -193,8 +195,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           {t.calendar.openYearlyEditor}
         </Link>
       </Button>
-      <p className="basis-full text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.excelScopeNote}</p>
-    </div>
+    </EditorSurface>
   );
 
   const actionsFor = (entry: CalendarEntry): ReactNode => {
@@ -206,8 +207,8 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     const showRegistrations = entry.event && signup?.mode === "registration";
 
     return (
-      <div className="flex flex-wrap items-center gap-2 border-t border-dashed pt-3 dark:border-neutral-800">
-        <span className="basis-full text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-dashed border-hairline pt-4">
+        <span className="basis-full text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
           {t.calendar.editorLabel}
         </span>
         <Button
@@ -260,13 +261,13 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           <DialogHeader>
             <DialogTitle>{t.calendar.newEntry}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.calendar.newPickerHint}</p>
+          <p className="text-sm text-subtle">{t.calendar.newPickerHint}</p>
 
           <div className="space-y-2">
-            <h3 className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+            <h3 className="text-xs uppercase tracking-wide text-subtle">
               {t.calendar.filterSignup}
             </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.newEventHint}</p>
+            <p className="text-xs text-subtle">{t.calendar.newEventHint}</p>
             <Button
               variant="outline"
               className="w-full justify-start"
@@ -276,17 +277,17 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
               {t.calendar.newEventButton}
             </Button>
             {!canEditEvents && (
-              <p className="border-l-2 border-red-500 pl-2 text-xs text-neutral-500 dark:text-neutral-400">
+              <p className="border-l-2 border-red-500 pl-2 text-xs text-subtle">
                 {t.calendar.staffCannotCreateEvents}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-xs uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
+            <h3 className="text-xs uppercase tracking-wide text-subtle">
               {t.calendar.filterKindergarten}
             </h3>
-            <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.newYearlyHint}</p>
+            <p className="text-xs text-subtle">{t.calendar.newYearlyHint}</p>
             <div className="grid grid-cols-2 gap-2">
               {YEARLY_CALENDAR_KINDS.map((kind) => (
                 <Button
@@ -298,7 +299,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
                   }
                 >
                   <span
-                    className={`h-2 w-2 shrink-0 rounded-full ${KIND_STYLE[kind].dot}`}
+                    className={`h-2 w-2 shrink-0 rounded-pill ${KIND_STYLE[kind].dot}`}
                     aria-hidden="true"
                   />
                   {t.calendar.kinds[kind]}

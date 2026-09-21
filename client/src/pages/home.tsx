@@ -1,17 +1,32 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { Users, Heart, Star, School, Handshake, Calendar, Clock, MapPin } from "lucide-react";
-import kindergartenImage768 from "@/assets/kindergarten-playground-768.jpg";
-import kindergartenImage1280 from "@/assets/kindergarten-playground-1280.jpg";
-import kindergartenImage768Webp from "@/assets/kindergarten-playground-768.webp";
-import kindergartenImage1280Webp from "@/assets/kindergarten-playground-1280.webp";
 import { useQuery } from "@tanstack/react-query";
-import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "wouter";
+import {
+  ArrowRight,
+  CalendarDays,
+  Clock,
+  ExternalLink,
+  FileText,
+  HandHeart,
+  Heart,
+  MapPin,
+  MessageCircle,
+  Sparkles,
+  Users,
+  UtensilsCrossed,
+} from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
-import { useUpcomingItems } from "@/hooks/useUpcomingItems";
+import { useUpcomingItems, type UpcomingItem } from "@/hooks/useUpcomingItems";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { Button } from "@/components/ui/button";
+import PageHero from "@/components/site/page-hero";
+import { SectionHeader, Surface, EmptyState } from "@/components/site/section";
+import { StatusPill } from "@/components/site/controls";
+import { LinkCard } from "@/components/site/cards";
+import { IllustrationBanner } from "@/components/site/banners";
+import { ILLUSTRATION_HOME, ILLUSTRATION_SIGNPOST } from "@/components/site/illustrations";
 
 interface FauBoardMember {
   id: number;
@@ -42,6 +57,37 @@ interface KindergartenInfo {
   styrerEmail?: string;
 }
 
+/** Title, date and any state an upcoming item carries, whatever its source. */
+function upcomingParts(item: UpcomingItem) {
+  if (item.kind === "event") {
+    return {
+      title: item.event.title,
+      date: item.event.date,
+      time: item.event.time ?? "",
+      location: item.event.location ?? "",
+      description: item.event.description ?? "",
+      closed: false,
+    };
+  }
+  return {
+    title: item.entry.title,
+    date: item.entry.date as string,
+    time: "",
+    location: "",
+    description: item.entry.description ?? "",
+    closed: item.entry.entryType === "closed",
+  };
+}
+
+/**
+ * The home page.
+ *
+ * Ordered around the three questions a parent opens this site with — what is
+ * happening, what is new, and where do I find the rest — so the next event is
+ * above the fold's fold rather than below three cards about what FAU is
+ * (guide §12). The standing explanation of the council and the kindergarten
+ * has not been deleted, only moved to where someone goes looking for it.
+ */
 export default function Home() {
   const { language, t } = useLanguage();
 
@@ -54,324 +100,420 @@ export default function Home() {
     path: "/",
   });
 
-  const features = [
-    { icon: Heart, text: t.home.safety },
-    { icon: Users, text: t.home.cooperation },
-    { icon: Star, text: t.home.engagement },
+  const values = [
+    { icon: Heart, title: t.home.valueChildrenTitle, body: t.home.valueChildrenBody },
+    { icon: Users, title: t.home.valueTogetherTitle, body: t.home.valueTogetherBody },
+    { icon: Sparkles, title: t.home.valueEngagementTitle, body: t.home.valueEngagementBody },
   ];
 
   // Merged upcoming events + yearly-calendar entries, shared with the footer.
-  const upcomingEvents = useUpcomingItems().slice(0, 3);
+  const upcoming = useUpcomingItems();
+  const [next, ...rest] = upcoming;
+  const soon = rest.slice(0, 4);
 
-  // Fetch FAU board members
   const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
     queryKey: ["/api/secure-settings?resource=board-members"],
   });
 
-  // Fetch blog posts (only published)
   const { data: allBlogPosts = [] } = useQuery<BlogPost[]>({
     queryKey: ["/api/secure-settings?resource=blog-posts"],
   });
+  const blogPosts = allBlogPosts.filter((post) => post.showOnHomepage !== false).slice(0, 3);
 
-  // Filter blog posts to show only those marked for homepage
-  const blogPosts = allBlogPosts.filter(post => post.showOnHomepage !== false);
-
-  // Fetch kindergarten info
   const { data: kindergartenInfo } = useQuery<KindergartenInfo>({
     queryKey: ["/api/secure-settings?resource=kindergarten-info"],
   });
 
+  const usefulLinks = [
+    {
+      href: "https://vigilo.no",
+      title: t.home.linkVigilo,
+      description: t.home.linkVigiloDesc,
+      icon: <MessageCircle className="h-5 w-5" aria-hidden="true" />,
+      external: true,
+    },
+    {
+      href: "https://askoy.kommune.no/tjenester/barnehagen/barnehagene-pa-askoy/kommunalebarnehager/erdal-barnehage",
+      title: t.home.linkKommune,
+      description: t.home.linkKommuneDesc,
+      icon: <ExternalLink className="h-5 w-5" aria-hidden="true" />,
+      external: true,
+    },
+    {
+      href: "https://www.helsedirektoratet.no/retningslinjer/mat-og-maltider-i-barnehagen",
+      title: t.home.linkMeals,
+      description: t.home.linkMealsDesc,
+      icon: <UtensilsCrossed className="h-5 w-5" aria-hidden="true" />,
+      external: true,
+    },
+    {
+      href: "https://foreldreutvalgene.no/fub/",
+      title: t.home.linkFub,
+      description: t.home.linkFubDesc,
+      icon: <HandHeart className="h-5 w-5" aria-hidden="true" />,
+      external: true,
+    },
+    {
+      href: "/files",
+      title: t.home.linkDocuments,
+      description: t.home.linkDocumentsDesc,
+      icon: <FileText className="h-5 w-5" aria-hidden="true" />,
+      external: false,
+    },
+    {
+      href: "https://www.facebook.com/groups/1674520382805077",
+      title: t.home.linkFacebook,
+      description: t.home.linkFacebookDesc,
+      icon: <Users className="h-5 w-5" aria-hidden="true" />,
+      external: true,
+    },
+  ];
+
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
-      <section className="bg-gradient-to-br from-primary/10 to-secondary/10 dark:from-neutral-900 dark:via-neutral-900 dark:to-[#173629] rounded-2xl p-8 border border-transparent dark:border-neutral-800">
-        <div className="grid md:grid-cols-2 gap-8 items-center">
-          <div>
-            <h1 className="font-heading font-bold text-3xl md:text-4xl text-neutral-900 dark:text-neutral-50 mb-4">
-              {t.home.title}
-            </h1>
-            <p className="text-lg text-neutral-700 dark:text-neutral-200 mb-6">
-              {t.home.welcomeDescription}
-            </p>
-            <div className="flex flex-wrap gap-3">
-              {features.map((feature, index) => {
-                const Icon = feature.icon;
-                return (
-                  <div key={index} className="flex items-center text-accent">
-                    <Icon className="h-4 w-4 mr-2" />
-                    <span className="text-sm font-medium">{feature.text}</span>
-                  </div>
-                );
-              })}
+    <div className="section-rhythm">
+      <PageHero
+        layout="split"
+        tone="sand"
+        priority
+        title={t.home.title}
+        lead={t.home.welcomeDescription}
+        illustration={{ art: ILLUSTRATION_HOME, alt: t.home.heroImageAlt }}
+        actions={
+          <>
+            <Button asChild>
+              <Link href="/kalender">
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                {t.home.heroCalendarCta}
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
+              <Link href="/contact">{t.home.heroContactCta}</Link>
+            </Button>
+          </>
+        }
+      />
+
+      {/* Three values, as open columns rather than three more cards. */}
+      <section aria-label={t.home.valuesTitle}>
+        <div className="grid gap-8 sm:grid-cols-3 sm:gap-6">
+          {values.map(({ icon: Icon, title, body }) => (
+            <div key={title}>
+              <span className="grid h-11 w-11 place-items-center rounded-token bg-green-50 text-brand">
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <h2 className="mt-4 text-h4 font-bold text-ink">{title}</h2>
+              <p className="mt-1.5 text-small text-copy">{body}</p>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* What is happening. One item gets the space, the next four get a line
+          each — enough to plan a fortnight without opening the calendar. */}
+      <section aria-labelledby="home-upcoming">
+        <SectionHeader
+          id="home-upcoming"
+          title={t.home.upcomingEvents}
+          action={
+            <Link
+              href="/kalender"
+              className="inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+            >
+              {t.home.seeAllEvents}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          }
+        />
+
+        {!next ? (
+          <EmptyState
+            icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
+            title={t.home.noEvents}
+          />
+        ) : (
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+            {(() => {
+              const parts = upcomingParts(next);
+              const date = new Date(parts.date);
+              return (
+                <Surface tone="raised" as="article" className="flex flex-col gap-4 p-6 sm:p-8">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusPill tone="now">{t.home.nextUpLabel}</StatusPill>
+                    {parts.closed && (
+                      <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>
+                    )}
+                  </div>
+
+                  <div className="flex items-start gap-5">
+                    {/* The date block: the one number a parent scans for. */}
+                    <div className="shrink-0 rounded-card bg-green-50 px-4 py-3 text-center">
+                      <div className="text-micro font-semibold uppercase tracking-[0.12em] text-brand">
+                        {formatDate(date, language, { month: "short" })}
+                      </div>
+                      <div className="text-h2 font-bold leading-none tabular-nums text-ink">
+                        {date.getDate()}
+                      </div>
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-h3 font-bold tracking-tight text-ink">{parts.title}</h3>
+                      <p className="mt-1 text-small capitalize text-subtle">
+                        {formatDate(date, language, {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                        })}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-small text-subtle">
+                        {parts.time && (
+                          <span className="inline-flex items-center gap-1.5">
+                            <Clock className="h-4 w-4" aria-hidden="true" />
+                            {parts.time}
+                          </span>
+                        )}
+                        {parts.location && (
+                          <span className="inline-flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4" aria-hidden="true" />
+                            {parts.location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {parts.description && (
+                    <SafeHtml
+                      html={parts.description}
+                      truncate={220}
+                      className="measure text-copy"
+                    />
+                  )}
+
+                  <div className="mt-auto pt-2">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/kalender">{t.home.moreInfo}</Link>
+                    </Button>
+                  </div>
+                </Surface>
+              );
+            })()}
+
+            <Surface className="p-6">
+              <h3 className="text-h4 font-bold text-ink">{t.home.comingDates}</h3>
+              {soon.length === 0 ? (
+                <p className="mt-3 text-small text-subtle">{t.calendar.noEventsThisWeek}</p>
+              ) : (
+                <ul className="mt-4 divide-y divide-hairline">
+                  {soon.map((item) => {
+                    const parts = upcomingParts(item);
+                    const date = new Date(parts.date);
+                    return (
+                      <li
+                        key={item.kind === "event" ? `event-${item.event.id}` : `yearly-${item.entry.id}`}
+                        className="flex items-baseline gap-4 py-3 first:pt-0 last:pb-0"
+                      >
+                        <span className="w-16 shrink-0 text-small font-semibold tabular-nums text-brand">
+                          {date.getDate()}. {formatDate(date, language, { month: "short" })}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-small font-semibold text-ink">
+                            {parts.title}
+                          </span>
+                          {(parts.time || parts.closed) && (
+                            <span className="block text-micro text-subtle">
+                              {parts.closed ? t.yearlyCalendar.closedBadge : parts.time}
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+              <Link
+                href="/kalender"
+                className="mt-5 inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+              >
+                {t.home.openCalendar}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </Surface>
           </div>
-          <div className="hidden md:block">
-            <picture>
-              <source
-                type="image/webp"
-                srcSet={`${kindergartenImage768Webp} 768w, ${kindergartenImage1280Webp} 1280w`}
-                sizes="(min-width: 768px) 50vw, 100vw"
-              />
-              <source
-                type="image/jpeg"
-                srcSet={`${kindergartenImage768} 768w, ${kindergartenImage1280} 1280w`}
-                sizes="(min-width: 768px) 50vw, 100vw"
-              />
-              <img
-                src={kindergartenImage1280}
-                alt={t.home.childrenPlayingPlayground}
-                className="rounded-xl shadow-lg w-full h-auto"
-                width="1280"
-                height="853"
-                loading="eager"
-                decoding="async"
-                fetchPriority="high"
-              />
-            </picture>
+        )}
+      </section>
+
+      {blogPosts.length > 0 && (
+        <section aria-labelledby="home-updates">
+          <SectionHeader
+            id="home-updates"
+            title={t.home.updates}
+            action={
+              <Link
+                href="/news"
+                className="inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+              >
+                {t.home.readMore}
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            }
+          />
+          <div className="grid gap-6 md:grid-cols-3">
+            {blogPosts.map((post) => (
+              <Surface key={post.id} as="article" className="flex flex-col p-5">
+                <div className="flex flex-wrap items-center gap-2 text-micro">
+                  <StatusPill>
+                    {post.category === "tips" ? t.home.tipsTricks : t.home.news}
+                  </StatusPill>
+                  <time dateTime={post.publishedDate} className="text-subtle">
+                    {formatDate(post.publishedDate, language, {
+                      year: "numeric",
+                      month: "long",
+                      day: "numeric",
+                    })}
+                  </time>
+                </div>
+                <h3 className="mt-3 text-h4 font-bold text-ink">
+                  <Link href={`/nyheter/${post.id}`} className="hover:text-brand hover:underline">
+                    {post.title}
+                  </Link>
+                </h3>
+                <SafeHtml
+                  html={post.content}
+                  truncate={140}
+                  className="mt-2 text-small text-copy"
+                />
+                {post.author && (
+                  <p className="mt-3 text-micro text-subtle">
+                    {t.home.by} {post.author}
+                  </p>
+                )}
+              </Surface>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section aria-labelledby="home-links">
+        <SectionHeader
+          id="home-links"
+          title={t.home.usefulLinks}
+          description={t.home.usefulLinksLead}
+        />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {usefulLinks.map((link) => (
+            <LinkCard key={link.href} {...link} externalLabel={t.ui.externalLink} />
+          ))}
+        </div>
+      </section>
+
+      {/* The standing explanation of who we are and where the kindergarten is.
+          Open sections with a rule between them rather than two more cards. */}
+      <section aria-labelledby="home-about">
+        <SectionHeader id="home-about" title={t.home.practicalInfo} />
+        <div className="grid gap-10 md:grid-cols-2 md:gap-12">
+          <div>
+            <h3 className="text-h4 font-bold text-ink">{t.home.aboutKindergarten}</h3>
+            {kindergartenInfo ? (
+              <>
+                <dl className="mt-4 divide-y divide-hairline text-small">
+                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
+                    <dt className="text-subtle">{t.home.contact}</dt>
+                    <dd>
+                      <a
+                        href={`mailto:${kindergartenInfo.contactEmail}`}
+                        className="font-semibold text-brand hover:underline"
+                      >
+                        {kindergartenInfo.contactEmail}
+                      </a>
+                    </dd>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
+                    <dt className="text-subtle">{t.home.municipality}</dt>
+                    <dd className="text-ink">{kindergartenInfo.address}</dd>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
+                    <dt className="text-subtle">{t.home.openingHours}</dt>
+                    <dd className="text-ink">{kindergartenInfo.openingHours}</dd>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
+                    <dt className="text-subtle">{t.home.numberOfChildren}</dt>
+                    <dd className="text-ink">
+                      {kindergartenInfo.numberOfChildren} {t.home.children}
+                    </dd>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
+                    <dt className="text-subtle">{t.home.owner}</dt>
+                    <dd className="text-ink">{kindergartenInfo.owner}</dd>
+                  </div>
+                  {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
+                    <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
+                      <dt className="text-subtle">{t.home.director}</dt>
+                      <dd>
+                        <a
+                          href={`mailto:${kindergartenInfo.styrerEmail}`}
+                          className="font-semibold text-brand hover:underline"
+                        >
+                          {kindergartenInfo.styrerName}
+                        </a>
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+                <p className="measure mt-4 text-small text-copy">
+                  {kindergartenInfo.description}
+                </p>
+              </>
+            ) : (
+              <p className="mt-4 text-small italic text-subtle">{t.home.loadingInformation}</p>
+            )}
+          </div>
+
+          <div>
+            <h3 className="text-h4 font-bold text-ink">{t.home.fauTitle}</h3>
+            <p className="mt-4 text-small">
+              <span className="text-subtle">{t.home.contact} </span>
+              <a href={`mailto:${FAU_EMAIL}`} className="font-semibold text-brand hover:underline">
+                {FAU_EMAIL}
+              </a>
+            </p>
+            {boardMembers.length > 0 && (
+              <>
+                <p className="mt-5 text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
+                  {t.home.fauBoard}
+                </p>
+                <ul className="mt-3 divide-y divide-hairline text-small">
+                  {boardMembers.map((member) => (
+                    <li key={member.id} className="flex justify-between gap-6 py-2.5">
+                      <span className="text-subtle">
+                        {member.role === "Leder"
+                          ? t.home.leader
+                          : member.role === "Vara"
+                            ? t.home.vara
+                            : t.home.member}
+                      </span>
+                      <span className="font-semibold text-ink">{member.name}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <p className="measure mt-5 text-small text-copy">{t.home.fauDescription}</p>
           </div>
         </div>
       </section>
 
-      {/* Upcoming events — first section after the hero, because "is anything
-          happening soon?" is the question most visitors come to answer. */}
-      <section>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.upcomingEvents}</h3>
-              <Link href="/kalender" className="text-sm font-medium text-primary hover:text-primary/80">
-                {t.home.seeAllEvents}
-              </Link>
-            </div>
-            {upcomingEvents.length === 0 ? (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-neutral-400 mx-auto mb-4" />
-                <p className="text-neutral-600 dark:text-neutral-300">{t.home.noEvents}</p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-3 gap-6">
-                {upcomingEvents.map((item) => {
-                  if (item.kind === "event") {
-                    const event = item.event;
-                    return (
-                      <div key={`event-${event.id}`} className="border border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/50 rounded-lg p-4">
-                        <div className="flex items-center mb-3">
-                          <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center mr-3">
-                            <Calendar className="h-4 w-4 text-primary" />
-                          </div>
-                          <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{event.title}</h4>
-                        </div>
-                        <SafeHtml
-                          html={event.description}
-                          className="prose prose-sm prose-neutral max-w-none text-sm text-neutral-600 dark:text-neutral-300 mb-3"
-                        />
-                        <div className="space-y-1 text-xs text-accent">
-                          <div className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span>{formatDate(event.date, language)} {t.home.at} {event.time}</span>
-                          </div>
-                          {event.location && (
-                            <div className="flex items-center">
-                              <MapPin className="h-3 w-3 mr-1" />
-                              <span>{event.location}</span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  }
-
-                  const entry = item.entry;
-                  const isClosed = entry.entryType === "closed";
-                  return (
-                    <div
-                      key={`yearly-${entry.id}`}
-                      className={`border rounded-lg p-4 ${
-                        isClosed
-                          ? "border-red-200 bg-red-50/40 dark:border-red-900/70 dark:bg-red-950/30"
-                          : "border-neutral-200 dark:border-neutral-800 dark:bg-neutral-900/50"
-                      }`}
-                    >
-                      <div className="flex items-center mb-3">
-                        <div
-                          className={`w-8 h-8 rounded-lg flex items-center justify-center mr-3 ${
-                            isClosed ? "bg-red-500/15" : "bg-secondary/20"
-                          }`}
-                        >
-                          <Calendar
-                            className={`h-4 w-4 ${isClosed ? "text-red-600" : "text-secondary"}`}
-                          />
-                        </div>
-                        <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{entry.title}</h4>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {isClosed && (
-                          <span className="inline-flex items-center rounded-full bg-red-500/15 text-red-700 text-[11px] font-medium px-2 py-0.5">
-                            {t.yearlyCalendar.closedBadge}
-                          </span>
-                        )}
-                        {!isClosed && entry.showOnHomepage && (
-                          <span className="inline-flex items-center rounded-full bg-secondary/15 text-secondary text-[11px] font-medium px-2 py-0.5">
-                            {t.yearlyCalendar.inKindergartenBadge}
-                          </span>
-                        )}
-                        {!isClosed && entry.showForParents && (
-                          <span className="inline-flex items-center rounded-full bg-primary/15 text-primary text-[11px] font-medium px-2 py-0.5">
-                            {t.yearlyCalendar.forParentsBadge}
-                          </span>
-                        )}
-                      </div>
-                      {entry.description && (
-                        <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-3">{entry.description}</p>
-                      )}
-                      <div className="space-y-1 text-xs text-accent">
-                        <div className="flex items-center">
-                          <Clock className="h-3 w-3 mr-1" />
-                          <span>{formatDate(entry.date as string, language)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </section>
-
-
-      {/* Blog Posts / News Section */}
-      {blogPosts.length > 0 && (
-        <section>
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">
-                {t.home.updates}
-              </h3>
-              <div className="space-y-6">
-                {blogPosts.slice(0, 3).map((post) => (
-                  <div key={post.id} className="border-b border-neutral-200 dark:border-neutral-800 last:border-0 pb-6 last:pb-0">
-                    <h4 className="font-semibold text-lg text-neutral-900 dark:text-neutral-50 mb-2">
-                      {post.title}
-                    </h4>
-                    <p className="text-xs text-neutral-500 dark:text-neutral-400 mb-3">
-                      <span className="mr-2 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
-                        {post.category === "tips"
-                          ? t.home.tipsTricks
-                          : t.home.news}
-                      </span>
-                      {formatDate(post.publishedDate, language, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                      {post.author && (
-                        <span className="ml-2">
-                          • {t.home.by} {post.author}
-                        </span>
-                      )}
-                    </p>
-                    <SafeHtml
-                      html={post.content}
-                      truncate={200}
-                      className="prose prose-sm prose-neutral max-w-none mb-2 text-neutral-700 dark:text-neutral-300"
-                    />
-                    <Link href={`/nyheter/${post.id}`}>
-                      <span className="text-sm text-primary hover:text-primary/80 font-medium cursor-pointer">
-                        {t.home.readMore}
-                      </span>
-                    </Link>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
-
-      {/* About Section */}
-      <section className="grid md:grid-cols-2 gap-8">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-secondary/20 rounded-xl flex items-center justify-center mr-4">
-                <School className="h-6 w-6 text-secondary" />
-              </div>
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.aboutKindergarten}</h3>
-            </div>
-            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
-              {kindergartenInfo ? (
-                <>
-                  <p><strong>{t.home.contact}</strong> <a
-                    href={`mailto:${kindergartenInfo.contactEmail}`}
-                    className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
-                  >
-                    {kindergartenInfo.contactEmail}
-                  </a></p>
-                  <p><strong>{t.home.municipality}</strong> {kindergartenInfo.address}</p>
-                  <p><strong>{t.home.openingHours}</strong> {kindergartenInfo.openingHours}</p>
-                  <p><strong>{t.home.numberOfChildren}</strong> {kindergartenInfo.numberOfChildren} {t.home.children}</p>
-                  <p><strong>{t.home.owner}</strong> {kindergartenInfo.owner}</p>
-                  {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
-                    <p><strong>{t.home.director}</strong> <a
-                      href={`mailto:${kindergartenInfo.styrerEmail}`}
-                      className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
-                    >
-                      {kindergartenInfo.styrerName}
-                    </a></p>
-                  )}
-                  <p className="mt-4">
-                    {kindergartenInfo.description}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-neutral-500 dark:text-neutral-400 italic">
-                  {t.home.loadingInformation}
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center mb-4">
-              <div className="w-12 h-12 bg-accent/20 rounded-xl flex items-center justify-center mr-4">
-                <Handshake className="h-6 w-6 text-accent" />
-              </div>
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50">{t.home.fauTitle}</h3>
-            </div>
-            <div className="space-y-3 text-neutral-700 dark:text-neutral-300">
-              <p><strong>{t.home.contact}</strong> <a
-                href={`mailto:${FAU_EMAIL}`}
-                className="text-blue-600 dark:text-blue-300 hover:text-blue-500 transition-colors"
-              >
-                {FAU_EMAIL}
-              </a></p>
-              
-              <div className="mt-4">
-                <p><strong>{t.home.fauBoard}</strong></p>
-                <div className="ml-4 mt-2 space-y-1 text-sm">
-                  {boardMembers.map((member) => (
-                    <p key={member.id}>
-                      <strong>
-                        {member.role === "Leder" ? t.home.leader :
-                         member.role === "Vara" ? t.home.vara :
-                         t.home.member}
-                      </strong> {member.name}
-                    </p>
-                  ))}
-                </div>
-              </div>
-              
-              <p className="mt-4">
-                {t.home.fauDescription}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </section>
-
+      <IllustrationBanner
+        art={ILLUSTRATION_SIGNPOST}
+        eyebrow={t.ui.aboutFau}
+        title={t.home.closingTitle}
+        hand={t.home.closingHand}
+        action={
+          <Button asChild>
+            <Link href="/contact">{t.home.closingCta}</Link>
+          </Button>
+        }
+      >
+        {t.home.closingBody}
+      </IllustrationBanner>
     </div>
   );
 }

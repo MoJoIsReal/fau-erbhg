@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Bell, CalendarDays, CalendarRange, List, Loader2 } from "lucide-react";
+import { Bell, CalendarDays, CalendarRange, List, Loader2, SlidersHorizontal } from "lucide-react";
 import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries";
 import {
   CALENDAR_ENTRY_KINDS,
@@ -21,6 +21,11 @@ import CalendarSubscribe from "@/components/calendar-subscribe";
 import { useCalendarEditor } from "@/components/calendar-editor-tools";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import PageHero from "@/components/site/page-hero";
+import { FilterChip, SegmentedControl } from "@/components/site/controls";
+import { InfoBanner } from "@/components/site/banners";
+import { EmptyState } from "@/components/site/section";
+import { ILLUSTRATION_CALENDAR } from "@/components/site/illustrations";
 
 // The grids are only paid for when someone switches to them.
 const CalendarView = lazy(() => import("@/components/calendar-view"));
@@ -71,9 +76,16 @@ function initialMode(): CalendarViewMode {
  * The combined calendar: one set of entries, one set of filters, and the three
  * views that render them.
  *
- * The heading belongs here rather than to each view, because it is what tells
- * you where you are — the month you are looking at, or the kindergarten year —
- * and it changes as you move between them.
+ * The three views are one system rather than three components that happen to
+ * share a page — same hero, same filter row, same category colours, same
+ * detail panel. What changes between them is density, not language: the list
+ * answers "what is happening in my week", the month grid "where in the month
+ * does this fall", and the year "when is it busy".
+ *
+ * The control strip follows the guide's §11 order: the segmented view switch
+ * first, the kindergarten year beside it, the public filters under both, and
+ * the editor's own toolbar below that on a sand surface of its own — never
+ * interleaved with the filters a parent uses.
  */
 export default function CalendarViews() {
   const { language, t } = useLanguage();
@@ -87,6 +99,10 @@ export default function CalendarViews() {
   // to see.
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  // Ten categories is a long row on a phone. They collapse behind one button
+  // there and stay open from tablet up, rather than wrapping into four lines
+  // above the calendar (guide §11).
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const today = new Date();
   const currentWeekKey = calendarWeekKey(isoWeekYear(today), isoWeek(today));
@@ -129,10 +145,22 @@ export default function CalendarViews() {
   const editor = useCalendarEditor({ schoolYear });
   const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
 
-  const modes: { id: CalendarViewMode; label: string; icon: typeof List }[] = [
-    { id: "list", label: t.calendar.listView, icon: List },
-    { id: "month", label: t.calendar.monthView, icon: CalendarDays },
-    { id: "year", label: t.calendar.yearView, icon: CalendarRange },
+  const modes = [
+    {
+      id: "list" as const,
+      label: t.calendar.listView,
+      icon: <List className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      id: "month" as const,
+      label: t.calendar.monthView,
+      icon: <CalendarDays className="h-4 w-4" aria-hidden="true" />,
+    },
+    {
+      id: "year" as const,
+      label: t.calendar.yearView,
+      icon: <CalendarRange className="h-4 w-4" aria-hidden="true" />,
+    },
   ];
 
   const heading =
@@ -152,126 +180,117 @@ export default function CalendarViews() {
         ? t.calendar.yearIntro
         : t.calendar.listIntro;
 
-  const chip = (label: string, on: boolean, onClick: () => void, dot?: string) => (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
-      className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 dark:focus-visible:ring-offset-neutral-950 ${
-        on
-          ? dot
-            ? "border-neutral-200 bg-white text-neutral-800 hover:border-neutral-300 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
-            : "border-accent bg-accent font-medium text-accent-foreground"
-          : "border-neutral-200 bg-white text-neutral-400 hover:text-neutral-700 dark:border-neutral-800 dark:bg-neutral-900/60 dark:text-neutral-600 dark:hover:text-neutral-300"
-      }`}
-    >
-      {dot && (
-        <span
-          className={`h-2 w-2 shrink-0 rounded-full ${on ? dot : "bg-neutral-300 dark:bg-neutral-700"}`}
-          aria-hidden="true"
-        />
-      )}
-      {label}
-    </button>
-  );
-
   if (isLoading) {
     return (
       <div className="flex justify-center py-20" role="status" aria-live="polite">
-        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
+        <span className="sr-only">{t.common.loading}</span>
       </div>
     );
   }
 
   if (isError) {
     return (
-      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-neutral-600 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-300">
-        {t.calendar.loadFailed}
-      </div>
+      <EmptyState
+        isError
+        icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
+        title={t.calendar.loadFailed}
+      />
     );
   }
 
   return (
-    <div className="space-y-5">
-      {/* A warm band rather than a plain heading: this is a kindergarten
-          calendar, and the top of the page is the one place that can say so
-          without getting in the way of the dates below. */}
-      <header className="overflow-hidden rounded-2xl bg-gradient-to-r from-orange-50 via-amber-50/60 to-emerald-50 px-6 py-8 dark:from-neutral-900 dark:via-neutral-900 dark:to-emerald-950/40 sm:px-8 sm:py-10">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div className="max-w-xl">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-neutral-500 dark:text-neutral-400">
-              {t.calendar.title}
-            </p>
-            <h2
-              className={`mt-2 font-heading text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-50 sm:text-4xl ${
-                mode === "month" ? "capitalize" : ""
-              }`}
-            >
-              {heading}
-            </h2>
-            <p className="mt-3 text-neutral-600 dark:text-neutral-300">{intro}</p>
-          </div>
-          <p className="font-heading text-lg italic text-accent dark:text-emerald-300">
-            {t.calendar.tagline}
-          </p>
-        </div>
-      </header>
+    <div className="space-y-6">
+      <PageHero
+        layout="strip"
+        tone="green"
+        priority
+        eyebrow={t.calendar.title}
+        title={<span className={mode === "month" ? "capitalize" : undefined}>{heading}</span>}
+        lead={intro}
+        hand={t.calendar.tagline}
+        illustration={{ art: ILLUSTRATION_CALENDAR, alt: "" }}
+      />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div
-          className="inline-flex gap-1 rounded-full bg-neutral-100 p-1 dark:bg-neutral-900"
-          role="group"
-          aria-label={t.calendar.viewLabel}
-        >
-          {modes.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => changeMode(id)}
-              aria-pressed={mode === id}
-              className={`flex items-center gap-1.5 rounded-full px-4 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                mode === id
-                  ? "bg-accent font-medium text-accent-foreground shadow-sm"
-                  : "text-neutral-600 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
-              }`}
+      {/* Control strip. Sticky is deliberately not used here: the guide warns
+          against stacking sticky elements, and the week headers inside the
+          list are the thing worth keeping on screen. */}
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <SegmentedControl
+            options={modes}
+            value={mode}
+            onChange={changeMode}
+            label={t.calendar.viewLabel}
+          />
+
+          <label className="flex items-center gap-2 text-small text-subtle">
+            {t.yearlyCalendar.schoolYearLabel}
+            <select
+              value={schoolYear}
+              onChange={(event) => setSchoolYear(Number(event.target.value))}
+              className="h-11 rounded-token border border-hairline bg-surface px-3 text-small font-semibold text-ink"
             >
-              <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span>{label}</span>
-            </button>
-          ))}
+              {schoolYearOptions.map((year) => (
+                <option key={year} value={year}>
+                  {year}/{year + 1}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-neutral-500 dark:text-neutral-400">
-          {t.yearlyCalendar.schoolYearLabel}
-          <select
-            value={schoolYear}
-            onChange={(event) => setSchoolYear(Number(event.target.value))}
-            className="rounded-full border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-800 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-100"
+        <div>
+          {/* Phone: one button that also reports how many of the ten types are
+              showing, so the filter state is legible without opening it. */}
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-pill border border-hairline bg-surface px-4 text-small font-semibold text-copy sm:hidden"
           >
-            {schoolYearOptions.map((year) => (
-              <option key={year} value={year}>
-                {year}/{year + 1}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            {t.calendar.filtersLabel}
+            {!allOn && (
+              <span className="rounded-pill bg-green-50 px-2 py-0.5 text-micro tabular-nums text-brand">
+                {activeCount}/{CALENDAR_ENTRY_KINDS.length}
+              </span>
+            )}
+          </button>
 
-      <div className="space-y-1.5">
-        <div className="flex flex-wrap items-center gap-1.5">
-          {chip(t.calendar.allTypes, allOn, () => setActive(allKindsOn()))}
-          {EVENT_CALENDAR_KINDS.map((kind) => (
-            <span key={kind}>
-              {chip(t.calendar.kinds[kind], active[kind], () => toggle(kind), KIND_STYLE[kind].dot)}
-            </span>
-          ))}
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {YEARLY_CALENDAR_KINDS.map((kind) => (
-            <span key={kind}>
-              {chip(t.calendar.kinds[kind], active[kind], () => toggle(kind), KIND_STYLE[kind].dot)}
-            </span>
-          ))}
+          <div
+            className={`mt-3 space-y-2 sm:mt-0 sm:block ${filtersOpen ? "block" : "hidden"}`}
+            role="group"
+            aria-label={t.calendar.allTypes}
+          >
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterChip
+                label={t.calendar.allTypes}
+                pressed={allOn}
+                onClick={() => setActive(allKindsOn())}
+              />
+              {EVENT_CALENDAR_KINDS.map((kind) => (
+                <FilterChip
+                  key={kind}
+                  label={t.calendar.kinds[kind]}
+                  pressed={active[kind]}
+                  onClick={() => toggle(kind)}
+                  dotClass={KIND_STYLE[kind].dot}
+                />
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {YEARLY_CALENDAR_KINDS.map((kind) => (
+                <FilterChip
+                  key={kind}
+                  label={t.calendar.kinds[kind]}
+                  pressed={active[kind]}
+                  onClick={() => toggle(kind)}
+                  dotClass={KIND_STYLE[kind].dot}
+                />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -291,7 +310,7 @@ export default function CalendarViews() {
         <Suspense
           fallback={
             <div className="flex justify-center py-20" role="status" aria-live="polite">
-              <Loader2 className="h-8 w-8 animate-spin text-accent" />
+              <Loader2 className="h-8 w-8 animate-spin text-brand" />
             </div>
           }
         >
@@ -319,14 +338,16 @@ export default function CalendarViews() {
       {/* The feed is the one thing that turns this page into something you
           never have to open again, so it is said out loud at the bottom rather
           than hidden behind an icon. */}
-      <aside className="flex flex-wrap items-center gap-4 rounded-2xl bg-emerald-50/70 px-5 py-4 dark:bg-emerald-950/20">
-        <Bell className="h-5 w-5 shrink-0 text-accent dark:text-emerald-300" aria-hidden="true" />
-        <div className="min-w-[14rem] flex-1">
-          <p className="font-medium text-neutral-900 dark:text-neutral-50">{t.calendar.reminderTitle}</p>
-          <p className="text-sm text-neutral-600 dark:text-neutral-300">{t.calendar.reminderBody}</p>
-        </div>
-        <CalendarSubscribe triggerSize="default" triggerClassName="rounded-full bg-white dark:bg-neutral-900" />
-      </aside>
+      <InfoBanner
+        tone="calm"
+        icon={<Bell className="h-5 w-5" aria-hidden="true" />}
+        title={t.calendar.reminderTitle}
+        action={
+          <CalendarSubscribe triggerSize="default" triggerClassName="rounded-pill bg-surface" />
+        }
+      >
+        {t.calendar.reminderBody}
+      </InfoBanner>
 
       <Sheet
         open={sheetOpen && selected !== null}

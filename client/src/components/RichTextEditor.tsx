@@ -59,7 +59,7 @@ const YoutubeEmbed = Youtube.extend({
     ];
   },
 });
-const ACTIVE_BUTTON_CLASS = 'bg-neutral-200 dark:bg-neutral-800';
+const ACTIVE_BUTTON_CLASS = 'bg-hairline';
 
 function isSafeLink(url: string) {
   return SAFE_LINK_PROTOCOLS.test(url.trim());
@@ -135,7 +135,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[150px] max-h-[200px] sm:max-h-none sm:min-h-[250px] overflow-y-auto p-4 dark:text-neutral-200',
+        class: 'prose prose-sm prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[150px] max-h-[200px] sm:max-h-none sm:min-h-[250px] overflow-y-auto p-4',
       },
     },
   });
@@ -298,9 +298,9 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
   }
 
   return (
-    <div className="border border-neutral-300 dark:border-neutral-800 rounded-lg overflow-hidden">
+    <div className="border border-hairline rounded-lg overflow-hidden">
       {/* Toolbar */}
-      <div className="flex gap-1 p-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 overflow-x-auto sm:flex-wrap" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-1 p-2 border-b border-hairline bg-sand overflow-x-auto sm:flex-wrap" style={{ scrollbarWidth: 'none' }}>
         {/* Text formatting */}
         <Button
           type="button"
@@ -347,7 +347,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           <Strikethrough className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 mx-1" />
 
         {/* Headings */}
         <Button
@@ -384,7 +384,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           <Heading3 className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 mx-1" />
 
         {/* Lists */}
         <Button
@@ -410,7 +410,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           <ListOrdered className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 mx-1" />
 
         {/* Alignment */}
         <Button
@@ -447,7 +447,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           <AlignRight className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 mx-1" />
 
         {/* Quote and code */}
         <Button
@@ -473,7 +473,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           <Code className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 mx-1" />
 
         {/* Link and Image */}
         <Button
@@ -508,7 +508,7 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
           <VideoIcon className="h-4 w-4" />
         </Button>
 
-        <div className="w-px h-6 bg-neutral-300 dark:bg-neutral-700 mx-1" />
+        <div className="w-px h-6 bg-neutral-300 mx-1" />
 
         {/* Undo/Redo */}
         <Button

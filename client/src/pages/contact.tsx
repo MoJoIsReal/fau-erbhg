@@ -2,37 +2,70 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertContactMessageSchema } from "@shared/schema";
 import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
-import { Send, UserRoundCheck, User, GraduationCap, MapPin, Phone, Mail, Clock, Calendar, type LucideIcon } from "lucide-react";
+import {
+  GraduationCap,
+  Info,
+  Mail,
+  MapPin,
+  Phone,
+  Send,
+  UserRoundCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import NewsletterSignup from "@/components/newsletter-signup";
+import PageHero from "@/components/site/page-hero";
+import { SectionHeader, Surface } from "@/components/site/section";
+import { InfoBanner } from "@/components/site/banners";
+import { ILLUSTRATION_FJORD } from "@/components/site/illustrations";
 
 type FormData = z.infer<typeof insertContactMessageSchema> & {
   subject: string;
   website?: string;
 };
 
-type ContactInfo = {
+type ContactCard = {
   title: string;
   email?: string;
   address?: string;
   phone?: string;
   description: string;
   icon: LucideIcon;
-  color: string;
 };
 
+/**
+ * Kontakt.
+ *
+ * Two things, in the order the guide puts them (§13): who you are writing to,
+ * then the form. The form is capped at the guide's 600px measure and sits in
+ * the main column on desktop, with the contact cards beside it — and under it
+ * on a phone, so the thing most people came to do is the first thing they
+ * reach.
+ */
 export default function Contact() {
   const { toast } = useToast();
   const { language, t } = useLanguage();
@@ -48,16 +81,15 @@ export default function Contact() {
 
   const formSchema = insertContactMessageSchema.extend({
     subject: z.string().min(1, t.contact.selectSubject),
-    website: z.string().optional()
+    website: z.string().optional(),
   });
 
-  const contactInfo: ContactInfo[] = [
+  const contactCards: ContactCard[] = [
     {
       title: t.contact.fauContact,
       email: FAU_EMAIL,
       description: t.contact.fauContactDesc,
       icon: UserRoundCheck,
-      color: "bg-primary/20 text-primary"
     },
     {
       title: t.contact.kindergartenContact,
@@ -65,10 +97,9 @@ export default function Contact() {
       address: KINDERGARTEN_ADDRESS,
       description: t.contact.kindergartenContactDesc,
       icon: GraduationCap,
-      color: "bg-secondary/20 text-secondary"
-    }
+    },
   ];
-  
+
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -77,8 +108,8 @@ export default function Contact() {
       phone: "",
       subject: "",
       message: "",
-      website: ""
-    }
+      website: "",
+    },
   });
 
   const watchSubject = form.watch("subject");
@@ -87,7 +118,7 @@ export default function Contact() {
   useEffect(() => {
     const isAnonymousSelected = watchSubject === "anonymous";
     setIsAnonymous(isAnonymousSelected);
-    
+
     if (isAnonymousSelected) {
       // Clear personal information fields when anonymous is selected
       form.setValue("name", "");
@@ -104,7 +135,7 @@ export default function Contact() {
           ...data,
           name: "",
           email: "",
-          phone: ""
+          phone: "",
         });
       }
       // language decides which of the two auto-reply templates the sender gets.
@@ -121,9 +152,9 @@ export default function Contact() {
       toast({
         title: t.contact.error,
         description: error.message || t.contact.errorDesc,
-        variant: "destructive"
+        variant: "destructive",
       });
-    }
+    },
   });
 
   const onSubmit = (data: FormData) => {
@@ -131,197 +162,226 @@ export default function Contact() {
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="font-heading font-bold text-3xl text-neutral-900 dark:text-neutral-50 mb-2">{t.contact.title}</h1>
-        <p className="text-neutral-600 dark:text-neutral-300">{t.contact.subtitle}</p>
-      </div>
+    <div className="section-rhythm">
+      <PageHero
+        layout="strip"
+        tone="peach"
+        priority
+        title={t.contact.title}
+        lead={t.contact.heroLead}
+        illustration={{ art: ILLUSTRATION_FJORD, alt: "" }}
+      />
 
-      <div className="grid md:grid-cols-2 gap-8">
-        {/* Contact Form */}
-        <Card>
-          <CardContent className="p-6">
-            <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">{t.contact.send}</h3>
-            
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <input
-                  type="text"
-                  {...form.register("website")}
-                  tabIndex={-1}
-                  autoComplete="off"
-                  aria-hidden="true"
-                  className="absolute h-px w-px opacity-0"
-                  style={{ left: "-10000px" }}
-                />
+      <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)] lg:gap-16">
+        {/* min-w-0: a grid item defaults to a min-content floor, and the
+            select's longest option was wide enough to push the whole column
+            past the viewport at 375px. */}
+        <section className="min-w-0" aria-labelledby="contact-form-heading">
+          <SectionHeader
+            id="contact-form-heading"
+            title={t.contact.formTitle}
+            description={t.contact.formLead}
+          />
 
-                {!isAnonymous && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="name"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t.contact.name} *</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t.contact.name} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+          {/* The guide caps a form at 600px: past that, a label and its field
+              drift apart and the eye has to travel (§13). */}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-[600px] space-y-5">
+              <input
+                type="text"
+                {...form.register("website")}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="absolute h-px w-px opacity-0"
+                style={{ left: "-10000px" }}
+              />
 
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t.contact.email} *</FormLabel>
-                          <FormControl>
-                            <Input type="email" placeholder={t.contact.email} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t.contact.phone}</FormLabel>
-                          <FormControl>
-                            <Input type="tel" placeholder={PHONE_PLACEHOLDER} {...field} value={field.value ?? ""} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-
-                {isAnonymous && (
-                  <div className="p-4 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900/70 rounded-lg">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      <strong>{t.contact.anonymous}:</strong> {t.contact.anonymousDesc}
-                    </p>
-                  </div>
-                )}
-
-                <FormField
-                  control={form.control}
-                  name="subject"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.contact.subject} *</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder={t.contact.subjectPlaceholder} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="anonymous">{t.contact.subjects.anonymous}</SelectItem>
-                          <SelectItem value="general">{t.contact.subjects.general}</SelectItem>
-                          <SelectItem value="concern">{t.contact.subjects.concern}</SelectItem>
-                          <SelectItem value="feedback">{t.contact.subjects.feedback}</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t.contact.message} *</FormLabel>
+              {/* Subject first: it decides whether the personal fields are
+                  asked for at all, so asking for a name that then disappears
+                  was the wrong order. */}
+              <FormField
+                control={form.control}
+                name="subject"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.contact.subject} *</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <Textarea 
-                          rows={5} 
-                          placeholder={t.contact.message}
-                          {...field}
-                        />
+                        <SelectTrigger>
+                          <SelectValue placeholder={t.contact.subjectPlaceholder} />
+                        </SelectTrigger>
                       </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <SelectContent>
+                        <SelectItem value="anonymous">{t.contact.subjects.anonymous}</SelectItem>
+                        <SelectItem value="general">{t.contact.subjects.general}</SelectItem>
+                        <SelectItem value="concern">{t.contact.subjects.concern}</SelectItem>
+                        <SelectItem value="feedback">{t.contact.subjects.feedback}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-                <Button 
-                  type="submit" 
-                  className="w-full bg-primary hover:bg-primary/90"
-                  disabled={mutation.isPending}
+              {isAnonymous && (
+                <InfoBanner
+                  tone="warm"
+                  role="status"
+                  icon={<Info className="h-5 w-5" aria-hidden="true" />}
+                  title={t.contact.anonymous}
                 >
-                  <Send className="h-4 w-4 mr-2" />
-                  {mutation.isPending ? t.contact.sending : t.contact.send}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+                  {t.contact.anonymousDesc}
+                </InfoBanner>
+              )}
 
-        {/* Contact Information */}
-        <div className="space-y-6">
-          {/* Council Members */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-6">Foreldrenes arbeidsutvalg (FAU)</h3>
-              
-              <div className="space-y-4">
-                {contactInfo.map((contact, index) => {
-                  const Icon = contact.icon;
-                  return (
-                    <div key={index} className="flex items-start">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center mr-4 flex-shrink-0 ${contact.color}`}>
+              {!isAnonymous && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.contact.name} *</FormLabel>
+                        <FormControl>
+                          <Input autoComplete="name" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.contact.email} *</FormLabel>
+                        <FormControl>
+                          {/* inputMode and autoComplete so a phone offers the
+                              right keyboard and the stored address. */}
+                          <Input type="email" inputMode="email" autoComplete="email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t.contact.phone}</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="tel"
+                            inputMode="tel"
+                            autoComplete="tel"
+                            placeholder={PHONE_PLACEHOLDER}
+                            {...field}
+                            value={field.value ?? ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+
+              <FormField
+                control={form.control}
+                name="message"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.contact.message} *</FormLabel>
+                    <FormControl>
+                      <Textarea rows={6} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" disabled={mutation.isPending}>
+                <Send className="h-4 w-4" aria-hidden="true" />
+                {mutation.isPending ? t.contact.sending : t.contact.send}
+              </Button>
+            </form>
+          </Form>
+        </section>
+
+        <aside className="min-w-0 space-y-8" aria-labelledby="contact-ways-heading">
+          <div>
+            <h2 id="contact-ways-heading" className="text-h3 font-bold tracking-tight text-ink">
+              {t.contact.otherWays}
+            </h2>
+            <div className="mt-5 space-y-4">
+              {contactCards.map((card) => {
+                const Icon = card.icon;
+                return (
+                  <Surface key={card.title} className="p-5">
+                    <div className="flex items-start gap-4">
+                      <span
+                        className="grid h-11 w-11 shrink-0 place-items-center rounded-token bg-green-50 text-brand"
+                        aria-hidden="true"
+                      >
                         <Icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-neutral-900 dark:text-neutral-50">{contact.title}</h4>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-1">{contact.description}</p>
-                        {contact.email && (
-                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                            <Mail className="h-3 w-3 inline mr-2" />
-                            <a href={`mailto:${contact.email}`} className="hover:text-primary dark:hover:text-primary">
-                              {contact.email}
-                            </a>
-                          </p>
-                        )}
-                        {contact.address && (
-                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                            <MapPin className="h-3 w-3 inline mr-2" />
-                            {contact.address}
-                          </p>
-                        )}
-                        {contact.phone && (
-                          <p className="text-sm text-neutral-700 dark:text-neutral-300">
-                            <Phone className="h-3 w-3 inline mr-2" />
-                            {contact.phone}
-                          </p>
-                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="font-semibold text-ink">{card.title}</h3>
+                        <p className="mt-0.5 text-small text-subtle">{card.description}</p>
+                        <ul className="mt-3 space-y-1.5 text-small">
+                          {card.email && (
+                            <li className="flex items-start gap-2">
+                              <Mail
+                                className="mt-0.5 h-4 w-4 shrink-0 text-subtle"
+                                aria-hidden="true"
+                              />
+                              <a
+                                href={`mailto:${card.email}`}
+                                className="min-w-0 break-words font-semibold text-brand hover:underline"
+                              >
+                                {card.email}
+                              </a>
+                            </li>
+                          )}
+                          {card.address && (
+                            <li className="flex items-start gap-2 text-copy">
+                              <MapPin
+                                className="mt-0.5 h-4 w-4 shrink-0 text-subtle"
+                                aria-hidden="true"
+                              />
+                              <span>{card.address}</span>
+                            </li>
+                          )}
+                          {card.phone && (
+                            <li className="flex items-start gap-2 text-copy">
+                              <Phone
+                                className="mt-0.5 h-4 w-4 shrink-0 text-subtle"
+                                aria-hidden="true"
+                              />
+                              <span>{card.phone}</span>
+                            </li>
+                          )}
+                        </ul>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                  </Surface>
+                );
+              })}
+            </div>
+          </div>
 
-          {/* Newsletter signup */}
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="font-heading font-semibold text-xl text-neutral-900 dark:text-neutral-50 mb-2">
-                {t.newsletter.title}
-              </h3>
-              <p className="text-sm text-neutral-600 dark:text-neutral-300 mb-4">{t.newsletter.subtitle}</p>
+          <div>
+            <h2 className="text-h3 font-bold tracking-tight text-ink">{t.newsletter.title}</h2>
+            <p className="mt-2 text-small text-copy">{t.newsletter.subtitle}</p>
+            <div className="mt-5">
               <NewsletterSignup />
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   );

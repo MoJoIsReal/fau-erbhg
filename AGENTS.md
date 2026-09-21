@@ -34,7 +34,9 @@ you are editing; do not add a linter as a side effect of another task.
 
 ```
 client/src/         React SPA. pages/ = routes, components/ = features,
+                    components/site/ = the design system's own primitives,
                     components/ui/ = shadcn primitives (do not hand-edit),
+                    assets/illustrations/ = the derived banner artwork,
                     lib/ = i18n, queryClient, exports; contexts/, hooks/
 api/*.js            The entire backend: 8 Vercel serverless route handlers
 api/cron/           Scheduled handler (Vercel Cron)
@@ -109,6 +111,56 @@ calendar, calendar feed, newsletter invariants),
 | Scheduled work | `api/cron/event-reminders.js`, schedules in `vercel.json` |
 | Video embeds (sanitizer + CSP) | `shared/video-embed.js`, and the four files [`docs/subsystems.md`](docs/subsystems.md) names |
 | Roles/enums shared by both tiers | `shared/constants.js` |
+| A colour, radius, shadow, spacing or type step | `client/src/index.css` tokens, exposed as utilities by `tailwind.config.ts` |
+| Hero, section, card, chip, banner, empty state | `client/src/components/site/` |
+| Calendar category colours | `client/src/lib/calendar-kind-style.ts` → the `--cat-*` tokens |
+
+## The design system
+
+The visual layer implements the *FAU Erdal Barnehage UI Design & Style Guide
+1.0*. Three rules keep it coherent:
+
+**Tokens are the source of truth.** Every colour, radius, shadow, container
+width, motion duration and type step is a custom property in
+`client/src/index.css`; `tailwind.config.ts` does nothing but expose those as
+utilities. Don't write a hex value, a one-off `rounded-[14px]` or a bespoke
+shadow in a component — add or reuse a token. Tailwind's default spacing scale
+*is* the guide's 8px system, so `gap-6` and `py-16` are already compliant.
+
+Two tokens deliberately depart from the guide's published values, both for
+contrast, and both are commented where they are declared: `--color-text-muted`
+is a darkened sibling of the guide's `--color-muted` (which is 3.99:1 on sand,
+under the 4.5:1 the same guide requires of body text), and each calendar
+category has an AA-safe `--cat-*-text` beside the guide's published
+`--cat-*-dot` hue.
+
+**Type comes from the scale.** `text-display`, `text-h1`…`text-h4`,
+`text-body-lg`, `text-body`, `text-small`, `text-micro`. Each is a `clamp()`
+between the guide's mobile and desktop sizes, so one class covers both ends and
+there are no breakpoint-swapped font sizes to keep in sync. Weight stays a
+separate utility, and a page uses at most three of 400/600/700.
+
+**Reach for `components/site/` before writing markup.** `PageHero`,
+`Section`/`SectionHeader`/`Surface`/`EmptyState`, `FilterChip`/
+`SegmentedControl`/`StatusPill`, `InfoBanner`/`IllustrationBanner`,
+`LinkCard`/`EditorSurface`, and `Artwork` + the illustration library. Cards are
+not the default container — the guide asks for spacing and typography first —
+and editor-only controls always go inside `EditorSurface`, never among the
+public filters.
+
+Dark mode is a derived theme, not a second design: the same hues re-anchored on
+an ink ground in the `.dark` block. Anything you add should work by swapping
+tokens, not by adding `dark:` variants.
+
+Accessibility is part of the system, not a later pass: 4.5:1 for body text
+(3:1 for large text and meaningful graphics) in **both** themes, a visible 3px
+focus ring, 44px minimum touch targets, and category or status never carried by
+colour alone — always a label or an icon beside the dot.
+
+Two areas are intentionally outside it. `client/src/pages/yearly-calendar.tsx`
+keeps its poster styling because it mirrors the PDF it generates
+(`client/src/lib/yearly-calendar-pdf.tsx`), and the colour values users pick for
+yearly-calendar entries are stored data rather than design tokens.
 
 ## Conventions
 
@@ -181,7 +233,11 @@ Neon database.
 ## Safety boundaries
 
 - `client/src/components/ui/**` — shadcn primitives, regenerate via the shadcn
-  CLI, do not hand-edit.
+  CLI, do not hand-edit. One documented exception exists: `button`, `input`,
+  `textarea`, `select` and `card` carry the design guide's sizing, radius,
+  focus-ring and disabled tokens, because those are what give every control in
+  the app its 44px touch target and 3px focus ring. Keep any regeneration to
+  structure and re-apply those token values; do not add markup or props here.
 - `migrations/*.sql` — append a new numbered file; never edit or renumber an
   applied one. Schema changes need **both** `shared/schema.ts` and a migration
   (see `migrations/README.md`).
