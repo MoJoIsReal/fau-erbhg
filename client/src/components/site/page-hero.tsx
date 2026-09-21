@@ -1,15 +1,22 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Artwork from "./artwork";
 import type { IllustrationSet } from "./illustrations";
 
 type HeroTone = "sand" | "green" | "peach" | "blue";
 
+/**
+ * Page identity lives in the hero's tone, and every tone has a dark sibling
+ * behind the same token — Kalender stays sage, Dokumenter stays blue/slate,
+ * Kontakt stays peach/terracotta in both themes (guide v1.1 §21).
+ */
 const TONE: Record<HeroTone, string> = {
   sand: "bg-sand",
   green: "bg-green-50",
   peach: "bg-peach",
   blue: "bg-blue-50",
 };
+
+export type HeroLayout = "split" | "editorial" | "compact";
 
 export interface PageHeroProps {
   /** Small label above the title — the section a reader is standing in. */
@@ -26,12 +33,26 @@ export interface PageHeroProps {
   children?: ReactNode;
   illustration?: { art: IllustrationSet; alt: string };
   /**
-   * split  — artwork beside the text on desktop, under it on mobile
-   * strip  — a wide, shallow band of artwork under the text
-   * plain  — no artwork; a quiet tinted band
+   * split     — artwork beside the text, bleeding to the container edge
+   * editorial — heading over a wide band of artwork
+   * compact   — a shallow contextual heading, with or without a thin band
    */
-  layout?: "split" | "strip" | "plain";
+  layout?: HeroLayout;
   tone?: HeroTone;
+  /**
+   * Render the band at the artwork's own ratio instead of a fixed one, for a
+   * crop where nothing may be cut — the values signpost, for instance.
+   */
+  nativeRatio?: boolean;
+  /** The page's own weight. Display is for the site's front door only. */
+  titleSize?: "display" | "h1";
+  /**
+   * Let the hero reach past the reading container on a wide screen. `split`
+   * always does; `editorial` and `compact` only when the page asks, because a
+   * page that already bleeds its whole body (Kalender) would otherwise pull
+   * the margins out twice.
+   */
+  wide?: boolean;
   /** Only the first hero a visitor meets should preload its artwork. */
   priority?: boolean;
 }
@@ -39,16 +60,15 @@ export interface PageHeroProps {
 /**
  * The opening of a page.
  *
- * Every page uses this component so the header, the title and the first
- * breath of white space are the same everywhere — but the composition is not:
- * the home page gets artwork beside the text, the calendar a wider band, and
- * the document list nothing at all, because a file list does not need a
- * picture to explain itself (guide §12, and the brief's "do not give every
- * page an identical hero").
+ * Three deliberate variants rather than one template with switches, so pages
+ * have personality without drifting apart: `split` gives the home page real
+ * artwork beside real text, `editorial` runs a wide band under the heading
+ * for pages whose picture is a mood rather than a subject, and `compact` is
+ * for pages that mostly want to get out of the way.
  *
  * The heading and the lead are always real HTML. Where the artwork carries
- * lettering of its own, it is cropped out or left decorative — it never
- * becomes the only place a sentence exists.
+ * lettering of its own it is cropped out, so the picture never becomes the
+ * only place a sentence exists (guide v1.1 §23).
  */
 export default function PageHero({
   eyebrow,
@@ -58,10 +78,19 @@ export default function PageHero({
   actions,
   children,
   illustration,
-  layout = "plain",
+  layout = "compact",
   tone = "sand",
+  nativeRatio = false,
+  titleSize,
+  wide = false,
   priority = false,
 }: PageHeroProps) {
+  const isSplit = layout === "split";
+  const display = (titleSize ?? (isSplit ? "display" : "h1")) === "display";
+  const bandRatio = nativeRatio && illustration
+    ? { aspectRatio: `${illustration.art.width} / ${illustration.art.height}` }
+    : undefined;
+
   const text = (
     <div className="min-w-0">
       {eyebrow && (
@@ -69,32 +98,50 @@ export default function PageHero({
           {eyebrow}
         </p>
       )}
-      <h1 className="mt-2 text-h1 font-bold tracking-tight text-ink">{title}</h1>
-      {lead && <p className="measure mt-4 text-body-lg text-copy">{lead}</p>}
+      <h1
+        className={`mt-2.5 font-bold tracking-tight text-ink ${display ? "text-display" : "text-h1"}`}
+      >
+        {title}
+      </h1>
+      {lead && <p className="measure mt-5 text-body-lg text-copy">{lead}</p>}
       {hand && (
         <p className="font-hand mt-5 text-2xl text-brand" aria-hidden="true">
           {hand}
         </p>
       )}
-      {actions && <div className="mt-6 flex flex-wrap items-center gap-3">{actions}</div>}
-      {children && <div className="mt-6">{children}</div>}
+      {actions && <div className="mt-8 flex flex-wrap items-center gap-3">{actions}</div>}
+      {children && <div className="mt-7">{children}</div>}
     </div>
   );
 
-  if (layout === "split" && illustration) {
+  if (isSplit && illustration) {
     return (
-      <section className={`overflow-hidden rounded-hero ${TONE[tone]}`}>
-        <div className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.85fr)] lg:gap-12">
-          <div className="px-5 pt-8 sm:px-8 sm:pt-10 lg:py-14 lg:pl-12 lg:pr-0">{text}</div>
-          {/* Taller than it is wide on a phone would push the text off the
-              first screen, so the artwork stays a shallow band there and only
-              opens up once there is a column to fill. */}
-          <div className="aspect-[16/10] sm:aspect-[2/1] lg:aspect-[4/5] lg:h-full">
+      // Wider than the reading container: a hero that stops at 1200px on a
+      // 1440px screen reads as a small page in a big window (guide v1.1 §24).
+      <section className={`bleed-wide overflow-hidden rounded-hero ${TONE[tone]}`}>
+        {/* Two columns only from 1280px. Between 1024 and 1280 the text
+            column is tall enough (a three-line heading) that the artwork
+            beside it would be framed portrait, and object-cover would then
+            crop it horizontally — straight through the value signpost. */}
+        <div className="grid items-stretch xl:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]">
+          <div className="px-6 pb-10 pt-10 sm:px-10 sm:pt-14 xl:py-16 xl:pl-14 xl:pr-4">{text}</div>
+          {/* The artwork runs to the panel's own edge rather than sitting in
+              it with a margin — that gap is what made it read as a thumbnail
+              rather than a hero. The frame's own rules live with
+              `.art-frame` in index.css. */}
+          <div
+            className="art-frame"
+            style={
+              {
+                "--art": `${illustration.art.width} / ${illustration.art.height}`,
+              } as CSSProperties
+            }
+          >
             <Artwork
               illustration={illustration.art}
               alt={illustration.alt}
               priority={priority}
-              sizes="(min-width: 1024px) 40vw, 100vw"
+              sizes="(min-width: 1280px) 46vw, 100vw"
             />
           </div>
         </div>
@@ -102,16 +149,19 @@ export default function PageHero({
     );
   }
 
-  if (layout === "strip" && illustration) {
+  if (layout === "editorial" && illustration) {
     return (
-      <section className={`overflow-hidden rounded-hero ${TONE[tone]}`}>
-        <div className="px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">{text}</div>
-        <div className="aspect-[16/7] sm:aspect-[3/1] lg:aspect-[4/1]">
+      <section className={`${wide ? "bleed-wide " : ""}overflow-hidden rounded-hero ${TONE[tone]}`}>
+        <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14">{text}</div>
+        <div
+          className={bandRatio ? "" : "aspect-[16/8] sm:aspect-[16/6] lg:aspect-[16/5]"}
+          style={bandRatio}
+        >
           <Artwork
             illustration={illustration.art}
             alt={illustration.alt}
             priority={priority}
-            sizes="(min-width: 1200px) 1200px, 100vw"
+            sizes="(min-width: 1360px) 1288px, (min-width: 1232px) 1136px, 100vw"
           />
         </div>
       </section>
@@ -119,8 +169,18 @@ export default function PageHero({
   }
 
   return (
-    <section className={`rounded-hero px-5 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12 ${TONE[tone]}`}>
-      {text}
+    <section className={`${wide ? "bleed-wide " : ""}overflow-hidden rounded-hero ${TONE[tone]}`}>
+      <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14">{text}</div>
+      {illustration && (
+        <div className="aspect-[16/6] sm:aspect-[5/1]">
+          <Artwork
+            illustration={illustration.art}
+            alt={illustration.alt}
+            priority={priority}
+            sizes="(min-width: 1360px) 1288px, (min-width: 1232px) 1136px, 100vw"
+          />
+        </div>
+      )}
     </section>
   );
 }

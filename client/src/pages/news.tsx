@@ -88,6 +88,9 @@ export default function News() {
         lastPage.length === PAGE_SIZE ? allPages.length * PAGE_SIZE : undefined,
     });
   const blogPosts = data?.pages.flat() ?? [];
+  // The lead story is simply the newest one the API returned; the list is
+  // already sorted, so nothing here has to decide what "important" means.
+  const [featured, ...rest] = blogPosts;
 
   const categoryChip = (href: string, label: string, selected: boolean) => (
     <Link
@@ -106,8 +109,9 @@ export default function News() {
   return (
     <div className="section-rhythm">
       <PageHero
-        layout="strip"
+        layout="editorial"
         tone="sand"
+        nativeRatio
         priority
         title={t.navigation.updates}
         lead={t.newsPage.heroLead}
@@ -138,12 +142,70 @@ export default function News() {
           />
         ) : (
           <>
+            {/* Editorial rather than a grid of equal rectangles: the newest
+                post is the lead story, set larger and separated by a rule
+                rather than boxed, and the rest follow as supporting cards
+                (guide v1.1 §21, §24). The lead carries no artwork of its
+                own — the page's picture is the hero band above it, and
+                running the same illustration twice on one screen read as a
+                duplicate. */}
+            {featured && (
+              <article className="group mb-10 border-b border-hairline pb-10">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <StatusPill>
+                      {featured.category === "tips"
+                        ? t.newsPage.categoryTips
+                        : t.newsPage.categoryNews}
+                    </StatusPill>
+                    <time dateTime={featured.publishedDate} className="text-micro text-subtle">
+                      {formatDate(featured.publishedDate, language, {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </time>
+                  </div>
+                  <h2 className="measure mt-4 text-h1 font-bold tracking-tight text-ink">
+                    <Link
+                      href={`/nyheter/${featured.id}`}
+                      className="hover:text-brand hover:underline"
+                    >
+                      {featured.title}
+                    </Link>
+                  </h2>
+                  <SafeHtml
+                    html={featured.content}
+                    truncate={320}
+                    className="measure mt-4 text-body-lg text-copy"
+                  />
+                  <div className="mt-6 flex flex-wrap items-center gap-4">
+                    <Link
+                      href={`/nyheter/${featured.id}`}
+                      className="inline-flex items-center gap-1.5 text-body font-semibold text-brand hover:underline"
+                    >
+                      {t.home.readMore}
+                      <ArrowRight
+                        className="h-4 w-4 transition-transform duration-micro ease-guide group-hover:translate-x-0.5"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                    {featured.author && (
+                      <span className="text-micro text-subtle">
+                        {t.newsPage.by} {featured.author}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </article>
+            )}
+
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {blogPosts.map((post) => (
+              {rest.map((post) => (
                 <Surface
                   key={post.id}
                   as="article"
-                  className="group flex flex-col p-5 transition-colors duration-micro ease-guide hover:border-brand/30"
+                  className="group flex flex-col p-6 transition-colors duration-micro ease-guide hover:border-brand/30 hover:bg-surface-raised"
                 >
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill>
@@ -158,7 +220,7 @@ export default function News() {
                     </time>
                   </div>
 
-                  <h2 className="mt-3 text-h4 font-bold text-ink">
+                  <h2 className="mt-3 text-h3 font-bold tracking-tight text-ink">
                     {/* Title links to the permalink so a specific post can be
                         shared, e.g. in the parents' Facebook group. */}
                     <Link href={`/nyheter/${post.id}`} className="hover:text-brand hover:underline">
@@ -166,13 +228,9 @@ export default function News() {
                     </Link>
                   </h2>
 
-                  <SafeHtml
-                    html={post.content}
-                    truncate={180}
-                    className="mt-2 text-small text-copy"
-                  />
+                  <SafeHtml html={post.content} truncate={180} className="mt-2 text-copy" />
 
-                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
+                  <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
                     {post.author ? (
                       <span className="text-micro text-subtle">
                         {t.newsPage.by} {post.author}

@@ -86,7 +86,7 @@ function DayRow({
               aria-hidden="true"
             />
             <span
-              className={`font-semibold text-ink hover:text-brand hover:underline ${
+              className={`text-body-lg font-semibold text-ink hover:text-brand hover:underline ${
                 entry.cancelled ? "line-through decoration-1" : ""
               }`}
             >

@@ -49,12 +49,31 @@
   --color-muted: #6F7D78;
   --color-border: #DCE6E1;
   --color-surface: #FCFDFB;
+  /* The surface ladder v1.1 asks for: page ground → section → card →
+     raised/hover. Light mode's steps are small by nature; the border does
+     most of the separating. Dark mode leans on luminance instead. */
+  --color-surface-raised: #FFFFFF;
+  --color-surface-soft: #F1F6F1;
+
+  /* The calendar is a working surface and carries a little more contrast
+     than the rest of the page in both themes (guide v1.1 §22). */
+  --color-calendar-cell: #FFFFFF;
+  --color-calendar-cell-hover: #EFF6EF;
+  --color-calendar-grid: #DCE6E1;
+  /* A day belonging to the neighbouring month is the page showing through
+     the grid. It has to sit *behind* the working cell in both themes, and
+     the generic soft surface cannot: it is lighter than the cell in dark
+     mode, which would make the days that do not count the raised ones. */
+  --color-calendar-outside: #F5F2EC;
 
   /* The guide's --color-muted is 4.30:1 on white and 3.99:1 on sand, below
      the 4.5:1 the same guide requires of normal text. It stays as specified
      for icons, rules and decorative marks; metadata *text* uses this
      minimally darkened sibling (4.8:1 on sand, 5.1:1 on surface). */
   --color-text-muted: #62706B;
+  /* The metadata tone. Dark mode splits muted and subtle further apart;
+     light mode reuses one value for both. */
+  --color-subtle: #62706B;
 
   /* --- Calendar categories (guide §7) ---
      `dot` is the guide's published hue, darkened only where it failed the
@@ -120,10 +139,13 @@
 
   /* --- Layout and depth (guide §4, §5) --- */
   --container: 1200px;
+  /* Heroes and editorial bands may reach past the reading container so a
+     1440px screen is not mostly passive margin (guide v1.1 §24). */
+  --container-wide: 1288px;
   --shadow-card: 0 4px 18px rgba(16, 42, 36, 0.06);
   --shadow-panel: 0 18px 50px rgba(16, 42, 36, 0.14);
-  --header-height: 72px;
-  --header-height-mobile: 62px;
+  --header-height: 76px;
+  --header-height-mobile: 64px;
 
   /* --- Motion (guide §15) --- */
   --motion-micro: 140ms;
@@ -163,79 +185,98 @@
    is on its avoid list), so dark mode is a derived theme rather than a
    second design: the same hues, re-anchored on an ink ground, with every
    pairing held to the same 4.5:1 / 3:1 thresholds. */
+/* Dark mode is the same FAU identity under different lighting, not an
+   inversion: warm off-white text, a real surface ladder, and the secondary
+   palette kept so Kalender, Dokumenter and Kontakt still read as themselves.
+   Every value below is the token override published in style guide v1.1 §23;
+   nothing here is a per-component one-off. */
 .dark {
-  --color-primary: #5FC694;
-  --color-primary-hover: #7AD4A8;
-  --color-primary-active: #8FE0B8;
-  --color-sage: #3C5E4C;
-  --color-green-50: #163024;
-  /* A shade above --background so the footer and sand-toned heroes still
-     read as their own surface in the dark theme. */
-  --color-sand: #12211C;
-  --color-peach: #35281F;
-  --color-blue-50: #16252F;
-  --color-orange: #E0A264;
-  --color-red: #F0906F;
-  --color-ink: #E8F0EC;
-  --color-text: #C9D6D0;
-  --color-muted: #8FA099;
-  --color-text-muted: #96A7A0;
-  --color-border: #26362F;
-  --color-surface: #142320;
+  color-scheme: dark;
 
-  --cat-arrangement-dot: #F0906F;
-  --cat-arrangement-text: #F0906F;
-  --cat-arrangement-tint: #2E1F1A;
-  --cat-mote-dot: #7BB0FF;
-  --cat-mote-text: #7BB0FF;
-  --cat-mote-tint: #17222F;
-  --cat-dugnad-dot: #6FC79C;
-  --cat-dugnad-text: #6FC79C;
-  --cat-dugnad-tint: #15291F;
-  --cat-foto-dot: #B49BF0;
-  --cat-foto-text: #B49BF0;
-  --cat-foto-tint: #221D2E;
-  --cat-internt-dot: #A7B2C4;
-  --cat-internt-text: #A7B2C4;
-  --cat-internt-tint: #1D2128;
-  --cat-bhgdag-dot: #86B4FF;
-  --cat-bhgdag-text: #86B4FF;
-  --cat-bhgdag-tint: #17222F;
-  --cat-varmmat-dot: #E8B65A;
-  --cat-varmmat-text: #E8B65A;
-  --cat-varmmat-tint: #2B2317;
-  --cat-temauke-dot: #B49BF0;
-  --cat-temauke-text: #B49BF0;
-  --cat-temauke-tint: #221D2E;
-  --cat-stengt-dot: #F08080;
-  --cat-stengt-text: #F08080;
-  --cat-stengt-tint: #2E1B1B;
-  --cat-beskjed-dot: #ADADAD;
-  --cat-beskjed-text: #ADADAD;
-  --cat-beskjed-tint: #242424;
+  --color-primary: #67D49A;
+  --color-primary-hover: #7DDFAB;
+  --color-primary-active: #8FE7B9;
+  --color-sage: #2C4F3E;
+  --color-green-50: #173128; /* sage surface — green heroes */
+  --color-sand: #10251E;
+  --color-peach: #3B2720; /* peach surface — Kontakt */
+  --color-blue-50: #172B36; /* blue surface — Dokumenter */
+  --color-orange: #F4B774;
+  --color-red: #F28C79;
+  --color-ink: #F5F2EA;
+  --color-text: #F5F2EA;
+  --color-muted: #B8C5BF;
+  --color-text-muted: #B8C5BF;
+  --color-subtle: #8FA29A;
+  --color-border: #29483B;
+  --color-surface: #10251E;
+  --color-surface-raised: #162D24;
+  --color-surface-soft: #1A3429;
 
-  --shadow-card: 0 4px 18px rgba(0, 0, 0, 0.35);
-  --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.5);
+  /* The calendar is a working surface, so it gets its own slightly higher
+     contrast ladder than the rest of the page (guide v1.1 §22). */
+  --color-calendar-cell: #122920;
+  --color-calendar-cell-hover: #193429;
+  --color-calendar-grid: #28453A;
+  --color-calendar-outside: #0C1E18;
 
-  --background: 162 33% 8%;
-  --foreground: 153 24% 92.5%;
-  --card: 165 24% 11%;
-  --card-foreground: 153 24% 92.5%;
-  --popover: 165 24% 11%;
-  --popover-foreground: 153 24% 92.5%;
-  --muted: 162 20% 15%;
-  --muted-foreground: 158 10% 62%;
-  --border: 158 18% 18%;
-  --input: 158 18% 18%;
-  --primary: 152 47% 57%;
-  --primary-foreground: 165 60% 8%;
-  --secondary: 149 22% 30%;
-  --secondary-foreground: 153 24% 92.5%;
-  --accent: 158 37% 13%;
-  --accent-foreground: 152 47% 57%;
-  --destructive: 8 78% 69%;
-  --destructive-foreground: 165 60% 8%;
-  --ring: 152 47% 57%;
+  /* Category hues lightened until they clear 4.5:1 on every dark surface
+     they can land on, including their own tint. */
+  --cat-arrangement-dot: #E76F51;
+  --cat-arrangement-text: #E76F51;
+  --cat-arrangement-tint: #291612;
+  --cat-mote-dot: #4D92F0;
+  --cat-mote-text: #4D92F0;
+  --cat-mote-tint: #121C29;
+  --cat-dugnad-dot: #17A56C;
+  --cat-dugnad-text: #17A56C;
+  --cat-dugnad-tint: #122920;
+  --cat-foto-dot: #9A81E1;
+  --cat-foto-text: #9A81E1;
+  --cat-foto-tint: #181229;
+  --cat-internt-dot: #8891A4;
+  --cat-internt-text: #8891A4;
+  --cat-internt-tint: #191C21;
+  --cat-bhgdag-dot: #4F8FF7;
+  --cat-bhgdag-text: #4F8FF7;
+  --cat-bhgdag-tint: #121B29;
+  --cat-varmmat-dot: #F59E0B;
+  --cat-varmmat-text: #F59E0B;
+  --cat-varmmat-tint: #292012;
+  --cat-temauke-dot: #9A81E1;
+  --cat-temauke-text: #9A81E1;
+  --cat-temauke-tint: #181229;
+  --cat-stengt-dot: #DF7070;
+  --cat-stengt-text: #DF7070;
+  --cat-stengt-tint: #291212;
+  --cat-beskjed-dot: #919191;
+  --cat-beskjed-text: #919191;
+  --cat-beskjed-tint: #1D1D1D;
+
+  /* Luminance and border do the lifting in dark mode; heavy shadows just
+     muddy it (guide v1.1 §21). */
+  --shadow-card: none;
+  --shadow-panel: 0 18px 50px rgba(0, 0, 0, 0.55);
+
+  --background: 162 49% 6.9%; /* #091A15 */
+  --foreground: 44 36% 93.9%; /* #F5F2EA */
+  --card: 160 40% 10.4%; /* #10251E */
+  --card-foreground: 44 36% 93.9%;
+  --popover: 157 34% 13.1%; /* #162D24 */
+  --popover-foreground: 44 36% 93.9%;
+  --muted: 155 33% 15.3%; /* #1A3429 */
+  --muted-foreground: 152 10% 74.7%; /* #B8C5BF */
+  --border: 155 27% 22.2%; /* #29483B */
+  --input: 155 27% 22.2%;
+  --primary: 148 56% 61.8%; /* #67D49A */
+  --primary-foreground: 162 49% 6.9%; /* ink on a filled button, 9.8:1 */
+  --secondary: 159 36% 14.1%; /* sage surface */
+  --secondary-foreground: 44 36% 93.9%;
+  --accent: 157 34% 13.1%;
+  --accent-foreground: 148 56% 61.8%;
+  --destructive: 9 82% 71.2%; /* #F28C79 */
+  --destructive-foreground: 162 49% 6.9%;
+  --ring: 148 56% 61.8%;
 }
 
 @layer base {
@@ -325,6 +366,41 @@
   @media (min-width: 1024px) {
     .section-rhythm > * + * {
       margin-top: 64px;
+    }
+  }
+
+  /* A section that may reach past the reading container. It only engages
+     once the viewport is genuinely wider than the wide container — below
+     that the page is already using its full width, and pulling the margins
+     out would push the section past the viewport instead of into spare
+     room. The negative margin is exactly the difference between the two
+     containers, so the band lines up rather than guessing. */
+  /* The split hero's artwork frame.
+     Stacked it is 16:9, which shows about four fifths of these crops'
+     height — enough for a whole signpost and the children's faces, and a
+     sane block on a phone. Once the hero is two columns the frame takes the
+     artwork's own ratio instead and centres itself, because the column's
+     height is then set by however long the heading happens to wrap, and a
+     portrait frame would crop a landscape crop sideways — straight through
+     the values on the sign. */
+  .art-frame {
+    aspect-ratio: 16 / 9;
+  }
+
+  @media (min-width: 1280px) {
+    .art-frame {
+      aspect-ratio: var(--art);
+      align-self: center;
+    }
+  }
+
+  .bleed-wide {
+    margin-inline: 0;
+  }
+
+  @media (min-width: 1360px) {
+    .bleed-wide {
+      margin-inline: calc((var(--container) - var(--container-wide)) / 2);
     }
   }
 

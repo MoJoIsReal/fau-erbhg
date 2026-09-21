@@ -214,10 +214,13 @@ export default function CalendarViews() {
   }
 
   return (
-    <div className="space-y-6">
+    // The calendar is the site's one working surface, so it takes the wide
+    // container rather than the reading one (guide v1.1 §24, "Kalender").
+    <div className="bleed-wide space-y-7">
       <PageHero
-        layout="strip"
+        layout="editorial"
         tone="green"
+        nativeRatio
         priority
         eyebrow={t.calendar.title}
         title={<span className={view === "month" ? "capitalize" : undefined}>{heading}</span>}

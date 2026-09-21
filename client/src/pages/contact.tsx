@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -41,12 +41,19 @@ import NewsletterSignup from "@/components/newsletter-signup";
 import PageHero from "@/components/site/page-hero";
 import { SectionHeader, Surface } from "@/components/site/section";
 import { InfoBanner } from "@/components/site/banners";
-import { ILLUSTRATION_FJORD } from "@/components/site/illustrations";
+import { ILLUSTRATION_CONTACT } from "@/components/site/illustrations";
 
 type FormData = z.infer<typeof insertContactMessageSchema> & {
   subject: string;
   website?: string;
 };
+
+interface FauBoardMember {
+  id: number;
+  name: string;
+  role: string;
+  sortOrder: number;
+}
 
 type ContactCard = {
   title: string;
@@ -99,6 +106,12 @@ export default function Contact() {
       icon: GraduationCap,
     },
   ];
+
+  // The board roster lives here rather than on the home page: this is where
+  // someone goes looking for who to ask (guide v1.1 §24, "Forside").
+  const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
+    queryKey: ["/api/secure-settings?resource=board-members"],
+  });
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -164,12 +177,13 @@ export default function Contact() {
   return (
     <div className="section-rhythm">
       <PageHero
-        layout="strip"
+        layout="editorial"
         tone="peach"
+        nativeRatio
         priority
         title={t.contact.title}
         lead={t.contact.heroLead}
-        illustration={{ art: ILLUSTRATION_FJORD, alt: "" }}
+        illustration={{ art: ILLUSTRATION_CONTACT, alt: "" }}
       />
 
       <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.75fr)] lg:gap-16">
@@ -373,6 +387,30 @@ export default function Contact() {
               })}
             </div>
           </div>
+
+          {boardMembers.length > 0 && (
+            <div>
+              <h2 className="text-h3 font-bold tracking-tight text-ink">{t.home.fauTitle}</h2>
+              <p className="measure mt-2 text-small text-copy">{t.home.fauDescription}</p>
+              <p className="mt-5 text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
+                {t.home.fauBoard}
+              </p>
+              <ul className="mt-3 divide-y divide-hairline text-small">
+                {boardMembers.map((member) => (
+                  <li key={member.id} className="flex justify-between gap-6 py-3">
+                    <span className="text-subtle">
+                      {member.role === "Leder"
+                        ? t.home.leader
+                        : member.role === "Vara"
+                          ? t.home.vara
+                          : t.home.member}
+                    </span>
+                    <span className="font-semibold text-ink">{member.name}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <div>
             <h2 className="text-h3 font-bold tracking-tight text-ink">{t.newsletter.title}</h2>

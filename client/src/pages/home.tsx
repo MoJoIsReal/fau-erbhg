@@ -12,14 +12,7 @@ import PageHero from "@/components/site/page-hero";
 import { SectionHeader, Surface, EmptyState } from "@/components/site/section";
 import { StatusPill } from "@/components/site/controls";
 import { IllustrationBanner } from "@/components/site/banners";
-import { ILLUSTRATION_HOME, ILLUSTRATION_SIGNPOST } from "@/components/site/illustrations";
-
-interface FauBoardMember {
-  id: number;
-  name: string;
-  role: string;
-  sortOrder: number;
-}
+import { ILLUSTRATION_HOME, ILLUSTRATION_VALUES } from "@/components/site/illustrations";
 
 interface BlogPost {
   id: number;
@@ -97,10 +90,6 @@ export default function Home() {
   const [next, ...rest] = upcoming;
   const soon = rest.slice(0, 4);
 
-  const { data: boardMembers = [] } = useQuery<FauBoardMember[]>({
-    queryKey: ["/api/secure-settings?resource=board-members"],
-  });
-
   const { data: allBlogPosts = [] } = useQuery<BlogPost[]>({
     queryKey: ["/api/secure-settings?resource=blog-posts"],
   });
@@ -113,9 +102,14 @@ export default function Home() {
 
   return (
     <div className="section-rhythm">
+      {/* Split, not a band: the only crop of the welcome artwork that clears
+          its own baked headline is a near-square block of the right-hand
+          side, and that belongs in a full-height column beside the text
+          rather than stretched across one (see illustrations.ts). */}
       <PageHero
         layout="split"
         tone="sand"
+        titleSize="display"
         priority
         title={t.home.title}
         lead={t.home.welcomeDescription}
@@ -135,27 +129,19 @@ export default function Home() {
         }
       />
 
-      {/* Three values on one row at every width. Stacked, they cost three
-          screens of scrolling on a phone for three short statements — and
-          they only mean anything as a set, so they are gathered into one
-          surface with a rule between them rather than left floating. */}
+      {/* The three official FAU values. They carry the identity, so they get
+          a band of their own directly under the hero rather than three
+          floating columns — and the wording is exactly the official set
+          (guide v1.1 §24, "Verdier og skilt"). */}
       <section aria-label={t.home.valuesTitle}>
-        {/* No card on a phone: the surface's own padding was eating a third of
-            each column, and "Engasjement" needs the width more than the row
-            needs a border. From 640px up it becomes the divided surface. */}
-        <div className="grid grid-cols-3 rounded-card sm:divide-x sm:divide-hairline sm:border sm:border-hairline sm:bg-surface">
+        <div className="grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-3">
           {values.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="px-1 py-2 sm:px-6 sm:py-6">
-              <span className="grid h-9 w-9 place-items-center rounded-token bg-green-50 text-brand sm:h-11 sm:w-11">
-                <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
+            <div key={title} className="bg-surface px-6 py-7 sm:px-7 sm:py-8">
+              <span className="grid h-12 w-12 place-items-center rounded-token bg-green-50 text-brand">
+                <Icon className="h-6 w-6" aria-hidden="true" />
               </span>
-              <h2 className="mt-3 text-small font-bold text-ink sm:mt-4 sm:text-h4">{title}</h2>
-              {/* A third of a 375px screen is four words to a line, which is
-                  below what the guide calls readable — so the sentence is
-                  visually held back until there is a column to put it in.
-                  sr-only rather than hidden: a screen reader still reads it at
-                  every width, so nothing is actually lost on a phone. */}
-              <p className="sr-only sm:not-sr-only sm:mt-1.5 sm:text-small sm:text-copy">{body}</p>
+              <h2 className="mt-5 text-h3 font-bold tracking-tight text-ink">{title}</h2>
+              <p className="mt-2 text-copy">{body}</p>
             </div>
           ))}
         </div>
@@ -345,104 +331,77 @@ export default function Home() {
         </section>
       )}
 
-      {/* The standing explanation of who we are and where the kindergarten is.
-          Open sections with a rule between them rather than two more cards. */}
+      {/* Practical information, compressed to what a parent needs on the
+          spot. The board roster and the longer explanation of what FAU is
+          moved to Kontakt, where someone goes looking for them — they used to
+          take up a quarter of the home page (guide v1.1 §24, "Forside"). */}
       <section aria-labelledby="home-about">
-        <SectionHeader id="home-about" title={t.home.practicalInfo} />
-        <div className="grid gap-10 md:grid-cols-2 md:gap-12">
-          <div>
-            <h3 className="text-h4 font-bold text-ink">{t.home.aboutKindergarten}</h3>
-            {kindergartenInfo ? (
-              <>
-                <dl className="mt-4 divide-y divide-hairline text-small">
-                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
-                    <dt className="text-subtle">{t.home.contact}</dt>
-                    <dd>
-                      <a
-                        href={`mailto:${kindergartenInfo.contactEmail}`}
-                        className="font-semibold text-brand hover:underline"
-                      >
-                        {kindergartenInfo.contactEmail}
-                      </a>
-                    </dd>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
-                    <dt className="text-subtle">{t.home.municipality}</dt>
-                    <dd className="text-ink">{kindergartenInfo.address}</dd>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
-                    <dt className="text-subtle">{t.home.openingHours}</dt>
-                    <dd className="text-ink">{kindergartenInfo.openingHours}</dd>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
-                    <dt className="text-subtle">{t.home.numberOfChildren}</dt>
-                    <dd className="text-ink">
-                      {kindergartenInfo.numberOfChildren} {t.home.children}
-                    </dd>
-                  </div>
-                  <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
-                    <dt className="text-subtle">{t.home.owner}</dt>
-                    <dd className="text-ink">{kindergartenInfo.owner}</dd>
-                  </div>
-                  {kindergartenInfo.styrerName && kindergartenInfo.styrerEmail && (
-                    <div className="flex flex-wrap justify-between gap-x-6 gap-y-1 py-2.5">
-                      <dt className="text-subtle">{t.home.director}</dt>
-                      <dd>
-                        <a
-                          href={`mailto:${kindergartenInfo.styrerEmail}`}
-                          className="font-semibold text-brand hover:underline"
-                        >
-                          {kindergartenInfo.styrerName}
-                        </a>
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-                <p className="measure mt-4 text-small text-copy">
-                  {kindergartenInfo.description}
-                </p>
-              </>
-            ) : (
-              <p className="mt-4 text-small italic text-subtle">{t.home.loadingInformation}</p>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-h4 font-bold text-ink">{t.home.fauTitle}</h3>
-            <p className="mt-4 text-small">
-              <span className="text-subtle">{t.home.contact} </span>
-              <a href={`mailto:${FAU_EMAIL}`} className="font-semibold text-brand hover:underline">
-                {FAU_EMAIL}
-              </a>
-            </p>
-            {boardMembers.length > 0 && (
-              <>
-                <p className="mt-5 text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
-                  {t.home.fauBoard}
-                </p>
-                <ul className="mt-3 divide-y divide-hairline text-small">
-                  {boardMembers.map((member) => (
-                    <li key={member.id} className="flex justify-between gap-6 py-2.5">
-                      <span className="text-subtle">
-                        {member.role === "Leder"
-                          ? t.home.leader
-                          : member.role === "Vara"
-                            ? t.home.vara
-                            : t.home.member}
-                      </span>
-                      <span className="font-semibold text-ink">{member.name}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-            <p className="measure mt-5 text-small text-copy">{t.home.fauDescription}</p>
-          </div>
-        </div>
+        <SectionHeader
+          id="home-about"
+          title={t.home.practicalInfo}
+          action={
+            <Link
+              href="/contact"
+              className="inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+            >
+              {t.home.boardOnContact}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          }
+        />
+        {kindergartenInfo ? (
+          // min-w-0 on each cell: a grid track is floored at its items'
+          // min-content width, and the unbroken contact address is wider than
+          // a 375px column, so without it the whole grid grows past the page.
+          <dl className="grid gap-px overflow-hidden rounded-card border border-hairline bg-hairline sm:grid-cols-2">
+            <div className="min-w-0 bg-surface px-5 py-5">
+              <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
+                {t.home.municipality}
+              </dt>
+              <dd className="mt-1.5 font-semibold text-ink">{kindergartenInfo.address}</dd>
+            </div>
+            <div className="min-w-0 bg-surface px-5 py-5">
+              <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
+                {t.home.openingHours}
+              </dt>
+              <dd className="mt-1.5 font-semibold tabular-nums text-ink">
+                {kindergartenInfo.openingHours}
+              </dd>
+            </div>
+            <div className="min-w-0 bg-surface px-5 py-5">
+              <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
+                {t.home.aboutKindergarten}
+              </dt>
+              <dd className="mt-1.5">
+                <a
+                  href={`mailto:${kindergartenInfo.contactEmail}`}
+                  className="break-words font-semibold text-brand hover:underline"
+                >
+                  {kindergartenInfo.contactEmail}
+                </a>
+              </dd>
+            </div>
+            <div className="min-w-0 bg-surface px-5 py-5">
+              <dt className="text-micro font-semibold uppercase tracking-[0.12em] text-subtle">
+                {t.home.fauTitle}
+              </dt>
+              <dd className="mt-1.5">
+                <a
+                  href={`mailto:${FAU_EMAIL}`}
+                  className="break-words font-semibold text-brand hover:underline"
+                >
+                  {FAU_EMAIL}
+                </a>
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="text-copy italic">{t.home.loadingInformation}</p>
+        )}
       </section>
 
       <IllustrationBanner
-        art={ILLUSTRATION_SIGNPOST}
+        art={ILLUSTRATION_VALUES}
         eyebrow={t.ui.aboutFau}
         title={t.home.closingTitle}
         hand={t.home.closingHand}
