@@ -102,6 +102,12 @@ export interface Translations {
     yearView: string;
     yearViewHint: string;
     quietWeek: string;
+    detailEmpty: string;
+    detailPlace: string;
+    detailWeek: string;
+    detailDeadline: string;
+    detailSignup: string;
+    noDescription: string;
     weekRailHint: string;
     week: string;
     thisWeek: string;
@@ -977,6 +983,12 @@ export const translations: Record<Language, Translations> = {
       yearViewHint:
         "Hele barnehageåret, én rad per uke. Rolige uker vises som rolige — det er dem du leter etter når noe skal planlegges.",
       quietWeek: "rolig uke",
+      detailEmpty: "Velg noe i kalenderen for å se detaljene her.",
+      detailPlace: "Sted",
+      detailWeek: "Uke",
+      detailDeadline: "Påmeldingsfrist",
+      detailSignup: "Påmelding",
+      noDescription: "Ingen beskrivelse lagt inn.",
       weekRailHint:
         "Ukekolonnen til venstre viser det som varer hele uken — varmmat, temauker og beskjeder. Rutene viser dagene.",
       week: "Uke",
@@ -1847,6 +1859,12 @@ export const translations: Record<Language, Translations> = {
       yearViewHint:
         "The whole kindergarten year, one row per week. Quiet weeks are shown as quiet — those are the ones you are looking for when something needs planning.",
       quietWeek: "quiet week",
+      detailEmpty: "Pick something in the calendar to see the details here.",
+      detailPlace: "Place",
+      detailWeek: "Week",
+      detailDeadline: "Registration deadline",
+      detailSignup: "Registration",
+      noDescription: "No description added.",
       weekRailHint:
         "The week column on the left carries what lasts all week — hot meals, theme weeks and notices. The cells carry the days.",
       week: "Week",

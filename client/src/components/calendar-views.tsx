@@ -16,7 +16,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { CHIP_OFF, KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
 import CalendarEntryList from "@/components/calendar-entry-list";
+import CalendarEntryDetail from "@/components/calendar-entry-detail";
 import EventRegistrationModal from "@/components/event-registration-modal";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 // The grids are only paid for when someone switches to them.
 const CalendarView = lazy(() => import("@/components/calendar-view"));
@@ -79,7 +82,12 @@ export default function CalendarViews() {
   const [active, setActive] = useState<Record<CalendarEntryKind, boolean>>(initialActive);
   const [mode, setMode] = useState<CalendarViewMode>(initialMode);
   const [showPast, setShowPast] = useState(false);
+  const [selected, setSelected] = useState<CalendarEntry | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+
+  // Wide enough to put the detail beside the list instead of over it. Below
+  // this it slides in as a sheet, which is the same content either way.
+  const canDock = useMediaQuery("(min-width: 1024px)");
 
   const today = new Date();
   const currentWeekKey = calendarWeekKey(isoWeekYear(today), isoWeek(today));
@@ -104,10 +112,23 @@ export default function CalendarViews() {
   const thisSchoolYear = getKindergartenSchoolYear(new Date());
   const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
 
-  // Only events have anything to open: a varmmat row is its own full content.
-  const openEntry = (entry: CalendarEntry) => {
+  const openEntry = (entry: CalendarEntry) => setSelected(entry);
+  const registerFor = (entry: CalendarEntry) => {
     if (entry.event) setSelectedEvent(entry.event);
   };
+
+  // The docked panel is always showing something, so it falls back to the
+  // next thing that actually happens on a day rather than opening on a week
+  // of hot meals.
+  const docked = useMemo(() => {
+    if (selected && active[selected.kind]) return selected;
+    const upcoming = visible.filter((entry) => entry.weekKey >= currentWeekKey);
+    return upcoming.find((entry) => entry.date) ?? upcoming[0] ?? visible[0] ?? null;
+  }, [selected, visible, active, currentWeekKey]);
+
+  const detail = (
+    <CalendarEntryDetail entry={docked} onRegister={registerFor} />
+  );
 
   const renderChips = (kinds: readonly CalendarEntryKind[], label: string) => (
     <div className="flex flex-wrap items-center gap-2">
@@ -219,14 +240,23 @@ export default function CalendarViews() {
           always show a whole period, so hiding past weeks there would only
           punch holes in them. */}
       {mode === "list" ? (
-        <CalendarEntryList
-          entries={visible}
-          fromWeekKey={showPast ? null : currentWeekKey}
-          currentWeekKey={currentWeekKey}
-          onShowEarlier={showPast ? null : () => setShowPast(true)}
-          onRegister={setSelectedEvent}
-          emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
-        />
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <CalendarEntryList
+            entries={visible}
+            fromWeekKey={showPast ? null : currentWeekKey}
+            currentWeekKey={currentWeekKey}
+            onShowEarlier={showPast ? null : () => setShowPast(true)}
+            onRegister={setSelectedEvent}
+            onSelect={openEntry}
+            selectedId={docked?.id ?? null}
+            emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
+          />
+          {canDock && (
+            <aside className="sticky top-4 rounded-xl border bg-white dark:border-neutral-800 dark:bg-neutral-950">
+              {detail}
+            </aside>
+          )}
+        </div>
       ) : (
         <Suspense
           fallback={
@@ -246,6 +276,22 @@ export default function CalendarViews() {
           )}
         </Suspense>
       )}
+
+      {/* Below the docking width — and from the month and year views, which
+          have no room to dock — the same detail slides in over the calendar. */}
+      <Sheet
+        open={selected !== null && (!canDock || mode !== "list")}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null);
+        }}
+      >
+        <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-md">
+          <SheetHeader className="sr-only">
+            <SheetTitle>{selected?.title ?? t.calendar.detailEmpty}</SheetTitle>
+          </SheetHeader>
+          <CalendarEntryDetail entry={selected} onRegister={registerFor} />
+        </SheetContent>
+      </Sheet>
 
       <EventRegistrationModal
         event={selectedEvent}

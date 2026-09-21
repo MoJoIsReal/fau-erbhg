@@ -58,7 +58,17 @@ function SignupSide({ entry, onRegister }: { entry: CalendarEntry; onRegister: (
   );
 }
 
-function DatedRow({ entry, onRegister }: { entry: CalendarEntry; onRegister: (event: Event) => void }) {
+function DatedRow({
+  entry,
+  onRegister,
+  onSelect,
+  isSelected,
+}: {
+  entry: CalendarEntry;
+  onRegister: (event: Event) => void;
+  onSelect: (entry: CalendarEntry) => void;
+  isSelected: boolean;
+}) {
   const { language, t } = useLanguage();
   const style = KIND_STYLE[entry.kind];
   const date = new Date(entry.date as string);
@@ -74,7 +84,9 @@ function DatedRow({ entry, onRegister }: { entry: CalendarEntry; onRegister: (ev
     <li
       className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-l-4 px-3 py-3 sm:flex-nowrap sm:px-4 ${
         style.border
-      } ${entry.cancelled ? "opacity-70" : ""}`}
+      } ${entry.cancelled ? "opacity-70" : ""} ${
+        isSelected ? "bg-neutral-100 dark:bg-neutral-900" : ""
+      }`}
     >
       <div className="w-11 shrink-0 text-center leading-tight">
         <div className="text-xs uppercase text-neutral-500 dark:text-neutral-400">{weekday}</div>
@@ -84,13 +96,16 @@ function DatedRow({ entry, onRegister }: { entry: CalendarEntry; onRegister: (ev
 
       <div className="min-w-[12rem] flex-1 basis-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`font-semibold text-neutral-900 dark:text-neutral-50 ${
+          <button
+            type="button"
+            onClick={() => onSelect(entry)}
+            aria-current={isSelected ? "true" : undefined}
+            className={`text-left font-semibold text-neutral-900 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:text-neutral-50 dark:focus-visible:ring-offset-neutral-950 ${
               entry.cancelled ? "line-through" : ""
             }`}
           >
             {entry.title}
-          </span>
+          </button>
           <span className={`text-xs font-semibold uppercase tracking-wide ${style.text}`}>
             {t.calendar.kinds[entry.kind]}
           </span>
@@ -113,7 +128,15 @@ function DatedRow({ entry, onRegister }: { entry: CalendarEntry; onRegister: (ev
   );
 }
 
-function SpanningRow({ entry }: { entry: CalendarEntry }) {
+function SpanningRow({
+  entry,
+  onSelect,
+  isSelected,
+}: {
+  entry: CalendarEntry;
+  onSelect: (entry: CalendarEntry) => void;
+  isSelected: boolean;
+}) {
   const { t } = useLanguage();
   const style = KIND_STYLE[entry.kind];
   const span =
@@ -122,10 +145,19 @@ function SpanningRow({ entry }: { entry: CalendarEntry }) {
       : t.calendar.allWeek;
 
   return (
-    <li className={`flex items-center gap-3 rounded-md border border-l-4 px-3 py-2 ${style.chip} ${style.border}`}>
-      <span className="min-w-0 flex-1 text-sm">
+    <li
+      className={`flex items-center gap-3 rounded-md border border-l-4 px-3 py-2 ${style.chip} ${style.border} ${
+        isSelected ? "ring-1 ring-neutral-400 dark:ring-neutral-500" : ""
+      }`}
+    >
+      <button
+        type="button"
+        onClick={() => onSelect(entry)}
+        aria-current={isSelected ? "true" : undefined}
+        className="min-w-0 flex-1 text-left text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
         <span className="font-semibold">{t.calendar.kinds[entry.kind]}:</span> {entry.title}
-      </span>
+      </button>
       <span className="shrink-0 text-xs tabular-nums opacity-80">{span}</span>
     </li>
   );
@@ -138,6 +170,8 @@ interface CalendarEntryListProps {
   currentWeekKey: number;
   onShowEarlier: (() => void) | null;
   onRegister: (event: Event) => void;
+  onSelect: (entry: CalendarEntry) => void;
+  selectedId: string | null;
   emptyMessage: string;
 }
 
@@ -157,6 +191,8 @@ export default function CalendarEntryList({
   currentWeekKey,
   onShowEarlier,
   onRegister,
+  onSelect,
+  selectedId,
   emptyMessage,
 }: CalendarEntryListProps) {
   const { language, t } = useLanguage();
@@ -208,7 +244,12 @@ export default function CalendarEntryList({
                     {group.spanning.length > 0 && (
                       <ul className="flex flex-col gap-1 px-3 pb-1 sm:px-4">
                         {group.spanning.map((entry) => (
-                          <SpanningRow key={entry.id} entry={entry} />
+                          <SpanningRow
+                            key={entry.id}
+                            entry={entry}
+                            onSelect={onSelect}
+                            isSelected={entry.id === selectedId}
+                          />
                         ))}
                       </ul>
                     )}
@@ -216,7 +257,13 @@ export default function CalendarEntryList({
                     {group.dated.length > 0 && (
                       <ul className="flex flex-col">
                         {group.dated.map((entry) => (
-                          <DatedRow key={entry.id} entry={entry} onRegister={onRegister} />
+                          <DatedRow
+                            key={entry.id}
+                            entry={entry}
+                            onRegister={onRegister}
+                            onSelect={onSelect}
+                            isSelected={entry.id === selectedId}
+                          />
                         ))}
                       </ul>
                     )}
