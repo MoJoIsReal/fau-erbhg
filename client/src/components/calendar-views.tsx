@@ -17,6 +17,7 @@ import { CHIP_OFF, KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
 import CalendarEntryList from "@/components/calendar-entry-list";
 import CalendarEntryDetail from "@/components/calendar-entry-detail";
+import { useCalendarEditor } from "@/components/calendar-editor-tools";
 import EventRegistrationModal from "@/components/event-registration-modal";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -126,8 +127,14 @@ export default function CalendarViews() {
     return upcoming.find((entry) => entry.date) ?? upcoming[0] ?? visible[0] ?? null;
   }, [selected, visible, active, currentWeekKey]);
 
+  const editor = useCalendarEditor({ schoolYear });
+
   const detail = (
-    <CalendarEntryDetail entry={docked} onRegister={registerFor} />
+    <CalendarEntryDetail
+      entry={docked}
+      onRegister={registerFor}
+      actions={docked ? editor.actionsFor(docked) : null}
+    />
   );
 
   const renderChips = (kinds: readonly CalendarEntryKind[], label: string) => (
@@ -201,7 +208,7 @@ export default function CalendarViews() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
-            {mode === "year" && (
+            {(mode === "year" || editor.isEditor) && (
               <label className="flex items-center gap-2">
                 <span>{t.yearlyCalendar.schoolYearLabel}</span>
                 <select
@@ -235,6 +242,8 @@ export default function CalendarViews() {
         {renderChips(EVENT_CALENDAR_KINDS, t.calendar.filterSignup)}
         {renderChips(YEARLY_CALENDAR_KINDS, t.calendar.filterKindergarten)}
       </div>
+
+      {editor.toolbar}
 
       {/* The cutoff is the list's alone. The month grid and the year strip
           always show a whole period, so hiding past weeks there would only
@@ -289,7 +298,11 @@ export default function CalendarViews() {
           <SheetHeader className="sr-only">
             <SheetTitle>{selected?.title ?? t.calendar.detailEmpty}</SheetTitle>
           </SheetHeader>
-          <CalendarEntryDetail entry={selected} onRegister={registerFor} />
+          <CalendarEntryDetail
+            entry={selected}
+            onRegister={registerFor}
+            actions={selected ? editor.actionsFor(selected) : null}
+          />
         </SheetContent>
       </Sheet>
 
@@ -298,6 +311,8 @@ export default function CalendarViews() {
         isOpen={selectedEvent !== null}
         onClose={() => setSelectedEvent(null)}
       />
+
+      {editor.modals}
     </div>
   );
 }

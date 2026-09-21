@@ -108,6 +108,17 @@ export interface Translations {
     detailDeadline: string;
     detailSignup: string;
     noDescription: string;
+    editorLabel: string;
+    newEntry: string;
+    newPickerHint: string;
+    newEventButton: string;
+    newEventHint: string;
+    newYearlyHint: string;
+    staffCannotCreateEvents: string;
+    excelScopeNote: string;
+    confirmCancelTitle: string;
+    confirmCancelBody: string;
+    confirmDeleteBody: string;
     weekRailHint: string;
     week: string;
     thisWeek: string;
@@ -989,6 +1000,20 @@ export const translations: Record<Language, Translations> = {
       detailDeadline: "Påmeldingsfrist",
       detailSignup: "Påmelding",
       noDescription: "Ingen beskrivelse lagt inn.",
+      editorLabel: "Redaktør",
+      newEntry: "Nytt i kalenderen",
+      newPickerHint: "Velg hva du legger inn — resten av skjemaet retter seg etter valget.",
+      newEventButton: "Arrangement med påmelding",
+      newEventHint: "Deltakerliste, maks antall, påmeldingsfrist og varsel på nyhetsbrevet.",
+      newYearlyHint: "Uke eller dato, farge, og om den skal vises på forsiden.",
+      staffCannotCreateEvents:
+        "Som ansatt kan du legge inn i årskalenderen, men ikke opprette arrangementer med påmelding — de krever FAU-rolle.",
+      excelScopeNote:
+        "Excel-mal og import dekker årskalenderen for valgt barnehageår. Arrangementer med påmelding redigeres enkeltvis, fordi de har deltakerlister og frister en regnearkrad ikke kan bære.",
+      confirmCancelTitle: "Avlyse arrangementet?",
+      confirmCancelBody:
+        "Arrangementet har påmeldte, så det kan ikke slettes. Det blir stående i kalenderen med gjennomstreket tittel, slik at de påmeldte ser at det er avlyst.",
+      confirmDeleteBody: "Ingen er påmeldt, så oppføringen kan slettes. Dette kan ikke angres.",
       weekRailHint:
         "Ukekolonnen til venstre viser det som varer hele uken — varmmat, temauker og beskjeder. Rutene viser dagene.",
       week: "Uke",
@@ -1865,6 +1890,20 @@ export const translations: Record<Language, Translations> = {
       detailDeadline: "Registration deadline",
       detailSignup: "Registration",
       noDescription: "No description added.",
+      editorLabel: "Editor",
+      newEntry: "New in the calendar",
+      newPickerHint: "Choose what you are adding — the rest of the form follows from it.",
+      newEventButton: "Event with signup",
+      newEventHint: "Attendee list, maximum, registration deadline and newsletter notice.",
+      newYearlyHint: "Week or date, colour, and whether it shows on the front page.",
+      staffCannotCreateEvents:
+        "As staff you can add to the yearly calendar, but not create events with signup — those need a council role.",
+      excelScopeNote:
+        "The Excel template and import cover the yearly calendar for the selected kindergarten year. Events with signup are edited one at a time, because they carry attendee lists and deadlines a spreadsheet row cannot.",
+      confirmCancelTitle: "Cancel this event?",
+      confirmCancelBody:
+        "People have signed up, so it cannot be deleted. It stays in the calendar with its title struck through, so those who signed up can see it is cancelled.",
+      confirmDeleteBody: "Nobody has signed up, so the entry can be deleted. This cannot be undone.",
       weekRailHint:
         "The week column on the left carries what lasts all week — hot meals, theme weeks and notices. The cells carry the days.",
       week: "Week",
