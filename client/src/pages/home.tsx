@@ -193,16 +193,27 @@ export default function Home() {
         }
       />
 
-      {/* Three values, as open columns rather than three more cards. */}
+      {/* Three values on one row at every width. Stacked, they cost three
+          screens of scrolling on a phone for three short statements — and
+          they only mean anything as a set, so they are gathered into one
+          surface with a rule between them rather than left floating. */}
       <section aria-label={t.home.valuesTitle}>
-        <div className="grid gap-8 sm:grid-cols-3 sm:gap-6">
+        {/* No card on a phone: the surface's own padding was eating a third of
+            each column, and "Engasjement" needs the width more than the row
+            needs a border. From 640px up it becomes the divided surface. */}
+        <div className="grid grid-cols-3 rounded-card sm:divide-x sm:divide-hairline sm:border sm:border-hairline sm:bg-surface">
           {values.map(({ icon: Icon, title, body }) => (
-            <div key={title}>
-              <span className="grid h-11 w-11 place-items-center rounded-token bg-green-50 text-brand">
-                <Icon className="h-5 w-5" aria-hidden="true" />
+            <div key={title} className="px-1 py-2 sm:px-6 sm:py-6">
+              <span className="grid h-9 w-9 place-items-center rounded-token bg-green-50 text-brand sm:h-11 sm:w-11">
+                <Icon className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
               </span>
-              <h2 className="mt-4 text-h4 font-bold text-ink">{title}</h2>
-              <p className="mt-1.5 text-small text-copy">{body}</p>
+              <h2 className="mt-3 text-small font-bold text-ink sm:mt-4 sm:text-h4">{title}</h2>
+              {/* A third of a 375px screen is four words to a line, which is
+                  below what the guide calls readable — so the sentence is
+                  visually held back until there is a column to put it in.
+                  sr-only rather than hidden: a screen reader still reads it at
+                  every width, so nothing is actually lost on a phone. */}
+              <p className="sr-only sm:not-sr-only sm:mt-1.5 sm:text-small sm:text-copy">{body}</p>
             </div>
           ))}
         </div>
