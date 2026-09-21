@@ -94,6 +94,33 @@ export interface Translations {
     upcomingTabHint: string;
     yearlyTab: string;
     yearlyTabHint: string;
+    combinedTab: string;
+    combinedTabHint: string;
+    week: string;
+    thisWeek: string;
+    allWeek: string;
+    weeksSpan: string;
+    filterSignup: string;
+    filterKindergarten: string;
+    showAllTypes: string;
+    typesOn: string;
+    showEarlier: string;
+    nothingMatches: string;
+    noTypesSelected: string;
+    endOfList: string;
+    loadFailed: string;
+    kinds: {
+      arrangement: string;
+      mote: string;
+      dugnad: string;
+      foto: string;
+      internt: string;
+      bhgdag: string;
+      varmmat: string;
+      temauke: string;
+      stengt: string;
+      beskjed: string;
+    };
     subscribe: string;
     subscribeTitle: string;
     subscribeDescription: string;
@@ -934,6 +961,33 @@ export const translations: Record<Language, Translations> = {
       upcomingTabHint: "Arrangementer, møter og dugnader du kan melde deg på.",
       yearlyTab: "Årskalender",
       yearlyTabHint: "Faste datoer for barnehageåret: planleggingsdager, ferier og temauker.",
+      combinedTab: "Kalender",
+      combinedTabHint: "Alt uke for uke — arrangementer, møter, varmmat og stengte dager i én liste.",
+      week: "Uke",
+      thisWeek: "Denne uken",
+      allWeek: "hele uken",
+      weeksSpan: "uke",
+      filterSignup: "Påmelding",
+      filterKindergarten: "Barnehagen",
+      showAllTypes: "Vis alt",
+      typesOn: "typer på",
+      showEarlier: "Vis tidligere uker",
+      nothingMatches: "Ingen oppføringer igjen med disse filtrene.",
+      noTypesSelected: "Ingen typer er valgt. Trykk «Vis alt» for å få kalenderen tilbake.",
+      endOfList: "Det er alt som er lagt inn fremover.",
+      loadFailed: "Klarte ikke å hente kalenderen. Prøv å laste siden på nytt.",
+      kinds: {
+        arrangement: "Arrangement",
+        mote: "Møte",
+        dugnad: "Dugnad",
+        foto: "Foto",
+        internt: "Internt",
+        bhgdag: "I barnehagen",
+        varmmat: "Varmmat",
+        temauke: "Temauke",
+        stengt: "Stengt",
+        beskjed: "Beskjed",
+      },
       subscribe: "Abonner på kalenderen",
       subscribeTitle: "Abonner på kalenderen",
       subscribeDescription:
@@ -1768,6 +1822,33 @@ export const translations: Record<Language, Translations> = {
       upcomingTabHint: "Events, meetings and working bees you can sign up for.",
       yearlyTab: "Yearly calendar",
       yearlyTabHint: "Fixed dates for the kindergarten year: planning days, holidays and theme weeks.",
+      combinedTab: "Calendar",
+      combinedTabHint: "Everything week by week — events, meetings, hot meals and closed days in one list.",
+      week: "Week",
+      thisWeek: "This week",
+      allWeek: "all week",
+      weeksSpan: "weeks",
+      filterSignup: "Signup",
+      filterKindergarten: "Kindergarten",
+      showAllTypes: "Show all",
+      typesOn: "types on",
+      showEarlier: "Show earlier weeks",
+      nothingMatches: "Nothing left with these filters.",
+      noTypesSelected: "No types selected. Choose \u201cShow all\u201d to bring the calendar back.",
+      endOfList: "That is everything scheduled from here on.",
+      loadFailed: "Could not load the calendar. Try reloading the page.",
+      kinds: {
+        arrangement: "Event",
+        mote: "Meeting",
+        dugnad: "Working bee",
+        foto: "Photos",
+        internt: "Internal",
+        bhgdag: "At the kindergarten",
+        varmmat: "Hot meal",
+        temauke: "Theme week",
+        stengt: "Closed",
+        beskjed: "Notice",
+      },
       subscribe: "Subscribe to the calendar",
       subscribeTitle: "Subscribe to the calendar",
       subscribeDescription:

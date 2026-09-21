@@ -1,18 +1,20 @@
 import { lazy, Suspense } from "react";
 import { Link, useRoute } from "wouter";
-import { CalendarClock, CalendarDays, Loader2 } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarRange, Loader2 } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 
 // Both views are heavy (the yearly calendar pulls in dnd-kit, and the event
 // calendar its own grid), so only the active tab is fetched.
+const CalendarEntryList = lazy(() => import("@/components/calendar-entry-list"));
 const Events = lazy(() => import("@/pages/events"));
 const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 
-export type CalendarTab = "upcoming" | "yearly";
+export type CalendarTab = "combined" | "upcoming" | "yearly";
 
 const TAB_PATH: Record<CalendarTab, string> = {
-  upcoming: "/kalender",
+  combined: "/kalender",
+  upcoming: "/kalender/arrangementer",
   yearly: "/kalender/arskalender",
 };
 
@@ -34,18 +36,25 @@ function TabLoader() {
 export default function CalendarPage() {
   const { t, language } = useLanguage();
   const [isYearlyRoute] = useRoute("/kalender/arskalender");
-  const activeTab: CalendarTab = isYearlyRoute ? "yearly" : "upcoming";
+  const [isEventsRoute] = useRoute("/kalender/arrangementer");
+  const activeTab: CalendarTab = isYearlyRoute ? "yearly" : isEventsRoute ? "upcoming" : "combined";
 
   usePageMeta({
     title: t.calendar.title,
     description:
       language === "no"
-        ? "Samlet kalender for Erdal Barnehage: kommende arrangementer og møter du kan melde deg på, og årskalenderen med planleggingsdager og ferier."
-        : "One calendar for Erdal Kindergarten: upcoming events and meetings you can sign up for, and the yearly calendar with planning days and holidays.",
+        ? "Samlet kalender for Erdal Barnehage, uke for uke: arrangementer og møter du kan melde deg på, ukens varmmat, temauker og planleggingsdager."
+        : "One calendar for Erdal Kindergarten, week by week: events and meetings you can sign up for, weekly hot meals, theme weeks and planning days.",
     path: TAB_PATH[activeTab],
   });
 
   const tabs: { id: CalendarTab; label: string; hint: string; icon: typeof CalendarClock }[] = [
+    {
+      id: "combined",
+      label: t.calendar.combinedTab,
+      hint: t.calendar.combinedTabHint,
+      icon: CalendarRange,
+    },
     {
       id: "upcoming",
       label: t.calendar.upcomingTab,
@@ -97,11 +106,17 @@ export default function CalendarPage() {
       </div>
 
       <p className="text-sm text-neutral-500 dark:text-neutral-400">
-        {activeTab === "upcoming" ? t.calendar.upcomingTabHint : t.calendar.yearlyTabHint}
+        {tabs.find((tab) => tab.id === activeTab)?.hint}
       </p>
 
       <Suspense fallback={<TabLoader />}>
-        {activeTab === "upcoming" ? <Events embedded /> : <YearlyCalendar embedded />}
+        {activeTab === "combined" ? (
+          <CalendarEntryList />
+        ) : activeTab === "upcoming" ? (
+          <Events embedded />
+        ) : (
+          <YearlyCalendar embedded />
+        )}
       </Suspense>
     </div>
   );

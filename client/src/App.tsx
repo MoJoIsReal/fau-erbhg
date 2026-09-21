@@ -101,6 +101,7 @@ function Router() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/kalender" component={CalendarPage} />
+          <Route path="/kalender/arrangementer" component={CalendarPage} />
           <Route path="/kalender/arskalender" component={CalendarPage} />
           {/* Retired top-level calendar URLs. Both are still in circulation
               (newsletters, Facebook posts, bookmarks), so they redirect
