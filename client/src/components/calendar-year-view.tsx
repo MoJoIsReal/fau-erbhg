@@ -19,14 +19,15 @@ interface CalendarYearViewProps {
 }
 
 /**
- * The whole kindergarten year, one row per ISO week, months down the margin.
+ * The whole kindergarten year as twelve month cards.
  *
- * This is the yearly calendar without being a separate page: same entries,
- * same filters, just denser. A year holds several hundred entries, so they are
- * set as plain text with a small dot rather than as filled chips — fifty-two
- * rows of coloured pills is a pattern, not a calendar. Quiet weeks stay
- * visible as quiet: when you are hunting for a free Saturday for a dugnad, the
- * empty rows are the answer.
+ * One long column of fifty-two week rows is a log, not a calendar: at reading
+ * width every row is the same, and the shape of the year disappears. As cards
+ * in a grid the months keep their own edges, a quiet December reads as quiet
+ * next to a busy September, and the page uses the width it has.
+ *
+ * Inside a card each week is one line — its number, then what is in it — which
+ * is what keeps the year on a screen or two rather than fifteen.
  */
 export default function CalendarYearView({ entries, schoolYear, onEntryClick }: CalendarYearViewProps) {
   const { language, t } = useLanguage();
@@ -71,83 +72,97 @@ export default function CalendarYearView({ entries, schoolYear, onEntryClick }: 
   }, [weeks]);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-      {months.map((group, index) => (
-        <section
-          key={group.key}
-          className={index > 0 ? "border-t border-neutral-200 dark:border-neutral-800" : ""}
-        >
-          <h3 className="sticky top-0 z-10 bg-neutral-50/90 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500 backdrop-blur dark:bg-neutral-900/80 dark:text-neutral-400 sm:px-5">
-            <span className="capitalize">
-              {formatDate(new Date(group.year, group.month - 1, 1), language, { month: "long" })}
-            </span>{" "}
-            <span className="font-normal tabular-nums text-neutral-400 dark:text-neutral-500">{group.year}</span>
-          </h3>
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-2">
+        {months.map((group) => {
+          const hasCurrentWeek = group.weeks.some(
+            (week) => calendarWeekKey(week.weekYear, week.week) === currentWeekKey,
+          );
 
-          <ul className="divide-y divide-neutral-100 dark:divide-neutral-900">
-            {group.weeks.map((week) => {
-              const key = calendarWeekKey(week.weekYear, week.week);
-              const weekEntries = byWeek.get(key) ?? [];
-              const isNow = key === currentWeekKey;
+          return (
+            <section
+              key={group.key}
+              className={`overflow-hidden rounded-2xl border bg-white dark:bg-neutral-950 ${
+                hasCurrentWeek
+                  ? "border-primary/40 ring-1 ring-primary/20"
+                  : "border-neutral-200 dark:border-neutral-800"
+              }`}
+            >
+              <h3 className="flex items-baseline gap-2 border-b border-neutral-100 px-4 py-3 dark:border-neutral-900">
+                <span className="font-heading text-base font-semibold capitalize tracking-tight text-neutral-900 dark:text-neutral-50">
+                  {formatDate(new Date(group.year, group.month - 1, 1), language, { month: "long" })}
+                </span>
+                <span className="text-sm tabular-nums text-neutral-400 dark:text-neutral-500">{group.year}</span>
+              </h3>
 
-              return (
-                <li
-                  key={key}
-                  className={`grid grid-cols-[2.25rem_minmax(0,1fr)] items-baseline gap-3 px-4 py-1.5 sm:px-5 ${
-                    isNow ? "bg-primary/5" : ""
-                  }`}
-                >
-                  <span
-                    className={`text-right text-xs tabular-nums ${
-                      isNow ? "font-semibold text-primary" : "text-neutral-400 dark:text-neutral-500"
-                    }`}
-                  >
-                    {week.week}
-                  </span>
+              <ul className="divide-y divide-neutral-100 dark:divide-neutral-900">
+                {group.weeks.map((week) => {
+                  const key = calendarWeekKey(week.weekYear, week.week);
+                  const weekEntries = byWeek.get(key) ?? [];
+                  const isNow = key === currentWeekKey;
 
-                  {weekEntries.length === 0 ? (
-                    <span className="text-xs text-neutral-300 dark:text-neutral-700">—</span>
-                  ) : (
-                    <span className="flex min-w-0 flex-wrap items-baseline gap-x-4 gap-y-1">
-                      {weekEntries.map((entry) => {
-                        const date = entry.date ? parseCalendarDate(entry.date) : null;
-                        return (
-                          <button
-                            key={`${key}-${entry.id}`}
-                            type="button"
-                            onClick={() => onEntryClick(entry)}
-                            title={entry.title}
-                            className="flex max-w-full items-baseline gap-1.5 text-left text-[13px] leading-snug text-neutral-700 transition-colors hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary dark:text-neutral-300 dark:hover:text-neutral-50"
-                          >
-                            <span
-                              className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-full ${
-                                KIND_STYLE[entry.kind].dot
-                              }`}
-                              aria-hidden="true"
-                            />
-                            {date && (
-                              <span className="shrink-0 tabular-nums text-neutral-400 dark:text-neutral-500">
-                                {formatDate(date, language, { day: "numeric", month: "short" })}
-                              </span>
-                            )}
-                            <span className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}>
-                              {entry.title}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </span>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      ))}
+                  return (
+                    <li
+                      key={key}
+                      className={`grid grid-cols-[2rem_minmax(0,1fr)] items-baseline gap-3 px-4 py-2 ${
+                        isNow ? "bg-primary/5" : ""
+                      }`}
+                    >
+                      <span
+                        className={`text-right text-sm tabular-nums ${
+                          isNow
+                            ? "font-semibold text-primary"
+                            : "font-medium text-neutral-400 dark:text-neutral-500"
+                        }`}
+                      >
+                        {week.week}
+                      </span>
 
-      <p className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400 sm:px-5">
-        {t.calendar.yearViewHint}
-      </p>
+                      {weekEntries.length === 0 ? (
+                        <span className="text-sm text-neutral-300 dark:text-neutral-700">—</span>
+                      ) : (
+                        <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+                          {weekEntries.map((entry) => {
+                            const date = entry.date ? parseCalendarDate(entry.date) : null;
+                            return (
+                              <button
+                                key={`${key}-${entry.id}`}
+                                type="button"
+                                onClick={() => onEntryClick(entry)}
+                                title={entry.title}
+                                className="flex max-w-full items-baseline gap-1.5 text-left text-sm leading-snug text-neutral-700 transition-colors hover:text-neutral-950 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary dark:text-neutral-300 dark:hover:text-neutral-50"
+                              >
+                                <span
+                                  className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-full ${
+                                    KIND_STYLE[entry.kind].dot
+                                  }`}
+                                  aria-hidden="true"
+                                />
+                                {date && (
+                                  <span className="shrink-0 tabular-nums text-neutral-400 dark:text-neutral-500">
+                                    {date.getDate()}.
+                                  </span>
+                                )}
+                                <span
+                                  className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}
+                                >
+                                  {entry.title}
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+
+      <p className="text-xs text-neutral-500 dark:text-neutral-400">{t.calendar.yearViewHint}</p>
     </div>
   );
 }

@@ -84,6 +84,10 @@ export default function CalendarViews() {
   const [mode, setMode] = useState<CalendarViewMode>(initialMode);
   const [showPast, setShowPast] = useState(false);
   const [selected, setSelected] = useState<CalendarEntry | null>(null);
+  // The sheet is opened by a click, never by a view change: selecting an entry
+  // in the list and then switching to the month grid used to make the panel
+  // spring open over the grid you had just asked to see.
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   // Wide enough to put the detail beside the list instead of over it. Below
@@ -113,7 +117,15 @@ export default function CalendarViews() {
   const thisSchoolYear = getKindergartenSchoolYear(new Date());
   const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
 
-  const openEntry = (entry: CalendarEntry) => setSelected(entry);
+  const openEntry = (entry: CalendarEntry) => {
+    setSelected(entry);
+    if (!canDock || mode !== "list") setSheetOpen(true);
+  };
+
+  const changeMode = (next: CalendarViewMode) => {
+    setSheetOpen(false);
+    setMode(next);
+  };
   const registerFor = (entry: CalendarEntry) => {
     if (entry.event) setSelectedEvent(entry.event);
   };
@@ -206,7 +218,7 @@ export default function CalendarViews() {
               <button
                 key={id}
                 type="button"
-                onClick={() => setMode(id)}
+                onClick={() => changeMode(id)}
                 aria-pressed={mode === id}
                 className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   mode === id
@@ -302,9 +314,9 @@ export default function CalendarViews() {
       {/* Below the docking width — and from the month and year views, which
           have no room to dock — the same detail slides in over the calendar. */}
       <Sheet
-        open={selected !== null && (!canDock || mode !== "list")}
+        open={sheetOpen && selected !== null}
         onOpenChange={(open) => {
-          if (!open) setSelected(null);
+          if (!open) setSheetOpen(false);
         }}
       >
         <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-md">

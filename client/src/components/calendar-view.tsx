@@ -13,30 +13,55 @@ interface CalendarViewProps {
   onEntryClick: (entry: CalendarEntry) => void;
 }
 
-// Three per cell, three in the rail: past that a busy week stretches the row
-// so far that the month stops reading as a month. The rest are counted, and
-// the week list is there for anyone who wants all of them.
+// Three before a cell starts stretching its whole row. The rest are behind a
+// "+N mer" that expands the cell in place.
 const MAX_PER_CELL = 3;
 
-function EntryLine({
+/**
+ * An entry inside a grid cell, as a soft tinted block.
+ *
+ * A filled block is wrong on a list row, where hairlines already separate one
+ * row from the next — there it is just noise. In a grid it is the opposite: a
+ * cell is a container, and a block is the only shape that reads as "something
+ * is booked here" rather than as a stray line of text.
+ */
+function EntryChip({
   entry,
   onClick,
+  dense,
 }: {
   entry: CalendarEntry;
   onClick: (entry: CalendarEntry) => void;
+  dense?: boolean;
 }) {
+  const style = KIND_STYLE[entry.kind];
   return (
     <button
       type="button"
       onClick={() => onClick(entry)}
       title={entry.title}
-      className="flex w-full items-center gap-1.5 rounded px-1 py-0.5 text-left text-[11px] leading-tight text-neutral-700 transition-colors hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary dark:text-neutral-200 dark:hover:bg-neutral-800"
+      className={`flex w-full items-baseline gap-1.5 rounded-md border-l-[3px] px-1.5 text-left leading-snug text-neutral-800 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary dark:text-neutral-100 ${
+        style.tint
+      } ${style.bar} ${dense ? "py-0.5 text-[11px]" : "py-1 text-xs"}`}
     >
-      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${KIND_STYLE[entry.kind].dot}`} aria-hidden="true" />
       {entry.startTime && (
-        <span className="shrink-0 tabular-nums text-neutral-400 dark:text-neutral-500">{entry.startTime}</span>
+        <span className="shrink-0 tabular-nums opacity-60">{entry.startTime}</span>
       )}
-      <span className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}>{entry.title}</span>
+      <span className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}>
+        {entry.title}
+      </span>
+    </button>
+  );
+}
+
+function MoreButton({ count, onClick, label }: { count: number; onClick: () => void; label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded px-1.5 py-0.5 text-left text-[11px] font-medium text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-900 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-50"
+    >
+      +{count} {label}
     </button>
   );
 }
@@ -52,6 +77,10 @@ function EntryLine({
 export default function CalendarView({ entries, onEntryClick }: CalendarViewProps) {
   const { language, t } = useLanguage();
   const [currentDate, setCurrentDate] = useState(new Date());
+  // Cells and rails that the reader has opened, keyed by their own id.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+
+  const expand = (key: string) => setExpanded((prev) => new Set(prev).add(key));
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -73,6 +102,7 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
   }, [entries]);
 
   const navigateMonth = (direction: "prev" | "next") => {
+    setExpanded(new Set());
     setCurrentDate((prev) => {
       // Anchor on the 1st: stepping from the 31st would otherwise skip a
       // short month entirely.
@@ -102,12 +132,12 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
       )
       .sort(compareSpanningEntries);
 
-  const columns = "grid grid-cols-[8.5rem_repeat(7,minmax(0,1fr))]";
+  const columns = "grid grid-cols-[9.5rem_repeat(7,minmax(0,1fr))]";
 
   return (
     <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
-      <div className="flex items-center justify-between px-4 py-3 sm:px-5">
-        <h3 className="font-heading text-lg font-semibold capitalize text-neutral-900 dark:text-neutral-50">
+      <div className="flex items-center justify-between px-5 py-4">
+        <h3 className="font-heading text-xl font-semibold capitalize tracking-tight text-neutral-900 dark:text-neutral-50">
           {monthYearText}
         </h3>
         <div className="flex items-center gap-1">
@@ -123,15 +153,15 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
       {/* Eight columns need room to stay readable, so on a phone the grid
           scrolls sideways inside its own container rather than collapsing. */}
       <div className="overflow-x-auto border-t border-neutral-200 dark:border-neutral-800">
-        <div className="min-w-[720px]">
+        <div className="min-w-[760px]">
           <div className={`${columns} border-b border-neutral-200 dark:border-neutral-800`}>
-            <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
+            <div className="px-3 py-2.5 text-xs font-medium uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400">
               {t.calendar.week}
             </div>
             {weekdayNames.map((name, index) => (
               <div
                 key={name + index}
-                className="px-2 py-2 text-[11px] font-medium uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500"
+                className="px-2.5 py-2.5 text-xs font-medium uppercase tracking-[0.08em] text-neutral-500 dark:text-neutral-400"
               >
                 {name}
               </div>
@@ -140,7 +170,10 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
 
           {weeks.map((week, weekIndex) => {
             const weekYear = isoWeekYear(week.days[0].date);
+            const railKey = `rail-${weekYear}-${week.weekNumber}`;
             const railEntries = railEntriesFor(week.weekNumber, weekYear);
+            const railOpen = expanded.has(railKey);
+            const railShown = railOpen ? railEntries : railEntries.slice(0, MAX_PER_CELL);
 
             return (
               <div
@@ -149,17 +182,19 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
                   weekIndex > 0 ? "border-t border-neutral-100 dark:border-neutral-900" : ""
                 }`}
               >
-                <div className="flex flex-col gap-0.5 border-r border-neutral-200 bg-neutral-50/60 px-2 py-2 dark:border-neutral-800 dark:bg-neutral-900/40">
-                  <span className="px-1 text-xs font-semibold tabular-nums text-neutral-400 dark:text-neutral-500">
+                <div className="flex flex-col gap-1 border-r border-neutral-200 bg-neutral-50 px-2.5 py-2.5 dark:border-neutral-800 dark:bg-neutral-900/50">
+                  <span className="px-0.5 text-sm font-semibold tabular-nums text-neutral-400 dark:text-neutral-500">
                     {week.weekNumber}
                   </span>
-                  {railEntries.slice(0, MAX_PER_CELL).map((entry) => (
-                    <EntryLine key={entry.id} entry={entry} onClick={onEntryClick} />
+                  {railShown.map((entry) => (
+                    <EntryChip key={entry.id} entry={entry} onClick={onEntryClick} dense />
                   ))}
-                  {railEntries.length > MAX_PER_CELL && (
-                    <span className="px-1 text-[11px] text-neutral-400 dark:text-neutral-500">
-                      +{railEntries.length - MAX_PER_CELL} {t.events.more}
-                    </span>
+                  {!railOpen && railEntries.length > MAX_PER_CELL && (
+                    <MoreButton
+                      count={railEntries.length - MAX_PER_CELL}
+                      onClick={() => expand(railKey)}
+                      label={t.events.more}
+                    />
                   )}
                 </div>
 
@@ -167,33 +202,37 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
                   const iso = toCalendarIsoDate(day.date);
                   const dayEntries = byDate.get(iso) ?? [];
                   const isToday = iso === todayIso;
+                  const open = expanded.has(iso);
+                  const shown = open ? dayEntries : dayEntries.slice(0, MAX_PER_CELL);
 
                   return (
                     <div
                       key={iso}
-                      className={`flex min-h-[92px] flex-col gap-0.5 px-1 py-2 ${
-                        day.isWeekend ? "bg-neutral-50/50 dark:bg-neutral-900/20" : ""
+                      className={`flex min-h-[120px] flex-col gap-1 px-1.5 py-2.5 ${
+                        day.inMonth ? "" : "bg-neutral-50/50 dark:bg-neutral-900/30"
                       }`}
                     >
                       <span
-                        className={`ml-1 text-xs tabular-nums ${
+                        className={`ml-1 text-sm font-medium tabular-nums ${
                           isToday
-                            ? "grid h-5 w-5 place-items-center rounded-full bg-primary font-semibold text-primary-foreground"
+                            ? "grid h-7 w-7 place-items-center rounded-full bg-primary font-semibold text-primary-foreground"
                             : day.inMonth
-                              ? "text-neutral-500 dark:text-neutral-400"
+                              ? "text-neutral-900 dark:text-neutral-100"
                               : "text-neutral-300 dark:text-neutral-700"
                         }`}
                       >
                         {day.date.getDate()}
                       </span>
 
-                      {dayEntries.slice(0, MAX_PER_CELL).map((entry) => (
-                        <EntryLine key={entry.id} entry={entry} onClick={onEntryClick} />
+                      {shown.map((entry) => (
+                        <EntryChip key={entry.id} entry={entry} onClick={onEntryClick} />
                       ))}
-                      {dayEntries.length > MAX_PER_CELL && (
-                        <span className="px-1 text-[11px] text-neutral-400 dark:text-neutral-500">
-                          +{dayEntries.length - MAX_PER_CELL} {t.events.more}
-                        </span>
+                      {!open && dayEntries.length > MAX_PER_CELL && (
+                        <MoreButton
+                          count={dayEntries.length - MAX_PER_CELL}
+                          onClick={() => expand(iso)}
+                          label={t.events.more}
+                        />
                       )}
                     </div>
                   );
@@ -204,7 +243,7 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
         </div>
       </div>
 
-      <p className="border-t border-neutral-200 px-4 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400 sm:px-5">
+      <p className="border-t border-neutral-200 px-5 py-3 text-xs text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
         {t.calendar.weekRailHint}
       </p>
     </div>
