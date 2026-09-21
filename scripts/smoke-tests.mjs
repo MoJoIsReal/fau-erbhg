@@ -38,10 +38,14 @@ const YEAR_COLUMN = '\u00e5r';
 const MONTH_COLUMN = 'm\u00e5ned';
 const HOMEPAGE_COLUMN = 'vis_p\u00e5_forside';
 
-function mockReq(ip = '203.0.113.10') {
+// Models what actually reaches a Vercel function: the platform sets x-real-ip
+// itself and overwrites any incoming copy, while everything to the left of the
+// last x-forwarded-for hop is whatever the caller chose to send.
+function mockReq(ip = '203.0.113.10', spoofedPrefix = null) {
   return {
     headers: {
-      'x-forwarded-for': `${ip}, 10.0.0.1`,
+      'x-real-ip': ip,
+      'x-forwarded-for': spoofedPrefix ? `${spoofedPrefix}, ${ip}` : ip,
     },
   };
 }
@@ -111,6 +115,31 @@ function testRateLimitKeys() {
   assert.equal(keyA, keyB);
   assert.notEqual(keyA, keyC);
   assert.match(keyA, /^[a-f0-9]{64}$/);
+
+  // Every per-IP limit on this API was bypassable by prepending a fresh entry
+  // to X-Forwarded-For. A caller-chosen left-most hop must not move the key.
+  const spoofed = rateLimitKey(
+    mockReq('203.0.113.10', '198.51.100.7'),
+    'login',
+    'admin@example.com',
+  );
+  assert.equal(spoofed, keyA, 'a spoofed left-most X-Forwarded-For must not change the key');
+
+  const rotated = rateLimitKey(
+    mockReq('203.0.113.10', '198.51.100.8'),
+    'login',
+    'admin@example.com',
+  );
+  assert.equal(rotated, keyA, 'rotating the spoofed entry must not produce a new bucket');
+
+  // No x-real-ip (local dev, or a request that never passed the edge): the
+  // right-most hop is the one our own proxy appended, never the client's.
+  const proxiedOnly = rateLimitKey(
+    { headers: { 'x-forwarded-for': '198.51.100.9, 203.0.113.10' } },
+    'login',
+    'admin@example.com',
+  );
+  assert.equal(proxiedOnly, keyA, 'without x-real-ip the right-most hop is the trusted one');
 }
 
 function testCloudinaryDeliveryUrlParsing() {
@@ -1266,6 +1295,123 @@ function testNoBackticksInsideSqlComments() {
   }
 }
 
+// PERF-003. /kalender.ics is public and polled repeatedly by every subscribed
+// calendar client, and production was returning `public, max-age=0,
+// must-revalidate` — two database queries per poll, nothing cached at the edge.
+// The no-store rule in vercel.json cannot fix it: header rules there are
+// matched against the PRE-rewrite path, so `/api/(.*)` never sees /kalender.ics.
+// The header has to come from the handler.
+function testCalendarFeedIsCacheable() {
+  const eventsApi = readFileSync(new URL('../api/events.js', import.meta.url), 'utf8');
+
+  assert.match(
+    eventsApi,
+    /export const CALENDAR_FEED_CACHE_CONTROL\s*=\s*\n?\s*'public, max-age=\d+, s-maxage=\d+, stale-while-revalidate=\d+'/,
+    'The calendar feed should declare a shared-cache lifetime',
+  );
+
+  const feedStart = eventsApi.indexOf('async function respondWithCalendarFeed');
+  assert.ok(feedStart !== -1, 'The ICS feed should live in respondWithCalendarFeed');
+  const feedBody = eventsApi.slice(feedStart, eventsApi.indexOf('\n}', feedStart));
+  assert.match(
+    feedBody,
+    /setHeader\('Cache-Control', CALENDAR_FEED_CACHE_CONTROL\)/,
+    'The feed response must set Cache-Control itself, not rely on vercel.json',
+  );
+
+  const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const apiRule = vercelConfig.headers.find((rule) => rule.source === '/api/(.*)');
+  assert.ok(apiRule, 'The API routes should still be no-store by default');
+  assert.match(
+    apiRule.headers.find((header) => header.key === 'Cache-Control').value,
+    /no-store/,
+    'Only the feed path is cacheable; every other API route stays no-store',
+  );
+}
+
+// DB-002. events.current_attendees is a stored counter with three writers and,
+// until migration 0012, no way back once it drifted. Nothing should render it:
+// the read paths compute the sum of the registrations that exist right now.
+function testAttendeeCountIsDerivedOnRead() {
+  const eventsApi = readFileSync(new URL('../api/events.js', import.meta.url), 'utf8');
+
+  assert.match(
+    eventsApi,
+    /currentAttendees: row\.derived_attendees \?\? row\.current_attendees/,
+    'mapEvent should prefer the derived count over the stored counter',
+  );
+
+  const derivations = eventsApi.match(
+    /SELECT COALESCE\(SUM\(r\.attendee_count\), 0\)::int[\s\S]{0,120}?AS derived_attendees/g,
+  ) ?? [];
+  assert.ok(
+    derivations.length >= 4,
+    `Every path that returns an event to the client should derive the count (found ${derivations.length})`,
+  );
+
+  // The counter still exists, and the capacity check still compares against it
+  // under FOR UPDATE. Deriving it there instead would reintroduce the last-seat
+  // race: a single statement takes one snapshot, so the sum would not see a
+  // registration committed by the transaction this one just waited behind.
+  const registrations = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
+  assert.match(
+    registrations,
+    /COALESCE\(current_attendees, 0\) \+ \$\{requestedAttendees\} <= max_attendees/,
+    'The capacity check must keep comparing the locked counter, not a snapshot sum',
+  );
+
+  const cron = readFileSync(new URL('../api/cron/event-reminders.js', import.meta.url), 'utf8');
+  assert.match(
+    cron,
+    /export async function reconcileEventAttendeeCounts/,
+    'Something must reconcile the counter against the rows it counts',
+  );
+  assert.match(
+    cron,
+    /WHERE e\.id = d\.id\s*\n\s*AND COALESCE\(e\.current_attendees, 0\) = d\.stored/,
+    'Reconciliation must stand down when it races a live registration',
+  );
+}
+
+// DB-003/DB-004. The outbox is one row per item per subscriber; nothing ever
+// deleted from it, and it copied up to 4 000 characters of the item body into
+// every one of those rows. An undeliverable address kept its row pending
+// forever, which also kept the source item unstamped and re-queued nightly.
+function testNewsletterOutboxIsBounded() {
+  const cron = readFileSync(new URL('../api/cron/event-reminders.js', import.meta.url), 'utf8');
+
+  assert.match(
+    cron,
+    /const MAX_DELIVERY_ATTEMPTS = \d+/,
+    'Delivery attempts must be bounded so a row can reach a terminal state',
+  );
+  assert.match(
+    cron,
+    /status = \$\{exhausted \? 'failed' : 'pending'\}/,
+    'An exhausted delivery must be retired rather than released for another retry',
+  );
+  assert.match(
+    cron,
+    /DELETE FROM newsletter_deliveries[\s\S]*?status IN \('sent', 'skipped', 'failed'\)/,
+    'Terminal delivery rows must be collected on a retention schedule',
+  );
+  assert.doesNotMatch(
+    cron,
+    /DELETE FROM newsletter_deliveries[\s\S]*?status IN \([^)]*'pending'/,
+    'Retention must never collect a delivery that has not been attempted to the end',
+  );
+  assert.match(
+    cron,
+    /SELECT d\.item_type, d\.item_id, s\.id, d\.title, NULL::text, d\.event_date/,
+    'The queue insert must not copy the item body into one row per subscriber',
+  );
+  assert.match(
+    cron,
+    /LEFT JOIN blog_posts bp ON c\.item_type = 'news' AND bp\.id = c\.item_id/,
+    'The claim must read the item body at send time instead',
+  );
+}
+
 function testRegistrationUpdatesEventRowOnce() {
   const registrations = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
   const statementStart = registrations.indexOf('WITH target_event AS');
@@ -1309,6 +1455,9 @@ testImportMatchesOnMoreThanTitle();
 testSecureSettingsMapsWriteResponses();
 testDeletesValidateIdAndCheckRows();
 testRegistrationUpdatesEventRowOnce();
+testCalendarFeedIsCacheable();
+testAttendeeCountIsDerivedOnRead();
+testNewsletterOutboxIsBounded();
 testYearlyCalendarValidNorwegianRow();
 testYearlyCalendarValidCamelCaseRow();
 testYearlyCalendarInvalidRows();

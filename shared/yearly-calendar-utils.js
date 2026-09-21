@@ -556,7 +556,13 @@ export function buildImportPreview({ schoolYear, existingEntries, rows }) {
 }
 
 export function validateImportDecision({ status, action }) {
-  if (!DECISION_ACTIONS[status]?.includes(action)) {
+  // Own-property check, not a bare lookup: a request carrying
+  // {"status":"toString"} would otherwise reach Function.prototype.toString,
+  // whose `.includes` does not exist, and the resulting TypeError propagated
+  // out of the per-decision validation and aborted the whole import batch
+  // with a 500 instead of rejecting the one bad decision.
+  const allowed = Object.hasOwn(DECISION_ACTIONS, status) ? DECISION_ACTIONS[status] : null;
+  if (!allowed?.includes(action)) {
     return {
       ok: false,
       error: `Action "${action}" is not allowed for status "${status}".`,

@@ -1,10 +1,26 @@
 import crypto from 'crypto';
 
-function getClientIp(req) {
-  const forwardedFor = req.headers['x-forwarded-for'];
-  if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
-    return forwardedFor.split(',')[0].trim();
+// The left-most X-Forwarded-For entry is whatever the client sent. Taking it
+// made every per-IP limit here bypassable by rotating one request header, which
+// is the whole protection on login, contact and registration. Vercel's proxy
+// sets `x-real-ip` itself and overwrites any incoming copy, so that is the
+// trustworthy value; the right-most X-Forwarded-For hop is the one our own
+// proxy appended and is the correct fallback. Client-supplied entries to the
+// left of it are ignored either way.
+export function getClientIp(req) {
+  const realIp = req.headers?.['x-real-ip'];
+  if (typeof realIp === 'string' && realIp.trim().length > 0) {
+    return realIp.trim();
   }
+
+  const forwardedFor = req.headers?.['x-forwarded-for'];
+  if (typeof forwardedFor === 'string' && forwardedFor.length > 0) {
+    const hops = forwardedFor.split(',').map((hop) => hop.trim()).filter(Boolean);
+    if (hops.length > 0) {
+      return hops[hops.length - 1];
+    }
+  }
+
   return req.socket?.remoteAddress || 'unknown';
 }
 

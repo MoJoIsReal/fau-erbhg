@@ -15,16 +15,23 @@
 
 export const PHOTO_SLOT_MINUTES = 5;
 const LEGACY_SLOT_MINUTES = 10;
+const MINUTES_PER_DAY = 24 * 60;
 
 function parseTime(hhmm) {
   const [hours, minutes] = hhmm.split(":").map(Number);
   return { hours, minutes };
 }
 
+// Returns null rather than wrapping. The old implementation formatted through
+// a Date, so an offset that ran past midnight rolled into the next day and came
+// back as an early-morning time: a 23:00 photo event handed out "00:30", which
+// sorts before every other slot and reads as half past midnight that morning.
+// There is no valid slot outside the event's own day, so callers drop nulls.
 function formatMinutesOffset(startHours, startMinutes, offset) {
-  const d = new Date(2000, 0, 1, startHours, startMinutes + offset);
-  const hh = d.getHours().toString().padStart(2, "0");
-  const mm = d.getMinutes().toString().padStart(2, "0");
+  const total = startHours * 60 + startMinutes + offset;
+  if (!Number.isFinite(total) || total < 0 || total >= MINUTES_PER_DAY) return null;
+  const hh = Math.floor(total / 60).toString().padStart(2, "0");
+  const mm = (total % 60).toString().padStart(2, "0");
   return `${hh}:${mm}`;
 }
 
@@ -57,8 +64,17 @@ function buildOccupiedGridCells(event, existing) {
     if (stored) {
       for (const slot of stored) {
         const offset = slotTimeToOffset(slot, startHours, startMinutes);
-        if (offset >= 0 && offset % PHOTO_SLOT_MINUTES === 0) {
-          occupied.add(offset / PHOTO_SLOT_MINUTES);
+        if (!Number.isFinite(offset)) continue;
+        // Round onto the grid instead of discarding. A stored slot that does
+        // not land on a 5-minute boundary — because the event's start time was
+        // edited after the booking, or the row predates the current grid — was
+        // dropped from the occupancy set entirely, so the allocator handed the
+        // same minutes to somebody else. A misaligned slot overlaps two cells,
+        // and both are taken.
+        const cell = Math.floor(offset / PHOTO_SLOT_MINUTES);
+        occupied.add(cell);
+        if (offset % PHOTO_SLOT_MINUTES !== 0) {
+          occupied.add(cell + 1);
         }
       }
     }
@@ -95,7 +111,10 @@ export function assignPhotoSlots(event, existingRegistrations, numChildren) {
   const occupied = buildOccupiedGridCells(event, existingRegistrations);
 
   let cell = 0;
-  const maxCell = (24 * 60) / PHOTO_SLOT_MINUTES;
+  // Cells remaining in the event's own day, not a flat 288: starting from the
+  // event time, anything past midnight is not a slot this event can offer.
+  const startTotal = startHours * 60 + startMinutes;
+  const maxCell = Math.floor((MINUTES_PER_DAY - startTotal) / PHOTO_SLOT_MINUTES);
   while (cell + numChildren <= maxCell) {
     let fits = true;
     for (let i = 0; i < numChildren; i++) {
@@ -109,7 +128,8 @@ export function assignPhotoSlots(event, existingRegistrations, numChildren) {
       const slots = [];
       for (let i = 0; i < numChildren; i++) {
         const offset = (cell + i) * PHOTO_SLOT_MINUTES;
-        slots.push(formatMinutesOffset(startHours, startMinutes, offset));
+        const time = formatMinutesOffset(startHours, startMinutes, offset);
+        if (time !== null) slots.push(time);
       }
       return slots;
     }
@@ -120,7 +140,8 @@ export function assignPhotoSlots(event, existingRegistrations, numChildren) {
   const slots = [];
   for (let i = 0; i < numChildren; i++) {
     const offset = (maxOccupied + 1 + i) * PHOTO_SLOT_MINUTES;
-    slots.push(formatMinutesOffset(startHours, startMinutes, offset));
+    const time = formatMinutesOffset(startHours, startMinutes, offset);
+    if (time !== null) slots.push(time);
   }
   return slots;
 }
@@ -147,7 +168,8 @@ export function resolvePhotoSlotsForRegistration(event, registration, allRegistr
       const slots = [];
       for (let i = 0; i < count; i++) {
         const offset = (legacyChildrenBefore + i) * LEGACY_SLOT_MINUTES;
-        slots.push(formatMinutesOffset(startHours, startMinutes, offset));
+        const time = formatMinutesOffset(startHours, startMinutes, offset);
+        if (time !== null) slots.push(time);
       }
       return slots;
     }

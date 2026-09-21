@@ -43,3 +43,50 @@ test('bounded worker rejects invalid concurrency', async () => {
     /positive integer/,
   );
 });
+
+// MAINT-008. Promise.all rejected on the first throw while the other workers
+// kept pulling from the queue behind it: the caller believed the batch was over
+// and wrote its response, and on Vercel the instance freezes at that point —
+// cutting off the UPDATEs those workers were still running.
+test('a throwing worker does not abandon the rest of the batch mid-write', async () => {
+  const started = [];
+  const finished = [];
+
+  await assert.rejects(
+    runWithConcurrency([1, 2, 3, 4, 5, 6], 2, async (item) => {
+      started.push(item);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      if (item === 1) throw new Error(`item ${item} failed`);
+      finished.push(item);
+    }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors.length, 1);
+      assert.match(error.errors[0].message, /item 1 failed/);
+      return true;
+    },
+  );
+
+  assert.deepEqual(started.sort((a, b) => a - b), [1, 2, 3, 4, 5, 6]);
+  assert.deepEqual(finished.sort((a, b) => a - b), [2, 3, 4, 5, 6]);
+});
+
+test('every failure in a batch is reported, not just the first', async () => {
+  await assert.rejects(
+    runWithConcurrency([1, 2, 3], 3, async (item) => {
+      throw new Error(`item ${item} failed`);
+    }),
+    (error) => {
+      assert.ok(error instanceof AggregateError);
+      assert.equal(error.errors.length, 3);
+      assert.match(error.message, /3 of 3 items failed/);
+      return true;
+    },
+  );
+});
+
+test('a batch where every worker succeeds still resolves', async () => {
+  const done = [];
+  await runWithConcurrency([1, 2, 3], 2, async (item) => { done.push(item); });
+  assert.equal(done.length, 3);
+});

@@ -314,7 +314,7 @@ keyboard-only or switch user in that role cannot perform the only task their acc
 | DB-003 | `newsletter_deliveries` grows unbounded and copies each item body per subscriber | HIGH CONFIDENCE |
 | DB-004 | A truncated news broadcast leaves a permanently unstamped post that is re-queued every night forever | HIGH CONFIDENCE |
 | PERF-002 | `MAX_REMINDERS_PER_RUN = 25` silently drops reminders for any event with more registrations — and `sent: 25` looks healthy. Throughput is not the constraint (25 messages ≈ 3–5 s); the cap is arbitrary | CONFIRMED |
-| PERF-003 | `/kalender.ics` is public, polled repeatedly by calendar clients, uncached, two queries per hit. **Confirmed against production 2026-09-21:** it returns `cache-control: public, max-age=0, must-revalidate` — the `no-store` rule in `vercel.json` targets `/api/(.*)` and never matches, because header rules are evaluated on the pre-rewrite path. Either way there is no CDN caching | CONFIRMED |
+| PERF-003 | `/kalender.ics` is public, polled repeatedly by calendar clients, uncached, two queries per hit. **Confirmed against production 2026-09-21:** it returns `cache-control: public, max-age=0, must-revalidate` — the `no-store` rule in `vercel.json` targets `/api/(.*)` and never matches, because header rules are evaluated on the pre-rewrite path. Either way there is no CDN caching. **Fixed in Phase 3** by setting `Cache-Control` in the handler, which is post-rewrite; `vercel.json` is unchanged and every other API route stays `no-store` | CONFIRMED |
 | PERF-004 | `news-post.tsx` fetches up to 500 full posts (each body capped at 50 000 chars) to render one article — paid by exactly the traffic the permalink exists for | CONFIRMED |
 | TRACE-002 | Blog-post save writes the raw snake_case `RETURNING *` row into render state; the four fields the card renders go `undefined`, and a subsequent archive/homepage toggle then **resets the post's publish date to today** | CONFIRMED (verified) |
 | TRACE-003 | Registration delete optimistically mutates two caches but snapshots one; on failure the attendee count stays wrong until reload | CONFIRMED |
@@ -658,12 +658,39 @@ dies on the first failure). REL-002 and PERF-001 must land together: widening th
 predicate without pooling just strands rows more slowly, and pooling without widening leaves
 the existing stranded rows unrecoverable.
 
-### Phase 3 — Reliability, performance and operations
-`SEC-002` · `SEC-004` · `REL-003` · `OBS-001` · `OBS-002` · `DB-002` · `DB-003` · `DB-004` ·
-`PERF-003` · `PERF-004` · `MAINT-006` · `MAINT-007` · `MAINT-008`
+### Phase 3 — Reliability, performance and operations — **COMPLETE (2026-09-21)**
+~~`SEC-002` · `SEC-004` · `REL-003` · `OBS-001` · `OBS-002` · `DB-002` · `DB-003` · `DB-004` ·
+`PERF-003` · `PERF-004` · `MAINT-006` · `MAINT-007` · `MAINT-008`~~
 
-OBS-001 and OBS-002 should come early in this phase — without them you cannot confirm the
-Phase 1 and 2 fixes actually worked in production.
+OBS-001 and OBS-002 were done first, as planned: production errors are now awaited into Sentry
+rather than raced against the instance freezing, and every non-2xx response writes one JSON
+line carrying the request id, route, multiplexed `action`/`resource`, actor and duration. The
+request id is `x-vercel-id`, echoed back as `X-Request-Id` so a parent can quote it. PERF-004
+was on this list but had already shipped in Phase 2.
+
+Two findings are worth recording, because both are places where the obvious fix is wrong.
+
+**DB-002's preferred fix does not survive contact with concurrency.** Deriving
+`current_attendees` in `mapEvent`'s query is right and is done — nothing rendered to a parent
+can drift again. Deriving it in the *capacity check* is not: a statement takes one snapshot, so
+a `SUM` over `event_registrations` cannot see a registration committed by the transaction the
+statement just waited behind on the `FOR UPDATE`, whereas the `events` row itself is re-fetched
+by EvalPlanQual and can. Executed against PostgreSQL 16, with two sessions racing for the last
+seat: the derived check admitted **two** registrations to a one-seat event, the locked counter
+admitted **one**. The counter therefore stays as the value the capacity check compares, and
+`reconcileEventAttendeeCounts` in the 07:00 cron repairs drift against `SUM(attendee_count)` —
+guarded so that it stands down rather than clobbering a registration that lands mid-repair.
+Dropping the column entirely needs the check split across two statements of one transaction,
+which turns on Neon's HTTP transaction semantics; that is a deliberate piece of work, not a
+side effect of this phase.
+
+**DB-004 is an unbounded-retry problem, not a truncation problem.** REL-002 already made a
+truncated broadcast resumable. What kept a post alive forever was a single address that could
+never be delivered to: its row stayed `pending`, the item is only stamped once nothing of it is
+pending, so the post was re-queued nightly and mailed itself to everyone who subscribed months
+later — and the row could never be aged out either, because DB-003's retention only collects
+rows that reached a terminal state. `MAX_DELIVERY_ATTEMPTS` retires such a row to `failed`,
+which closes all three.
 
 ### Phase 4 — Maintainability
 `MAINT` refactors in section 9 · `TRACE-003/004/005` · `SEC-005/006/007` · `ARCH-001` ·

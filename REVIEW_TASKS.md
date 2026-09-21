@@ -1,5 +1,30 @@
 # Review Remediation Tasks — 2026-09-18 audit
 
+> **Phase 3 is complete** (2026-09-21): OBS-001 + OBS-002, SEC-002, SEC-004,
+> REL-003, DB-002, DB-003, DB-004, PERF-003 and MAINT-006/007/008 are
+> implemented and verified. PERF-004 was on the Phase 3 list but had already
+> shipped in Phase 2, so it carried no work. Two notes worth keeping:
+>
+> DB-002 asked to make `current_attendees` derived and drop the counter. The
+> read paths now derive it, so nothing rendered to a parent can drift again —
+> but the capacity check still compares the stored counter under `FOR UPDATE`,
+> because deriving it *there* reintroduces the last-seat race. A single
+> statement takes one snapshot, so a sum over `event_registrations` cannot see
+> the registration committed by the transaction it just waited behind, while an
+> `events` row read under `FOR UPDATE` is re-fetched by EvalPlanQual and can.
+> Executed against PostgreSQL 16: the derived check let two parents take a
+> one-seat event, the locked counter let exactly one. Dropping the column would
+> need the check split across two statements of one transaction, which depends
+> on Neon's HTTP transaction semantics — worth doing deliberately, not as part
+> of this phase. `reconcileEventAttendeeCounts` in the 07:00 cron now repairs
+> drift and stands down when it races a live registration.
+>
+> DB-004's zombie post is fixed by bounding delivery attempts
+> (`MAX_DELIVERY_ATTEMPTS`). An address that can never be delivered to used to
+> hold its row `pending` forever, which kept the source item unstamped, re-queued
+> it nightly, and mailed it to everyone who subscribed afterwards — and kept the
+> row out of reach of DB-003's new retention, which only collects terminal rows.
+>
 > **Phase 2 is complete** (2026-09-21): REL-002 + PERF-001, PERF-002, MAINT-001,
 > MAINT-002, MAINT-003, MAINT-004, TRACE-001 through TRACE-006 and PERF-004 are
 > implemented and verified. The P2 table below marks each one done.
@@ -605,7 +630,7 @@ MAINT-009, TRACE-007, TR-24/TR-46/TR-52.
 
 ---
 
-## [ ] OBS-001 + OBS-002 — Make production failures visible
+## [x] OBS-001 + OBS-002 — Make production failures visible
 
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed · **Effort:** Medium · **Area:** Observability
 
@@ -833,17 +858,17 @@ Each is independently actionable; full evidence is in `REPO_REVIEW.md` §5.
 
 | ID | Title | Files | Acceptance in one line |
 |---|---|---|---|
-| **SEC-002** | Stop trusting the left-most `X-Forwarded-For` | `api/_shared/rate-limit.js:3-8` | `getClientIp` uses `ipAddress()` from `@vercel/functions` (already a dependency) or the right-most hop; two requests differing only in a spoofed left-most entry produce the **same** key. Confirm against a preview deployment first — if Vercel *replaces* the header, this drops to Low. |
-| **SEC-004** | Make cron authorization fail closed | `api/cron/event-reminders.js:22-27` | `if (!process.env.CRON_SECRET) return false;`. Local runs set it in `.env` (already documented in `.env.example`). Export `isAuthorizedCron` and test the unset case. |
+| **SEC-002** ✅ | Stop trusting the left-most `X-Forwarded-For` | `api/_shared/rate-limit.js:3-8` | `getClientIp` uses `ipAddress()` from `@vercel/functions` (already a dependency) or the right-most hop; two requests differing only in a spoofed left-most entry produce the **same** key. Confirm against a preview deployment first — if Vercel *replaces* the header, this drops to Low. |
+| **SEC-004** ✅ | Make cron authorization fail closed | `api/cron/event-reminders.js:22-27` | `if (!process.env.CRON_SECRET) return false;`. Local runs set it in `.env` (already documented in `.env.example`). Export `isAuthorizedCron` and test the unset case. |
 | **SEC-005** | Make `sanitizeText`'s contract honest | `api/_shared/middleware.js:334-359`, `tests/sanitizer-runtime.test.mjs:96-105` | Strip ASCII control characters and whitespace-in-keyword variants; state in JSDoc that output is **never** safe in an attribute; add a real `sanitizeUrl()` allowlisting `https:`/`mailto:` via `new URL`. Replace the tautological test (it re-uses the sanitizer's own regex, so it asserts the regex agrees with itself) with browser-level semantics. |
 | **SEC-006** | Check the Cloudinary **tenant**, not just the host | `api/_shared/middleware.js:367-374`, `client/src/components/safe-html.tsx:17-26` | Reuse `parseCloudinaryDeliveryUrl` and require `cloudName === CLOUDINARY_CLOUD_NAME`; export one shared predicate the way `youtubeEmbedSrc` already is. **Audit `blog_posts.content` for foreign cloud names before shipping** or legacy images vanish. |
 | **SEC-007** | Revalidate the download URL at read time | `api/documents.js:13-38` | `handleDownload` re-checks host + cloud name before redirecting; 404 otherwise. Audit existing rows first so legitimate legacy documents are migrated, not silently 404'd. |
-| **REL-003** | Never 500 on a malformed cookie | `api/_shared/middleware.js:132-141` | `parseCookies` catches `URIError` per cookie and skips the bad one. A request with `Cookie: csrf-token=%E0%A4%A` returns 401/403, not 500, and logout still works. |
-| **DB-002** | Stop `current_attendees` drifting | `api/registrations.js`, `api/cron/event-reminders.js:333-339` | Preferred: make it derived (`COALESCE(SUM(attendee_count),0)` in `mapEvent`'s query) and drop the counter. Otherwise add a nightly reconcile — note that only stops drift being *permanent*, it does not fix DB-001. |
-| **DB-003** | Bound `newsletter_deliveries` growth | `migrations/`, `api/cron/event-reminders.js` | Retention for terminal rows; stop copying the item body per subscriber (join at send time). |
-| **DB-004** | Stop the zombie news post | `api/cron/event-reminders.js:285-295` | A truncated broadcast no longer leaves a post that is re-queued nightly forever. Depends on REL-002. |
+| **REL-003** ✅ | Never 500 on a malformed cookie | `api/_shared/middleware.js:132-141` | `parseCookies` catches `URIError` per cookie and skips the bad one. A request with `Cookie: csrf-token=%E0%A4%A` returns 401/403, not 500, and logout still works. |
+| **DB-002** ✅ | Stop `current_attendees` drifting | `api/registrations.js`, `api/cron/event-reminders.js:333-339` | Preferred: make it derived (`COALESCE(SUM(attendee_count),0)` in `mapEvent`'s query) and drop the counter. Otherwise add a nightly reconcile — note that only stops drift being *permanent*, it does not fix DB-001. |
+| **DB-003** ✅ | Bound `newsletter_deliveries` growth | `migrations/`, `api/cron/event-reminders.js` | Retention for terminal rows; stop copying the item body per subscriber (join at send time). |
+| **DB-004** ✅ | Stop the zombie news post | `api/cron/event-reminders.js:285-295` | A truncated broadcast no longer leaves a post that is re-queued nightly forever. Depends on REL-002. |
 | **PERF-002** ✅ | Raise/continue the reminder cap | `api/cron/event-reminders.js:17,367-403` | An event with 60 registrations gets 60 reminders. Throughput is not the constraint (25 messages ≈ 3-5 s); the cap is arbitrary. Loop until the claim returns empty or a deadline hits. |
-| **PERF-003** | Cache `/kalender.ics` | `vercel.json`, `api/events.js` | A short `s-maxage` on the feed path only. Confirm what `Cache-Control` it actually returns today (`curl -sI`) — `headers` match pre-rewrite. |
+| **PERF-003** ✅ | Cache `/kalender.ics` | `vercel.json`, `api/events.js` | A short `s-maxage` on the feed path only. Confirm what `Cache-Control` it actually returns today (`curl -sI`) — `headers` match pre-rewrite. |
 | **PERF-004** ✅ | Don't fetch 500 posts to render one | `client/src/pages/news-post.tsx:30-34` | Add a single-post read (an `&id=` filter on the existing resource — no new serverless function needed, preserving the Hobby budget). |
 | **TRACE-002** ✅ | Give `secure-settings.js` row mappers | `api/secure-settings.js`, `client/src/pages/content.tsx:175` | `mapBlogPost(row)` used for GET/POST/PUT, mirroring `mapEvent`/`mapEntry`. Post-save the card keeps its date and badge, and a subsequent toggle cannot reset `published_date` to today. |
 | **TRACE-003** ✅ | Fix the registration-delete rollback | `client/src/components/event-registrations-view.tsx:38-90` | Snapshot `["/api/events"]` too and restore both in `onError`, or move invalidations to `onSettled`. Deleting the same registration twice leaves the header count correct. |
@@ -852,9 +877,9 @@ Each is independently actionable; full evidence is in `REPO_REVIEW.md` §5.
 | **TRACE-006** ✅ | Standardize id validation and delete semantics | `api/documents.js:14`, `api/secure-settings.js:79,113,207,248,367,467` | A shared `requireIntId(req, res)`; every DELETE/PUT checks affected rows and returns 404 when none. `?id=abc` returns 400, not 500. Matches open backlog item **TRACE-006**. |
 | **MAINT-004** ✅ | Detect intra-sheet duplicate titles | `shared/yearly-calendar-utils.js:390-449` | Two sheet rows with the same title do not both silently create. Fix with MAINT-001. |
 | **MAINT-005** | Stop clearing homepage flags on non-`day_event` | `shared/yearly-calendar-utils.js:172,185-186` | Decide first: either enforce "day_event only" on write (making the diff dead code) or carry the value through for all dated types. Today the write path allows what the import then clears. |
-| **MAINT-006** | Harden `validateImportDecision` | `shared/yearly-calendar-utils.js:459-461` | `Object.hasOwn` or a `Map`. `{"status":"toString","action":"ignore"}` returns a validation error instead of a 500 that aborts the whole batch. |
-| **MAINT-007** | Fix photo-slot grid alignment and midnight wrap | `shared/photo-slots.js:51-126` | Misaligned/negative offsets are rounded onto the grid rather than dropped from the occupancy set; `formatMinutesOffset` returns `null` past 24 h instead of wrapping. |
-| **MAINT-008** | Make `runWithConcurrency` fail cleanly | `api/_shared/delivery.js:16-33` | Collect errors per item and throw an aggregate after all workers settle, so no worker is still writing when the batch has already rejected. |
+| **MAINT-006** ✅ | Harden `validateImportDecision` | `shared/yearly-calendar-utils.js:459-461` | `Object.hasOwn` or a `Map`. `{"status":"toString","action":"ignore"}` returns a validation error instead of a 500 that aborts the whole batch. |
+| **MAINT-007** ✅ | Fix photo-slot grid alignment and midnight wrap | `shared/photo-slots.js:51-126` | Misaligned/negative offsets are rounded onto the grid rather than dropped from the occupancy set; `formatMinutesOffset` returns `null` past 24 h instead of wrapping. |
+| **MAINT-008** ✅ | Make `runWithConcurrency` fail cleanly | `api/_shared/delivery.js:16-33` | Collect errors per item and throw an aggregate after all workers settle, so no worker is still writing when the batch has already rejected. |
 | **MAINT-009** | Narrow the polymorphic registrations response | `api/registrations.js:66-90`, `client/src/components/attendee-tooltip.tsx:27-50` | `Array.isArray(data) ? data : []` at the boundary, and/or split the aggregate onto its own param so one URL has one shape. |
 | **OBS-003** | Stop over-redacting logs | `api/_shared/redact.js:7-9` | `"at 2026-03-29 18:30:00"` survives; `"+47 12 34 56 78"` is still redacted. Table-drive both directions. |
 | **OBS-004** | Give Sentry real stack frames | `api/_shared/sentry.js:319-327` | Parse into `{function, filename, lineno, colno}`; set `release`, `transaction` and `tags`. Distinct errors stop merging into one issue. |

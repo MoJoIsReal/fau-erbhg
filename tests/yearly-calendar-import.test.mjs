@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildImportPreview } from '../shared/yearly-calendar-utils.js';
+import { buildImportPreview, validateImportDecision } from '../shared/yearly-calendar-utils.js';
 
 // schoolYear 2026 means barnehageåret 2026/2027, so autumn dates are 2026 and
 // spring dates are 2027.
@@ -114,4 +114,30 @@ test('re-importing an unmodified sheet changes nothing', () => {
   ]);
 
   assert.deepEqual(result.counts, { new: 0, unchanged: 2, changed: 0, invalid: 0, ambiguous: 0 });
+});
+
+// MAINT-006. `DECISION_ACTIONS[status]` reached Function.prototype for a
+// prototype-named status, and `.includes` is not a function there, so a request
+// carrying {"status":"toString"} threw a TypeError out of per-decision
+// validation and aborted the entire import batch with a 500.
+test('a prototype-named status is rejected, not thrown on', () => {
+  for (const status of ['toString', 'constructor', 'hasOwnProperty', '__proto__', 'valueOf']) {
+    const result = validateImportDecision({ status, action: 'ignore' });
+    assert.equal(result.ok, false, `status "${status}" must not be accepted`);
+    assert.match(result.error, /is not allowed for status/);
+  }
+});
+
+test('real statuses still accept exactly the actions they allow', () => {
+  assert.equal(validateImportDecision({ status: 'new', action: 'create' }).ok, true);
+  assert.equal(validateImportDecision({ status: 'new', action: 'update' }).ok, false);
+  assert.equal(validateImportDecision({ status: 'changed', action: 'update' }).ok, true);
+  assert.equal(validateImportDecision({ status: 'unchanged', action: 'ignore' }).ok, true);
+  assert.equal(validateImportDecision({ status: 'unchanged', action: 'create' }).ok, false);
+  assert.equal(validateImportDecision({ status: 'invalid', action: 'create' }).ok, false);
+});
+
+test('a prototype-named action is rejected too', () => {
+  const result = validateImportDecision({ status: 'new', action: 'toString' });
+  assert.equal(result.ok, false);
 });

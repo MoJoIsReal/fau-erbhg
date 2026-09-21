@@ -201,6 +201,6 @@ export default withApiHandler(async function handler(req, res) {
     });
 
   } catch (error) {
-    return handleError(res, error);
+    return handleError(res, error, 500, req);
   }
 });

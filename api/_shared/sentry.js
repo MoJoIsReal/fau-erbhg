@@ -1,6 +1,17 @@
 import crypto from 'crypto';
 import { redactSensitiveText } from './redact.js';
 
+// Vercel freezes the instance as soon as the response is written, so a capture
+// that is still in flight at that moment is simply lost — which is why Sentry
+// looked quiet while production was throwing. Callers now await the capture,
+// and this bound stops a slow or unreachable ingest endpoint from holding the
+// user's response open for more than a moment.
+const SENTRY_TIMEOUT_MS = 1000;
+
+function timeoutSignal(ms) {
+  return typeof AbortSignal?.timeout === 'function' ? AbortSignal.timeout(ms) : undefined;
+}
+
 function getSentryEndpoint(dsn) {
   try {
     const parsed = new URL(dsn);
@@ -61,6 +72,7 @@ async function sendSentryEvent(error) {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-sentry-envelope' },
       body: envelope,
+      signal: timeoutSignal(SENTRY_TIMEOUT_MS),
     });
   } catch (sendError) {
     console.error('Sentry event delivery failed:', redactSensitiveText(sendError.message));
@@ -68,10 +80,18 @@ async function sendSentryEvent(error) {
 }
 
 const Sentry = {
+  /**
+   * Returns a promise that settles once the event has been delivered or the
+   * timeout above has expired. It never rejects, so an `await` here can never
+   * turn a handled 500 into an unhandled one.
+   * @param {Error} error
+   * @returns {Promise<void>}
+   */
   captureException(error) {
     if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
-      void sendSentryEvent(error);
+      return sendSentryEvent(error);
     }
+    return Promise.resolve();
   },
 };
 
