@@ -85,7 +85,7 @@ export default function NewsletterSignup() {
 
       <Button
         type="submit"
-        className="w-full bg-primary hover:bg-primary/90"
+        className="w-full"
         disabled={mutation.isPending || !email}
       >
         <Mail className="h-4 w-4 mr-2" />

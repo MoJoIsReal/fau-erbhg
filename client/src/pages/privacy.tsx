@@ -1,4 +1,3 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { FAU_EMAIL } from "@shared/constants";
@@ -103,31 +102,21 @@ export default function Privacy() {
     path: "/personvern",
   });
 
+  // A legal page is prose, not a dashboard: one column at a readable measure,
+  // sections separated by rules rather than wrapped in a card.
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-heading font-bold text-3xl text-ink mb-2">
-          {text.title}
-        </h1>
-        <p className="text-subtle max-w-3xl">
-          {text.intro}
-        </p>
-      </div>
+    <div className="mx-auto max-w-3xl">
+      <h1 className="text-h1 font-bold tracking-tight text-ink">{text.title}</h1>
+      <p className="mt-4 text-body-lg text-copy">{text.intro}</p>
 
-      <Card>
-        <CardContent className="p-6 space-y-6">
-          {text.sections.map((section) => (
-            <section key={section.title} className="space-y-2">
-              <h3 className="font-heading text-lg font-semibold text-ink">
-                {section.title}
-              </h3>
-              <p className="text-copy leading-relaxed">
-                {section.body}
-              </p>
-            </section>
-          ))}
-        </CardContent>
-      </Card>
+      <div className="mt-10 divide-y divide-hairline">
+        {text.sections.map((section) => (
+          <section key={section.title} className="py-6 first:pt-0">
+            <h2 className="text-h4 font-bold text-ink">{section.title}</h2>
+            <p className="mt-2 text-copy">{section.body}</p>
+          </section>
+        ))}
+      </div>
     </div>
   );
 }

@@ -58,6 +58,10 @@ export function Section({ children, className = "", as: Tag = "section", ...rest
 interface SurfaceProps {
   children: ReactNode;
   className?: string;
+  /** For a surface that reports something, e.g. "status" or "alert". */
+  role?: string;
+  "aria-busy"?: boolean;
+  "aria-live"?: "polite" | "assertive" | "off";
   /**
    * quiet — a bordered card on the page ground (the default)
    * raised — the same, with the guide's card shadow, for something that
@@ -75,13 +79,23 @@ interface SurfaceProps {
  * spacing and type first, and reach for a surface only when something needs
  * separating from what surrounds it (§9, "Korttetthet").
  */
-export function Surface({ children, className = "", tone = "quiet", as: Tag = "div" }: SurfaceProps) {
+export function Surface({
+  children,
+  className = "",
+  tone = "quiet",
+  as: Tag = "div",
+  ...rest
+}: SurfaceProps) {
   const tones = {
     quiet: "bg-surface border border-hairline",
     raised: "bg-surface border border-hairline shadow-card",
     inset: "bg-green-50",
   } as const;
-  return <Tag className={`rounded-card ${tones[tone]} ${className}`}>{children}</Tag>;
+  return (
+    <Tag className={`rounded-card ${tones[tone]} ${className}`} {...rest}>
+      {children}
+    </Tag>
+  );
 }
 
 interface EmptyStateProps {

@@ -339,6 +339,10 @@ export interface Translations {
       concern: string;
       feedback: string;
     };
+    heroLead: string;
+    formTitle: string;
+    formLead: string;
+    otherWays: string;
   };
   // Newsletter ("nyhetsbrev")
   newsletter: {
@@ -429,6 +433,10 @@ export interface Translations {
     seeAll: string;
     recentActivity: string;
     noRecentActivity: string;
+    heroLead: string;
+    allCategories: string;
+    documentCount: string;
+    openDocument: string;
   };
   // Modals
   modals: {
@@ -570,6 +578,11 @@ export interface Translations {
     backNews: string;
     allTips: string;
     allNews: string;
+    heroLead: string;
+    categoryNews: string;
+    categoryTips: string;
+    loadMore: string;
+    backToList: string;
   };
   adminPage: {
     messages: string;
@@ -1287,7 +1300,11 @@ export const translations: Record<Language, Translations> = {
         general: "Generell Henvendelse",
         concern: "Bekymring",
         feedback: "Tilbakemelding"
-      }
+      },
+      heroLead: "Har du et spørsmål, en idé eller noe du vil ta opp? Vi svarer så fort vi kan.",
+      formTitle: "Send oss en melding",
+      formLead: "Feltene med stjerne må fylles ut. Velger du «Anonym henvendelse» sender vi meldingen uten navn og kontaktinfo.",
+      otherWays: "Andre måter å nå oss på",
     },
     newsletter: {
       navTitle: "Nyhetsbrev",
@@ -1375,7 +1392,11 @@ export const translations: Record<Language, Translations> = {
       fileSize: "Ukjent størrelse",
       seeAll: "Se alle",
       recentActivity: "Nylig aktivitet",
-      noRecentActivity: "Ingen nylig aktivitet"
+      noRecentActivity: "Ingen nylig aktivitet",
+      heroLead: "Referater, vedtekter og budsjett – til å lese eller laste ned.",
+      allCategories: "Alle",
+      documentCount: "dokumenter",
+      openDocument: "Åpne",
     },
     modals: {
       login: {
@@ -1512,6 +1533,11 @@ export const translations: Record<Language, Translations> = {
       backNews: "Til nyhetene",
       allTips: "Alle tips",
       allNews: "Alle nyheter",
+      heroLead: "Nyheter, referater og praktiske tips fra FAU og barnehagen.",
+      categoryNews: "Nyheter",
+      categoryTips: "Tips & triks",
+      loadMore: "Last flere",
+      backToList: "Tilbake til Aktuelt",
     },
     adminPage: {
       messages: "Meldinger",
@@ -2229,7 +2255,11 @@ export const translations: Record<Language, Translations> = {
         general: "General Inquiry",
         concern: "Concern",
         feedback: "Feedback"
-      }
+      },
+      heroLead: "Got a question, an idea or something to raise? We answer as soon as we can.",
+      formTitle: "Send us a message",
+      formLead: "Fields marked with a star are required. Choosing an anonymous enquiry sends the message without your name or contact details.",
+      otherWays: "Other ways to reach us",
     },
     newsletter: {
       navTitle: "Newsletter",
@@ -2317,7 +2347,11 @@ export const translations: Record<Language, Translations> = {
       fileSize: "Unknown size",
       seeAll: "See all",
       recentActivity: "Recent Activity",
-      noRecentActivity: "No recent activity"
+      noRecentActivity: "No recent activity",
+      heroLead: "Minutes, statutes and budgets – to read or download.",
+      allCategories: "All",
+      documentCount: "documents",
+      openDocument: "Open",
     },
     modals: {
       login: {
@@ -2454,6 +2488,11 @@ export const translations: Record<Language, Translations> = {
       backNews: "Back to news",
       allTips: "All tips",
       allNews: "All news",
+      heroLead: "News, minutes and practical tips from FAU and the kindergarten.",
+      categoryNews: "News",
+      categoryTips: "Tips & tricks",
+      loadMore: "Load more",
+      backToList: "Back to Updates",
     },
     adminPage: {
       messages: "Messages",

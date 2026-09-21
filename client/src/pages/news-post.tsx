@@ -1,12 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link, useRoute } from "wouter";
 import { ArrowLeft, Calendar, Loader2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
+import { EmptyState } from "@/components/site/section";
+import { StatusPill } from "@/components/site/controls";
 
 interface BlogPost {
   id: number;
@@ -39,7 +40,7 @@ export default function NewsPost() {
   const post = posts.find((p) => p.id === postId);
 
   usePageMeta({
-    title: post?.title ?? (t.newsPage.post),
+    title: post?.title ?? t.newsPage.post,
     description:
       language === "no"
         ? "Nyheter og informasjon fra FAU Erdal Barnehage."
@@ -49,8 +50,8 @@ export default function NewsPost() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center min-h-[400px]" role="status" aria-live="polite">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex min-h-[400px] items-center justify-center" role="status" aria-live="polite">
+        <Loader2 className="h-8 w-8 animate-spin text-brand" />
         <span className="sr-only">{t.newsPage.loading}</span>
       </div>
     );
@@ -58,71 +59,75 @@ export default function NewsPost() {
 
   if (!post) {
     return (
-      <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <Card>
-          <CardContent className="p-12 text-center">
-            <h1 className="text-xl font-semibold text-ink mb-2">
-              {t.newsPage.postNotFound}
-            </h1>
-            <p className="text-subtle mb-6">
-              {language === "no"
-                ? "Innlegget kan være avpublisert eller slettet."
-                : "The post may have been unpublished or deleted."}
-            </p>
-            <Link href="/news">
-              <Button variant="outline">
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                {t.newsPage.backNews}
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+      <div className="mx-auto max-w-3xl">
+        <EmptyState
+          title={t.newsPage.postNotFound}
+          action={
+            <Button asChild variant="outline">
+              <Link href="/news">
+                <ArrowLeft className="h-4 w-4" />
+                {t.newsPage.backToList}
+              </Link>
+            </Button>
+          }
+        />
       </div>
     );
   }
 
   const backHref = post.category === "tips" ? "/tips-tricks" : "/news";
 
+  // An article page is the one place on this site that is genuinely one
+  // column of prose, so it gets a measure of its own rather than the 1200px
+  // container, and no card around it — the text is the page.
   return (
-    <div className="container mx-auto px-4 py-8 max-w-3xl">
+    <div className="mx-auto max-w-3xl">
       <Link
         href={backHref}
-        className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-primary/80 mb-6"
+        className="mb-8 inline-flex items-center gap-2 text-small font-semibold text-brand hover:underline"
       >
-        <ArrowLeft className="h-4 w-4" />
-        {post.category === "tips"
-          ? t.newsPage.allTips
-          : t.newsPage.allNews}
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {post.category === "tips" ? t.newsPage.allTips : t.newsPage.allNews}
       </Link>
 
       <article>
-        <Card>
-          <CardContent className="p-6 sm:p-8">
-            <h1 className="text-3xl font-bold text-ink mb-3">
-              {post.title}
-            </h1>
-            <div className="flex items-center text-sm text-subtle mb-6">
-              <Calendar className="h-4 w-4 mr-2" />
-              <time dateTime={post.publishedDate}>
-                {formatDate(post.publishedDate, language, {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </time>
-              {post.author && (
-                <span className="ml-2">
-                  &bull; {t.newsPage.by} {post.author}
-                </span>
-              )}
-            </div>
-            <SafeHtml
-              html={post.content}
-              className="prose prose-neutral max-w-none text-copy"
-            />
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill>
+            {post.category === "tips" ? t.newsPage.categoryTips : t.newsPage.categoryNews}
+          </StatusPill>
+          <span className="inline-flex items-center gap-1.5 text-small text-subtle">
+            <Calendar className="h-4 w-4" aria-hidden="true" />
+            <time dateTime={post.publishedDate}>
+              {formatDate(post.publishedDate, language, {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </time>
+          </span>
+          {post.author && (
+            <span className="text-small text-subtle">
+              · {t.newsPage.by} {post.author}
+            </span>
+          )}
+        </div>
+
+        <h1 className="mt-4 text-h1 font-bold tracking-tight text-ink">{post.title}</h1>
+
+        <SafeHtml
+          html={post.content}
+          className="prose prose-neutral mt-8 max-w-none text-copy prose-headings:text-ink prose-strong:text-ink"
+        />
       </article>
+
+      <div className="mt-12 border-t border-hairline pt-8">
+        <Button asChild variant="outline">
+          <Link href={backHref}>
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            {t.newsPage.backToList}
+          </Link>
+        </Button>
+      </div>
     </div>
   );
 }

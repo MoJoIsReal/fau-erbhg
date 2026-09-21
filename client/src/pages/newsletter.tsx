@@ -1,25 +1,32 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearch } from "wouter";
-import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import NewsletterSignup from "@/components/newsletter-signup";
+import PageHero from "@/components/site/page-hero";
+import { Surface } from "@/components/site/section";
 
 type Status = "pending" | "success" | "error";
 
-function StatusCard({ status, title, description }: { status: Status; title: string; description?: string }) {
+function StatusCard({
+  status,
+  title,
+  description,
+}: {
+  status: Status;
+  title: string;
+  description?: string;
+}) {
   return (
-    <Card>
-      <CardContent className="p-8 text-center space-y-4">
-        {status === "pending" && <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />}
-        {status === "success" && <CheckCircle2 className="h-10 w-10 text-green-600 mx-auto" />}
-        {status === "error" && <XCircle className="h-10 w-10 text-red-600 mx-auto" />}
-        <h3 className="font-heading font-semibold text-xl text-ink">{title}</h3>
-        {description && <p className="text-subtle">{description}</p>}
-      </CardContent>
-    </Card>
+    <Surface className="space-y-4 p-8 text-center" role={status === "error" ? "alert" : "status"}>
+      {status === "pending" && <Loader2 className="mx-auto h-10 w-10 animate-spin text-brand" />}
+      {status === "success" && <CheckCircle2 className="mx-auto h-10 w-10 text-brand" />}
+      {status === "error" && <XCircle className="mx-auto h-10 w-10 text-destructive" />}
+      <h2 className="text-h3 font-bold tracking-tight text-ink">{title}</h2>
+      {description && <p className="text-copy">{description}</p>}
+    </Surface>
   );
 }
 
@@ -94,22 +101,15 @@ export default function Newsletter() {
     );
   } else {
     content = (
-      <Card>
-        <CardContent className="p-6">
-          <NewsletterSignup />
-        </CardContent>
-      </Card>
+      <Surface className="p-6">
+        <NewsletterSignup />
+      </Surface>
     );
   }
 
   return (
-    <div className="max-w-xl mx-auto space-y-8">
-      <div>
-        <h1 className="font-heading font-bold text-3xl text-ink mb-2">
-          {t.newsletter.title}
-        </h1>
-        <p className="text-subtle">{t.newsletter.subtitle}</p>
-      </div>
+    <div className="mx-auto max-w-2xl section-rhythm">
+      <PageHero tone="peach" title={t.newsletter.title} lead={t.newsletter.subtitle} />
       {content}
     </div>
   );
