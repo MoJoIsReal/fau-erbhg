@@ -1,47 +1,58 @@
-import heroHome747 from "@/assets/illustrations/hero-home-747.webp";
-import heroHome1300 from "@/assets/illustrations/hero-home-1300.webp";
-import heroHome747Jpg from "@/assets/illustrations/hero-home-747.jpg";
-import heroHome1300Jpg from "@/assets/illustrations/hero-home-1300.jpg";
-import bannerTogether620 from "@/assets/illustrations/banner-together-620.webp";
-import bannerTogether772 from "@/assets/illustrations/banner-together-772.webp";
-import bannerTogether620Jpg from "@/assets/illustrations/banner-together-620.jpg";
-import bannerTogether772Jpg from "@/assets/illustrations/banner-together-772.jpg";
+import heroHome782 from "@/assets/illustrations/hero-home-782.webp";
+import heroHome1120 from "@/assets/illustrations/hero-home-1120.webp";
+import heroHome782Jpg from "@/assets/illustrations/hero-home-782.jpg";
+import heroHome1120Jpg from "@/assets/illustrations/hero-home-1120.jpg";
+import bannerValues620 from "@/assets/illustrations/banner-values-620.webp";
+import bannerValues960 from "@/assets/illustrations/banner-values-960.webp";
+import bannerValues620Jpg from "@/assets/illustrations/banner-values-620.jpg";
+import bannerValues960Jpg from "@/assets/illustrations/banner-values-960.jpg";
 import heroCalendar840 from "@/assets/illustrations/hero-calendar-840.webp";
 import heroCalendar1400 from "@/assets/illustrations/hero-calendar-1400.webp";
 import heroCalendar840Jpg from "@/assets/illustrations/hero-calendar-840.jpg";
 import heroCalendar1400Jpg from "@/assets/illustrations/hero-calendar-1400.jpg";
-import heroNews900 from "@/assets/illustrations/hero-news-900.webp";
-import heroNews900Jpg from "@/assets/illustrations/hero-news-900.jpg";
-import heroDocuments900 from "@/assets/illustrations/hero-documents-900.webp";
-import heroDocuments900Jpg from "@/assets/illustrations/hero-documents-900.jpg";
-import heroContact800 from "@/assets/illustrations/hero-contact-800.webp";
-import heroContact800Jpg from "@/assets/illustrations/hero-contact-800.jpg";
+import heroNews840 from "@/assets/illustrations/hero-news-840.webp";
+import heroNews1400 from "@/assets/illustrations/hero-news-1400.webp";
+import heroNews840Jpg from "@/assets/illustrations/hero-news-840.jpg";
+import heroNews1400Jpg from "@/assets/illustrations/hero-news-1400.jpg";
+import heroDocuments840 from "@/assets/illustrations/hero-documents-840.webp";
+import heroDocuments1400 from "@/assets/illustrations/hero-documents-1400.webp";
+import heroDocuments840Jpg from "@/assets/illustrations/hero-documents-840.jpg";
+import heroDocuments1400Jpg from "@/assets/illustrations/hero-documents-1400.jpg";
+import heroContact840 from "@/assets/illustrations/hero-contact-840.webp";
+import heroContact1400 from "@/assets/illustrations/hero-contact-1400.webp";
+import heroContact840Jpg from "@/assets/illustrations/hero-contact-840.jpg";
+import heroContact1400Jpg from "@/assets/illustrations/hero-contact-1400.jpg";
 
 /**
  * The illustration library.
  *
- * Everything here is cut from the two supplied banner illustrations, so the
- * whole site stays in one hand-drawn Norwegian-nature family while no two
- * pages open with the same picture.
+ * Every page now has artwork drawn for it. The six commissioned originals
+ * live in `attached_assets/illustrations/` as ~2.4MB PNGs; what ships is the
+ * webp/jpg pair derived from each here, because `client/public/` is copied
+ * verbatim into the deploy and 14MB of unresized PNG would have been served
+ * to phones. Regenerate with the crop constants below if an original is
+ * ever replaced.
  *
  * Two rules govern every crop:
  *
- * 1. **The values are the official ones.** The only signpost that appears is
- *    the updated banner_top's FOR BARNA / SAMMEN / ENGASJEMENT. The earlier
- *    artwork carried invented value sets (LEK / MESTRING / GLEDE, LEK /
- *    LÆRING / FELLESSKAP); those files are gone, not merely unreferenced.
- *    "Små mennesker, store dager" stays as the secondary tagline.
- * 2. **No crop repeats the page's own heading.** banner_top has its headline
- *    set across the sky, and there is no rectangle that holds both children
- *    and the signpost while excluding it — the boy starts at x=930 and the
- *    headline runs to x=1008. The home crop therefore starts below the
- *    lettering instead of beside it: everything from y=345 down, which keeps
- *    the children (their hats begin at y=368) and the whole sign, and gives
- *    up the sun. That sentence belongs in the DOM, not in the picture.
+ * 1. **The values are the official ones.** Wherever a signpost appears it
+ *    reads FOR BARNA / SAMMEN / ENGASJEMENT, complete — never two of the
+ *    three, which is why the Dokumenter band keeps its full height rather
+ *    than cropping to a slimmer strip that would cut "FOR BARNA" off the
+ *    top plank.
+ * 2. **A crop may keep the artwork's own handwritten aside; it may never
+ *    keep lettering that repeats the page's own heading, or a line the page
+ *    already prints as HTML.** So the home crop drops "Velkommen til FAU
+ *    Erdal Barnehage" (the page's h1), Aktuelt drops the noticeboard's
+ *    "AKTUELT" plank (the same), and Kalender drops "Små mennesker, store
+ *    dager" because the calendar hero prints that tagline itself. Dokumenter
+ *    keeps "Nyttig og oversiktlig" and Kontakt keeps "Ta gjerne kontakt":
+ *    neither sentence exists anywhere else on its page, so nothing is being
+ *    said only in pixels.
  *
  * `focus` is the object-position used when the frame is narrower than the
- * artwork: it names what must survive the crop — children, signs, the sun —
- * rather than defaulting to the centre.
+ * artwork: it names what must survive the crop — children, signs, the
+ * mailbox — rather than defaulting to the centre.
  */
 export interface Illustration {
   webp: string;
@@ -75,68 +86,64 @@ function set(
   };
 }
 
-/** One image, one width. For a band that never needs a second step. */
-function one(
-  webp: string,
-  jpg: string,
-  width: number,
-  height: number,
-  focus: string,
-): Illustration & { srcSet: string; jpgSrcSet: string } {
-  return {
-    webp,
-    jpg,
-    srcSet: `${webp} ${width}w`,
-    jpgSrcSet: `${jpg} ${width}w`,
-    width,
-    height,
-    focus,
-  };
-}
-
 /**
- * Two children walking toward the FOR BARNA / SAMMEN / ENGASJEMENT signpost,
- * under the sun. The home page's hero, and the one place the official values
- * appear as artwork.
+ * Two children walking hand in hand toward the FOR BARNA / SAMMEN /
+ * ENGASJEMENT signpost. The home page's hero.
+ *
+ * From home-welcome-values at (890, 384, 782×557). The original sets
+ * "Velkommen til FAU Erdal Barnehage" across its sky, and the page's own h1
+ * says exactly that — but the headline runs to x=1023 while the boy starts
+ * at x=913, so no full-width band holds the children and the sign without
+ * it. Taking the right-hand block instead clears the headline (its last
+ * descender ends at y=381) and keeps both children, the whole signpost and
+ * the bird. That leaves a 1.4:1 crop, which is why the home hero is the
+ * `split` variant: artwork in a full-height column beside real text, rather
+ * than a wide band it would have to be cut to fit.
  */
 export const ILLUSTRATION_HOME = set(
-  heroHome747,
-  heroHome1300,
-  heroHome747Jpg,
-  heroHome1300Jpg,
-  747,
-  // banner_top is only 1672px wide, and the one rectangle that holds both
-  // children and the whole signpost without catching the artwork's own
-  // headline is 747px of it. The wide step is a lanczos upscale of that —
-  // flat illustration colour takes it well, and it beats letting the browser
-  // stretch the small file across a 1224px band.
-  1300,
-  747,
-  351,
-  "50% 50%",
-);
-
-/** Two children sitting together over the fjord. Home's closing band. */
-export const ILLUSTRATION_TOGETHER = set(
-  bannerTogether620,
-  bannerTogether772,
-  bannerTogether620Jpg,
-  bannerTogether772Jpg,
-  620,
-  772,
-  772,
-  611,
-  "45% 55%",
+  heroHome782,
+  // 782px is every pixel the crop has. The second step is a lanczos upscale
+  // for 2x screens — flat illustration colour takes it well, and it beats
+  // letting the browser stretch the smaller file across the column.
+  heroHome1120,
+  heroHome782Jpg,
+  heroHome1120Jpg,
+  782,
+  1120,
+  782,
+  557,
+  // Anchored high: the only frame that crops this crop is the stacked 16:9
+  // one, and what must survive it is the signpost and the children's faces,
+  // not their boots.
+  "50% 20%",
 );
 
 /**
- * The fjord at golden hour, cropped below banner_bottom's own handwriting.
+ * Two children on a rock below the same signpost, pointing out over the
+ * fjord. The home page's closing "bli med"-band.
  *
- * The source carries "Små mennesker, store dager" across its sky, and the
- * hero band clipped it mid-word. The tagline is a real sentence on the page
- * already, so the picture gives it up: everything from y=274 down, which
- * starts just under the heart (ink ends at y=271) and just above the sun
- * (y=280), and keeps the children, the log and the meadow. Calendar hero.
+ * home-values-signpost carries no prose at all — the only words in it are
+ * the three official values — so it is used whole.
+ */
+export const ILLUSTRATION_VALUES = set(
+  bannerValues620,
+  bannerValues960,
+  bannerValues620Jpg,
+  bannerValues960Jpg,
+  620,
+  960,
+  1672,
+  941,
+  "55% 55%",
+);
+
+/**
+ * Two children on a log over the fjord at golden hour. Calendar hero.
+ *
+ * From calendar-children-fjord at (0, 328, 1672×613). The original writes
+ * "Små mennesker, store dager" across its sky and the calendar hero already
+ * prints that tagline in HTML directly above the band, so the crop starts
+ * below the ink (which ends at y=324) and above the sun (y=333).
  */
 export const ILLUSTRATION_CALENDAR = set(
   heroCalendar840,
@@ -145,30 +152,72 @@ export const ILLUSTRATION_CALENDAR = set(
   heroCalendar1400Jpg,
   840,
   1400,
-  1400,
-  514,
+  1672,
+  613,
   "58% 55%",
 );
 
-/** Meadow and fjord at golden hour, no lettering. Aktuelt hero. */
-export const ILLUSTRATION_NEWS = one(heroNews900, heroNews900Jpg, 900, 611, "50% 62%");
-
-/** A cool, wide fjord band under a leafy branch. Dokumenter hero. */
-export const ILLUSTRATION_DOCUMENTS = one(
-  heroDocuments900,
-  heroDocuments900Jpg,
-  900,
-  300,
-  "55% 60%",
+/**
+ * Four children running toward the kindergarten's noticeboard, with the
+ * signpost beside it. Aktuelt hero.
+ *
+ * From aktuelt-community at (0, 390, 1672×551). The board's header plank
+ * reads "AKTUELT", which is the page's own h1, so the crop starts under it
+ * — keeping the board itself, its pinned notes and the signpost.
+ */
+export const ILLUSTRATION_NEWS = set(
+  heroNews840,
+  heroNews1400,
+  heroNews840Jpg,
+  heroNews1400Jpg,
+  840,
+  1400,
+  1672,
+  551,
+  "50% 50%",
 );
 
 /**
- * Rock, daisies and the village across the water. Kontakt hero.
+ * Papers, a notebook and a binder on a table above the fjord. Dokumenter
+ * hero.
  *
- * Cropped from y=46 down: the source's hand-drawn heart sat against the top
- * edge and the band clipped it into a stray mark, so the crop starts just
- * below where that ink ends (y=43).
+ * From documents-information at (0, 130, 1672×811) — the leafy branches
+ * across the top are trimmed, and everything else stays. "Nyttig og
+ * oversiktlig" is the artwork's own aside and is kept: cropping it away
+ * would also cut "FOR BARNA" off the signpost, since the two overlap
+ * vertically (handwriting y=154–293, top plank from y≈214).
  */
-export const ILLUSTRATION_CONTACT = one(heroContact800, heroContact800Jpg, 800, 235, "50% 55%");
+export const ILLUSTRATION_DOCUMENTS = set(
+  heroDocuments840,
+  heroDocuments1400,
+  heroDocuments840Jpg,
+  heroDocuments1400Jpg,
+  840,
+  1400,
+  1672,
+  811,
+  "50% 60%",
+);
+
+/**
+ * A red postbox, a robin with an envelope, and a parent and child waving at
+ * the kindergarten gate. Kontakt hero.
+ *
+ * contact-mailbox is used whole: "Ta gjerne kontakt" is the artwork's own
+ * handwritten aside, the page's heading is "Kontakt oss", and cropping the
+ * phrase away would take the robin and the envelope with it — which is the
+ * one motif that makes this a contact illustration rather than a landscape.
+ */
+export const ILLUSTRATION_CONTACT = set(
+  heroContact840,
+  heroContact1400,
+  heroContact840Jpg,
+  heroContact1400Jpg,
+  840,
+  1400,
+  1916,
+  821,
+  "60% 55%",
+);
 
 export type IllustrationSet = ReturnType<typeof set>;

@@ -173,8 +173,9 @@ export default function Files() {
           — but the page still needs an identity of its own, which is the
           blue/slate tone plus its own crop (guide v1.1 §21). */}
       <PageHero
-        layout="compact"
+        layout="editorial"
         tone="blue"
+        nativeRatio
         priority
         title={t.documents.title}
         lead={t.documents.heroLead}

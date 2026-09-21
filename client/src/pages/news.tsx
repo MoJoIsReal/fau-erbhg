@@ -10,7 +10,6 @@ import { apiRequest } from "@/lib/queryClient";
 import PageHero from "@/components/site/page-hero";
 import { Surface, EmptyState } from "@/components/site/section";
 import { StatusPill } from "@/components/site/controls";
-import Artwork from "@/components/site/artwork";
 import { ILLUSTRATION_NEWS } from "@/components/site/illustrations";
 
 const PAGE_SIZE = 10;
@@ -109,15 +108,14 @@ export default function News() {
 
   return (
     <div className="section-rhythm">
-      {/* Aktuelt opens on words, not a band: the lead story right below it
-          already carries the page's one picture, and running the same
-          artwork twice on one screen made the hero read as a duplicate
-          (guide v1.1 §21, "Aktuelt"). */}
       <PageHero
-        layout="compact"
+        layout="editorial"
         tone="sand"
+        nativeRatio
+        priority
         title={t.navigation.updates}
         lead={t.newsPage.heroLead}
+        illustration={{ art: ILLUSTRATION_NEWS, alt: "" }}
       >
         <div className="flex flex-wrap gap-2" role="group" aria-label={t.newsPage.category}>
           {categoryChip("/news", t.newsPage.categoryNews, !isTips)}
@@ -145,19 +143,15 @@ export default function News() {
         ) : (
           <>
             {/* Editorial rather than a grid of equal rectangles: the newest
-                post is the lead story across the full width, and the rest
-                follow as supporting cards (guide v1.1 §21, §24). */}
+                post is the lead story, set larger and separated by a rule
+                rather than boxed, and the rest follow as supporting cards
+                (guide v1.1 §21, §24). The lead carries no artwork of its
+                own — the page's picture is the hero band above it, and
+                running the same illustration twice on one screen read as a
+                duplicate. */}
             {featured && (
-              <article className="group mb-10 grid overflow-hidden rounded-card border border-hairline bg-surface lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-                <div className="aspect-[16/9] lg:aspect-auto lg:h-full lg:min-h-[280px]">
-                  <Artwork
-                    illustration={ILLUSTRATION_NEWS}
-                    alt=""
-                    priority
-                    sizes="(min-width: 1024px) 50vw, 100vw"
-                  />
-                </div>
-                <div className="flex flex-col justify-center px-6 py-8 sm:px-9 sm:py-10">
+              <article className="group mb-10 border-b border-hairline pb-10">
+                <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill>
                       {featured.category === "tips"
@@ -172,7 +166,7 @@ export default function News() {
                       })}
                     </time>
                   </div>
-                  <h2 className="mt-4 text-h2 font-bold tracking-tight text-ink">
+                  <h2 className="measure mt-4 text-h1 font-bold tracking-tight text-ink">
                     <Link
                       href={`/nyheter/${featured.id}`}
                       className="hover:text-brand hover:underline"
@@ -182,13 +176,13 @@ export default function News() {
                   </h2>
                   <SafeHtml
                     html={featured.content}
-                    truncate={260}
-                    className="measure mt-3 text-body text-copy"
+                    truncate={320}
+                    className="measure mt-4 text-body-lg text-copy"
                   />
                   <div className="mt-6 flex flex-wrap items-center gap-4">
                     <Link
                       href={`/nyheter/${featured.id}`}
-                      className="inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+                      className="inline-flex items-center gap-1.5 text-body font-semibold text-brand hover:underline"
                     >
                       {t.home.readMore}
                       <ArrowRight

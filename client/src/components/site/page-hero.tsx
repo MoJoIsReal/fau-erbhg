@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import Artwork from "./artwork";
 import type { IllustrationSet } from "./illustrations";
 
@@ -119,17 +119,29 @@ export default function PageHero({
       // Wider than the reading container: a hero that stops at 1200px on a
       // 1440px screen reads as a small page in a big window (guide v1.1 §24).
       <section className={`bleed-wide overflow-hidden rounded-hero ${TONE[tone]}`}>
-        <div className="grid items-stretch lg:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]">
-          <div className="px-6 pb-10 pt-10 sm:px-10 sm:pt-14 lg:py-16 lg:pl-14 lg:pr-4">{text}</div>
+        {/* Two columns only from 1280px. Between 1024 and 1280 the text
+            column is tall enough (a three-line heading) that the artwork
+            beside it would be framed portrait, and object-cover would then
+            crop it horizontally — straight through the value signpost. */}
+        <div className="grid items-stretch xl:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]">
+          <div className="px-6 pb-10 pt-10 sm:px-10 sm:pt-14 xl:py-16 xl:pl-14 xl:pr-4">{text}</div>
           {/* The artwork runs to the panel's own edge rather than sitting in
               it with a margin — that gap is what made it read as a thumbnail
-              rather than a hero. */}
-          <div className="aspect-[16/10] sm:aspect-[2/1] lg:aspect-auto lg:h-full lg:min-h-[420px]">
+              rather than a hero. The frame's own rules live with
+              `.art-frame` in index.css. */}
+          <div
+            className="art-frame"
+            style={
+              {
+                "--art": `${illustration.art.width} / ${illustration.art.height}`,
+              } as CSSProperties
+            }
+          >
             <Artwork
               illustration={illustration.art}
               alt={illustration.alt}
               priority={priority}
-              sizes="(min-width: 1024px) 46vw, 100vw"
+              sizes="(min-width: 1280px) 46vw, 100vw"
             />
           </div>
         </div>

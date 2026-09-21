@@ -375,6 +375,25 @@
      out would push the section past the viewport instead of into spare
      room. The negative margin is exactly the difference between the two
      containers, so the band lines up rather than guessing. */
+  /* The split hero's artwork frame.
+     Stacked it is 16:9, which shows about four fifths of these crops'
+     height — enough for a whole signpost and the children's faces, and a
+     sane block on a phone. Once the hero is two columns the frame takes the
+     artwork's own ratio instead and centres itself, because the column's
+     height is then set by however long the heading happens to wrap, and a
+     portrait frame would crop a landscape crop sideways — straight through
+     the values on the sign. */
+  .art-frame {
+    aspect-ratio: 16 / 9;
+  }
+
+  @media (min-width: 1280px) {
+    .art-frame {
+      aspect-ratio: var(--art);
+      align-self: center;
+    }
+  }
+
   .bleed-wide {
     margin-inline: 0;
   }

@@ -12,7 +12,7 @@ import PageHero from "@/components/site/page-hero";
 import { SectionHeader, Surface, EmptyState } from "@/components/site/section";
 import { StatusPill } from "@/components/site/controls";
 import { IllustrationBanner } from "@/components/site/banners";
-import { ILLUSTRATION_HOME, ILLUSTRATION_TOGETHER } from "@/components/site/illustrations";
+import { ILLUSTRATION_HOME, ILLUSTRATION_VALUES } from "@/components/site/illustrations";
 
 interface BlogPost {
   id: number;
@@ -102,12 +102,14 @@ export default function Home() {
 
   return (
     <div className="section-rhythm">
+      {/* Split, not a band: the only crop of the welcome artwork that clears
+          its own baked headline is a near-square block of the right-hand
+          side, and that belongs in a full-height column beside the text
+          rather than stretched across one (see illustrations.ts). */}
       <PageHero
-        layout="editorial"
+        layout="split"
         tone="sand"
         titleSize="display"
-        nativeRatio
-        wide
         priority
         title={t.home.title}
         lead={t.home.welcomeDescription}
@@ -399,7 +401,7 @@ export default function Home() {
       </section>
 
       <IllustrationBanner
-        art={ILLUSTRATION_TOGETHER}
+        art={ILLUSTRATION_VALUES}
         eyebrow={t.ui.aboutFau}
         title={t.home.closingTitle}
         hand={t.home.closingHand}

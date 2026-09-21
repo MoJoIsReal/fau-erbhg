@@ -36,13 +36,15 @@ you are editing; do not add a linter as a side effect of another task.
 client/src/         React SPA. pages/ = routes, components/ = features,
                     components/site/ = the design system's own primitives,
                     components/ui/ = shadcn primitives (do not hand-edit),
-                    assets/illustrations/ = the derived banner artwork,
+                    assets/illustrations/ = the shipped page artwork,
                     lib/ = i18n, queryClient, exports; contexts/, hooks/
 api/*.js            The entire backend: 8 Vercel serverless route handlers
 api/cron/           Scheduled handler (Vercel Cron)
 api/_shared/        Backend-only helpers: middleware, database, email,
                     cloudinary, rate-limit, newsletter, delivery, sentry, log
 shared/             Code used by BOTH tiers (see "The shared/ boundary")
+attached_assets/    Uploaded source material, never served — including
+                    illustrations/, the six commissioned page originals
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
 tests/*.test.mjs    node:test suites; scripts/smoke-tests.mjs is the second tier
 docs/               Architecture, subsystem rules, deployment, review backlog
