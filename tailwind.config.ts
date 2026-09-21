@@ -40,7 +40,10 @@ export default {
         "body-lg": ["clamp(1.0625rem, 1.04rem + 0.1vw, 1.125rem)", { lineHeight: "1.55" }],
         body: ["1rem", { lineHeight: "1.6" }],
         small: ["0.875rem", { lineHeight: "1.55" }],
-        micro: ["0.75rem", { lineHeight: "1.45" }],
+        // v1.1 §24 puts the metadata floor at 13-14px; 12px is kept only
+        // for the uppercase eyebrow label, which reads larger than its size.
+        micro: ["0.8125rem", { lineHeight: "1.45" }],
+        label: ["0.75rem", { lineHeight: "1.4" }],
       },
       borderRadius: {
         // shadcn's primitives resolve lg/md/sm off --radius; the guide's own
@@ -59,6 +62,7 @@ export default {
       },
       maxWidth: {
         container: "var(--container)",
+        wide: "var(--container-wide)",
         measure: "68ch",
       },
       transitionDuration: {
@@ -123,7 +127,11 @@ export default {
         copy: "var(--color-text)",
         subtle: "var(--color-text-muted)",
         hairline: "var(--color-border)",
-        surface: "var(--color-surface)",
+        surface: {
+          DEFAULT: "var(--color-surface)",
+          raised: "var(--color-surface-raised)",
+          soft: "var(--color-surface-soft)",
+        },
 
         // --- Calendar categories (§7). Paired with a label everywhere. ---
         cat: {

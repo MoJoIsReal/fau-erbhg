@@ -30,7 +30,11 @@ if (import.meta.env.VITE_SENTRY_DSN) {
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>
-    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+    {/* The system preference is the default, an explicit choice overrides it
+        and is remembered, and next-themes' own blocking script applies the
+        class before first paint so there is no flash of the wrong theme
+        (guide v1.1 §19, "Temaadferd"). */}
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <App />

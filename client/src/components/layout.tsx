@@ -125,7 +125,7 @@ export default function Layout({ children }: LayoutProps) {
   ];
 
   const navLinkClass = (active: boolean) =>
-    `relative flex h-[var(--header-height)] items-center whitespace-nowrap px-3 text-small font-semibold transition-colors duration-micro ease-guide xl:px-4 ${
+    `relative flex h-[var(--header-height)] items-center whitespace-nowrap px-3.5 text-body font-semibold transition-colors duration-micro ease-guide xl:px-5 ${
       active ? "text-brand" : "text-copy hover:text-brand"
     }`;
 
@@ -157,12 +157,12 @@ export default function Layout({ children }: LayoutProps) {
               aria-hidden="true"
               width={40}
               height={40}
-              className="h-9 w-9 shrink-0 object-contain lg:h-10 lg:w-10"
+              className="h-10 w-10 shrink-0 object-contain lg:h-11 lg:w-11"
             />
             <span className="min-w-0">
               {/* Site name, not a heading: it is identical on every page, so
                   the page's own <h1> is what should describe that page. */}
-              <span className="block truncate font-bold leading-tight text-ink">
+              <span className="block truncate text-body font-bold leading-tight tracking-tight text-ink lg:text-h4">
                 {t.header.title}
               </span>
               <span className="hidden truncate text-micro leading-tight text-subtle sm:block">
@@ -187,7 +187,7 @@ export default function Layout({ children }: LayoutProps) {
                       grey still sees. */}
                   <span
                     aria-hidden="true"
-                    className={`absolute inset-x-3 bottom-0 h-[3px] rounded-t-pill bg-brand transition-opacity duration-micro ease-guide xl:inset-x-4 ${
+                    className={`absolute inset-x-3.5 bottom-0 h-[3px] rounded-t-pill bg-brand transition-opacity duration-micro ease-guide xl:inset-x-5 ${
                       active ? "opacity-100" : "opacity-0"
                     }`}
                   />
@@ -382,7 +382,7 @@ export default function Layout({ children }: LayoutProps) {
             >
               {t.ui.quickLinks}
             </h2>
-            <ul className="mt-4 space-y-2.5 text-small">
+            <ul className="mt-4 space-y-3 text-body">
               {navigation.slice(1).map((item) => (
                 <li key={item.href}>
                   <Link href={item.href} className="text-copy hover:text-brand hover:underline">
@@ -407,7 +407,7 @@ export default function Layout({ children }: LayoutProps) {
             >
               {t.footer.usefulLinks}
             </h2>
-            <ul className="mt-4 grid gap-2.5 text-small sm:grid-cols-2">
+            <ul className="mt-4 grid gap-3 text-body sm:grid-cols-2">
               {usefulLinks.map((link) => (
                 <li key={link.href}>
                   <a

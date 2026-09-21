@@ -1,38 +1,47 @@
-import heroHome560 from "@/assets/illustrations/hero-home-560.webp";
-import heroHome900 from "@/assets/illustrations/hero-home-900.webp";
-import heroHome560Jpg from "@/assets/illustrations/hero-home-560.jpg";
-import heroHome900Jpg from "@/assets/illustrations/hero-home-900.jpg";
-import heroCalendar800 from "@/assets/illustrations/hero-calendar-800.webp";
+import heroHome747 from "@/assets/illustrations/hero-home-747.webp";
+import heroHome1300 from "@/assets/illustrations/hero-home-1300.webp";
+import heroHome747Jpg from "@/assets/illustrations/hero-home-747.jpg";
+import heroHome1300Jpg from "@/assets/illustrations/hero-home-1300.jpg";
+import bannerTogether620 from "@/assets/illustrations/banner-together-620.webp";
+import bannerTogether772 from "@/assets/illustrations/banner-together-772.webp";
+import bannerTogether620Jpg from "@/assets/illustrations/banner-together-620.jpg";
+import bannerTogether772Jpg from "@/assets/illustrations/banner-together-772.jpg";
+import heroCalendar840 from "@/assets/illustrations/hero-calendar-840.webp";
 import heroCalendar1400 from "@/assets/illustrations/hero-calendar-1400.webp";
-import heroCalendar800Jpg from "@/assets/illustrations/hero-calendar-800.jpg";
+import heroCalendar840Jpg from "@/assets/illustrations/hero-calendar-840.jpg";
 import heroCalendar1400Jpg from "@/assets/illustrations/hero-calendar-1400.jpg";
-import heroNews800 from "@/assets/illustrations/hero-news-800.webp";
-import heroNews1400 from "@/assets/illustrations/hero-news-1400.webp";
-import heroNews800Jpg from "@/assets/illustrations/hero-news-800.jpg";
-import heroNews1400Jpg from "@/assets/illustrations/hero-news-1400.jpg";
-import bannerFjord800 from "@/assets/illustrations/banner-fjord-800.webp";
-import bannerFjord1400 from "@/assets/illustrations/banner-fjord-1400.webp";
-import bannerFjord800Jpg from "@/assets/illustrations/banner-fjord-800.jpg";
-import bannerFjord1400Jpg from "@/assets/illustrations/banner-fjord-1400.jpg";
-import bannerSignpost900 from "@/assets/illustrations/banner-signpost-900.webp";
-import bannerSignpost1600 from "@/assets/illustrations/banner-signpost-1600.webp";
-import bannerSignpost900Jpg from "@/assets/illustrations/banner-signpost-900.jpg";
-import bannerSignpost1600Jpg from "@/assets/illustrations/banner-signpost-1600.jpg";
+import heroNews900 from "@/assets/illustrations/hero-news-900.webp";
+import heroNews900Jpg from "@/assets/illustrations/hero-news-900.jpg";
+import heroDocuments900 from "@/assets/illustrations/hero-documents-900.webp";
+import heroDocuments900Jpg from "@/assets/illustrations/hero-documents-900.jpg";
+import heroContact800 from "@/assets/illustrations/hero-contact-800.webp";
+import heroContact800Jpg from "@/assets/illustrations/hero-contact-800.jpg";
 
 /**
  * The illustration library.
  *
- * Every entry is the same hand-drawn Norwegian-nature family from the visual
- * profile, cut so that no two pages open with the same picture and so that
- * none of the artwork's own baked-in text competes with the page's real HTML
- * heading. The home banner, for instance, is the right-hand side of
- * banner_top — the children, the sun and the signpost — with the illustrated
- * "Velkommen til FAU Erdal Barnehage" lettering left out, because that
- * sentence belongs in the DOM (guide §14, rule 9).
+ * Everything here is cut from the two supplied banner illustrations, so the
+ * whole site stays in one hand-drawn Norwegian-nature family while no two
+ * pages open with the same picture.
+ *
+ * Two rules govern every crop:
+ *
+ * 1. **The values are the official ones.** The only signpost that appears is
+ *    the updated banner_top's FOR BARNA / SAMMEN / ENGASJEMENT. The earlier
+ *    artwork carried invented value sets (LEK / MESTRING / GLEDE, LEK /
+ *    LÆRING / FELLESSKAP); those files are gone, not merely unreferenced.
+ *    "Små mennesker, store dager" stays as the secondary tagline.
+ * 2. **No crop repeats the page's own heading.** banner_top has its headline
+ *    set across the sky, and there is no rectangle that holds both children
+ *    and the signpost while excluding it — the boy starts at x=930 and the
+ *    headline runs to x=1008. The home crop therefore starts below the
+ *    lettering instead of beside it: everything from y=345 down, which keeps
+ *    the children (their hats begin at y=368) and the whole sign, and gives
+ *    up the sun. That sentence belongs in the DOM, not in the picture.
  *
  * `focus` is the object-position used when the frame is narrower than the
- * artwork: it names the part that must survive the crop — children, signs and
- * the central landscape — rather than defaulting to the centre.
+ * artwork: it names what must survive the crop — children, signs, the sun —
+ * rather than defaulting to the centre.
  */
 export interface Illustration {
   webp: string;
@@ -66,72 +75,86 @@ function set(
   };
 }
 
-/** Two children and the LEK / MESTRING / GLEDE signpost. Home hero. */
+/** One image, one width. For a band that never needs a second step. */
+function one(
+  webp: string,
+  jpg: string,
+  width: number,
+  height: number,
+  focus: string,
+): Illustration & { srcSet: string; jpgSrcSet: string } {
+  return {
+    webp,
+    jpg,
+    srcSet: `${webp} ${width}w`,
+    jpgSrcSet: `${jpg} ${width}w`,
+    width,
+    height,
+    focus,
+  };
+}
+
+/**
+ * Two children walking toward the FOR BARNA / SAMMEN / ENGASJEMENT signpost,
+ * under the sun. The home page's hero, and the one place the official values
+ * appear as artwork.
+ */
 export const ILLUSTRATION_HOME = set(
-  heroHome560,
-  heroHome900,
-  heroHome560Jpg,
-  heroHome900Jpg,
-  560,
-  // The 900px variant stops at the crop's own 852px rather than being
-  // upscaled, and the descriptor has to say so or the browser picks wrongly.
-  852,
-  852,
-  809,
+  heroHome747,
+  heroHome1300,
+  heroHome747Jpg,
+  heroHome1300Jpg,
+  747,
+  // banner_top is only 1672px wide, and the one rectangle that holds both
+  // children and the whole signpost without catching the artwork's own
+  // headline is 747px of it. The wide step is a lanczos upscale of that —
+  // flat illustration colour takes it well, and it beats letting the browser
+  // stretch the small file across a 1224px band.
+  1300,
+  747,
+  351,
   "50% 50%",
 );
 
-/** Children looking out over the fjord. Calendar hero. */
-export const ILLUSTRATION_CALENDAR = set(
-  heroCalendar800,
-  heroCalendar1400,
-  heroCalendar800Jpg,
-  heroCalendar1400Jpg,
-  800,
-  1400,
-  1672,
-  941,
-  "62% 70%",
+/** Two children sitting together over the fjord. Home's closing band. */
+export const ILLUSTRATION_TOGETHER = set(
+  bannerTogether620,
+  bannerTogether772,
+  bannerTogether620Jpg,
+  bannerTogether772Jpg,
+  620,
+  772,
+  772,
+  611,
+  "45% 55%",
 );
 
-/** Open hills and meadow. Aktuelt hero. */
-export const ILLUSTRATION_NEWS = set(
-  heroNews800,
-  heroNews1400,
-  heroNews800Jpg,
-  heroNews1400Jpg,
-  800,
+/** The full fjord view with the handwritten tagline. Calendar hero. */
+export const ILLUSTRATION_CALENDAR = set(
+  heroCalendar840,
+  heroCalendar1400,
+  heroCalendar840Jpg,
+  heroCalendar1400Jpg,
+  840,
   1400,
   1672,
   941,
+  "58% 62%",
+);
+
+/** Meadow and fjord at golden hour, no lettering. Aktuelt hero. */
+export const ILLUSTRATION_NEWS = one(heroNews900, heroNews900Jpg, 900, 611, "50% 62%");
+
+/** A cool, wide fjord band under a leafy branch. Dokumenter hero. */
+export const ILLUSTRATION_DOCUMENTS = one(
+  heroDocuments900,
+  heroDocuments900Jpg,
+  900,
+  300,
   "55% 60%",
 );
 
-/** Quiet fjord landscape, no people and no lettering. Contact and documents. */
-export const ILLUSTRATION_FJORD = set(
-  bannerFjord800,
-  bannerFjord1400,
-  bannerFjord800Jpg,
-  bannerFjord1400Jpg,
-  800,
-  // Like the home crop, the wide variant stops at the source's own width.
-  1090,
-  1090,
-  339,
-  "60% 55%",
-);
-
-/** The wide signpost banner. Closing band on the home page. */
-export const ILLUSTRATION_SIGNPOST = set(
-  bannerSignpost900,
-  bannerSignpost1600,
-  bannerSignpost900Jpg,
-  bannerSignpost1600Jpg,
-  900,
-  1600,
-  1774,
-  887,
-  "70% 55%",
-);
+/** Rock, daisies and a hand-drawn heart over the water. Kontakt hero. */
+export const ILLUSTRATION_CONTACT = one(heroContact800, heroContact800Jpg, 800, 281, "50% 55%");
 
 export type IllustrationSet = ReturnType<typeof set>;

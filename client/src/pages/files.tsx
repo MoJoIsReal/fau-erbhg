@@ -29,6 +29,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate, formatFileSize } from "@/lib/i18n";
 import PageHero from "@/components/site/page-hero";
+import { ILLUSTRATION_DOCUMENTS } from "@/components/site/illustrations";
 import { Surface, EmptyState } from "@/components/site/section";
 import { FilterChip } from "@/components/site/controls";
 import { EditorSurface } from "@/components/site/cards";
@@ -168,13 +169,16 @@ export default function Files() {
 
   return (
     <div className="section-rhythm">
-      {/* No illustration here on purpose: a file list is a utility, and the
-          guide asks for rhythm across the site rather than a picture on top
-          of every page. */}
+      {/* A compact hero: the list below is the page, so the band is shallow
+          — but the page still needs an identity of its own, which is the
+          blue/slate tone plus its own crop (guide v1.1 §21). */}
       <PageHero
+        layout="compact"
         tone="blue"
+        priority
         title={t.documents.title}
         lead={t.documents.heroLead}
+        illustration={{ art: ILLUSTRATION_DOCUMENTS, alt: "" }}
       />
 
       {canManageDocuments && (

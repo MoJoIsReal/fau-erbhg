@@ -110,6 +110,7 @@ export interface Translations {
     comingDates: string;
     openCalendar: string;
     practicalInfo: string;
+    boardOnContact: string;
     closingTitle: string;
     closingBody: string;
     closingHand: string;
@@ -1053,6 +1054,7 @@ export const translations: Record<Language, Translations> = {
       comingDates: "Nærmeste datoer",
       openCalendar: "Åpne kalenderen",
       practicalInfo: "Praktisk informasjon",
+      boardOnContact: "Se hele FAU-styret og kontaktinfo",
       closingTitle: "Har du en idé, eller lyst til å bidra?",
       closingBody: "Det trengs ikke mye. En melding, en time på dugnad eller et innspill på neste foreldremøte er nok til å utgjøre en forskjell.",
       closingHand: "Vi hører gjerne fra deg",
@@ -1995,6 +1997,7 @@ export const translations: Record<Language, Translations> = {
       comingDates: "Coming dates",
       openCalendar: "Open the calendar",
       practicalInfo: "Practical information",
+      boardOnContact: "See the full FAU board and contact details",
       closingTitle: "Got an idea, or want to help out?",
       closingBody: "It doesn't take much. A message, an hour at a work day or a word at the next parents' meeting is enough to make a difference.",
       closingHand: "We'd love to hear from you",
