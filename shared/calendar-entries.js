@@ -332,6 +332,46 @@ export function groupCalendarEntriesByWeek(entries, { fromWeekKey = null } = {})
     }));
 }
 
+/**
+ * Every ISO week of a kindergarten year (1 August through 31 July), each
+ * tagged with the month it belongs to.
+ *
+ * A week is normally assigned by its Thursday, the ISO rule, which is the
+ * only one that puts a week straddling two months in exactly one of them.
+ * The two edge weeks are the exception: 1 August 2026 falls on a Saturday, so
+ * that week's Thursday sits in July and the year would open by dropping its
+ * own first two days. A week that overlaps the year keeps its place and is
+ * clamped to August or July instead.
+ */
+export function schoolYearWeeks(schoolYear) {
+  const yearStart = new Date(schoolYear, 7, 1);
+  const yearEnd = new Date(schoolYear + 1, 6, 31);
+
+  const cursor = new Date(yearStart);
+  cursor.setDate(yearStart.getDate() - ((yearStart.getDay() + 6) % 7));
+
+  const weeks = [];
+  while (cursor <= yearEnd) {
+    const monday = new Date(cursor);
+    const thursday = new Date(cursor);
+    thursday.setDate(cursor.getDate() + 3);
+
+    let month = thursday.getMonth() + 1;
+    let year = thursday.getFullYear();
+    if (thursday < yearStart) {
+      month = 8;
+      year = schoolYear;
+    } else if (thursday > yearEnd) {
+      month = 7;
+      year = schoolYear + 1;
+    }
+
+    weeks.push({ week: isoWeek(monday), weekYear: isoWeekYear(monday), month, year, monday });
+    cursor.setDate(cursor.getDate() + 7);
+  }
+  return weeks;
+}
+
 /** Monday of a given ISO week, for labelling a week with its date range. */
 export function mondayOfIsoWeek(weekYear, weekNumber) {
   const jan4 = new Date(weekYear, 0, 4);

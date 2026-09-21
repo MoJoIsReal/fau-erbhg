@@ -1,5 +1,5 @@
-import { lazy, Suspense, useMemo, useState } from "react";
-import { List, Loader2, CalendarDays } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { List, Loader2, CalendarDays, CalendarRange } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries";
 import {
@@ -10,6 +10,7 @@ import {
   isoWeekYear,
 } from "@shared/calendar-entries";
 import { isoWeek } from "@shared/yearly-calendar-display";
+import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { useCalendarEntries } from "@/hooks/useCalendarEntries";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CHIP_OFF, KIND_STYLE } from "@/lib/calendar-kind-style";
@@ -17,16 +18,53 @@ import type { Event } from "@shared/schema";
 import CalendarEntryList from "@/components/calendar-entry-list";
 import EventRegistrationModal from "@/components/event-registration-modal";
 
-// The month grid is only paid for when someone switches to it.
+// The grids are only paid for when someone switches to them.
 const CalendarView = lazy(() => import("@/components/calendar-view"));
+const CalendarYearView = lazy(() => import("@/components/calendar-year-view"));
 
-type CalendarViewMode = "list" | "month";
+type CalendarViewMode = "list" | "month" | "year";
+
+const VIEW_MODES: CalendarViewMode[] = ["list", "month", "year"];
+const STORAGE_KEY = "fau-calendar-view";
+
+// Which view and which filters someone last used is a convenience, not data:
+// it lives in this browser only, and a blocked or cleared store just means
+// everything is on and the list is showing.
+type StoredPreferences = {
+  mode?: CalendarViewMode;
+  off?: CalendarEntryKind[];
+};
+
+function readPreferences(): StoredPreferences {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as StoredPreferences;
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 function allKindsOn(): Record<CalendarEntryKind, boolean> {
   return CALENDAR_ENTRY_KINDS.reduce(
     (acc, kind) => ({ ...acc, [kind]: true }),
     {} as Record<CalendarEntryKind, boolean>,
   );
+}
+
+function initialActive(): Record<CalendarEntryKind, boolean> {
+  const off = new Set(readPreferences().off ?? []);
+  const state = allKindsOn();
+  for (const kind of CALENDAR_ENTRY_KINDS) {
+    if (off.has(kind)) state[kind] = false;
+  }
+  return state;
+}
+
+function initialMode(): CalendarViewMode {
+  const stored = readPreferences().mode;
+  return stored && VIEW_MODES.includes(stored) ? stored : "list";
 }
 
 /**
@@ -38,22 +76,35 @@ function allKindsOn(): Record<CalendarEntryKind, boolean> {
 export default function CalendarViews() {
   const { t } = useLanguage();
   const { entries, isLoading, isError } = useCalendarEntries();
-  const [active, setActive] = useState<Record<CalendarEntryKind, boolean>>(allKindsOn);
-  const [mode, setMode] = useState<CalendarViewMode>("list");
+  const [active, setActive] = useState<Record<CalendarEntryKind, boolean>>(initialActive);
+  const [mode, setMode] = useState<CalendarViewMode>(initialMode);
   const [showPast, setShowPast] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
   const today = new Date();
   const currentWeekKey = calendarWeekKey(isoWeekYear(today), isoWeek(today));
+  const [schoolYear, setSchoolYear] = useState(() => getKindergartenSchoolYear(new Date()));
+
+  useEffect(() => {
+    try {
+      const off = CALENDAR_ENTRY_KINDS.filter((kind) => !active[kind]);
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode, off }));
+    } catch {
+      // A private window or blocked storage costs the convenience, nothing else.
+    }
+  }, [active, mode]);
 
   const visible = useMemo(() => entries.filter((entry) => active[entry.kind]), [entries, active]);
   const activeCount = CALENDAR_ENTRY_KINDS.filter((kind) => active[kind]).length;
 
   const toggle = (kind: CalendarEntryKind) => setActive((prev) => ({ ...prev, [kind]: !prev[kind] }));
 
-  // The month grid always shows a whole month, past days included, so the
-  // list's "from this week on" cutoff would only ever blank out its first
-  // rows. It applies to the list alone.
+  // One year back and one forward covers what the entries can actually hold:
+  // the hook fetches this school year and the next.
+  const thisSchoolYear = getKindergartenSchoolYear(new Date());
+  const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
+
+  // Only events have anything to open: a varmmat row is its own full content.
   const openEntry = (entry: CalendarEntry) => {
     if (entry.event) setSelectedEvent(entry.event);
   };
@@ -80,6 +131,7 @@ export default function CalendarViews() {
   const modes: { id: CalendarViewMode; label: string; icon: typeof List }[] = [
     { id: "list", label: t.calendar.listView, icon: List },
     { id: "month", label: t.calendar.monthView, icon: CalendarDays },
+    { id: "year", label: t.calendar.yearView, icon: CalendarRange },
   ];
 
   if (isLoading) {
@@ -128,6 +180,22 @@ export default function CalendarViews() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-xs text-neutral-500 dark:text-neutral-400">
+            {mode === "year" && (
+              <label className="flex items-center gap-2">
+                <span>{t.yearlyCalendar.schoolYearLabel}</span>
+                <select
+                  value={schoolYear}
+                  onChange={(event) => setSchoolYear(Number(event.target.value))}
+                  className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-900 dark:border-neutral-700 dark:bg-neutral-950 dark:text-neutral-50"
+                >
+                  {schoolYearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}/{year + 1}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <span className="tabular-nums">
               {activeCount}/{CALENDAR_ENTRY_KINDS.length} {t.calendar.typesOn}
             </span>
@@ -147,6 +215,9 @@ export default function CalendarViews() {
         {renderChips(YEARLY_CALENDAR_KINDS, t.calendar.filterKindergarten)}
       </div>
 
+      {/* The cutoff is the list's alone. The month grid and the year strip
+          always show a whole period, so hiding past weeks there would only
+          punch holes in them. */}
       {mode === "list" ? (
         <CalendarEntryList
           entries={visible}
@@ -164,7 +235,15 @@ export default function CalendarViews() {
             </div>
           }
         >
-          <CalendarView entries={visible} onEntryClick={openEntry} />
+          {mode === "month" ? (
+            <CalendarView entries={visible} onEntryClick={openEntry} />
+          ) : (
+            <CalendarYearView
+              entries={visible}
+              schoolYear={schoolYear}
+              onEntryClick={openEntry}
+            />
+          )}
         </Suspense>
       )}
 

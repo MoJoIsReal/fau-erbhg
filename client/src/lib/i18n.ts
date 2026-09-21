@@ -99,6 +99,9 @@ export interface Translations {
     viewLabel: string;
     listView: string;
     monthView: string;
+    yearView: string;
+    yearViewHint: string;
+    quietWeek: string;
     weekRailHint: string;
     week: string;
     thisWeek: string;
@@ -970,6 +973,10 @@ export const translations: Record<Language, Translations> = {
       viewLabel: "Visning",
       listView: "Liste",
       monthView: "Måned",
+      yearView: "År",
+      yearViewHint:
+        "Hele barnehageåret, én rad per uke. Rolige uker vises som rolige — det er dem du leter etter når noe skal planlegges.",
+      quietWeek: "rolig uke",
       weekRailHint:
         "Ukekolonnen til venstre viser det som varer hele uken — varmmat, temauker og beskjeder. Rutene viser dagene.",
       week: "Uke",
@@ -1836,6 +1843,10 @@ export const translations: Record<Language, Translations> = {
       viewLabel: "View",
       listView: "List",
       monthView: "Month",
+      yearView: "Year",
+      yearViewHint:
+        "The whole kindergarten year, one row per week. Quiet weeks are shown as quiet — those are the ones you are looking for when something needs planning.",
+      quietWeek: "quiet week",
       weekRailHint:
         "The week column on the left carries what lasts all week — hot meals, theme weeks and notices. The cells carry the days.",
       week: "Week",
