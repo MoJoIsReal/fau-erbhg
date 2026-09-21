@@ -1,8 +1,7 @@
 /* Manrope is the guide's primary face; Inter is its first fallback and is
-   listed in the stack for machines that already have it. Only the four
-   weights the type scale actually uses are fetched (400/600/700/800), plus
-   Caveat 600 for the one or two handwritten accents a page is allowed. */
-@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Caveat:wght@600&display=swap');
+   named in --font-ui for machines that already have it. The webfont itself is
+   requested from client/index.html, not with an @import here, so it is not
+   queued behind this stylesheet. */
 
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
