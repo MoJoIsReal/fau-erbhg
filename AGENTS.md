@@ -44,7 +44,8 @@ api/_shared/        Backend-only helpers: middleware, database, email,
                     cloudinary, rate-limit, newsletter, delivery, sentry, log
 shared/             Code used by BOTH tiers (see "The shared/ boundary")
 attached_assets/    Uploaded source material, never served — including
-                    illustrations/, the six commissioned page originals
+                    illustrations/, the six commissioned page originals and
+                    the `-dark` night version of each
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
 tests/*.test.mjs    node:test suites; scripts/smoke-tests.mjs is the second tier
 docs/               Architecture, subsystem rules, deployment, review backlog
@@ -152,7 +153,9 @@ public filters.
 
 Dark mode is a derived theme, not a second design: the same hues re-anchored on
 an ink ground in the `.dark` block. Anything you add should work by swapping
-tokens, not by adding `dark:` variants.
+tokens, not by adding `dark:` variants. The page illustrations are the one
+exception a token cannot cover — each was drawn a second time as a night scene,
+and `Artwork` serves that file instead when the dark theme is on.
 
 Accessibility is part of the system, not a later pass: 4.5:1 for body text
 (3:1 for large text and meaningful graphics) in **both** themes, a visible 3px
