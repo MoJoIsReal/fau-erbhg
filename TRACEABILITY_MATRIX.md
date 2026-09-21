@@ -19,7 +19,8 @@ defective rather than merely listed.
 explicitly · `UNVERIFIED` cannot be proven without a deployment · `DEAD` implemented with no
 reachable caller · `ORPHANED` handler branch with no client caller.
 
-**Totals: 57 flows — 46 PASS · 7 PARTIAL · 3 FAIL · 1 UNVERIFIED · 1 DEAD · 2 ORPHANED.**
+**Totals: 57 flows — 47 PASS · 7 PARTIAL · 3 FAIL · 1 DEAD · 2 ORPHANED.**
+(TR-06 was UNVERIFIED at review time; settled as PASS on 2026-09-21 against production.)
 
 | Trace | Feature | UI location | UI handler | Client call | Endpoint | Handler branch | SQL / table | Auth | Validation | Error path | Return mapping | Status | Notes |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -28,7 +29,7 @@ reachable caller · `ORPHANED` handler branch with no client caller.
 | TR-03 | Edit event | event-creation-modal.tsx:263 | same | `apiRequest PUT` | `PUT /api/events?id=` | events.js:167-224 | `UPDATE … RETURNING *` | COUNCIL + CSRF | same + 404 | `onError` toast (NO-only) | `mapEvent`, discarded | PASS | `toIsoDateTime` → UTC ISO; `toDateTimeLocalInputValue` reverses it correctly |
 | TR-04 | Cancel event | events.tsx:135 | `cancelMutation` | `apiRequest PATCH` | `PATCH /api/events?id=&action=cancel` | events.js:226-246 | `UPDATE status='cancelled' RETURNING *` | COUNCIL + CSRF | id int, 404 | `onError` toast | `mapEvent`, discarded; invalidate `/api/events` | PASS | |
 | TR-05 | Delete event | events.tsx:107 | `deleteMutation` | `apiRequest DELETE` | `DELETE /api/events?id=` | events.js:248-311 | CTE `target/deleted`, FK 23503 catch | COUNCIL + CSRF | id int | `getApiErrorBody()?.hasRegistrations` → specific toast; else generic | `{success,message}` | PASS | best error handling in the codebase; 400/404/409 all reach a toast |
-| TR-06 | iCalendar feed | calendar-subscribe.tsx:42-44 | copy / webcal / Google link | browser (not `apiRequest`) | `GET /kalender.ics[?lang=en]` → rewrite → `/api/events?format=ics` | events.js:100-102 → :56-90 | events + `yearly_calendar_entries` (`day_event`,`closed`), 1-year cutoff | public | `lang` normalised to no/en | n/a (calendar app) | `buildCalendarFeed` text/calendar | **UNVERIFIED** | TRACE-7: `?lang=en` survival through the Vercel rewrite not provable locally |
+| TR-06 | iCalendar feed | calendar-subscribe.tsx:42-44 | copy / webcal / Google link | browser (not `apiRequest`) | `GET /kalender.ics[?lang=en]` → rewrite → `/api/events?format=ics` | events.js:100-102 → :56-90 | events + `yearly_calendar_entries` (`day_event`,`closed`), 1-year cutoff | public | `lang` normalised to no/en | n/a (calendar app) | `buildCalendarFeed` text/calendar | PASS | `?lang=en` confirmed to survive the rewrite against production, 2026-09-21 |
 | TR-07 | Public event signup | event-registration-modal.tsx:79 | RHF + `insertEventRegistrationSchema` | `apiRequest POST` | `POST /api/registrations` | registrations.js:91-355 | blacklist check, rate limit, capacity+insert+photo-slot CTE | **public, no CSRF** (deliberate) | sanitize name/email/phone/count, children JSON, deadline, capacity | substring-matched toasts + `form.setError` | raw snake_case row, discarded | PARTIAL | MAINT-5 (string matching); TRACE-6 (registrations key not invalidated) |
 | TR-08 | Council registrations list | event-registrations-view.tsx:34 | `useQuery` | default queryFn | `GET /api/registrations?eventId=` | registrations.js:69-79 | `SELECT … ORDER BY registered_at DESC` | council via `parseAuthToken` | eventId int | throws→`[]` | aliased camelCase | PASS | |
 | TR-09 | Delete registration | event-registrations-view.tsx:38 | `deleteRegistrationMutation` | `apiRequest DELETE` | `DELETE /api/registrations?id=` | registrations.js:357-395 | CTE delete + `current_attendees` decrement | COUNCIL + CSRF | id int, 404 | toast + **partial** rollback | `{success:true}` | **FAIL** | **TRACE-3** — `["/api/events"]` optimistic decrement never rolled back |
@@ -107,7 +108,7 @@ reachable caller · `ORPHANED` handler branch with no client caller.
 
 | Trace | Status | Detail |
 |---|---|---|
-| **TR-06** iCalendar feed | `UNVERIFIED` | `?lang=en` reaches the handler only if Vercel merges an incoming query into a rewrite destination that already carries one (`vercel.json` → `/api/events?format=ics`). Not exercisable locally. If it does not merge, English subscribers silently get the Norwegian feed. Settle with `curl -s 'https://<preview>/kalender.ics?lang=en' \| head`. |
+| **TR-06** iCalendar feed | `PASS` *(settled 2026-09-21)* | Vercel **does** merge the incoming query into the rewrite destination. Verified against production: `GET /kalender.ics` returns `X-WR-CALNAME:FAU Erdal Barnehage`, `GET /kalender.ics?lang=en` returns `X-WR-CALNAME:FAU Erdal Kindergarten`. English subscribers get the English feed. |
 | **TR-10** Public attendee count | `DEAD` | `api/registrations.js:81-89` returns `{count}` for anonymous/staff callers. No client consumes it — `AttendeeTooltip` is rendered only under `canManageEvents`. Related to `MAINT-009`: the tooltip types the response unconditionally as `EventRegistration[]`, so if client role state goes stale (TRACE-001) it receives `{count: 3}` with status 200 and `registrations.map` throws during render, collapsing the app into the top-level ErrorBoundary. `= []` does not protect against this — the default applies only when `data` is `undefined`. |
 | **TR-40** `?resource=staff-users` | `ORPHANED` | Routed to `handleUsers` at `api/secure-settings.js:626-628`; no client reference. Documented alias, harmless. |
 | **TR-55** `?action=me` | `ORPHANED` | `api/auth.js:312`; every client call is a bare `GET /api/auth`. Harmless alias. |
@@ -161,6 +162,5 @@ These are differences a mechanical diff would flag. Each was checked and is **no
 57 flows across 14 pages, 24 non-`ui` components and all 51 endpoint operations. Verified with
 `npm run check` (passing, i18n ratchet 45/45) and `npm run build` (clean).
 
-Not covered: anything requiring a running deployment (TR-06's rewrite behaviour), a browser
-(focus order, reflow) or the production database (whether any flow's data is *already* in a
+Not covered: anything requiring a browser (focus order, reflow) or the production database (whether any flow's data is *already* in a
 drifted state — see `DB-001`/`DB-002` in the main review).

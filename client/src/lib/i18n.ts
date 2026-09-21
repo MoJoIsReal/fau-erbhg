@@ -837,6 +837,8 @@ export interface Translations {
       successCreate: string;
       errorCreate: string;
       emailSent: string;
+      successDelete: string;
+      errorDelete: string;
     };
   };
 }
@@ -1670,7 +1672,9 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "Slette denne brukeren?",
         successCreate: "Bruker opprettet",
         errorCreate: "Kunne ikke opprette bruker",
-        emailSent: "Innloggingsdetaljer er sendt på e-post"
+        emailSent: "Innloggingsdetaljer er sendt på e-post",
+        successDelete: "Bruker slettet",
+        errorDelete: "Kunne ikke slette brukeren"
       }
     }
   },
@@ -2502,7 +2506,9 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "Delete this user?",
         successCreate: "User created",
         errorCreate: "Could not create user",
-        emailSent: "Login details were sent by email"
+        emailSent: "Login details were sent by email",
+        successDelete: "User deleted",
+        errorDelete: "Could not delete the user"
       }
     }
   }

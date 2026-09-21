@@ -8,6 +8,7 @@ import { generateTemporaryPassword } from './_shared/password-policy.js';
 import {
   withApiHandler,
   requireCsrf,
+  requireIntId,
   requireRole,
   sanitizeText,
   sanitizeHtml,
@@ -15,6 +16,78 @@ import {
   sanitizeNumber
 } from './_shared/middleware.js';
 import { ADMIN_ONLY, COUNCIL_ROLES, ROLES } from '../shared/constants.js';
+
+// The DB is snake_case and the API contract is camelCase; AGENTS.md makes one
+// map*(row) per resource the single definition of the wire shape. This handler
+// had none, so its write paths returned raw `RETURNING *` rows. Five callers
+// discard the body and never noticed; content.tsx feeds it straight into render
+// state, where publishedDate/showOnHomepage/notifyNewsletter/newsletterSentAt
+// all read undefined — and the next archive or homepage toggle sends that back,
+// where `published_date = ${publishedDate || now}` silently reset the post's
+// publish date to today.
+function mapBlogPost(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    status: row.status,
+    category: row.category,
+    publishedDate: row.published_date,
+    author: row.author,
+    showOnHomepage: row.show_on_homepage ?? false,
+    notifyNewsletter: row.notify_newsletter ?? false,
+    newsletterSentAt: row.newsletter_sent_at,
+    createdBy: row.created_by,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapBoardMember(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    name: row.name,
+    role: row.role,
+    sortOrder: row.sort_order,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapKindergartenInfo(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    contactEmail: row.contact_email,
+    address: row.address,
+    openingHours: row.opening_hours,
+    numberOfChildren: row.number_of_children,
+    owner: row.owner,
+    description: row.description,
+    styrerName: row.styrer_name,
+    styrerEmail: row.styrer_email,
+    updatedAt: row.updated_at,
+  };
+}
+
+function mapContactMessage(row) {
+  if (!row) return row;
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    subject: row.subject,
+    message: row.message,
+    status: row.status,
+    createdAt: row.created_at,
+    respondedAt: row.responded_at,
+    respondedBy: row.responded_by,
+    responseMessage: row.response_message,
+  };
+}
 
 function roleLabel(role) {
   if (role === ROLES.member) return 'FAU-Medlem';
@@ -71,17 +144,14 @@ async function handleBoardMembers(req, res, sql) {
       RETURNING *
     `;
 
-    return res.status(201).json(result[0]);
+    return res.status(201).json(mapBoardMember(result[0]));
   }
 
   // PUT - Update existing board member
   if (req.method === 'PUT') {
-    const { id } = req.query;
+    const id = requireIntId(req, res);
+    if (!id) return;
     const { name, role, sortOrder } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ error: 'ID is required' });
-    }
 
     const sanitizedName = sanitizeText(name, 100);
     const sanitizedRole = sanitizeText(role, 100);
@@ -105,21 +175,26 @@ async function handleBoardMembers(req, res, sql) {
       return res.status(404).json({ error: 'Board member not found' });
     }
 
-    return res.status(200).json(result[0]);
+    return res.status(200).json(mapBoardMember(result[0]));
   }
 
   // DELETE - Remove board member
   if (req.method === 'DELETE') {
-    const { id } = req.query;
+    const id = requireIntId(req, res);
+    if (!id) return;
 
-    if (!id) {
-      return res.status(400).json({ error: 'ID is required' });
-    }
-
-    await sql`
+    // RETURNING + a row check: this used to answer 200 "deleted successfully"
+    // whether or not anything matched, so the UI showed a success toast for a
+    // deletion that never happened.
+    const deleted = await sql`
       DELETE FROM fau_board_members
       WHERE id = ${id}
+      RETURNING id
     `;
+
+    if (deleted.length === 0) {
+      return res.status(404).json({ error: 'Board member not found' });
+    }
 
     return res.status(200).json({ message: 'Board member deleted successfully' });
   }
@@ -140,6 +215,13 @@ async function handleBlogPosts(req, res, sql) {
     // both explicitly.
     const limit = sanitizeNumber(req.query.limit, 1, 100) ?? 500;
     const offset = sanitizeNumber(req.query.offset, 0, Number.MAX_SAFE_INTEGER) ?? 0;
+    // A single-post read, so a permalink does not have to download the whole
+    // archive to render one article. Folded into this resource rather than a
+    // new route: the Vercel Hobby plan caps the project at 12 functions.
+    const postId = req.query.id != null ? sanitizeNumber(req.query.id, 1) : null;
+    if (req.query.id != null && !postId) {
+      return res.status(400).json({ error: 'Valid id query parameter required' });
+    }
 
     let posts;
     if (includeArchived === 'true') {
@@ -160,6 +242,7 @@ async function handleBlogPosts(req, res, sql) {
         SELECT id, title, content, category, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage"
         FROM blog_posts
         WHERE status = 'published'
+          AND (${postId}::int IS NULL OR id = ${postId})
           AND (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
         ORDER BY published_date DESC
         LIMIT ${limit} OFFSET ${offset}
@@ -199,17 +282,14 @@ async function handleBlogPosts(req, res, sql) {
       RETURNING *
     `;
 
-    return res.status(201).json(result[0]);
+    return res.status(201).json(mapBlogPost(result[0]));
   }
 
   // PUT - Update existing blog post
   if (req.method === 'PUT') {
-    const { id } = req.query;
+    const id = requireIntId(req, res);
+    if (!id) return;
     const { title, content, status, publishedDate, author, showOnHomepage, category, notifyNewsletter } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ error: 'ID is required' });
-    }
 
     const sanitizedTitle = sanitizeText(title, 200);
     const sanitizedContent = sanitizeHtml(content, 50000);
@@ -240,21 +320,23 @@ async function handleBlogPosts(req, res, sql) {
       return res.status(404).json({ error: 'Blog post not found' });
     }
 
-    return res.status(200).json(result[0]);
+    return res.status(200).json(mapBlogPost(result[0]));
   }
 
   // DELETE - Remove blog post
   if (req.method === 'DELETE') {
-    const { id } = req.query;
+    const id = requireIntId(req, res);
+    if (!id) return;
 
-    if (!id) {
-      return res.status(400).json({ error: 'ID is required' });
-    }
-
-    await sql`
+    const deleted = await sql`
       DELETE FROM blog_posts
       WHERE id = ${id}
+      RETURNING id
     `;
+
+    if (deleted.length === 0) {
+      return res.status(404).json({ error: 'Blog post not found' });
+    }
 
     return res.status(200).json({ message: 'Blog post deleted successfully' });
   }
@@ -329,7 +411,7 @@ async function handleKindergartenInfo(req, res, sql) {
       return res.status(404).json({ error: 'Kindergarten info not found' });
     }
 
-    return res.status(200).json(result[0]);
+    return res.status(200).json(mapKindergartenInfo(result[0]));
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
@@ -364,12 +446,9 @@ async function handleContactMessages(req, res, sql) {
 
   // PUT - Update message status
   if (req.method === 'PUT') {
-    const { id } = req.query;
+    const id = requireIntId(req, res);
+    if (!id) return;
     const { status } = req.body;
-
-    if (!id) {
-      return res.status(400).json({ error: 'ID is required' });
-    }
 
     if (!status || !['new', 'responded', 'archived'].includes(status)) {
       return res.status(400).json({ error: 'Valid status is required (new, responded, archived)' });
@@ -398,7 +477,7 @@ async function handleContactMessages(req, res, sql) {
       return res.status(404).json({ error: 'Message not found' });
     }
 
-    return res.status(200).json(result[0]);
+    return res.status(200).json(mapContactMessage(result[0]));
   }
 
   // POST - Send an email reply to the person behind the inquiry
@@ -464,16 +543,18 @@ async function handleContactMessages(req, res, sql) {
 
   // DELETE - Delete a contact message
   if (req.method === 'DELETE') {
-    const { id } = req.query;
+    const id = requireIntId(req, res);
+    if (!id) return;
 
-    if (!id) {
-      return res.status(400).json({ error: 'ID is required' });
-    }
-
-    await sql`
+    const deleted = await sql`
       DELETE FROM contact_messages
       WHERE id = ${id}
+      RETURNING id
     `;
+
+    if (deleted.length === 0) {
+      return res.status(404).json({ error: 'Message not found' });
+    }
 
     return res.status(200).json({ message: 'Contact message deleted successfully' });
   }

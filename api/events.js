@@ -80,8 +80,21 @@ async function respondWithCalendarFeed(req, res, sql) {
     `,
   ]);
 
+  const events = eventRows.map(mapEvent);
+
+  // An event the feed cannot represent is skipped by buildCalendarFeed. That is
+  // the right behaviour, but it must not be silent: a subscriber simply never
+  // sees the event, and nothing else in the system notices.
+  const unrenderable = events.filter((event) => !isValidEventTime(event.time));
+  if (unrenderable.length > 0) {
+    console.warn(
+      'Calendar feed: skipping events with an unusable time',
+      unrenderable.map((event) => ({ id: event.id, time: event.time })),
+    );
+  }
+
   const feed = buildCalendarFeed({
-    events: eventRows.map(mapEvent),
+    events,
     entries: entryRows.map(mapFeedEntry),
     baseUrl: publicBaseUrl(),
     language,
@@ -90,6 +103,17 @@ async function respondWithCalendarFeed(req, res, sql) {
   res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
   res.setHeader('Content-Disposition', 'inline; filename="fau-erdal-barnehage.ics"');
   return res.status(200).send(feed);
+}
+
+// events.time is `text NOT NULL` with no format constraint, and the only check
+// was truthiness. shared/calendar-feed.js can only render "H:MM", so an event
+// whose time was typed the Norwegian way ("17.00") rendered fine on the site
+// but was silently dropped from the public /kalender.ics feed — no log, no
+// counter, nobody finds out.
+const EVENT_TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+function isValidEventTime(value) {
+  return typeof value === 'string' && EVENT_TIME_RE.test(value.trim());
 }
 
 function normalizeRegistrationDeadline(value) {
@@ -158,6 +182,12 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: 'Valid title, date, and time are required' });
     }
 
+    if (!isValidEventTime(time)) {
+      return res.status(400).json({
+        error: 'Time must be written as HH:MM (24-hour), for example 17:00',
+      });
+    }
+
     if (sanitizedRegistrationDeadline === undefined) {
       return res.status(400).json({ error: 'Valid registration deadline is required' });
     }
@@ -204,6 +234,12 @@ export default withApiHandler(async function handler(req, res) {
 
     if (!sanitizedTitle || !date || !time) {
       return res.status(400).json({ error: 'Valid title, date, and time are required' });
+    }
+
+    if (!isValidEventTime(time)) {
+      return res.status(400).json({
+        error: 'Time must be written as HH:MM (24-hour), for example 17:00',
+      });
     }
 
     if (sanitizedRegistrationDeadline === undefined) {

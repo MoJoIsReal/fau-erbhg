@@ -51,6 +51,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
       });
       
       // Update events list attendee count
+      const previousEvents = queryClient.getQueryData(["/api/events"]);
       queryClient.setQueryData(["/api/events"], (oldEvents: any) => {
         if (!oldEvents) return oldEvents;
         return oldEvents.map((evt: any) => {
@@ -66,27 +67,38 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
         });
       });
       
-      return { previousRegistrations };
+      // BOTH caches are mutated above, so both must be snapshotted. Previously
+      // only the registrations list was, and the rollback restored only that:
+      // a failed delete put the attendee row back while the event card behind
+      // it kept the decremented count, showing 12 registrations and "11
+      // påmeldte" on the same screen until something else forced a refetch.
+      return { previousRegistrations, previousEvents };
     },
     onSuccess: () => {
       toast({
         title: t.events.registrationDeleted,
         description: t.events.registrationHasBeenDeleted,
       });
-      // Invalidate to sync with server
-      queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
     onError: (err, registrationId, context) => {
       // Rollback on error
       if (context?.previousRegistrations) {
         queryClient.setQueryData([`/api/registrations?eventId=${event.id}`], context.previousRegistrations);
       }
+      if (context?.previousEvents) {
+        queryClient.setQueryData(["/api/events"], context.previousEvents);
+      }
       toast({
         title: t.events.deleteError,
         description: t.events.couldNotDeleteRegistration,
         variant: "destructive",
       });
+    },
+    // Resync from the server whichever way it went, so neither cache can be
+    // left holding an optimistic value.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
   });
 

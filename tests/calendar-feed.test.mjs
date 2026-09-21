@@ -174,3 +174,34 @@ test('an entry without a clock time stays all-day', () => {
   assert.equal(feedLines.includes('DTSTART;VALUE=DATE:20260916'), true);
   assert.equal(feedLines.includes('TRANSP:TRANSPARENT'), true);
 });
+
+// events.time is free-form text in the database, and the feed can only render
+// "H:MM". An event with any other shape is dropped silently — it still renders
+// on the website, so nobody notices the subscribers never got it. api/events.js
+// now rejects these on write; this pins the shapes that do and do not survive.
+test('only H:MM event times survive into the feed', () => {
+  const cases = [
+    ['17:00', true],
+    ['9:05', true],
+    ['17.00', false], // the Norwegian decimal convention, the realistic input
+    ['kl 17', false],
+    ['', false],
+  ];
+
+  for (const [time, shouldRender] of cases) {
+    const feed = buildCalendarFeed({
+      events: [{
+        id: 1, title: 'Dugnad', description: '', date: '2026-09-10', time,
+        location: 'Barnehagen', customLocation: null, status: 'active',
+      }],
+      entries: [],
+      baseUrl: 'https://www.erdal-bhg.no',
+      language: 'no',
+    });
+    assert.equal(
+      feed.includes('UID:event-1@'),
+      shouldRender,
+      `time ${JSON.stringify(time)} should ${shouldRender ? '' : 'not '}produce a VEVENT`,
+    );
+  }
+});

@@ -1160,6 +1160,112 @@ testYearlyCalendarTitleNormalization();
 // permanently consumed a seat and capacity-limited events eventually refused
 // genuine parents. Guard the shape, not the symptom: the registration statement
 // must contain exactly one UPDATE of `events`.
+
+// A backtick inside a SQL comment terminates the JavaScript template literal
+// that the query lives in. tsc reports it, but as a bare "',' expected" a few
+// lines away from the real cause, so name it here where the message can say
+// what actually happened.
+
+// The Excel import binds a sheet row to an existing entry. Matching on the
+// title alone made every row sharing a title resolve to the same database row,
+// so approving the preview destroyed entries and skipped others. Identity must
+// include where the entry sits in the year.
+function testImportMatchesOnMoreThanTitle() {
+  const utils = readFileSync(new URL('../shared/yearly-calendar-utils.js', import.meta.url), 'utf8');
+  assert.match(
+    utils,
+    /function positionOf/,
+    'pairing must consider where an entry sits in the year, not only its title',
+  );
+  assert.doesNotMatch(
+    utils,
+    /entriesByTitle/,
+    'title-only matching binds every same-titled sheet row to one entry',
+  );
+  assert.match(
+    utils,
+    /candidates\.length === 1 && rowIndexes\.length === 1/,
+    'a lone entry matched by a lone row must still pair, so a corrected date reads as an edit',
+  );
+
+  // The import UPDATE must not clear fields the preview never diffed.
+  const yearlyApi = readFileSync(new URL('../api/yearly-calendar.js', import.meta.url), 'utf8');
+  const commitStart = yearlyApi.indexOf("if (action === 'update')");
+  const commitEnd = yearlyApi.indexOf("if (action === 'create')", commitStart);
+  const updateBlock = yearlyApi.slice(commitStart, commitEnd);
+  assert.doesNotMatch(
+    updateBlock,
+    /weekday_start\s*=/,
+    'the import UPDATE must preserve weekday_start/weekday_end — the preview cannot show that they change',
+  );
+}
+
+
+// Write paths in secure-settings.js returned raw `RETURNING *` rows while its
+// reads aliased to camelCase. content.tsx feeds a write response straight into
+// render state, where publishedDate/showOnHomepage read undefined — and the
+// next toggle sent that back, resetting the post's publish date to today.
+function testSecureSettingsMapsWriteResponses() {
+  const source = readFileSync(new URL('../api/secure-settings.js', import.meta.url), 'utf8');
+  for (const mapper of ['mapBlogPost', 'mapBoardMember', 'mapKindergartenInfo', 'mapContactMessage']) {
+    assert.match(source, new RegExp(`function ${mapper}\\(`), `${mapper} should define the wire shape`);
+  }
+  const rawReturns = source.match(/return res\.status\((?:200|201)\)\.json\(result\[0\]\)/g) ?? [];
+  assert.equal(
+    rawReturns.length,
+    0,
+    `${rawReturns.length} write path(s) still return a raw snake_case row instead of a mapped one`,
+  );
+}
+
+// Unvalidated ids reached integer columns and produced 500s; DELETEs answered
+// 200 "deleted successfully" without checking that anything matched.
+function testDeletesValidateIdAndCheckRows() {
+  const source = readFileSync(new URL('../api/secure-settings.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(
+    source,
+    /const \{ id \} = req\.query/,
+    'secure-settings must take ids through requireIntId, not raw off the query string',
+  );
+  // Compensating deletes are exempt: they undo a row this same request just
+  // created, so "no row matched" is not a case they need to distinguish.
+  // Listed explicitly rather than pattern-matched, so a NEW unchecked delete
+  // fails here and has to be looked at.
+  const COMPENSATING_DELETES = [
+    'DELETE FROM users WHERE id = ${created[0].id}',
+  ];
+
+  const deleteBlocks = source.match(/DELETE FROM \w+[\s\S]{0,200}?`;/g) ?? [];
+  for (const block of deleteBlocks) {
+    if (COMPENSATING_DELETES.some((exempt) => block.includes(exempt))) continue;
+    assert.match(
+      block,
+      /RETURNING/,
+      `a DELETE without RETURNING cannot tell a real deletion from a no-op:\n${block}`,
+    );
+  }
+}
+
+function testNoBackticksInsideSqlComments() {
+  const files = [
+    'api/registrations.js', 'api/events.js', 'api/contact.js', 'api/documents.js',
+    'api/auth.js', 'api/upload.js', 'api/yearly-calendar.js', 'api/secure-settings.js',
+    'api/cron/event-reminders.js',
+  ];
+  for (const file of files) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    source.split('\n').forEach((line, index) => {
+      const comment = line.match(/^\s*--\s(.*)$/);
+      if (comment && comment[1].includes('`')) {
+        assert.fail(
+          `${file}:${index + 1} has a backtick inside a SQL comment, which ends the `
+            + 'surrounding template literal. Write the term without backticks.',
+        );
+      }
+    });
+  }
+}
+
 function testRegistrationUpdatesEventRowOnce() {
   const registrations = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
   const statementStart = registrations.indexOf('WITH target_event AS');
@@ -1198,6 +1304,10 @@ function testRegistrationUpdatesEventRowOnce() {
   );
 }
 
+testNoBackticksInsideSqlComments();
+testImportMatchesOnMoreThanTitle();
+testSecureSettingsMapsWriteResponses();
+testDeletesValidateIdAndCheckRows();
 testRegistrationUpdatesEventRowOnce();
 testYearlyCalendarValidNorwegianRow();
 testYearlyCalendarValidCamelCaseRow();

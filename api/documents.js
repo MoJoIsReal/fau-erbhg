@@ -3,6 +3,7 @@ import { configureCloudinary } from './_shared/cloudinary.js';
 import {
   withApiHandler,
   requireCsrf,
+  requireIntId,
   requireRole,
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES } from '../shared/constants.js';
@@ -11,11 +12,8 @@ import { COUNCIL_ROLES } from '../shared/constants.js';
 // URL. Folded in here (rather than its own function) to stay within the
 // Vercel Hobby serverless-function budget.
 async function handleDownload(req, res, sql) {
-  const { id } = req.query;
-
-  if (!id) {
-    return res.status(400).json({ error: 'Document ID is required' });
-  }
+  const id = requireIntId(req, res);
+  if (!id) return;
 
   const documents = await sql`
     SELECT id, title, filename, cloudinary_url, mime_type
@@ -72,13 +70,8 @@ export default withApiHandler(async function handler(req, res) {
 
     if (!requireCsrf(req, res)) return;
 
-    const { id } = req.query;
-
-    if (!id || isNaN(parseInt(id))) {
-      return res.status(400).json({ error: 'Valid document ID required' });
-    }
-
-    const documentId = parseInt(id);
+    const documentId = requireIntId(req, res);
+    if (!documentId) return;
 
     const deletedDoc = await sql`
       DELETE FROM documents

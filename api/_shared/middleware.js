@@ -367,6 +367,27 @@ function removeUntilStable(value, pattern) {
   return current;
 }
 
+/**
+ * Parse a positive integer resource id from req.query, answering 400 when it is
+ * absent or not numeric.
+ *
+ * Several handlers passed `req.query.id` straight into `WHERE id = ${id}`
+ * against an integer column, so `?id=abc` produced a PostgreSQL 22P02 and a
+ * blanket 500 "Internal server error" instead of a 400 naming the problem.
+ * @param {Object} req
+ * @param {Object} res
+ * @returns {number|null} the id, or null once a 400 has been sent
+ */
+export function requireIntId(req, res, paramName = 'id') {
+  const raw = req.query?.[paramName];
+  const id = Number(raw);
+  if (raw === undefined || raw === null || raw === '' || !Number.isInteger(id) || id < 1) {
+    res.status(400).json({ error: `Valid ${paramName} query parameter required` });
+    return null;
+  }
+  return id;
+}
+
 // Upper bound on any single raw request field, applied before sanitization.
 // Comfortably above every real field (the largest plain-text field is a 5 000
 // character contact message) and far below what it takes to make the

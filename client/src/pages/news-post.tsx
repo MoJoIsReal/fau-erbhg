@@ -19,16 +19,21 @@ interface BlogPost {
 
 // Permalink for a single post, so a specific article can be shared (e.g. in
 // the parents' Facebook group) instead of pointing people at the whole list.
-// There is no single-post API endpoint; the public list is small (and already
-// cached from the homepage under the same query key), so we find the post
-// client-side. This keeps the serverless function count unchanged.
+// The read is narrowed with `&id=`, which the blog-posts resource handles
+// directly — no extra serverless function, so the Vercel Hobby budget is
+// unchanged.
 export default function NewsPost() {
   const { language, t } = useLanguage();
   const [, params] = useRoute("/nyheter/:id");
   const postId = Number(params?.id);
 
+  // Fetch just this post. This used to request the whole published archive —
+  // up to 500 posts with their full bodies — to render one article, which is
+  // paid by exactly the traffic a permalink exists for: someone opening a link
+  // shared to the parents' group.
   const { data: posts = [], isLoading } = useQuery<BlogPost[]>({
-    queryKey: ["/api/secure-settings?resource=blog-posts"],
+    queryKey: [`/api/secure-settings?resource=blog-posts&id=${postId}`],
+    enabled: Number.isFinite(postId),
   });
 
   const post = posts.find((p) => p.id === postId);

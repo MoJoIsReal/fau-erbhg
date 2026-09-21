@@ -3,9 +3,11 @@ import test from 'node:test';
 import jwt from 'jsonwebtoken';
 import {
   applySecurityHeaders,
+  findOversizedField,
   generateCsrfToken,
   parseAuthToken,
   requireCsrf,
+  requireIntId,
   requireRole,
   validateCsrfToken,
 } from '../api/_shared/middleware.js';
@@ -178,4 +180,42 @@ test('password-change-required principal is blocked before role authorization', 
     error: 'Password change required',
     code: 'PASSWORD_CHANGE_REQUIRED',
   });
+});
+
+// Several handlers passed req.query.id straight into `WHERE id = ${id}` against
+// an integer column, so ?id=abc produced a PostgreSQL 22P02 and a blanket 500
+// rather than a 400 naming the problem.
+test('requireIntId accepts positive integers and rejects everything else', () => {
+  const call = (query) => {
+    const res = {
+      statusCode: 0,
+      body: null,
+      status(code) { this.statusCode = code; return this; },
+      json(body) { this.body = body; return this; },
+    };
+    return { id: requireIntId({ query }, res), res };
+  };
+
+  assert.equal(call({ id: '42' }).id, 42);
+  assert.equal(call({ id: 42 }).id, 42);
+
+  for (const query of [
+    { id: 'abc' }, { id: '' }, {}, { id: '0' }, { id: '-3' }, { id: '1.5' },
+    { id: '1; DROP TABLE users' }, { id: ['1', '2'] }, { id: 'NaN' },
+  ]) {
+    const { id, res } = call(query);
+    assert.equal(id, null, `${JSON.stringify(query)} should be rejected`);
+    assert.equal(res.statusCode, 400, `${JSON.stringify(query)} should answer 400, not 500`);
+    assert.match(res.body.error, /Valid id query parameter required/);
+  }
+});
+
+// The public endpoints sanitize untrusted text, which is real work; the limiter
+// has to see the request before that work happens, or it cannot bound it.
+test('oversized fields are detected before sanitization runs', () => {
+  assert.equal(findOversizedField({ message: 'a'.repeat(100) }), null);
+  assert.equal(findOversizedField({ name: 'ok', message: 'a'.repeat(70_000) }), 'message');
+  assert.equal(findOversizedField({}), null);
+  assert.equal(findOversizedField(null), null);
+  assert.equal(findOversizedField({ count: 12345 }), null, 'non-strings are not length-checked');
 });

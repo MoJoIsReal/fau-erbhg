@@ -47,6 +47,14 @@ every subscriber's calendar duplicate the entry.** Week-based yearly entries hav
 no date and are deliberately left out. Cancelled events stay in the feed with
 `STATUS:CANCELLED` so subscribers see the cancellation.
 
+A signup event's `time` must be `HH:MM` — that is the only shape
+`toIcsLocalDateTime` can render, and an event it cannot render is dropped from
+the feed entirely. The event still looks fine on the website, which prints the
+raw string, so this fails silently in exactly one direction: subscribers never
+see it. `api/events.js` rejects anything else on create and update, and logs a
+warning if a stored row still has one. Watch for the Norwegian decimal form
+("17.00") — it is the natural thing to type and it is not valid here.
+
 The client-side `AddToCalendar` export (`client/src/lib/calendar.ts`) is the
 separate one-event-at-a-time path and is unrelated to the feed.
 

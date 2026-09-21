@@ -1,6 +1,11 @@
 import { getDb } from '../_shared/database.js';
 import { withApiHandler } from '../_shared/middleware.js';
-import { sendEmail, isEmailConfigured } from '../_shared/email.js';
+import {
+  sendEmail,
+  sendPooledEmail,
+  closePooledTransporter,
+  isEmailConfigured,
+} from '../_shared/email.js';
 import {
   newsPostEmail,
   reminderEmail as newsletterReminderEmail,
@@ -15,10 +20,22 @@ import {
   runWithConcurrency,
 } from '../_shared/delivery.js';
 
-const MAX_REMINDERS_PER_RUN = 25;
-// Upper bound on newsletter emails sent in a single daily run. Comfortably
-// above a kindergarten's subscriber count yet well under Gmail's daily ceiling.
-const MAX_NEWSLETTER_EMAILS_PER_RUN = 400;
+// Per-batch claim sizes. These are upper bounds on what one claim query takes;
+// the real protection against being killed mid-batch is RUN_BUDGET_MS below,
+// which stops the loop while there is still time to finish cleanly.
+const MAX_REMINDERS_PER_RUN = 100;
+const MAX_NEWSLETTER_EMAILS_PER_RUN = 300;
+
+// vercel.json gives these functions maxDuration: 30. Stop sending at 25 s so
+// the run exits under its own control — a kill at 30 s leaves rows claimed as
+// 'processing' with no send record. Previously the claim query flipped the
+// whole batch to 'processing' before a single message was sent, so a timeout
+// stranded every unsent row in it.
+const RUN_BUDGET_MS = 25_000;
+
+function deadlineFrom(startedAt = Date.now()) {
+  return startedAt + RUN_BUDGET_MS;
+}
 
 function isAuthorizedCron(req) {
   if (!process.env.CRON_SECRET) {
@@ -112,7 +129,7 @@ function formatLongDate(dateStr, language) {
 // Fan out due items into a durable per-subscriber outbox, claim a bounded batch,
 // and only mark each delivery sent after Gmail accepts it. A crashed invocation
 // leaves processing rows reclaimable after the lease expires.
-export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
+export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
   if (!isEmailConfigured()) {
     return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, remaining: 0, reason: 'email-not-configured' };
   }
@@ -167,12 +184,19 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
     WITH candidates AS (
       SELECT id
       FROM newsletter_deliveries
-      WHERE event_date = ${targetDate}
+      -- Less-than-or-equal, not equal. The cron fires once a day with targetDate =
+      -- tomorrow-in-Oslo, so a row scoped to a single event_date that was not
+      -- sent during its own run could never be claimed again: the next run
+      -- looks at a different date. Failed sends were therefore never retried
+      -- and rows left 'processing' by a crashed run were stranded forever,
+      -- which also blocked the source item from ever being stamped. event_date
+      -- is ISO 'YYYY-MM-DD' text, so string ordering is date ordering.
+      WHERE event_date <= ${targetDate}
         AND (
           (status = 'pending' AND next_attempt_at <= NOW())
           OR (status = 'processing' AND claimed_at < NOW() - INTERVAL '10 minutes')
         )
-      ORDER BY next_attempt_at, id
+      ORDER BY event_date, next_attempt_at, id
       FOR UPDATE SKIP LOCKED
       LIMIT ${MAX_NEWSLETTER_EMAILS_PER_RUN}
     ), claimed AS (
@@ -194,8 +218,21 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
   let sent = 0;
   let failed = 0;
   let skipped = 0;
+  let deferred = 0;
 
   await runWithConcurrency(deliveries, DELIVERY_CONCURRENCY, async (delivery) => {
+    // Out of time: hand the row straight back as pending so it is picked up by
+    // the next run rather than left claimed when the platform kills us.
+    if (Date.now() >= deadline) {
+      await sql`
+        UPDATE newsletter_deliveries
+        SET status = 'pending', claimed_at = NULL, updated_at = NOW()
+        WHERE id = ${delivery.id} AND status = 'processing'
+      `;
+      deferred += 1;
+      return;
+    }
+
     if (delivery.subscriberStatus !== 'active' || !delivery.email) {
       await sql`
         UPDATE newsletter_deliveries
@@ -249,10 +286,13 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
     }
   });
 
+  // Stamped off the delivery rows rather than the date. Scoping this to
+  // targetDate meant an item whose deliveries finished on a later run was never
+  // stamped at all, so it stayed queued forever.
   await sql`
     UPDATE events e
     SET newsletter_sent_at = NOW()::text
-    WHERE e.date = ${targetDate}
+    WHERE e.newsletter_sent_at IS NULL
       AND EXISTS (
         SELECT 1 FROM newsletter_deliveries d
         WHERE d.item_type = 'event' AND d.item_id = e.id
@@ -267,7 +307,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
   await sql`
     UPDATE yearly_calendar_entries e
     SET newsletter_sent_at = NOW()::text
-    WHERE e.date = ${targetDate}
+    WHERE e.newsletter_sent_at IS NULL
       AND EXISTS (
         SELECT 1 FROM newsletter_deliveries d
         WHERE d.item_type = 'calendar' AND d.item_id = e.id
@@ -297,7 +337,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
   const remainingRows = await sql`
     SELECT COUNT(*)::int AS count
     FROM newsletter_deliveries
-    WHERE event_date = ${targetDate} AND status IN ('pending', 'processing')
+    WHERE event_date <= ${targetDate} AND status IN ('pending', 'processing')
   `;
 
   return {
@@ -306,6 +346,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendEmail) {
     sent,
     failed,
     skipped,
+    deferred,
     remaining: remainingRows[0]?.count || 0,
   };
 }
@@ -342,76 +383,81 @@ async function cleanupPrivacyRetention(sql) {
   };
 }
 
-export default withApiHandler(async function handler(req, res) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  if (!isAuthorizedCron(req)) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-
-  const sql = getDb();
-  const targetDate = req.query.date || tomorrowInOslo();
-
-  // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
-  // for the next day's flagged events. Registration reminders + GDPR cleanup
-  // stay on the morning run (07:00 UTC).
-  if (req.query.task === 'newsletter') {
-    const newsletter = await broadcastNewsletter(sql, targetDate);
-    return res.status(200).json({ success: true, targetDate, task: 'newsletter', newsletter });
-  }
-
-  const claimed = await sql`
-    WITH due AS (
-      SELECT
-        r.id,
-        r.name,
-        r.email,
-        r.language,
-        r.attendee_count as "attendeeCount",
-        r.photo_slots as "photoSlots",
-        e.title as "eventTitle",
-        e.date as "eventDate",
-        e.time as "eventTime",
-        e.location,
-        e.custom_location as "customLocation"
-      FROM event_registrations r
-      JOIN events e ON e.id = r.event_id
-      WHERE e.status = 'active'
-        AND e.date = ${targetDate}
-        AND r.reminder_sent_at IS NULL
-        AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
-      ORDER BY e.time ASC, r.id ASC
-      FOR UPDATE OF r SKIP LOCKED
-      LIMIT ${MAX_REMINDERS_PER_RUN}
-    ),
-    claimed AS (
-      UPDATE event_registrations r
-      SET reminder_claimed_at = NOW(), reminder_attempts = reminder_attempts + 1
-      FROM due
-      WHERE r.id = due.id
-        AND r.reminder_sent_at IS NULL
-        AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
-      RETURNING r.id, r.reminder_attempts as "reminderAttempts"
-    )
-    SELECT due.*, claimed."reminderAttempts"
-    FROM due
-    JOIN claimed ON claimed.id = due.id
-  `;
-
+// Claim and send registration reminders for `targetDate`, in batches, until
+// there is nothing left or the run budget is spent.
+//
+// This used to be inline in the handler with a hard LIMIT of 25 and a single
+// pass, so an event with 60 registrations silently reminded 25 parents and
+// never the other 35 — the next run computes a new targetDate, the event is no
+// longer "tomorrow", and reminder_sent_at stays NULL forever. The response
+// reported `sent: 25`, which looked healthy. Extracting it also makes the
+// send/failure paths reachable from tests, which the inline version was not.
+export async function sendEventReminders(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
   let sent = 0;
   let failed = 0;
+  let claimedTotal = 0;
 
-  if (claimed.length > 0) {
+  for (;;) {
+    if (Date.now() >= deadline) break;
+
+    const claimed = await sql`
+      WITH due AS (
+        SELECT
+          r.id,
+          r.name,
+          r.email,
+          r.language,
+          r.attendee_count as "attendeeCount",
+          r.photo_slots as "photoSlots",
+          e.title as "eventTitle",
+          e.date as "eventDate",
+          e.time as "eventTime",
+          e.location,
+          e.custom_location as "customLocation"
+        FROM event_registrations r
+        JOIN events e ON e.id = r.event_id
+        WHERE e.status = 'active'
+          AND e.date = ${targetDate}
+          AND r.reminder_sent_at IS NULL
+          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
+        ORDER BY e.time ASC, r.id ASC
+        FOR UPDATE OF r SKIP LOCKED
+        LIMIT ${MAX_REMINDERS_PER_RUN}
+      ),
+      claimed AS (
+        UPDATE event_registrations r
+        SET reminder_claimed_at = NOW(), reminder_attempts = reminder_attempts + 1
+        FROM due
+        WHERE r.id = due.id
+          AND r.reminder_sent_at IS NULL
+          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
+        RETURNING r.id, r.reminder_attempts as "reminderAttempts"
+      )
+      SELECT due.*, claimed."reminderAttempts"
+      FROM due
+      JOIN claimed ON claimed.id = due.id
+    `;
+
+    if (claimed.length === 0) break;
+    claimedTotal += claimed.length;
+
     if (!isEmailConfigured()) {
       throw new Error('Email configuration not available');
     }
 
     await runWithConcurrency(claimed, DELIVERY_CONCURRENCY, async (registration) => {
+      if (Date.now() >= deadline) {
+        // Release the claim rather than holding it for the full lease.
+        await sql`
+          UPDATE event_registrations
+          SET reminder_claimed_at = NULL
+          WHERE id = ${registration.id} AND reminder_sent_at IS NULL
+        `;
+        return;
+      }
       try {
         const { subject, text } = reminderEmail(registration);
-        await sendEmail({
+        await send({
           to: registration.email,
           subject,
           text,
@@ -433,9 +479,62 @@ export default withApiHandler(async function handler(req, res) {
         reportProviderError('Failed to send event reminder', emailError);
       }
     });
+
+    // A short batch means the queue is drained.
+    if (claimed.length < MAX_REMINDERS_PER_RUN) break;
+  }
+
+  return { claimed: claimedTotal, sent, failed };
+}
+
+export default withApiHandler(async function handler(req, res) {
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  if (!isAuthorizedCron(req)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const sql = getDb();
+  const targetDate = req.query.date || tomorrowInOslo();
+  const deadline = deadlineFrom();
+
+  // Vercel Cron discards the response body, so the only durable record that a
+  // run happened is what gets logged. One line per run, so a cron that has been
+  // failing for a fortnight is visible instead of silent.
+  const logRun = (task, summary) =>
+    console.log(JSON.stringify({ event: 'cron.run', task, targetDate, ...summary }));
+
+  // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
+  // for the next day's flagged events. Registration reminders + GDPR cleanup
+  // stay on the morning run (07:00 UTC).
+  if (req.query.task === 'newsletter') {
+    try {
+      const newsletter = await broadcastNewsletter(sql, targetDate, sendPooledEmail, deadline);
+      logRun('newsletter', newsletter);
+      return res.status(200).json({ success: true, targetDate, task: 'newsletter', newsletter });
+    } finally {
+      closePooledTransporter();
+    }
+  }
+
+  let reminders;
+  try {
+    reminders = await sendEventReminders(sql, targetDate, sendPooledEmail, deadline);
+  } finally {
+    closePooledTransporter();
   }
 
   const retention = await cleanupPrivacyRetention(sql);
   const expiredRateLimitsDeleted = await cleanupExpiredRateLimits(sql);
-  return res.status(200).json({ success: true, targetDate, sent, failed, retention, expiredRateLimitsDeleted });
+  logRun('reminders', { ...reminders, ...retention, expiredRateLimitsDeleted });
+  return res.status(200).json({
+    success: true,
+    targetDate,
+    sent: reminders.sent,
+    failed: reminders.failed,
+    retention,
+    expiredRateLimitsDeleted,
+  });
 });

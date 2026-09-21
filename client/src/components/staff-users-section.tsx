@@ -19,7 +19,7 @@ import {
 import { Trash2, UserPlus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
 
 interface StaffUser {
   id: number;
@@ -73,14 +73,23 @@ export default function StaffUsersSection() {
   );
 
   const deleteMutation = useMutation({
+    // apiRequest already throws on any non-2xx, so no status check is needed here.
     mutationFn: async (id: number) => {
-      const res = await apiRequest("DELETE", `${STAFF_KEY}&id=${id}`);
-      if (res.status !== 204 && !res.ok) {
-        throw new Error(await res.text());
-      }
+      await apiRequest("DELETE", `${STAFF_KEY}&id=${id}`);
     },
     onSuccess: () => {
+      toast({ title: t.yearlyCalendar.staff.successDelete });
       queryClient.invalidateQueries({ queryKey: [STAFF_KEY] });
+    },
+    // Without this every failure was silent: the dialog closed, nothing was
+    // removed, no message. An admin would assume the account was gone and find
+    // it still active later. The sibling createMutation above already toasts.
+    onError: (err: unknown) => {
+      toast({
+        title: t.yearlyCalendar.staff.errorDelete,
+        description: getApiErrorMessage(err, ""),
+        variant: "destructive",
+      });
     },
   });
 
