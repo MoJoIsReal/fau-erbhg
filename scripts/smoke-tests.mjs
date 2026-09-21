@@ -369,6 +369,16 @@ function testClientRegressionGuards() {
     /aria-label=\{t\.\w+\.nextMonth\}/,
     'Calendar next-month icon button must have an accessible name',
   );
+  assert.match(
+    calendarView,
+    /const bands: WeekBand\[\]/,
+    'The month grid must draw week-spanning entries as bands across the week',
+  );
+  assert.equal(
+    calendarView.includes('push(toCalendarIsoDate(monday.date), entry)'),
+    false,
+    'Week-spanning entries must not be stacked into the Monday cell of their week',
+  );
 
   const filesPage = readFileSync(new URL('../client/src/pages/files.tsx', import.meta.url), 'utf8');
   assert.match(

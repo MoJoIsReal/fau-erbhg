@@ -5,8 +5,12 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { CalendarEntry } from "@shared/calendar-entries";
-import { compareSpanningEntries, isoWeekYear } from "@shared/calendar-entries";
-import { toCalendarIsoDate, weeksOfMonth } from "@shared/yearly-calendar-display";
+import { compareSpanningEntries, isoWeekRange, isoWeekYear } from "@shared/calendar-entries";
+import {
+  CALENDAR_DAYS_PER_WEEK,
+  toCalendarIsoDate,
+  weeksOfMonth,
+} from "@shared/yearly-calendar-display";
 import SafeHtml from "@/components/safe-html";
 import { StatusPill } from "@/components/site/controls";
 import { Surface } from "@/components/site/section";
@@ -23,6 +27,25 @@ interface CalendarViewProps {
 
 const MAX_PER_CELL = 3;
 
+/** "hele uken" is written mid-sentence in i18n, but opens a line here. */
+const sentenceCase = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+/** What the panel under the grid is showing: one day, or one week's bands. */
+type Selection =
+  | { kind: "day"; iso: string }
+  | { kind: "week"; weekYear: number; week: number };
+
+/** A week-spanning entry as it is drawn on one week row. */
+type WeekBand = {
+  entry: CalendarEntry;
+  /** 1-7, Monday through Sunday, both inclusive. */
+  startColumn: number;
+  endColumn: number;
+  /** The entry began in an earlier week, or runs on into a later one. */
+  continuesBefore: boolean;
+  continuesAfter: boolean;
+};
+
 /**
  * The month as a grid, with the picked day written out underneath it.
  *
@@ -31,6 +54,11 @@ const MAX_PER_CELL = 3;
  * in — or throw a panel over the grid you just navigated to — the day you pick
  * opens below it, where there is room for the time, the place and the signup
  * (guide §10B).
+ *
+ * What lasts a whole week — the hot meal, a temauke, a notice — has no day of
+ * its own, so it is drawn as a band across the top of its week row, over the
+ * days it covers, and opens the week rather than a day. The grid used to put
+ * those in Monday's cell, which read as Monday being a very busy day.
  *
  * Below 640px the grid drops its event labels and shows dots only, with the
  * agenda under the selected day doing the reading. The calendar page no longer
@@ -47,43 +75,70 @@ export default function CalendarView({
 }: CalendarViewProps) {
   const { language, t } = useLanguage();
   const todayIso = toCalendarIsoDate(new Date());
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Selection | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const weeks = useMemo(() => weeksOfMonth(month.year, month.month), [month.year, month.month]);
 
-  // Week-spanning entries have no day of their own, so they sit on the Monday
-  // of the week they cover — the grid has no other honest place for them.
+  // Only a dated entry can sit in a day cell. A temauke or the week's hot
+  // meal belongs to the whole week, and the week row draws it as a band.
   const byDate = useMemo(() => {
     const map = new Map<string, CalendarEntry[]>();
-    const push = (iso: string, entry: CalendarEntry) => {
-      const forDay = map.get(iso);
-      if (forDay) forDay.push(entry);
-      else map.set(iso, [entry]);
-    };
-
     for (const entry of entries) {
-      if (entry.date) push(entry.date, entry);
-    }
-    for (const week of weeks) {
-      const monday = week.days[0];
-      const weekYear = isoWeekYear(monday.date);
-      const spanning = entries
-        .filter(
-          (entry) =>
-            !entry.date &&
-            entry.weekYear === weekYear &&
-            week.weekNumber >= entry.week &&
-            week.weekNumber <= entry.weekEnd,
-        )
-        .sort(compareSpanningEntries);
-      for (const entry of spanning) push(toCalendarIsoDate(monday.date), entry);
+      if (!entry.date) continue;
+      const forDay = map.get(entry.date);
+      if (forDay) forDay.push(entry);
+      else map.set(entry.date, [entry]);
     }
     return map;
-  }, [entries, weeks]);
+  }, [entries]);
+
+  // Each week row with the bands crossing it: the columns they cover, and
+  // whether they run on past either edge of the week.
+  const weekRows = useMemo(
+    () =>
+      weeks.map((week) => {
+        const weekYear = isoWeekYear(week.days[0].date);
+        const bands: WeekBand[] = entries
+          .filter(
+            (entry) =>
+              !entry.date &&
+              entry.weekYear === weekYear &&
+              week.weekNumber >= entry.week &&
+              week.weekNumber <= entry.weekEnd,
+          )
+          .sort(compareSpanningEntries)
+          .map((entry) => {
+            const continuesBefore = week.weekNumber > entry.week;
+            const continuesAfter = week.weekNumber < entry.weekEnd;
+            // A weekday range is honoured only when both ends are set and in
+            // order — half a range would draw an edge the entry never stated.
+            const from = entry.weekdayStart;
+            const to = entry.weekdayEnd;
+            const ranged =
+              from !== null &&
+              to !== null &&
+              from >= 1 &&
+              to <= CALENDAR_DAYS_PER_WEEK &&
+              from <= to;
+
+            return {
+              entry,
+              startColumn: ranged && !continuesBefore ? (from ?? 1) : 1,
+              endColumn:
+                ranged && !continuesAfter ? (to ?? CALENDAR_DAYS_PER_WEEK) : CALENDAR_DAYS_PER_WEEK,
+              continuesBefore,
+              continuesAfter,
+            };
+          });
+
+        return { week, weekYear, bands };
+      }),
+    [entries, weeks],
+  );
 
   const step = (direction: -1 | 1) => {
-    setSelectedDay(null);
+    setSelected(null);
     setExpanded(new Set());
     const next = new Date(month.year, month.month - 1 + direction, 1);
     onMonthChange({ year: next.getFullYear(), month: next.getMonth() + 1 });
@@ -93,7 +148,7 @@ export default function CalendarView({
     const now = new Date();
     setExpanded(new Set());
     onMonthChange({ year: now.getFullYear(), month: now.getMonth() + 1 });
-    setSelectedDay(todayIso);
+    setSelected({ kind: "day", iso: todayIso });
   };
 
   const weekdayNames =
@@ -102,7 +157,26 @@ export default function CalendarView({
       short: formatDate(day.date, language, { weekday: "short" }),
       narrow: formatDate(day.date, language, { weekday: "narrow" }),
     })) ?? [];
-  const selectedEntries = selectedDay ? (byDate.get(selectedDay) ?? []) : [];
+  const selectedWeek =
+    selected?.kind === "week"
+      ? (weekRows.find(
+          (row) => row.weekYear === selected.weekYear && row.week.weekNumber === selected.week,
+        ) ?? null)
+      : null;
+  const selectedEntries =
+    selected?.kind === "day"
+      ? (byDate.get(selected.iso) ?? [])
+      : (selectedWeek?.bands.map((band) => band.entry) ?? []);
+
+  // "Uke 38 · 14. – 20. september", the range the list view already writes.
+  const weekHeading = (weekYear: number, week: number) => {
+    const { start, end } = isoWeekRange(weekYear, week);
+    const sameMonth = start.getMonth() === end.getMonth();
+    const range = `${start.getDate()}.${
+      sameMonth ? "" : ` ${formatDate(start, language, { month: "long" })}`
+    } – ${end.getDate()}. ${formatDate(end, language, { month: "long" })}`;
+    return `${t.calendar.week} ${week} · ${range}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -165,136 +239,205 @@ export default function CalendarView({
             ))}
           </div>
 
-          {weeks.map((week, weekIndex) => (
-            <div
-              key={`${isoWeekYear(week.days[0].date)}-${week.weekNumber}`}
-              className={`grid grid-cols-7 sm:grid-cols-[3rem_repeat(7,minmax(0,1fr))] ${
-                weekIndex > 0 ? "border-t border-calendar-grid" : ""
-              }`}
-            >
-              <div className="hidden items-start justify-center border-r border-calendar-grid bg-surface-soft pt-3 text-micro font-semibold tabular-nums text-subtle sm:flex">
-                {week.weekNumber}
-              </div>
+          {weekRows.map((row, weekIndex) => {
+            const week = row.week;
+            const weekSelected =
+              selected?.kind === "week" &&
+              selected.weekYear === row.weekYear &&
+              selected.week === week.weekNumber;
 
-              {week.days.map((day) => {
-                const iso = toCalendarIsoDate(day.date);
-                const dayEntries = byDate.get(iso) ?? [];
-                const isToday = iso === todayIso;
-                const isSelected = iso === selectedDay;
-                const open = expanded.has(iso);
-                const shown = open ? dayEntries : dayEntries.slice(0, MAX_PER_CELL);
+            return (
+              <div
+                key={`${row.weekYear}-${week.weekNumber}`}
+                className={`flex ${weekIndex > 0 ? "border-t border-calendar-grid" : ""}`}
+              >
+                <div className="hidden w-12 shrink-0 items-start justify-center border-r border-calendar-grid bg-surface-soft pt-3 text-micro font-semibold tabular-nums text-subtle sm:flex">
+                  {week.weekNumber}
+                </div>
 
-                return (
-                  <div
-                    key={iso}
-                    className={`min-h-[68px] px-1 py-2 transition-colors duration-micro ease-guide sm:min-h-[132px] sm:px-2.5 sm:py-2.5 ${
-                      isSelected
-                        ? "bg-green-50"
-                        : day.inMonth
-                          ? "bg-calendar-cell hover:bg-calendar-hover"
-                          : "bg-calendar-outside"
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSelectedDay(isSelected ? null : iso)}
-                      aria-pressed={isSelected}
-                      className="mx-auto block sm:mx-0"
-                    >
-                      <span className="sr-only">
-                        {formatDate(day.date, language, {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                        })}
-                        {dayEntries.length > 0 ? ` — ${dayEntries.length}` : ""}
-                      </span>
-                      <span
-                        aria-hidden="true"
-                        className={`grid h-9 w-9 place-items-center rounded-pill text-body tabular-nums transition-colors duration-micro ease-guide ${
-                          isToday
-                            ? "bg-brand font-bold text-primary-foreground shadow-[0_0_0_3px_var(--color-green-50)]"
-                            : isSelected
-                              ? "bg-green-50 font-bold text-brand ring-2 ring-brand/50"
-                              : day.inMonth
-                                ? "font-semibold text-ink"
-                                : "font-normal text-subtle"
+                <div className="min-w-0 flex-1">
+                  {/* What lasts all week is drawn across the week, over the
+                      days it covers: the hot meal, a temauke, a notice.
+                      Stacked in Monday's cell they read as five things
+                      happening on Monday, which is not what the årskalender
+                      says. */}
+                  {row.bands.length > 0 && (
+                    <div className="grid grid-cols-7 gap-y-1 border-b border-calendar-grid bg-calendar-cell px-1 py-1.5 sm:px-2 sm:py-2">
+                      {row.bands.map((band, bandIndex) => {
+                        const style = KIND_STYLE[band.entry.kind];
+
+                        return (
+                          <button
+                            key={band.entry.id}
+                            type="button"
+                            onClick={() =>
+                              setSelected(
+                                weekSelected
+                                  ? null
+                                  : { kind: "week", weekYear: row.weekYear, week: week.weekNumber },
+                              )
+                            }
+                            title={band.entry.title}
+                            style={{
+                              gridColumn: `${band.startColumn} / ${band.endColumn + 1}`,
+                              gridRow: `${bandIndex + 1}`,
+                            }}
+                            className={`flex min-w-0 items-center gap-1.5 rounded-pill px-2 py-1 text-left text-micro font-semibold transition-shadow duration-micro ease-guide hover:ring-2 hover:ring-brand/30 ${
+                              style.tint
+                            } ${style.text} ${weekSelected ? "ring-2 ring-brand/50" : ""}`}
+                          >
+                            {band.continuesBefore && (
+                              <ChevronLeft className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            )}
+                            <span
+                              className={`h-1.5 w-1.5 shrink-0 rounded-pill ${style.dot}`}
+                              aria-hidden="true"
+                            />
+                            <span className="truncate">{band.entry.title}</span>
+                            {/* The width says "all week" to the eye; this says
+                                it, and the category, to a screen reader. */}
+                            <span className="sr-only">
+                              {" "}
+                              — {t.calendar.kinds[band.entry.kind]}, {t.calendar.allWeek}
+                            </span>
+                            {band.continuesAfter && (
+                              <ChevronRight className="ml-auto h-3 w-3 shrink-0" aria-hidden="true" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-7">
+                  {week.days.map((day) => {
+                    const iso = toCalendarIsoDate(day.date);
+                    const dayEntries = byDate.get(iso) ?? [];
+                    const isToday = iso === todayIso;
+                    const isSelected = selected?.kind === "day" && selected.iso === iso;
+                    const open = expanded.has(iso);
+                    const shown = open ? dayEntries : dayEntries.slice(0, MAX_PER_CELL);
+
+                    return (
+                      <div
+                        key={iso}
+                        className={`min-h-[68px] px-1 py-2 transition-colors duration-micro ease-guide sm:min-h-[132px] sm:px-2.5 sm:py-2.5 ${
+                          isSelected
+                            ? "bg-green-50"
+                            : day.inMonth
+                              ? "bg-calendar-cell hover:bg-calendar-hover"
+                              : "bg-calendar-outside"
                         }`}
                       >
-                        {day.date.getDate()}
-                      </span>
-                    </button>
-
-                    {/* Phone: dots only. The agenda under the grid does the
-                        reading, which is what keeps the month usable at
-                        375px without sideways scrolling (guide §15). */}
-                    {dayEntries.length > 0 && (
-                      <div
-                        className="mt-1 flex justify-center gap-0.5 sm:hidden"
-                        aria-hidden="true"
-                      >
-                        {dayEntries.slice(0, MAX_PER_CELL).map((entry) => (
-                          <span
-                            key={`dot-${entry.id}`}
-                            className={`h-1.5 w-1.5 rounded-pill ${KIND_STYLE[entry.kind].dot}`}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    <div className="mt-1 hidden flex-col gap-1 sm:flex">
-                      {shown.map((entry) => (
                         <button
-                          key={`${iso}-${entry.id}`}
                           type="button"
-                          onClick={() => setSelectedDay(iso)}
-                          title={entry.title}
-                          className="flex items-baseline gap-1.5 rounded-sm text-left text-micro leading-snug text-copy hover:text-brand"
+                          onClick={() => setSelected(isSelected ? null : { kind: "day", iso })}
+                          aria-pressed={isSelected}
+                          className="mx-auto block sm:mx-0"
                         >
+                          <span className="sr-only">
+                            {formatDate(day.date, language, {
+                              weekday: "long",
+                              day: "numeric",
+                              month: "long",
+                            })}
+                            {dayEntries.length > 0 ? ` — ${dayEntries.length}` : ""}
+                          </span>
                           <span
-                            className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
-                              KIND_STYLE[entry.kind].dot
-                            }`}
                             aria-hidden="true"
-                          />
-                          <span
-                            className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}
+                            className={`grid h-9 w-9 place-items-center rounded-pill text-body tabular-nums transition-colors duration-micro ease-guide ${
+                              isToday
+                                ? "bg-brand font-bold text-primary-foreground shadow-[0_0_0_3px_var(--color-green-50)]"
+                                : isSelected
+                                  ? "bg-green-50 font-bold text-brand ring-2 ring-brand/50"
+                                  : day.inMonth
+                                    ? "font-semibold text-ink"
+                                    : "font-normal text-subtle"
+                            }`}
                           >
-                            {entry.title}
+                            {day.date.getDate()}
                           </span>
                         </button>
-                      ))}
-                      {!open && dayEntries.length > MAX_PER_CELL && (
-                        <button
-                          type="button"
-                          onClick={() => setExpanded((prev) => new Set(prev).add(iso))}
-                          className="text-left text-micro font-semibold text-subtle hover:text-brand"
-                        >
-                          +{dayEntries.length - MAX_PER_CELL} {t.events.more}
-                        </button>
-                      )}
-                    </div>
+
+                        {/* Phone: dots only. The agenda under the grid does the
+                            reading, which is what keeps the month usable at
+                            375px without sideways scrolling (guide §15). */}
+                        {dayEntries.length > 0 && (
+                          <div
+                            className="mt-1 flex justify-center gap-0.5 sm:hidden"
+                            aria-hidden="true"
+                          >
+                            {dayEntries.slice(0, MAX_PER_CELL).map((entry) => (
+                              <span
+                                key={`dot-${entry.id}`}
+                                className={`h-1.5 w-1.5 rounded-pill ${KIND_STYLE[entry.kind].dot}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="mt-1 hidden flex-col gap-1 sm:flex">
+                          {shown.map((entry) => (
+                            <button
+                              key={`${iso}-${entry.id}`}
+                              type="button"
+                              onClick={() => setSelected({ kind: "day", iso })}
+                              title={entry.title}
+                              className="flex items-baseline gap-1.5 rounded-sm text-left text-micro leading-snug text-copy hover:text-brand"
+                            >
+                              <span
+                                className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
+                                  KIND_STYLE[entry.kind].dot
+                                }`}
+                                aria-hidden="true"
+                              />
+                              <span
+                                className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}
+                              >
+                                {entry.title}
+                              </span>
+                            </button>
+                          ))}
+                          {!open && dayEntries.length > MAX_PER_CELL && (
+                            <button
+                              type="button"
+                              onClick={() => setExpanded((prev) => new Set(prev).add(iso))}
+                              className="text-left text-micro font-semibold text-subtle hover:text-brand"
+                            >
+                              +{dayEntries.length - MAX_PER_CELL} {t.events.more}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                   </div>
-                );
-              })}
-            </div>
-          ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </Surface>
 
-      {selectedDay && (
+      {selected && (
         <Surface className="p-5 sm:p-6" as="section" aria-live="polite">
-          <h3 className="text-h4 font-bold capitalize text-ink">
-            {formatDate(new Date(selectedDay), language, {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}
+          <h3
+            className={`text-h4 font-bold text-ink ${selected.kind === "day" ? "capitalize" : ""}`}
+          >
+            {selected.kind === "day"
+              ? formatDate(new Date(selected.iso), language, {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })
+              : weekHeading(selected.weekYear, selected.week)}
           </h3>
 
           {selectedEntries.length === 0 ? (
-            <p className="mt-3 text-small text-subtle">{t.calendar.noEventsThisDay}</p>
+            <p className="mt-3 text-small text-subtle">
+              {selected.kind === "day" ? t.calendar.noEventsThisDay : t.calendar.noEventsThisWeek}
+            </p>
           ) : (
             <div className="mt-5 divide-y divide-hairline">
               {selectedEntries.map((entry) => {
@@ -303,7 +446,9 @@ export default function CalendarView({
                   ? entry.endTime
                     ? `${entry.startTime} – ${entry.endTime}`
                     : entry.startTime
-                  : t.calendar.allDay;
+                  : entry.date
+                    ? t.calendar.allDay
+                    : sentenceCase(t.calendar.allWeek);
 
                 return (
                   <article key={entry.id} className="space-y-2 py-5 first:pt-0 last:pb-0">
@@ -330,6 +475,13 @@ export default function CalendarView({
                         <Clock className="h-4 w-4" aria-hidden="true" />
                         {time}
                       </span>
+                      {/* A band can reach past the week you clicked, so it
+                          says how far rather than leaving it to the grid. */}
+                      {!entry.date && entry.weekEnd > entry.week && (
+                        <span className="tabular-nums">
+                          {t.calendar.week} {entry.week}–{entry.weekEnd}
+                        </span>
+                      )}
                       {entry.location && (
                         <span className="flex items-center gap-1.5">
                           <MapPin className="h-4 w-4" aria-hidden="true" />
