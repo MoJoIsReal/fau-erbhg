@@ -198,7 +198,7 @@ export default function CalendarViews() {
       <div className="flex flex-col gap-3 border-b border-neutral-200 pb-4 dark:border-neutral-800">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div
-            className="inline-flex gap-0.5 rounded-lg bg-neutral-100 p-0.5 dark:bg-neutral-900"
+            className="inline-flex gap-0.5 rounded-full bg-neutral-100 p-1 dark:bg-neutral-900"
             role="group"
             aria-label={t.calendar.viewLabel}
           >
@@ -208,9 +208,9 @@ export default function CalendarViews() {
                 type="button"
                 onClick={() => setMode(id)}
                 aria-pressed={mode === id}
-                className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
                   mode === id
-                    ? "bg-white font-medium text-neutral-900 shadow-sm dark:bg-neutral-800 dark:text-neutral-50"
+                    ? "bg-neutral-900 font-medium text-white shadow-sm dark:bg-neutral-100 dark:text-neutral-900"
                     : "text-neutral-500 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
                 }`}
               >
@@ -274,7 +274,7 @@ export default function CalendarViews() {
             emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
           />
           {canDock && (
-            <aside className="sticky top-4 overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+            <aside className="sticky top-4 overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
               {detail}
             </aside>
           )}

@@ -71,7 +71,7 @@ export default function CalendarYearView({ entries, schoolYear, onEntryClick }: 
   }, [weeks]);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
       {months.map((group, index) => (
         <section
           key={group.key}

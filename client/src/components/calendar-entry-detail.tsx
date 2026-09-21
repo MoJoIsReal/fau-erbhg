@@ -7,6 +7,7 @@ import type { CalendarEntry } from "@shared/calendar-entries";
 import { isoWeekRange, parseCalendarDate } from "@shared/calendar-entries";
 import LocationMapLink from "@/components/location-map-link";
 import SafeHtml from "@/components/safe-html";
+import CalendarSeatMeter from "@/components/calendar-seat-meter";
 
 interface CalendarEntryDetailProps {
   entry: CalendarEntry | null;
@@ -79,24 +80,30 @@ export default function CalendarEntryDetail({
   const signup = entry.signup;
 
   return (
-    <div className="space-y-4 p-5">
-      <div className={`border-l-2 pl-3 ${style.bar}`}>
-        <span className={`text-xs font-medium uppercase tracking-[0.1em] ${style.text}`}>
+    <div className="space-y-4">
+      {/* The one surface that belongs to a single entry, so it may carry that
+          entry's colour as a wash rather than only as a dot. */}
+      <div className={`px-5 pb-5 pt-5 ${style.tint}`}>
+        <span
+          className={`inline-flex items-center gap-2 rounded-full bg-white/70 px-2.5 py-1 text-xs font-medium ${style.text} dark:bg-neutral-950/50`}
+        >
+          <span className={`h-2 w-2 rounded-full ${style.dot}`} aria-hidden="true" />
           {t.calendar.kinds[entry.kind]}
         </span>
         <h2
-          className={`mt-0.5 font-heading text-xl font-semibold tracking-tight text-neutral-900 dark:text-neutral-50 ${
+          className={`mt-2 font-heading text-2xl font-semibold leading-tight tracking-tight text-neutral-900 dark:text-neutral-50 ${
             entry.cancelled ? "line-through" : ""
           }`}
         >
           {entry.title}
         </h2>
-        <p className="mt-1 text-sm text-neutral-600 dark:text-neutral-300">{when}</p>
+        <p className="mt-1.5 text-sm text-neutral-600 dark:text-neutral-300">{when}</p>
         {entry.cancelled && (
           <p className="mt-2 text-sm font-semibold text-red-600 dark:text-red-300">{t.events.cancelled2}</p>
         )}
       </div>
 
+      <div className="space-y-4 px-5 pb-5">
       {entry.description ? (
         <SafeHtml
           html={entry.description}
@@ -106,7 +113,7 @@ export default function CalendarEntryDetail({
         <p className="text-sm italic text-neutral-500 dark:text-neutral-400">{t.calendar.noDescription}</p>
       )}
 
-      <dl className="rounded-lg border border-neutral-200 dark:border-neutral-800">
+      <dl className="rounded-xl border border-neutral-200 dark:border-neutral-800">
         {entry.location && <Fact label={t.calendar.detailPlace}>{entry.location}</Fact>}
         <Fact label={t.calendar.detailWeek}>
           <span className="tabular-nums">
@@ -114,15 +121,6 @@ export default function CalendarEntryDetail({
             {entry.weekEnd > entry.week ? `–${entry.weekEnd}` : ""}
           </span>
         </Fact>
-        {signup?.mode === "registration" && signup.maxAttendees !== null && (
-          <Fact label={t.events.registered}>
-            {attendeeCount ?? (
-              <span className="tabular-nums">
-                {signup.currentAttendees}/{signup.maxAttendees}
-              </span>
-            )}
-          </Fact>
-        )}
         {signup?.deadline && (
           <Fact label={t.calendar.detailDeadline}>
             {formatDate(signup.deadline, language, {
@@ -137,6 +135,32 @@ export default function CalendarEntryDetail({
         {signup?.mode === "none" && <Fact label={t.calendar.detailSignup}>{t.events.noSignupRequired}</Fact>}
         {signup?.mode === "internal" && <Fact label={t.calendar.detailSignup}>{t.events.internalEvent}</Fact>}
       </dl>
+
+      {signup?.mode === "registration" && signup.maxAttendees !== null && (
+        <div className={`rounded-xl p-4 ${style.tint}`}>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-xs uppercase tracking-[0.1em] text-neutral-500 dark:text-neutral-400">
+              {t.events.registered}
+            </span>
+            {attendeeCount}
+          </div>
+          <p className="mt-1 flex items-baseline gap-1.5">
+            <span className="font-heading text-3xl font-semibold tabular-nums tracking-tight text-neutral-900 dark:text-neutral-50">
+              {signup.currentAttendees}
+            </span>
+            <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
+              / {signup.maxAttendees}
+            </span>
+          </p>
+          <div className="mt-3">
+            <CalendarSeatMeter
+              taken={signup.currentAttendees}
+              total={signup.maxAttendees}
+              fill={style.dot}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         {signup?.mode === "registration" && !entry.cancelled && (
@@ -164,6 +188,7 @@ export default function CalendarEntryDetail({
       </div>
 
       {actions}
+      </div>
     </div>
   );
 }

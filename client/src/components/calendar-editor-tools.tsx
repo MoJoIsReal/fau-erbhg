@@ -164,7 +164,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
   };
 
   const toolbar = !canEditYearly ? null : (
-    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-neutral-50 px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900/60">
+    <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-neutral-800 dark:bg-neutral-900/60">
       <span className="mr-1 text-[11px] uppercase tracking-[0.1em] text-neutral-400 dark:text-neutral-500">
         {t.calendar.editorLabel}
       </span>

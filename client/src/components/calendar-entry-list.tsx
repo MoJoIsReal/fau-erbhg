@@ -43,8 +43,11 @@ function SignupSide({ entry, onRegister }: { entry: CalendarEntry; onRegister: (
   return (
     <div className="flex items-center gap-3">
       {signup.maxAttendees !== null && (
-        <span className="text-sm tabular-nums text-neutral-500 dark:text-neutral-400">
-          {signup.currentAttendees}/{signup.maxAttendees}
+        <span className="flex items-baseline gap-0.5 tabular-nums">
+          <span className="text-base font-semibold text-neutral-900 dark:text-neutral-50">
+            {signup.currentAttendees}
+          </span>
+          <span className="text-sm text-neutral-400 dark:text-neutral-500">/{signup.maxAttendees}</span>
         </span>
       )}
       {signup.isFull ? (
@@ -200,7 +203,7 @@ export default function CalendarEntryList({
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-xl border border-neutral-200 bg-white px-6 py-16 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
+      <div className="rounded-2xl border border-neutral-200 bg-white px-6 py-16 text-center text-sm text-neutral-500 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-400">
         {emptyMessage}
       </div>
     );
@@ -218,7 +221,7 @@ export default function CalendarEntryList({
         </button>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+      <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
         {groups.map((group, index) => {
           const { start, end } = isoWeekRange(group.weekYear, group.week);
           const range = `${formatDate(start, language, { day: "numeric", month: "short" })} – ${formatDate(
@@ -247,7 +250,9 @@ export default function CalendarEntryList({
                 </span>
                 <span className="text-xs text-neutral-400 dark:text-neutral-500">{range}</span>
                 {isNow && (
-                  <span className="ml-auto text-xs font-medium text-primary">{t.calendar.thisWeek}</span>
+                  <span className="ml-auto rounded-full bg-primary px-2.5 py-1 text-[11px] font-medium leading-none text-primary-foreground">
+                    {t.calendar.thisWeek}
+                  </span>
                 )}
               </h3>
 

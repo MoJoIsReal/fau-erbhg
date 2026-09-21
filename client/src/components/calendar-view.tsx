@@ -105,7 +105,7 @@ export default function CalendarView({ entries, onEntryClick }: CalendarViewProp
   const columns = "grid grid-cols-[8.5rem_repeat(7,minmax(0,1fr))]";
 
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
+    <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white dark:border-neutral-800 dark:bg-neutral-950">
       <div className="flex items-center justify-between px-4 py-3 sm:px-5">
         <h3 className="font-heading text-lg font-semibold capitalize text-neutral-900 dark:text-neutral-50">
           {monthYearText}
