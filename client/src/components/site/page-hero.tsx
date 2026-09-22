@@ -46,10 +46,11 @@ export interface PageHeroProps {
   /** The page's own weight. Display is for the site's front door only. */
   titleSize?: "display" | "h1";
   /**
-   * Let the hero reach past the reading container on a wide screen. `split`
-   * always does; `editorial` and `compact` only when the page asks, because a
-   * page that already bleeds its whole body (Kalender) would otherwise pull
-   * the margins out twice.
+   * Let the hero reach past the reading container on a wide screen. Only
+   * ever when a page asks, and only when the page bleeds with it — a hero
+   * that reaches past sections that do not just looks wider than them. No
+   * page asks today: Kalender bleeds its whole body instead, and passing
+   * this there would pull the margins out twice.
    */
   wide?: boolean;
   /** Only the first hero a visitor meets should preload its artwork. */
@@ -91,11 +92,10 @@ export default function PageHero({
   const display = (titleSize ?? (isSplit ? "display" : "h1")) === "display";
   /**
    * Sand heroes have no panel, so they have nothing to inset against: their
-   * heading lines up with the band under it and with the rest of the page.
-   * Without this the title on Aktuelt sat 56px inside a band that ran flush
-   * to the container, which reads as a mistake rather than as a margin. The
-   * split hero keeps its padding either way, because it bleeds wider than the
-   * container and the padding is what walks the text back to the page.
+   * heading lines up with the band or the artwork beside it and with every
+   * section under it. Without this the title on Aktuelt sat 56px inside a
+   * band that ran flush to the container, which reads as a mistake rather
+   * than as a margin.
    */
   const panel = tone !== "sand";
   const textPad = panel
@@ -143,23 +143,30 @@ export default function PageHero({
 
   if (isSplit && illustration) {
     return (
-      // Wider than the reading container: a hero that stops at 1200px on a
-      // 1440px screen reads as a small page in a big window (guide v1.1 §24).
-      <section className={`bleed-wide overflow-hidden rounded-hero ${TONE[tone]}`}>
+      // The hero holds the reading container like every other section of the
+      // page. It used to reach 76px past it on a wide screen, and because a
+      // sand hero has no panel the only thing that showed for it was the
+      // artwork sticking out to the right of the cards below — a bleed you
+      // could only see on one side reads as a misalignment, not as a hero.
+      <section className={`overflow-hidden rounded-hero ${TONE[tone]}`}>
         {/* Two columns only from 1280px, and the artwork takes the larger of
-            them: at 1288px that is a ~720px picture against a ~568px text
-            column, which is the difference between an illustration that opens
-            the page and one that decorates it. Between 1024 and 1280 the text
-            is tall enough that a column beside it would be framed portrait,
-            and object-cover would then crop a landscape crop sideways —
-            straight through the value signpost. */}
-        <div className="grid items-stretch xl:grid-cols-[minmax(0,1fr)_minmax(0,1.27fr)]">
+            them: ~650px of picture against ~485px of text, which is the
+            difference between an illustration that opens the page and one
+            that decorates it. Between 1024 and 1280 the text is tall enough
+            that a column beside it would be framed portrait, and object-cover
+            would then crop a landscape crop sideways — straight through the
+            value signpost. */}
+        <div className="grid items-stretch xl:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]">
           {/* Stacked, the artwork goes first: a phone otherwise opens on a
               screenful of heading and lead with the illustration entirely
               below the fold, which is the opposite of what it is for. The
               heading still comes first in the DOM, so the reading order and
               the document outline are unchanged. */}
-          <div className="order-2 px-6 pb-10 pt-8 sm:px-10 sm:pb-12 sm:pt-10 xl:order-1 xl:py-14 xl:pl-[var(--hero-split-pad)] xl:pr-6">
+          <div
+            className={`order-2 pb-10 pt-8 sm:pb-12 sm:pt-10 xl:order-1 xl:py-14 xl:pr-8 ${
+              panel ? "px-6 sm:px-10 xl:pl-14" : "xl:pl-0"
+            }`}
+          >
             {text}
           </div>
           {/* The artwork runs to the panel's own edge rather than sitting in
