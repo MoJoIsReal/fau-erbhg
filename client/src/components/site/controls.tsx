@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
+import { Link } from "wouter";
 
 interface FilterChipProps {
   label: string;
   pressed: boolean;
-  onClick: () => void;
   /**
    * A category's dot colour as a Tailwind class (`bg-cat-mote-dot`). The
    * chip always shows the label too — colour is never the only signal
@@ -14,27 +14,27 @@ interface FilterChipProps {
   count?: number;
 }
 
+type FilterChipAction =
+  | { href: string; onClick?: never }
+  | { href?: never; onClick: () => void };
+
 /**
  * One filter, as a pill you can press.
  *
  * On state is carried three ways at once — a filled surface, a green border
- * and `aria-pressed` — so it survives both a colour-blind reader and a
+ * and `aria-pressed` (or `aria-current` for links) — so it survives both a colour-blind reader and a
  * screen reader. Off state keeps the label at full contrast rather than
  * greying it into illegibility; it is a choice you can still read, not
  * disabled text.
  */
-export function FilterChip({ label, pressed, onClick, dotClass, count }: FilterChipProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={pressed}
-      className={`inline-flex min-h-[38px] items-center gap-2 rounded-pill border px-3.5 text-small transition-colors duration-micro ease-guide ${
-        pressed
-          ? "border-brand/35 bg-green-50 font-semibold text-brand"
-          : "border-hairline bg-surface text-subtle hover:border-brand/30 hover:text-ink"
-      }`}
-    >
+export function FilterChip({ label, pressed, href, onClick, dotClass, count }: FilterChipProps & FilterChipAction) {
+  const className = `inline-flex min-h-11 items-center gap-2 rounded-pill border px-4 text-small transition-colors duration-micro ease-guide ${
+    pressed
+      ? "border-brand/35 bg-green-50 font-semibold text-brand"
+      : "border-hairline bg-surface text-subtle hover:border-brand/30 hover:text-ink"
+  }`;
+  const content = (
+    <>
       {dotClass && (
         <span
           className={`h-2 w-2 shrink-0 rounded-pill ${pressed ? dotClass : "bg-current opacity-40"}`}
@@ -45,6 +45,17 @@ export function FilterChip({ label, pressed, onClick, dotClass, count }: FilterC
       {typeof count === "number" && (
         <span className="tabular-nums text-micro text-subtle">{count}</span>
       )}
+    </>
+  );
+
+  // URL-backed filters stay shareable and preserve native link behaviour.
+  return href !== undefined ? (
+    <Link href={href} aria-current={pressed ? "page" : undefined} className={className}>
+      {content}
+    </Link>
+  ) : (
+    <button type="button" onClick={onClick} aria-pressed={pressed} className={className}>
+      {content}
     </button>
   );
 }

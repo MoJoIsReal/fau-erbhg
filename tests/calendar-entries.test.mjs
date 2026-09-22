@@ -63,6 +63,22 @@ function entry(overrides = {}) {
   };
 }
 
+test('a signup event replaces the yearly duplicate while closures and separate internal meetings survive', () => {
+  const date = '2026-09-20';
+  const signup = event({ date, time: '11:00' });
+  const yearly = entry({ entryType: 'day_event', date, category: 'arrangement', title: 'Foreldredugnad i regi av FAU' });
+  const merged = mergeCalendarEntries({
+    events: [signup, { ...signup }],
+    entries: [
+      yearly, { ...yearly },
+      entry({ id: 2, entryType: 'closed', date, title: 'Stengt' }),
+      entry({ id: 3, entryType: 'day_event', date, category: 'internt', title: 'SU-møte' }),
+    ],
+  });
+  assert.deepEqual(merged.map((item) => item.title).sort(), ['Høstdugnad', 'SU-møte', 'Stengt']);
+  assert.equal(merged.find((item) => item.source === 'event').startTime, '11:00');
+});
+
 test('every event type maps to a known kind, unknown types included', () => {
   assert.equal(calendarKindForEventType('meeting'), 'mote');
   assert.equal(calendarKindForEventType('dugnad'), 'dugnad');

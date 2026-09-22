@@ -38,7 +38,10 @@ Staff can edit yearly entries; only council roles can edit signup events.
 
 PDF downloads (selected month or full August–July school year) are public in the
 month view, including on phones. They use the light design tokens and bundled
-Manrope fonts in an A4 landscape layout, with complete source rows regardless of active filters. Long titles and
+Manrope fonts in an A4 landscape layout, independent of active filters. Like the
+public calendar, exports use `mergeCalendarEntries` so signup events replace
+overlapping yearly day entries; closures and separate internal meetings remain.
+Long titles and
 additional entries continue in a detail section instead of being lost. Week spans
 are matched by their dates across month boundaries. Downloads stay disabled if a
 required source failed to load. Signup events and cancelled events are included.

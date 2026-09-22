@@ -3,7 +3,7 @@
 import { Document, Font, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntry, CalendarDisplayKind } from "@shared/calendar-entries";
-import { normalizeEvent, normalizeYearlyEntry, isoWeekYear, compareSpanningEntries } from "@shared/calendar-entries";
+import { mergeCalendarEntries, isoWeekYear, compareSpanningEntries } from "@shared/calendar-entries";
 import { monthsForSchoolYear, weeksOfMonth, toCalendarIsoDate } from "@shared/yearly-calendar-display";
 import { yearlyCalendarEntryOverlapsMonth } from "@shared/yearly-calendar-placement";
 import { formatDate, useTranslation as translationFor, type Language } from "@/lib/i18n";
@@ -195,9 +195,9 @@ function YearlyCalendarDocument({ entries, events, schoolYear, lang, year, month
 }) {
   const t = translationFor(lang);
   const months = monthsForSchoolYear(schoolYear).filter((item) => year == null || month == null || (item.year === year && item.month === month));
-  // Keep every raw entry in print, including a day entry alongside a signup event.
-  const normalized = [...entries.map(normalizeYearlyEntry), ...events.map((event) => normalizeEvent(event))]
-    .filter((entry): entry is CalendarEntry => entry !== null)
+  // Match the public calendar: a signup event replaces its yearly day entry,
+  // while closures and separate internal meetings remain visible.
+  const normalized = mergeCalendarEntries({ entries, events })
     .sort((a, b) => a.sortKey - b.sortKey || (a.startTime ?? "").localeCompare(b.startTime ?? ""));
   return <Document title={`${t.calendar.title} ${schoolYear}/${schoolYear + 1}`} author={t.header.title} language={lang}>
     {months.map((item) => <Month key={`${item.year}-${item.month}`} {...item} entries={normalized} lang={lang} schoolYear={schoolYear}

@@ -75,7 +75,7 @@ export default function NewsPost() {
     );
   }
 
-  const backHref = post.category === "tips" ? "/tips-tricks" : "/news";
+  const backHref = post.category === "tips" ? "/tips-tricks" : "/news?category=news";
 
   // An article page is the one place on this site that is genuinely one
   // column of prose, so it gets a measure of its own rather than the 1200px

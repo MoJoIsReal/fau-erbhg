@@ -605,6 +605,15 @@ export interface Translations {
   // Settings
   // Admin surfaces (dashboard, messages, content editor)
   newsPage: {
+    allCategories: string;
+    newestFirst: string;
+    noPostsYet: string;
+    loadingPosts: string;
+    couldNotLoadPosts: string;
+    newsDescription: string;
+    tipsDescription: string;
+    loadMoreFailed: string;
+    retry: string;
     tipsTricks: string;
     noTipsYet: string;
     loadingTips: string;
@@ -1622,6 +1631,15 @@ export const translations: Record<Language, Translations> = {
       uploading: "Laster opp..."
     },
     newsPage: {
+      allCategories: "Alle",
+      newestFirst: "Nyeste først",
+      noPostsYet: "Ingen innlegg ennå",
+      loadingPosts: "Laster innlegg …",
+      couldNotLoadPosts: "Kunne ikke laste innlegg",
+      newsDescription: "Siste nyheter og informasjon fra FAU Erdal Barnehage.",
+      tipsDescription: "Praktiske tips og råd for foreldre i Erdal Barnehage.",
+      loadMoreFailed: "Kunne ikke laste flere innlegg. Prøv igjen.",
+      retry: "Prøv igjen",
       tipsTricks: "Tips & triks",
       noTipsYet: "Ingen tips ennå",
       loadingTips: "Laster tips...",
@@ -1641,7 +1659,7 @@ export const translations: Record<Language, Translations> = {
       heroLead: "Nyheter, referater og praktiske tips fra FAU og barnehagen.",
       categoryNews: "Nyheter",
       categoryTips: "Tips & triks",
-      loadMore: "Last flere",
+      loadMore: "Vis flere",
       backToList: "Tilbake til Aktuelt",
     },
     adminPage: {
@@ -2641,6 +2659,15 @@ export const translations: Record<Language, Translations> = {
       uploading: "Uploading..."
     },
     newsPage: {
+      allCategories: "All",
+      newestFirst: "Newest first",
+      noPostsYet: "No posts yet",
+      loadingPosts: "Loading posts …",
+      couldNotLoadPosts: "Could not load posts",
+      newsDescription: "Latest news and information from FAU Erdal Kindergarten.",
+      tipsDescription: "Practical tips and advice for parents at Erdal Kindergarten.",
+      loadMoreFailed: "Could not load more posts. Please try again.",
+      retry: "Try again",
       tipsTricks: "Tips & Tricks",
       noTipsYet: "No tips yet",
       loadingTips: "Loading tips...",
