@@ -138,6 +138,7 @@ export interface Translations {
     listHeading: string;
     listIntro: string;
     monthIntro: string;
+    pickADay: string;
     yearHeading: string;
     yearIntro: string;
     tagline: string;
@@ -1095,6 +1096,7 @@ export const translations: Record<Language, Translations> = {
       listIntro:
         "En oversiktlig kalender for barnehageåret. Her finner du arrangementer, møter og viktige datoer.",
       monthIntro: "En oversikt over alle aktivitetene denne måneden. Klikk på en dato for å se mer informasjon.",
+      pickADay: "Velg en dag i kalenderen for å se hva som skjer.",
       yearHeading: "Barnehageåret",
       yearIntro: "Få en rask oversikt over hele året. Klikk på en måned for å se detaljer.",
       tagline: "Små mennesker, store dager",
@@ -2052,6 +2054,7 @@ export const translations: Record<Language, Translations> = {
       listIntro:
         "A clear calendar for the kindergarten year. Events, meetings and the dates that matter.",
       monthIntro: "An overview of everything happening this month. Pick a date to see more.",
+      pickADay: "Pick a day in the calendar to see what is on.",
       yearHeading: "Kindergarten year",
       yearIntro: "A quick look at the whole year. Pick a month to see it in detail.",
       tagline: "Small people, big days",

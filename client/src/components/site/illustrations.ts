@@ -210,10 +210,14 @@ export const ILLUSTRATION_VALUES = set(
 /**
  * Two children on a log over the fjord at golden hour. Calendar hero.
  *
- * From calendar-children-fjord at (0, 328, 1672×613). The original writes
- * "Små mennesker, store dager" across its sky and the calendar hero already
+ * From calendar-children-fjord at (0, 330, 1672×611). Both versions write
+ * "Små mennesker, store dager" across the sky and the calendar hero already
  * prints that tagline in HTML directly above the band, so the crop starts
- * below the ink (which ends at y=324) and above the sun (y=333).
+ * below the ink, which ends at y=324 in both. The remaining two pixels are
+ * the night version's doing: its moon sits higher than the day version's sun
+ * and its disc ends at y=329, so a cut at 328 left a bright sliver of moon
+ * pinned to the top edge. 330 clears it, and still keeps the day sun whole
+ * (it starts at y=333).
  */
 export const ILLUSTRATION_CALENDAR = set(
   heroCalendar840,
@@ -223,7 +227,7 @@ export const ILLUSTRATION_CALENDAR = set(
   840,
   1400,
   1672,
-  613,
+  611,
   "58% 55%",
   {
     small: heroCalendarDark840,
