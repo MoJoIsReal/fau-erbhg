@@ -214,12 +214,20 @@ async function handleBoardMembers(req, res, sql) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
+// Literal, case-insensitive substring search. Escape LIKE metacharacters so
+// e.g. "100%" searches for those words rather than matching every post.
+export function blogSearchPattern(value) {
+  const term = sanitizeText(value, 200);
+  return term ? `%${term.replace(/[\\%_]/g, '\\$&')}%` : null;
+}
+
 // Handle Blog Posts operations
 async function handleBlogPosts(req, res, sql) {
   // GET - Public access to view published blog posts
   if (req.method === 'GET') {
     const { includeArchived, category } = req.query;
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : null;
+    const searchPattern = blogSearchPattern(req.query.q);
     // limit/offset are opt-in: omitting them keeps today's behavior (up to
     // 500 posts in one page) so callers like the homepage, which need the
     // full set to filter by showOnHomepage client-side, are unaffected.
@@ -245,6 +253,8 @@ async function handleBlogPosts(req, res, sql) {
         SELECT id, title, content, status, category, published_date as "publishedDate", author, show_on_homepage as "showOnHomepage", notify_newsletter as "notifyNewsletter", newsletter_sent_at as "newsletterSentAt", created_by as "createdBy", created_at as "createdAt", updated_at as "updatedAt"
         FROM blog_posts
         WHERE (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
+          AND (${searchPattern}::text IS NULL OR title ILIKE ${searchPattern}
+            OR regexp_replace(content, '<[^>]*>', ' ', 'g') ILIKE ${searchPattern})
         ORDER BY published_date DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -256,6 +266,8 @@ async function handleBlogPosts(req, res, sql) {
         WHERE status = 'published'
           AND (${postId}::int IS NULL OR id = ${postId})
           AND (${sanitizedCategory}::text IS NULL OR category = ${sanitizedCategory})
+          AND (${searchPattern}::text IS NULL OR title ILIKE ${searchPattern}
+            OR regexp_replace(content, '<[^>]*>', ' ', 'g') ILIKE ${searchPattern})
         ORDER BY published_date DESC
         LIMIT ${limit} OFFSET ${offset}
       `;

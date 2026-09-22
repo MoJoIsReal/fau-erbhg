@@ -605,6 +605,11 @@ export interface Translations {
   // Settings
   // Admin surfaces (dashboard, messages, content editor)
   newsPage: {
+    searchLabel: string;
+    searchPlaceholder: string;
+    clearSearch: string;
+    noSearchResults: string;
+    searchResults: string;
     allCategories: string;
     newestFirst: string;
     noPostsYet: string;
@@ -1631,6 +1636,11 @@ export const translations: Record<Language, Translations> = {
       uploading: "Laster opp..."
     },
     newsPage: {
+      searchLabel: "Søk i innlegg",
+      searchPlaceholder: "Søk i innlegg …",
+      clearSearch: "Tøm søket",
+      noSearchResults: "Ingen innlegg matcher søket",
+      searchResults: "{count} innlegg vises",
       allCategories: "Alle",
       newestFirst: "Nyeste først",
       noPostsYet: "Ingen innlegg ennå",
@@ -2659,6 +2669,11 @@ export const translations: Record<Language, Translations> = {
       uploading: "Uploading..."
     },
     newsPage: {
+      searchLabel: "Search posts",
+      searchPlaceholder: "Search posts …",
+      clearSearch: "Clear search",
+      noSearchResults: "No posts match your search",
+      searchResults: "{count} posts shown",
       allCategories: "All",
       newestFirst: "Newest first",
       noPostsYet: "No posts yet",
