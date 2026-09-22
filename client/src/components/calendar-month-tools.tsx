@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { Download, Plus } from "lucide-react";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -7,27 +6,27 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { EditorSurface } from "@/components/site/cards";
 import { CalendarCategory } from "@/components/site/calendar-category";
+import { yearlyCalendarEntryOverlapsMonth } from "@shared/yearly-calendar-placement";
 import { calendarDisplayKindForEntry } from "@shared/calendar-entries";
 import type { CalendarEditor } from "@/components/calendar-editor-tools";
 import type { MonthCursor } from "@/components/calendar-view";
 
 /** Public exports use complete source rows; filters never remove content from a PDF. */
-export default function CalendarMonthTools({ month, schoolYear, entries, editor, showNotes }: {
+export default function CalendarMonthTools({ month, schoolYear, entries, editor, showNotes, events, dataReady, hasDataError }: {
   month: MonthCursor;
   schoolYear: number;
   entries: YearlyCalendarEntry[];
   editor: CalendarEditor;
   showNotes: boolean;
+  events: Event[];
+  dataReady: boolean;
+  hasDataError: boolean;
 }) {
   const { language, t } = useLanguage();
   const { toast } = useToast();
   const [busy, setBusy] = useState<"month" | "year" | null>(null);
-  // The parent already loads these sources. Retrying on mount here would
-  // unmount this panel behind its loading state and repeat on every failure.
-  const eventsQuery = useQuery<Event[]>({ queryKey: ["/api/events"], retryOnMount: false });
-  const yearlyQuery = useQuery<YearlyCalendarEntry[]>({ queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`], retryOnMount: false });
-  const unavailable = !eventsQuery.isSuccess || !yearlyQuery.isSuccess;
-  const monthEntries = entries.filter((entry) => entry.year === month.year && entry.month === month.month);
+  const unavailable = !dataReady;
+  const monthEntries = entries.filter((entry) => yearlyCalendarEntryOverlapsMonth(entry, month.year, month.month));
   const notes = monthEntries.filter((entry) => entry.entryType === "note" && entry.weekNumber === null);
 
   const download = async (scope: "month" | "year") => {
@@ -36,8 +35,8 @@ export default function CalendarMonthTools({ month, schoolYear, entries, editor,
     try {
       const { downloadYearlyCalendarPdf } = await import("@/lib/yearly-calendar-pdf");
       await downloadYearlyCalendarPdf({
-        entries: yearlyQuery.data,
-        events: eventsQuery.data,
+        entries,
+        events,
         schoolYear,
         lang: language,
         ...(scope === "month" ? month : {}),
@@ -63,7 +62,7 @@ export default function CalendarMonthTools({ month, schoolYear, entries, editor,
           </Button>
         </div>
         <p className="text-small text-subtle">{t.calendarWorkspace.downloadHint}</p>
-        {(eventsQuery.isError || yearlyQuery.isError) && <p role="alert" className="text-small text-destructive">{t.calendar.loadFailed}</p>}
+        {hasDataError && <p role="alert" className="text-small text-destructive">{t.calendar.loadFailed}</p>}
       </div>
 
       {showNotes && notes.length > 0 && (

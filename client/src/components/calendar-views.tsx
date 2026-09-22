@@ -101,7 +101,7 @@ export default function CalendarViews() {
   const schoolYear = mode === "month"
     ? getKindergartenSchoolYear(new Date(monthCursor.year, monthCursor.month - 1, 1))
     : thisSchoolYear;
-  const { entries, yearlyEntries, isLoading, isError } = useCalendarEntries(schoolYear);
+  const { entries, yearlyEntries, events, exportsReady, hasDataError, isLoading, isError } = useCalendarEntries(schoolYear);
 
   useEffect(() => {
     try {
@@ -274,7 +274,7 @@ export default function CalendarViews() {
             </div>
           }
         >
-          <CalendarMonthTools month={monthCursor} schoolYear={schoolYear} entries={yearlyEntries} editor={editor} showNotes={active.beskjed} />
+          <CalendarMonthTools month={monthCursor} schoolYear={schoolYear} entries={yearlyEntries} editor={editor} showNotes={active.beskjed} events={events} dataReady={exportsReady} hasDataError={hasDataError} />
             <CalendarView
               entries={visible}
               month={monthCursor}

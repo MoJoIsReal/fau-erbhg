@@ -14,6 +14,9 @@ export interface Translations {
     weekdayStart: string;
     weekdayEnd: string;
     placementError: string;
+    pdfDetails: string;
+    pdfDetailsHint: string;
+    pdfPrintEdition: string;
   };
   entryEditor: {
     intro: string;
@@ -1030,6 +1033,9 @@ export const translations: Record<Language, Translations> = {
       weekdayStart: "Fra ukedag",
       weekdayEnd: "Til ukedag",
       placementError: "Velg en gyldig dato, måned og uke. Slutt må være etter eller lik start.",
+      pdfDetails: "Detaljoversikt",
+      pdfDetailsHint: "Lange oppføringer og flere hendelser vises i detaljoversikten etter kalenderen.",
+      pdfPrintEdition: "Kalender · utskriftsutgave",
     },
     entryEditor: {
       intro: "Velg innhold, tidspunkt og hvordan oppføringen skal vises.",
@@ -2046,6 +2052,9 @@ export const translations: Record<Language, Translations> = {
       weekdayStart: "From weekday",
       weekdayEnd: "To weekday",
       placementError: "Choose a valid date, month and week. The end must be on or after the start.",
+      pdfDetails: "Full details",
+      pdfDetailsHint: "Long entries and additional activities are listed in full after the calendar.",
+      pdfPrintEdition: "Calendar · print edition",
     },
     entryEditor: {
       intro: "Choose the content, timing and how the entry is displayed.",

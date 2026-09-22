@@ -8,6 +8,9 @@ import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 export type UseCalendarEntriesResult = {
   entries: CalendarEntry[];
   yearlyEntries: YearlyCalendarEntry[];
+  events: Event[];
+  exportsReady: boolean;
+  hasDataError: boolean;
   isLoading: boolean;
   isError: boolean;
 };
@@ -55,6 +58,9 @@ export function useCalendarEntries(schoolYear = getKindergartenSchoolYear(new Da
   return {
     entries,
     yearlyEntries,
+    events: events ?? [],
+    exportsReady: eventsQuery.isSuccess && previousYearQuery.isSuccess && currentYearQuery.isSuccess && nextYearQuery.isSuccess,
+    hasDataError: eventsQuery.isError || previousYearQuery.isError || currentYearQuery.isError || nextYearQuery.isError,
     isLoading: eventsQuery.isLoading || previousYearQuery.isLoading || currentYearQuery.isLoading || nextYearQuery.isLoading,
     // A missing school year is not a failure worth blanking the page for —
     // only give up when every source is unavailable.

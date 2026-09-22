@@ -1,667 +1,223 @@
-// Client-side PDF generator for the Årskalender.
-//
-// Uses @react-pdf/renderer to build a real landscape A4 PDF in the
-// browser. The PDF is downloaded as a Blob — bypasses iOS Safari's
-// broken @page handling and Vercel's serverless chromium quirks that
-// blocked the previous server-rendered approach.
-//
-// This module is dynamic-import'd from calendar-month-tools.tsx so the
-// ~600 KB gzipped @react-pdf bundle only loads when the user clicks
-// "Last ned PDF".
-
-import {
-  Document,
-  Font,
-  Page,
-  StyleSheet,
-  Text,
-  View,
-  pdf,
-} from "@react-pdf/renderer";
+// A landscape A4 calendar using the same category model, typeface and design
+// tokens as the website. Loaded only when a reader requests a PDF.
+import { Document, Font, Page, StyleSheet, Text, View, pdf } from "@react-pdf/renderer";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
-import {
-  weeksOfMonth,
-  type YearlyCalendarDayCell as DayCell,
-} from "@shared/yearly-calendar-display";
+import type { CalendarEntry, CalendarDisplayKind } from "@shared/calendar-entries";
+import { normalizeEvent, normalizeYearlyEntry, isoWeekYear, compareSpanningEntries } from "@shared/calendar-entries";
+import { monthsForSchoolYear, weeksOfMonth, toCalendarIsoDate } from "@shared/yearly-calendar-display";
+import { yearlyCalendarEntryOverlapsMonth } from "@shared/yearly-calendar-placement";
+import { formatDate, useTranslation as translationFor, type Language } from "@/lib/i18n";
+import { printToken, printPoints } from "@/lib/calendar-pdf-theme";
 
-// ──────────────────────────────────────────────────────────────────
-// Helpers for the original printable poster layout.
-// ──────────────────────────────────────────────────────────────────
+Font.register({ family: "Manrope", fonts: [
+  { src: "/fonts/manrope-regular.ttf", fontWeight: 400 },
+  { src: "/fonts/manrope-semibold.ttf", fontWeight: 600 },
+  { src: "/fonts/manrope-bold.ttf", fontWeight: 700 },
+] });
+Font.registerHyphenationCallback((word) => [word]);
+Font.registerEmojiSource({ format: "png", url: "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/" });
 
-const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
-
-// Hex equivalents of PRESET_HEX in
-// client/src/components/yearly-calendar-entry-modal.tsx. Keep both
-// in sync so a swatch the user picks renders the same shade everywhere.
-const ENTRY_COLOR_HEX: Record<string, string> = {
-  red: "#ef4444",
-  yellow: "#fde047",
-  green: "#22c55e",
-  blue: "#60a5fa",
-  orange: "#fb923c",
-  pink: "#f472b6",
-  purple: "#a855f7",
+const color = {
+  ink: printToken("color-ink"), text: printToken("color-text"), muted: printToken("color-text-muted"),
+  primary: printToken("color-primary"), border: printToken("color-border"),
+  white: printToken("color-surface-raised"),
+  soft: printToken("color-surface-soft"), green: printToken("color-green-50"),
+  outside: printToken("color-calendar-outside"), sand: printToken("color-sand"),
 };
-
-// Default badge colour per entry type, used when an entry has no explicit
-// colour override. Mirror of defaultColorForType in
-// the original poster calendar.
-// Mat=gul, Uke info=blå, Stengt=rød, Dags events=grønn, Note=rød.
-const TYPE_COLOR: Record<string, { background: string; color: string }> = {
-  food:       { background: "#fde047", color: "#1f2937" },
-  week_event: { background: "#3b82f6", color: "#ffffff" },
-  day_event:  { background: "#22c55e", color: "#ffffff" },
-  closed:     { background: "#ef4444", color: "#ffffff" },
-  note:       { background: "#ef4444", color: "#ffffff" },
-};
-
-function readableTextOn(hex: string): string {
-  let c = hex.replace("#", "");
-  if (c.length === 3) c = c.split("").map((ch) => ch + ch).join("");
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.6 ? "#1f2937" : "#ffffff";
-}
-
-function entryColors(entry: YearlyCalendarEntry): { background: string; color: string } {
-  if (entry.color && HEX_RE.test(entry.color)) {
-    return { background: entry.color, color: readableTextOn(entry.color) };
-  }
-  if (entry.color && ENTRY_COLOR_HEX[entry.color]) {
-    const bg = ENTRY_COLOR_HEX[entry.color];
-    return { background: bg, color: readableTextOn(bg) };
-  }
-  return TYPE_COLOR[entry.entryType] ?? TYPE_COLOR.note;
-}
-
-function entryEndWeek(entry: YearlyCalendarEntry): number {
-  return entry.weekNumberEnd && entry.weekNumberEnd > (entry.weekNumber ?? 0)
-    ? entry.weekNumberEnd
-    : (entry.weekNumber ?? 0);
-}
-
-type SpanPos = "single" | "start" | "middle" | "end" | null;
-
-function spanPosition(entry: YearlyCalendarEntry, weekNumber: number): SpanPos {
-  const start = entry.weekNumber ?? 0;
-  const end = entryEndWeek(entry);
-  if (weekNumber < start || weekNumber > end) return null;
-  if (start === end) return "single";
-  if (weekNumber === start) return "start";
-  if (weekNumber === end) return "end";
-  return "middle";
-}
-
-function sortByTypeAndColor(entries: YearlyCalendarEntry[]): YearlyCalendarEntry[] {
-  return [...entries].sort((a, b) => {
-    const aFood = a.entryType === "food" ? 0 : 1;
-    const bFood = b.entryType === "food" ? 0 : 1;
-    if (aFood !== bFood) return aFood - bFood;
-    const aColor = a.color ?? "";
-    const bColor = b.color ?? "";
-    if (aColor !== bColor) return aColor.localeCompare(bColor);
-    return a.id - b.id;
-  });
-}
-
-function monthsForSchoolYear(schoolYear: number): { year: number; month: number }[] {
-  const out: { year: number; month: number }[] = [];
-  for (let m = 8; m <= 12; m++) out.push({ year: schoolYear, month: m });
-  for (let m = 1; m <= 7; m++) out.push({ year: schoolYear + 1, month: m });
-  return out;
-}
-
-function toIsoDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-// Per-month accent colour. We don't try to do a full gradient header
-// since @react-pdf doesn't support CSS gradients natively; a single
-// accent shade per month gives the calendar a seasonal feel without
-// rasterising a background image.
-function monthAccent(month: number): string {
-  switch (month) {
-    case 8:  return "#FFD27A"; // August — sommer
-    case 9:  return "#E18B3B"; // September — tidlig høst
-    case 10: return "#D9572C"; // Oktober
-    case 11: return "#a04e2a"; // November
-    case 12: return "#7A2424"; // Desember
-    case 1:  return "#5a8aab"; // Januar
-    case 2:  return "#6691ab"; // Februar
-    case 3:  return "#7eb37d"; // Mars
-    case 4:  return "#8bc18a"; // April
-    case 5:  return "#FFB347"; // Mai
-    case 6:  return "#FFD45E"; // Juni
-    case 7:  return "#FFB347"; // Juli
-    default: return "#4A8C5F";
-  }
-}
-
-// ──────────────────────────────────────────────────────────────────
-// i18n strings used in the PDF (NO + EN). Kept inline so this module
-// stays self-contained when dynamic-imported.
-// ──────────────────────────────────────────────────────────────────
-
-type Lang = "no" | "en";
-
-const STRINGS: Record<Lang, {
-  tagline: string;
-  notes: string;
-  week: string;
-  weekdays: string[];
-  months: string[];
-  emptyNotes: string;
-}> = {
-  no: {
-    tagline: "Kunsten å være sammen i lekens magiske verden",
-    notes: "Notater",
-    week: "UKE",
-    weekdays: ["MAN", "TIR", "ONS", "TOR", "FRE", "LØR", "SØN"],
-    months: [
-      "Januar", "Februar", "Mars", "April", "Mai", "Juni",
-      "Juli", "August", "September", "Oktober", "November", "Desember",
-    ],
-    emptyNotes: "—",
-  },
-  en: {
-    tagline: "The art of being together in play",
-    notes: "Notes",
-    week: "WK",
-    weekdays: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"],
-    months: [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
-    ],
-    emptyNotes: "—",
-  },
-};
-
-// Use Twemoji for emojis. @react-pdf can fetch each emoji as a PNG
-// from Twitter's CDN at render time. Without this, emojis would
-// render as empty boxes (Helvetica has no emoji glyphs). Format
-// `png` is the most compatible across emoji ranges.
-Font.registerEmojiSource({
-  format: "png",
-  url: "https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/72x72/",
-});
-
-// ──────────────────────────────────────────────────────────────────
-// Styles
-// ──────────────────────────────────────────────────────────────────
+const space = (step: number) => printPoints(`space-${step}`);
+const PAGE_MARGIN = space(8);
+const MAX_DAY_ENTRIES = 3;
+const MAX_WEEK_ENTRIES = 4;
+const TITLE_LIMIT = 72;
 
 const styles = StyleSheet.create({
-  page: {
-    backgroundColor: "#2C5F41",
-    color: "white",
-    padding: 0,
-    fontSize: 8,
-    fontFamily: "Helvetica",
-  },
-  header: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  headerLeft: {
-    flexDirection: "column",
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontFamily: "Helvetica-Bold",
-    color: "#FF6B35",
-    textTransform: "uppercase",
-    letterSpacing: 1,
-  },
-  headerTagline: {
-    fontSize: 8,
-    fontStyle: "italic",
-    color: "#FFF6CC",
-    marginTop: 2,
-  },
-  headerAccentBar: {
-    height: 3,
-    width: "100%",
-  },
-  body: {
-    flex: 1,
-    flexDirection: "column",
-    paddingHorizontal: 8,
-    paddingBottom: 8,
-    paddingTop: 4,
-  },
-  notes: {
-    width: "100%",
-    backgroundColor: "#FFF1F2",
-    color: "#1f2937",
-    padding: 5,
-    borderRadius: 3,
-    marginTop: 3,
-  },
-  notesTitle: {
-    fontSize: 10,
-    fontFamily: "Helvetica-Bold",
-    color: "#2C5F41",
-    marginBottom: 4,
-  },
-  notesItem: {
-    backgroundColor: "white",
-    borderRadius: 2,
-    padding: 3,
-    marginBottom: 3,
-  },
-  notesItemTitle: {
-    fontSize: 7.5,
-    fontFamily: "Helvetica-Bold",
-  },
-  notesItemDesc: {
-    fontSize: 7,
-    color: "#4b5563",
-    marginTop: 1,
-  },
-  notesEmpty: {
-    fontStyle: "italic",
-    color: "#6b7280",
-    fontSize: 8,
-  },
-  weeksColumn: {
-    flex: 1,
-    flexDirection: "column",
-  },
-  weekCard: {
-    backgroundColor: "#1f4530",
-    borderRadius: 3,
-    marginBottom: 3,
-    overflow: "hidden",
-  },
-  weekHeader: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  weekNum: {
-    color: "#FFE66B",
-    fontSize: 12,
-    fontFamily: "Helvetica-Bold",
-    marginRight: 3,
-  },
-  weekLabel: {
-    fontSize: 6.5,
-    color: "rgba(255, 246, 204, 0.75)",
-    marginRight: 6,
-    letterSpacing: 0.5,
-  },
-  weekBadgesContainer: {
-    flex: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    columnGap: 3,
-    rowGap: 2,
-  },
-  weekRange: {
-    fontSize: 6.5,
-    color: "rgba(255, 246, 204, 0.65)",
-    marginLeft: 4,
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 8,
-    fontSize: 7,
-  },
-  badgeText: {
-    fontSize: 7,
-    fontFamily: "Helvetica-Bold",
-  },
-  weekDays: {
-    flexDirection: "row",
-    backgroundColor: "rgba(44, 95, 65, 0.45)",
-    borderTopWidth: 0.5,
-    borderTopColor: "rgba(255, 255, 255, 0.05)",
-  },
-  day: {
-    flex: 1,
-    padding: 3,
-    borderRightWidth: 0.5,
-    borderRightColor: "rgba(255, 255, 255, 0.06)",
-    minHeight: 28,
-  },
-  dayLast: {
-    borderRightWidth: 0,
-  },
-  dayHead: {
-    flexDirection: "row",
-    alignItems: "baseline",
-  },
-  dayLabel: {
-    fontSize: 6,
-    color: "rgba(255, 246, 204, 0.65)",
-    marginRight: 3,
-    letterSpacing: 0.4,
-  },
-  dayNum: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
-    color: "#FFE66B",
-  },
-  dayOutOfMonth: {
-    opacity: 0.35,
-  },
-  dayWeekend: {
-    // Kindergarten is closed — dim the weekend without hiding what is on it.
-    backgroundColor: "rgba(17, 40, 28, 0.55)",
-  },
-  dayEventSignup: {
-    paddingHorizontal: 2.5,
-    paddingVertical: 1,
-    borderRadius: 1.5,
-    marginTop: 1.5,
-    backgroundColor: "#FF6B35",
-  },
-  dayEvent: {
-    paddingHorizontal: 2.5,
-    paddingVertical: 1,
-    borderRadius: 1.5,
-    marginTop: 1.5,
-    fontSize: 6.5,
-  },
+  page: { fontFamily: "Manrope", fontSize: 9, color: color.text, backgroundColor: color.white,
+    paddingTop: 100, paddingBottom: 32, paddingHorizontal: PAGE_MARGIN },
+  header: { position: "absolute", top: space(6), left: PAGE_MARGIN, right: PAGE_MARGIN,
+    backgroundColor: color.green, borderRadius: printPoints("radius-md"), padding: space(3),
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  title: { fontSize: 22, lineHeight: 1.1, fontWeight: 700, color: color.ink },
+  tagline: { fontSize: 8, lineHeight: 1.2, marginTop: space(1), color: color.text },
+  identity: { maxWidth: 220, textAlign: "right", fontSize: 8, color: color.primary, lineHeight: 1.5 },
+  weekdayHeader: { position: "absolute", top: 77, left: PAGE_MARGIN, right: PAGE_MARGIN,
+    flexDirection: "row", paddingVertical: space(2), borderBottomWidth: 0.75, borderBottomColor: color.border },
+  weekday: { flex: 1, textAlign: "left", paddingLeft: space(2), fontSize: 8, fontWeight: 600, color: color.muted },
+  railLabel: { width: 32, fontSize: 7.5, color: color.muted, textAlign: "center" },
+  week: { borderWidth: 0.75, borderColor: color.border, borderRadius: printPoints("radius-sm"),
+    overflow: "hidden", marginBottom: space(1) },
+  weekTop: { flexDirection: "row", backgroundColor: color.soft, alignItems: "center", minHeight: 22 },
+  weekNumber: { width: 32, paddingVertical: space(1), textAlign: "center", fontSize: 11, fontWeight: 700, color: color.primary },
+  weekInfo: { flex: 1, paddingHorizontal: space(2), paddingVertical: space(1), flexDirection: "row", flexWrap: "wrap", gap: space(1) },
+  band: { maxWidth: "100%", flexDirection: "row", alignItems: "center", borderRadius: printPoints("radius-sm"),
+    paddingHorizontal: space(2), paddingVertical: space(1) },
+  bandText: { fontSize: 8, lineHeight: 1.35 },
+  weekRange: { fontSize: 8, color: color.muted },
+  days: { flexDirection: "row", borderTopWidth: 0.75, borderTopColor: color.border },
+  rail: { width: 32, backgroundColor: color.soft, borderRightWidth: 0.75, borderRightColor: color.border },
+  day: { flex: 1, minWidth: 0, minHeight: 38, padding: space(1), borderRightWidth: 0.75, borderRightColor: color.border },
+  dayNumber: { fontSize: 10, fontWeight: 600, color: color.ink, marginBottom: space(1) },
+  entry: { marginTop: space(1), paddingLeft: space(1), borderLeftWidth: 2 },
+  entryTitle: { fontSize: 8.5, lineHeight: 1.3, color: color.ink },
+  more: { fontSize: 7.5, color: color.primary, marginTop: space(1), lineHeight: 1.3 },
+  notes: { marginTop: space(2), padding: space(2), backgroundColor: color.sand,
+    borderRadius: printPoints("radius-sm") },
+  sectionTitle: { fontSize: 12, fontWeight: 700, color: color.ink, marginBottom: space(2) },
+  noteTitle: { fontSize: 9, fontWeight: 600, color: color.ink },
+  noteBody: { fontSize: 8.5, lineHeight: 1.4, marginTop: space(1) },
+  detail: { paddingVertical: space(2), borderBottomWidth: 0.75, borderBottomColor: color.border },
+  detailMeta: { fontSize: 8, color: color.muted, marginBottom: space(1) },
+  footer: { position: "absolute", left: PAGE_MARGIN, right: PAGE_MARGIN, bottom: 14,
+    flexDirection: "row", justifyContent: "space-between", fontSize: 7.5, color: color.muted },
 });
 
-// ──────────────────────────────────────────────────────────────────
-// PDF components
-// ──────────────────────────────────────────────────────────────────
+function category(kind: CalendarDisplayKind, lang: Language) {
+  const t = translationFor(lang);
+  return {
+    label: kind === "stengt" ? t.yearlyCalendar.closedBadge : { ...t.calendar.kinds, ...t.entryEditor.categories }[kind],
+    dot: printToken(`cat-${kind}-dot`), text: printToken(`cat-${kind}-text`), tint: printToken(`cat-${kind}-tint`),
+  };
+}
 
-function Badge({
-  entry,
-  position,
-}: {
-  entry: YearlyCalendarEntry;
-  position: SpanPos;
-}) {
-  const { background, color } = entryColors(entry);
-  const left = position === "middle" || position === "end";
-  const right = position === "start" || position === "middle";
+function compactTitle(title: string) {
+  return title.length > TITLE_LIMIT ? `${title.slice(0, TITLE_LIMIT - 1).trimEnd()}…` : title;
+}
+
+function entryTime(entry: CalendarEntry) {
+  return entry.startTime ? `${entry.startTime}${entry.endTime ? `–${entry.endTime}` : ""}` : "";
+}
+
+function PrintEntry({ entry, lang, full = false }: { entry: CalendarEntry; lang: Language; full?: boolean }) {
+  const kind = category(entry.displayKind, lang);
   return (
-    <View style={[styles.badge, { backgroundColor: background }]}>
-      <Text style={[styles.badgeText, { color }]}>
-        {left ? "< " : ""}
-        {entry.title}
-        {right ? " >" : ""}
+    <View style={[styles.entry, { borderLeftColor: kind.dot }]}>
+      <Text style={[styles.entryTitle, entry.cancelled ? { textDecoration: "line-through" } : {}]}>
+        <Text style={{ fontSize: 7.5, color: kind.text }}>{kind.label}{entry.cancelled ? ` · ${translationFor(lang).events.cancelled2}` : ""} · </Text>
+        {entryTime(entry) ? `${entryTime(entry)} ` : ""}{full ? entry.title : compactTitle(entry.title)}
       </Text>
     </View>
   );
 }
 
-function Week({
-  week,
-  monthEntries,
-  eventsByDate,
-  weekdayLabels,
-  weekLabel,
-}: {
-  week: { weekNumber: number; days: DayCell[] };
-  monthEntries: YearlyCalendarEntry[];
-  eventsByDate: Map<string, Event[]>;
-  weekdayLabels: string[];
-  weekLabel: string;
+function Month({ year, month, entries, lang, schoolYear, notes }: {
+  year: number; month: number; entries: CalendarEntry[]; lang: Language; schoolYear: number; notes: YearlyCalendarEntry[];
 }) {
-  const weekLevel = sortByTypeAndColor(
-    monthEntries.filter((e) => {
-      if (spanPosition(e, week.weekNumber) === null) return false;
-      if (e.entryType === "week_event" || e.entryType === "food") return true;
-      if (e.entryType === "note" && e.weekNumber != null) return true;
-      return false;
-    }),
-  );
-  const dFirst = week.days[0].date;
-  const dLast = week.days[week.days.length - 1].date;
-  const range = `${dFirst.getDate()}.${dFirst.getMonth() + 1}–${dLast.getDate()}.${dLast.getMonth() + 1}`;
-
-  return (
-    <View style={styles.weekCard} wrap={false}>
-      <View style={styles.weekHeader}>
-        <Text style={styles.weekNum}>{week.weekNumber}</Text>
-        <Text style={styles.weekLabel}>{weekLabel}</Text>
-        <View style={styles.weekBadgesContainer}>
-          {weekLevel.map((entry) => (
-            <Badge
-              key={entry.id}
-              entry={entry}
-              position={spanPosition(entry, week.weekNumber)}
-            />
-          ))}
-        </View>
-        <Text style={styles.weekRange}>{range}</Text>
-      </View>
-      <View style={styles.weekDays}>
-        {week.days.map((d, idx) => {
-          const dateStr = toIsoDate(d.date);
-          const dayEntries = sortByTypeAndColor(
-            monthEntries.filter(
-              (e) => (e.entryType === "day_event" || e.entryType === "closed") && e.date === dateStr,
-            ),
-          );
-          const dayEvents = eventsByDate.get(dateStr) ?? [];
-          const isLast = idx === week.days.length - 1;
-          return (
-            <View
-              key={dateStr}
-              style={[
-                styles.day,
-                isLast ? styles.dayLast : {},
-                d.isWeekend ? styles.dayWeekend : {},
-                d.inMonth ? {} : styles.dayOutOfMonth,
-              ]}
-            >
-              <View style={styles.dayHead}>
-                <Text style={styles.dayLabel}>{weekdayLabels[idx]}</Text>
-                <Text style={styles.dayNum}>{d.date.getDate()}</Text>
-              </View>
-              {dayEntries.map((entry) => {
-                const { background, color } = entryColors(entry);
-                // Same "18:30 Tittel" shape the screen uses.
-                const label = entry.startTime
-                  ? `${entry.startTime} ${entry.title}`
-                  : entry.title;
-                return (
-                  <View
-                    key={entry.id}
-                    style={[styles.dayEvent, { backgroundColor: background }]}
-                  >
-                    <Text style={{ fontSize: 6.5, color }}>{label}</Text>
-                  </View>
-                );
-              })}
-              {/* Signup events, in the same orange as on screen. */}
-              {dayEvents.map((event) => (
-                <View key={`event-${event.id}`} style={styles.dayEventSignup}>
-                  <Text style={{ fontSize: 6.5, color: "#FFFFFF" }}>
-                    {[event.time, event.title].filter(Boolean).join(" ")}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-function Month({
-  year,
-  month,
-  entries,
-  eventsByDate,
-  lang,
-}: {
-  year: number;
-  month: number;
-  entries: YearlyCalendarEntry[];
-  eventsByDate: Map<string, Event[]>;
-  lang: Lang;
-}) {
-  const t = STRINGS[lang];
-  const monthEntries = entries.filter((e) => e.year === year && e.month === month);
+  const t = translationFor(lang);
   const weeks = weeksOfMonth(year, month);
-  const noteEntries = sortByTypeAndColor(
-    monthEntries.filter((e) => e.entryType === "note" && e.weekNumber == null),
-  );
-  const accent = monthAccent(month);
-  const monthName = t.months[month - 1].toUpperCase();
-
+  const monthName = formatDate(new Date(year, month - 1, 1), lang, { month: "long", year: "numeric" });
+  const title = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  const overflow = new Map<string, CalendarEntry>();
+  const rows = weeks.map((week) => {
+    const weekYear = isoWeekYear(week.days[0].date);
+    const bands = entries.filter((entry) => !entry.date && entry.weekYear === weekYear &&
+      entry.week <= week.weekNumber && entry.weekEnd >= week.weekNumber).sort(compareSpanningEntries);
+    bands.forEach((entry, index) => { if (index >= MAX_WEEK_ENTRIES || entry.title.length > TITLE_LIMIT) overflow.set(entry.id, entry); });
+    const days = week.days.map((day) => {
+      const dayEntries = entries.filter((entry) => entry.date === toCalendarIsoDate(day.date));
+      dayEntries.forEach((entry, index) => { if (index >= MAX_DAY_ENTRIES || entry.title.length > TITLE_LIMIT) overflow.set(entry.id, entry); });
+      return { ...day, entries: dayEntries };
+    });
+    return { week, bands, days };
+  });
   return (
     <Page size="A4" orientation="landscape" style={styles.page}>
-      <View style={[styles.headerAccentBar, { backgroundColor: accent }]} />
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerTitle}>
-            {`${monthName} ${year}`}
-          </Text>
-          <Text style={styles.headerTagline}>{t.tagline}</Text>
+      <View style={styles.header} fixed>
+        <View><Text style={styles.title}>{title}</Text><Text style={styles.tagline}>{t.calendar.tagline}</Text></View>
+        <View style={styles.identity}>
+          <Text style={{ fontWeight: 700 }}>{t.header.title}</Text>
+          <Text>{t.yearlyCalendar.schoolYearLabel} {schoolYear}/{schoolYear + 1}</Text>
         </View>
       </View>
-      <View style={[styles.headerAccentBar, { backgroundColor: accent }]} />
-      <View style={styles.body}>
-        <View style={styles.weeksColumn}>
-          {weeks.map((w) => (
-            <Week
-              key={w.weekNumber}
-              week={w}
-              monthEntries={monthEntries}
-              eventsByDate={eventsByDate}
-              weekdayLabels={t.weekdays}
-              weekLabel={t.week}
-            />
-          ))}
-        </View>
-        {noteEntries.length > 0 ? (
-          <View style={styles.notes}>
-            <Text style={styles.notesTitle}>{t.notes}</Text>
-            {noteEntries.map((n) => (
-              <View key={n.id} style={styles.notesItem}>
-                <Text style={styles.notesItemTitle}>{n.title}</Text>
-                {n.description ? (
-                  <Text style={styles.notesItemDesc}>{n.description}</Text>
-                ) : null}
-              </View>
-            ))}
+      <View style={styles.weekdayHeader} fixed>
+        <Text style={styles.railLabel}>{t.calendar.week}</Text>
+        {weeks[0].days.map((day) => <Text key={day.date.getDay()} style={styles.weekday}>
+          {formatDate(day.date, lang, { weekday: "short" })}
+        </Text>)}
+      </View>
+      {rows.map(({ week, bands, days }) => (
+        <View key={week.weekNumber} style={styles.week} wrap={false}>
+          <View style={styles.weekTop}>
+            <Text style={styles.weekNumber}>{week.weekNumber}</Text>
+            <View style={styles.weekInfo}>
+              {bands.length === 0 && <Text style={styles.weekRange}>
+                {formatDate(days[0].date, lang, { day: "numeric", month: "short" })} – {formatDate(days[6].date, lang, { day: "numeric", month: "short" })}
+              </Text>}
+              {bands.slice(0, MAX_WEEK_ENTRIES).map((entry) => {
+                const kind = category(entry.displayKind, lang);
+                return <View key={entry.id} style={[styles.band, { backgroundColor: kind.tint }]}>
+                  <Text style={[styles.bandText, { color: kind.text }]}>
+                    {kind.label}: <Text style={{ fontWeight: 600 }}>{compactTitle(entry.title)}</Text>
+                    {entry.weekEnd > entry.week ? ` · ${t.calendar.week} ${entry.week}–${entry.weekEnd}` : ""}
+                    {entry.weekdayStart && entry.weekdayEnd ? ` · ${formatDate(week.days[entry.weekdayStart - 1].date, lang, { weekday: "short" })}–${formatDate(week.days[entry.weekdayEnd - 1].date, lang, { weekday: "short" })}` : ""}
+                  </Text>
+                </View>;
+              })}
+              {bands.length > MAX_WEEK_ENTRIES && <Text style={styles.more}>+{bands.length - MAX_WEEK_ENTRIES} {t.events.more} · {t.calendarWorkspace.pdfDetails}</Text>}
+            </View>
           </View>
-        ) : null}
+          <View style={styles.days}>
+            <View style={styles.rail} />
+            {days.map((day, index) => <View key={toCalendarIsoDate(day.date)} style={[styles.day,
+              !day.inMonth ? { backgroundColor: color.outside } : day.isWeekend ? { backgroundColor: color.soft } : {},
+              index === 6 ? { borderRightWidth: 0 } : {},
+            ]}>
+              <Text style={[styles.dayNumber, !day.inMonth ? { color: color.muted } : {}]}>{day.date.getDate()}</Text>
+              {day.entries.slice(0, MAX_DAY_ENTRIES).map((entry) => <PrintEntry key={entry.id} entry={entry} lang={lang} />)}
+              {day.entries.length > MAX_DAY_ENTRIES && <Text style={styles.more}>+{day.entries.length - MAX_DAY_ENTRIES} {t.events.more} · {t.calendarWorkspace.pdfDetails}</Text>}
+            </View>)}
+          </View>
+        </View>
+      ))}
+      {notes.map((note, index) => <View key={note.id} style={styles.notes} wrap={false}>
+        {index === 0 && <Text style={styles.sectionTitle}>{t.yearlyCalendar.notes}</Text>}
+        <Text style={styles.noteTitle}>{note.title}</Text>
+        {note.description && <Text style={styles.noteBody}>{note.description}</Text>}
+      </View>)}
+      {overflow.size > 0 && <View style={{ marginTop: space(2) }}>
+        <Text style={styles.sectionTitle} minPresenceAhead={45}>{t.calendarWorkspace.pdfDetails}</Text>
+        <Text style={styles.noteBody}>{t.calendarWorkspace.pdfDetailsHint}</Text>
+        {Array.from(overflow.values()).map((entry) => <View key={entry.id} style={styles.detail} wrap={false}>
+          <Text style={styles.detailMeta}>{entry.date
+            ? formatDate(`${entry.date}T12:00:00`, lang, { weekday: "long", day: "numeric", month: "long" })
+            : `${t.calendar.week} ${entry.week}${entry.weekEnd > entry.week ? `–${entry.weekEnd}` : ""}`}</Text>
+          <PrintEntry entry={entry} lang={lang} full />
+        </View>)}
+      </View>}
+      <View style={styles.footer} fixed>
+        <Text>{t.header.title} · {t.calendarWorkspace.pdfPrintEdition}</Text>
+        <Text render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
       </View>
     </Page>
   );
 }
 
-function YearlyCalendarDocument({
-  entries,
-  events,
-  schoolYear,
-  lang,
-  year,
-  month,
-}: {
-  entries: YearlyCalendarEntry[];
-  events: Event[];
-  schoolYear: number;
-  lang: Lang;
-  year?: number;
-  month?: number;
+function YearlyCalendarDocument({ entries, events, schoolYear, lang, year, month }: {
+  entries: YearlyCalendarEntry[]; events: Event[]; schoolYear: number; lang: Language; year?: number; month?: number;
 }) {
-  const eventsByDate = new Map<string, Event[]>();
-  for (const event of events) {
-    if (!event.date) continue;
-    const bucket = eventsByDate.get(event.date);
-    if (bucket) bucket.push(event);
-    else eventsByDate.set(event.date, [event]);
-  }
-  for (const bucket of eventsByDate.values()) {
-    bucket.sort((a, b) => (a.time ?? "").localeCompare(b.time ?? "") || a.id - b.id);
-  }
-
-  const allMonths = monthsForSchoolYear(schoolYear);
-  const months = year != null && month != null
-    ? allMonths.filter((m) => m.year === year && m.month === month)
-    : allMonths;
-
-  return (
-    <Document
-      title={`Årskalender ${schoolYear}/${schoolYear + 1}`}
-      author="FAU Erdal Barnehage"
-    >
-      {months.map((m) => (
-        <Month
-          key={`${m.year}-${m.month}`}
-          year={m.year}
-          month={m.month}
-          entries={entries}
-          eventsByDate={eventsByDate}
-          lang={lang}
-        />
-      ))}
-    </Document>
-  );
+  const t = translationFor(lang);
+  const months = monthsForSchoolYear(schoolYear).filter((item) => year == null || month == null || (item.year === year && item.month === month));
+  // Keep every raw entry in print, including a day entry alongside a signup event.
+  const normalized = [...entries.map(normalizeYearlyEntry), ...events.map((event) => normalizeEvent(event))]
+    .filter((entry): entry is CalendarEntry => entry !== null)
+    .sort((a, b) => a.sortKey - b.sortKey || (a.startTime ?? "").localeCompare(b.startTime ?? ""));
+  return <Document title={`${t.calendar.title} ${schoolYear}/${schoolYear + 1}`} author={t.header.title} language={lang}>
+    {months.map((item) => <Month key={`${item.year}-${item.month}`} {...item} entries={normalized} lang={lang} schoolYear={schoolYear}
+      notes={entries.filter((entry) => entry.entryType === "note" && entry.weekNumber == null && yearlyCalendarEntryOverlapsMonth(entry, item.year, item.month))} />)}
+  </Document>;
 }
 
-// ──────────────────────────────────────────────────────────────────
-// Public API
-// ──────────────────────────────────────────────────────────────────
-
-function pdfFilename(opts: {
-  schoolYear: number;
-  year?: number;
-  month?: number;
-  lang: Lang;
-}): string {
-  if (opts.year != null && opts.month != null) {
-    const monthName = STRINGS[opts.lang].months[opts.month - 1].toLowerCase();
-    return `arskalender-${monthName}-${opts.year}.pdf`;
-  }
-  return `arskalender-${opts.schoolYear}-${opts.schoolYear + 1}.pdf`;
-}
-
-/**
- * Generate a yearly calendar PDF in the browser and trigger a download.
- *
- * Returns nothing — completes when the file has been handed off to
- * the browser's download mechanism. Throws on failure (callers should
- * surface the error via toast).
- */
 export async function downloadYearlyCalendarPdf(opts: {
-  entries: YearlyCalendarEntry[];
-  /** Signup events, printed alongside the yearly entries. */
-  events?: Event[];
-  schoolYear: number;
-  lang: Lang;
-  year?: number;
-  month?: number;
+  entries: YearlyCalendarEntry[]; events?: Event[]; schoolYear: number; lang: Language; year?: number; month?: number;
 }): Promise<void> {
-  const blob = await pdf(
-    <YearlyCalendarDocument
-      entries={opts.entries}
-      events={opts.events ?? []}
-      schoolYear={opts.schoolYear}
-      lang={opts.lang}
-      year={opts.year}
-      month={opts.month}
-    />,
-  ).toBlob();
-  const filename = pdfFilename(opts);
+  const blob = await pdf(<YearlyCalendarDocument {...opts} events={opts.events ?? []} />).toBlob();
+  const monthName = opts.month ? formatDate(new Date(opts.year ?? opts.schoolYear, opts.month - 1, 1), opts.lang, { month: "long" }).toLowerCase() : "";
+  const filename = opts.year != null && opts.month != null
+    ? `arskalender-${monthName}-${opts.year}.pdf` : `arskalender-${opts.schoolYear}-${opts.schoolYear + 1}.pdf`;
   const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
   URL.revokeObjectURL(url);
 }

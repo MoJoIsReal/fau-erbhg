@@ -37,9 +37,11 @@ list also exposes yearly entries hidden by filters or deduplicated against event
 Staff can edit yearly entries; only council roles can edit signup events.
 
 PDF downloads (selected month or full August–July school year) are public in the
-month view, including on phones. They use the existing poster layout and complete
-source rows, regardless of active filters; downloads stay disabled if a required
-source failed to load. Signup events and cancelled events are included as before.
+month view, including on phones. They use the light design tokens and bundled
+Manrope fonts in an A4 landscape layout, with complete source rows regardless of active filters. Long titles and
+additional entries continue in a detail section instead of being lost. Week spans
+are matched by their dates across month boundaries. Downloads stay disabled if a
+required source failed to load. Signup events and cancelled events are included.
 Excel import/export remains in the editor toolbar, scoped to the displayed month’s
 school year (or the current school year in List view).
 
