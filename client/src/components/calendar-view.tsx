@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -47,13 +47,22 @@ type WeekBand = {
 };
 
 /**
- * The month as a grid, with the picked day written out underneath it.
+ * The month as a grid, with the picked day written out beside it.
  *
  * A cell has room for a dot and a few words, which is enough to see that
  * something is there but never enough to act on. Rather than cram the detail
  * in — or throw a panel over the grid you just navigated to — the day you pick
- * opens below it, where there is room for the time, the place and the signup
- * (guide §10B).
+ * opens in a column of its own, where there is room for the time, the place
+ * and the signup (guide §10B).
+ *
+ * From 1280px that column sits to the right of the grid and sticks as you
+ * scroll, so picking a day changes something you are already looking at. It
+ * used to open underneath, where on a tall month it landed below the fold and
+ * people did not notice it had opened at all. The column is always rendered
+ * once it fits, holding a short prompt when nothing is picked, so the grid
+ * does not resize under the pointer every time a day is selected or cleared.
+ * Narrower than that there is no room beside a seven-column grid, so the
+ * panel stays underneath — and scrolls itself into view instead.
  *
  * What lasts a whole week — the hot meal, a temauke, a notice — has no day of
  * its own, so it is drawn as a band across the top of its week row, over the
@@ -76,6 +85,7 @@ export default function CalendarView({
   const { language, t } = useLanguage();
   const todayIso = toCalendarIsoDate(new Date());
   const [selected, setSelected] = useState<Selection | null>(null);
+  const detailRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
   const weeks = useMemo(() => weeksOfMonth(month.year, month.month), [month.year, month.month]);
@@ -137,6 +147,19 @@ export default function CalendarView({
     [entries, weeks],
   );
 
+  // Below the two-column breakpoint the panel opens under the grid, which on a
+  // tall month can be past the fold — the whole reason it moved beside the
+  // grid in the first place. Bring it into view there, honouring the reader's
+  // motion preference. `block: "nearest"` so a panel already on screen does
+  // not jump.
+  useEffect(() => {
+    if (!selected) return;
+    const panel = detailRef.current;
+    if (!panel || window.matchMedia("(min-width: 1280px)").matches) return;
+    const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    panel.scrollIntoView({ behavior: still ? "auto" : "smooth", block: "nearest" });
+  }, [selected]);
+
   const step = (direction: -1 | 1) => {
     setSelected(null);
     setExpanded(new Set());
@@ -179,7 +202,7 @@ export default function CalendarView({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
       <Surface className="overflow-hidden">
         {/* The month nav wraps on a narrow phone rather than squeezing
             "September 2026" into an ellipsis next to two chevrons. */}
@@ -419,112 +442,124 @@ export default function CalendarView({
         </div>
       </Surface>
 
-      {selected && (
-        <Surface className="p-5 sm:p-6" as="section" aria-live="polite">
-          <h3
-            className={`text-h4 font-bold text-ink ${selected.kind === "day" ? "capitalize" : ""}`}
-          >
-            {selected.kind === "day"
-              ? formatDate(new Date(selected.iso), language, {
-                  weekday: "long",
-                  day: "numeric",
-                  month: "long",
-                  year: "numeric",
-                })
-              : weekHeading(selected.weekYear, selected.week)}
-          </h3>
+      {/* Sticky under the site header from the breakpoint where the column
+          exists, so the day you picked stays put while you keep scanning the
+          month. `top` clears the header's own height. */}
+      <div ref={detailRef} className="xl:sticky xl:top-24">
+        {selected ? (
+          <Surface className="p-5 sm:p-6" as="section" aria-live="polite">
+            <h3
+              className={`text-h4 font-bold text-ink ${selected.kind === "day" ? "capitalize" : ""}`}
+            >
+              {selected.kind === "day"
+                ? formatDate(new Date(selected.iso), language, {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })
+                : weekHeading(selected.weekYear, selected.week)}
+            </h3>
 
-          {selectedEntries.length === 0 ? (
-            <p className="mt-3 text-small text-subtle">
-              {selected.kind === "day" ? t.calendar.noEventsThisDay : t.calendar.noEventsThisWeek}
-            </p>
-          ) : (
-            <div className="mt-5 divide-y divide-hairline">
-              {selectedEntries.map((entry) => {
-                const style = KIND_STYLE[entry.kind];
-                const time = entry.startTime
-                  ? entry.endTime
-                    ? `${entry.startTime} – ${entry.endTime}`
-                    : entry.startTime
-                  : entry.date
-                    ? t.calendar.allDay
-                    : sentenceCase(t.calendar.allWeek);
+            {selectedEntries.length === 0 ? (
+              <p className="mt-3 text-small text-subtle">
+                {selected.kind === "day" ? t.calendar.noEventsThisDay : t.calendar.noEventsThisWeek}
+              </p>
+            ) : (
+              <div className="mt-5 divide-y divide-hairline">
+                {selectedEntries.map((entry) => {
+                  const style = KIND_STYLE[entry.kind];
+                  const time = entry.startTime
+                    ? entry.endTime
+                      ? `${entry.startTime} – ${entry.endTime}`
+                      : entry.startTime
+                    : entry.date
+                      ? t.calendar.allDay
+                      : sentenceCase(t.calendar.allWeek);
 
-                return (
-                  <article key={entry.id} className="space-y-2 py-5 first:pt-0 last:pb-0">
-                    <span
-                      className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-micro font-semibold ${style.tint} ${style.text}`}
-                    >
-                      <span className={`h-2 w-2 rounded-pill ${style.dot}`} aria-hidden="true" />
-                      {t.calendar.kinds[entry.kind]}
-                    </span>
-
-                    <h4
-                      className={`text-h3 font-bold tracking-tight text-ink ${
-                        entry.cancelled ? "line-through decoration-1" : ""
-                      }`}
-                    >
-                      {entry.title}
-                    </h4>
-                    {entry.cancelled && (
-                      <StatusPill tone="warn">{t.events.cancelled2}</StatusPill>
-                    )}
-
-                    <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-small text-subtle">
-                      <span className="flex items-center gap-1.5 tabular-nums">
-                        <Clock className="h-4 w-4" aria-hidden="true" />
-                        {time}
+                  return (
+                    <article key={entry.id} className="space-y-2 py-5 first:pt-0 last:pb-0">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-micro font-semibold ${style.tint} ${style.text}`}
+                      >
+                        <span className={`h-2 w-2 rounded-pill ${style.dot}`} aria-hidden="true" />
+                        {t.calendar.kinds[entry.kind]}
                       </span>
-                      {/* A band can reach past the week you clicked, so it
-                          says how far rather than leaving it to the grid. */}
-                      {!entry.date && entry.weekEnd > entry.week && (
-                        <span className="tabular-nums">
-                          {t.calendar.week} {entry.week}–{entry.weekEnd}
-                        </span>
-                      )}
-                      {entry.location && (
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="h-4 w-4" aria-hidden="true" />
-                          {entry.location}
-                        </span>
-                      )}
-                    </div>
 
-                    {entry.description && (
-                      <SafeHtml html={entry.description} className="measure text-small text-copy" />
-                    )}
+                      <h4
+                        className={`text-h3 font-bold tracking-tight text-ink ${
+                          entry.cancelled ? "line-through decoration-1" : ""
+                        }`}
+                      >
+                        {entry.title}
+                      </h4>
+                      {entry.cancelled && (
+                        <StatusPill tone="warn">{t.events.cancelled2}</StatusPill>
+                      )}
 
-                    {entry.signup?.mode === "registration" && !entry.cancelled && (
-                      <div className="flex flex-wrap items-center gap-3 pt-1">
-                        {entry.signup.maxAttendees !== null && (
-                          <span className="text-small tabular-nums text-subtle">
-                            {entry.signup.currentAttendees}/{entry.signup.maxAttendees}{" "}
-                            {t.events.attendees}
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-small text-subtle">
+                        <span className="flex items-center gap-1.5 tabular-nums">
+                          <Clock className="h-4 w-4" aria-hidden="true" />
+                          {time}
+                        </span>
+                        {/* A band can reach past the week you clicked, so it
+                            says how far rather than leaving it to the grid. */}
+                        {!entry.date && entry.weekEnd > entry.week && (
+                          <span className="tabular-nums">
+                            {t.calendar.week} {entry.week}–{entry.weekEnd}
                           </span>
                         )}
-                        <Button
-                          size="sm"
-                          className="rounded-pill"
-                          disabled={!entry.signup.isOpen}
-                          onClick={() => onRegister(entry)}
-                        >
-                          {entry.signup.isFull
-                            ? t.events.full
-                            : entry.signup.deadlinePassed
-                              ? t.events.registrationClosed
-                              : t.events.register}
-                        </Button>
+                        {entry.location && (
+                          <span className="flex items-center gap-1.5">
+                            <MapPin className="h-4 w-4" aria-hidden="true" />
+                            {entry.location}
+                          </span>
+                        )}
                       </div>
-                    )}
 
-                    {editorActionsFor?.(entry)}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </Surface>
-      )}
+                      {entry.description && (
+                        <SafeHtml html={entry.description} className="measure text-small text-copy" />
+                      )}
+
+                      {entry.signup?.mode === "registration" && !entry.cancelled && (
+                        <div className="flex flex-wrap items-center gap-3 pt-1">
+                          {entry.signup.maxAttendees !== null && (
+                            <span className="text-small tabular-nums text-subtle">
+                              {entry.signup.currentAttendees}/{entry.signup.maxAttendees}{" "}
+                              {t.events.attendees}
+                            </span>
+                          )}
+                          <Button
+                            size="sm"
+                            className="rounded-pill"
+                            disabled={!entry.signup.isOpen}
+                            onClick={() => onRegister(entry)}
+                          >
+                            {entry.signup.isFull
+                              ? t.events.full
+                              : entry.signup.deadlinePassed
+                                ? t.events.registrationClosed
+                                : t.events.register}
+                          </Button>
+                        </div>
+                      )}
+
+                      {editorActionsFor?.(entry)}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </Surface>
+        ) : (
+          // Only from the two-column breakpoint: stacked, an empty panel under
+          // the grid would be a box that says nothing. Beside it, the column
+          // has to hold its width or the grid reflows on every click.
+          <Surface className="hidden p-5 sm:p-6 xl:block" as="section">
+            <p className="text-small text-subtle">{t.calendar.pickADay}</p>
+          </Surface>
+        )}
+      </div>
     </div>
   );
 }
