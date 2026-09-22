@@ -185,6 +185,7 @@ export interface Translations {
       temauke: string;
       stengt: string;
       beskjed: string;
+      info: string;
     };
     subscribe: string;
     subscribeTitle: string;
@@ -849,6 +850,9 @@ export interface Translations {
       date: string;
       color: string;
       colorHint: string;
+      category: string;
+      categoryAuto: string;
+      categoryHint: string;
       showOnHomepage: string;
       showOnHomepageHint: string;
       showForParents: string;
@@ -1147,6 +1151,7 @@ export const translations: Record<Language, Translations> = {
         temauke: "Temauke",
         stengt: "Stengt",
         beskjed: "Beskjed",
+        info: "Info",
       },
       subscribe: "Abonner på kalenderen",
       subscribeTitle: "Abonner på kalenderen",
@@ -1809,6 +1814,9 @@ export const translations: Record<Language, Translations> = {
         date: "Dato",
         color: "Farge",
         colorHint: "Standardfarge bestemmes av type. Velg en farge her kun for spesielle unntak.",
+        category: "Kategori",
+        categoryAuto: "Følg typen",
+        categoryHint: "Merkelappen oppføringen får i kalenderen, og filteret den svarer på. Typen over sier bare om det er en dag, en uke eller et notat \u2014 en dato kan like gjerne være en frist (Info), et SU-møte (Internt) eller noe foreldrene inviteres til.",
         showOnHomepage: "Vis på hjemmesiden (I barnehagen)",
         showOnHomepageHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"I barnehagen\".",
         showForParents: "Vis på hjemmesiden (For foreldre)",
@@ -2105,6 +2113,7 @@ export const translations: Record<Language, Translations> = {
         temauke: "Theme week",
         stengt: "Closed",
         beskjed: "Notice",
+        info: "Info",
       },
       subscribe: "Subscribe to the calendar",
       subscribeTitle: "Subscribe to the calendar",
@@ -2767,6 +2776,9 @@ export const translations: Record<Language, Translations> = {
         date: "Date",
         color: "Color",
         colorHint: "Default colour is determined by entry type. Pick a colour here only for special exceptions.",
+        category: "Category",
+        categoryAuto: "Follow the type",
+        categoryHint: "The label this entry gets in the calendar, and the filter it answers to. The type above only says whether it is a day, a week or a note \u2014 a dated row can just as well be a deadline (Info), an internal SU meeting, or something parents are invited to.",
         showOnHomepage: "Show on homepage (At the kindergarten)",
         showOnHomepageHint: "Appears under \"Upcoming events\" on the front page, marked \"At the kindergarten\".",
         showForParents: "Show on homepage (For parents)",

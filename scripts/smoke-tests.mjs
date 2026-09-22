@@ -380,6 +380,34 @@ function testClientRegressionGuards() {
     'Week-spanning entries must not be stacked into the Monday cell of their week',
   );
 
+  const calendarShared = readFileSync(
+    new URL('../shared/calendar-entries.js', import.meta.url),
+    'utf8',
+  );
+  // entry_type says what shape a row has; category says what it is. Deriving
+  // the chip from the type again is what made every dated row read "I
+  // barnehagen", deadlines and internal meetings included.
+  assert.match(
+    calendarShared,
+    /const kind = calendarKindForEntry\(entry\);/,
+    'A yearly entry must take its kind from its category, not from its entry type',
+  );
+  assert.match(
+    calendarShared,
+    /item\.entry\?\.entryType === 'day_event'/,
+    'The event/day-entry dedupe must key on the row shape, not on the bhgdag kind',
+  );
+
+  const yearlyApi = readFileSync(
+    new URL('../api/yearly-calendar.js', import.meta.url),
+    'utf8',
+  );
+  assert.match(
+    yearlyApi,
+    /YEARLY_CALENDAR_CATEGORIES\.includes\(body\.category\)/,
+    'The yearly-calendar handler must validate category against the shared list',
+  );
+
   const illustrations = readFileSync(
     new URL('../client/src/components/site/illustrations.ts', import.meta.url),
     'utf8',

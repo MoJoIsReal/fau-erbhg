@@ -242,6 +242,14 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   title: text("title").notNull(),
   description: text("description"),
   color: text("color"), // optional CSS color hint, e.g. "red", "yellow", "green"
+  // The category chip the calendar shows, and the filter it answers to. NULL
+  // means "derive it from entryType", which is what every row did before this
+  // column existed. It is separate from entryType because that field says what
+  // *shape* a row has — one day, a whole week, a note across a span — and a
+  // dated row is not automatically "I barnehagen": it can be a deadline
+  // (info), an SU meeting (internt) or a festival the parents are invited to.
+  // Values are the calendar's kinds from shared/calendar-entries.js.
+  category: text("category"),
   // When true (only meaningful for day_event entries), surface this entry in
   // the homepage "Kommende arrangementer" list with an "I barnehagen" badge.
   showOnHomepage: boolean("show_on_homepage").default(false),

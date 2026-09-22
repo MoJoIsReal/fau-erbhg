@@ -99,6 +99,12 @@ export const KIND_STYLE: Record<CalendarEntryKind, CalendarKindStyle> = {
     bar: "border-l-cat-beskjed-dot",
     tint: "bg-cat-beskjed-tint",
   },
+  info: {
+    dot: "bg-cat-info-dot",
+    text: "text-cat-info-text",
+    bar: "border-l-cat-info-dot",
+    tint: "bg-cat-info-tint",
+  },
 };
 
 /** The dot on its own, for a row that carries no kind label. */

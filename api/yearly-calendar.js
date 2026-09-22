@@ -7,6 +7,7 @@ import {
   sanitizeNumber,
 } from './_shared/middleware.js';
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
+import { YEARLY_CALENDAR_CATEGORIES } from '../shared/calendar-entries.js';
 import {
   buildImportPreview,
   supportsYearlyCalendarNewsletter,
@@ -44,6 +45,9 @@ function mapEntry(row) {
     year: row.year,
     month: row.month,
     entryType: row.entry_type,
+    // NULL means "follow the entry type", which is what every row did before
+    // the column existed — calendarKindForEntry resolves it.
+    category: row.category ?? null,
     weekNumber: row.week_number,
     weekNumberEnd: row.week_number_end,
     weekdayStart: row.weekday_start,
@@ -66,6 +70,10 @@ function mapEntry(row) {
 
 function sanitizeEntryPayload(body) {
   const entryType = VALID_ENTRY_TYPES.includes(body.entryType) ? body.entryType : null;
+  // An unknown category falls back to null rather than being rejected: null
+  // reads as "follow the entry type", which is the behaviour every row had
+  // before the column existed.
+  const category = YEARLY_CALENDAR_CATEGORIES.includes(body.category) ? body.category : null;
   const title = sanitizeText(body.title, 200);
   const description = body.description ? sanitizeText(body.description, 1000) : null;
   const color = sanitizeColor(body.color);
@@ -96,6 +104,7 @@ function sanitizeEntryPayload(body) {
 
   return {
     entryType,
+    category,
     title,
     description,
     color,
@@ -344,11 +353,11 @@ export default withApiHandler(async function handler(req, res) {
     const now = new Date().toISOString();
     const created = await sql`
       INSERT INTO yearly_calendar_entries (
-        school_year, year, month, entry_type, week_number, week_number_end,
+        school_year, year, month, entry_type, category, week_number, week_number_end,
         weekday_start, weekday_end, date, start_time, end_time, title, description, color,
         show_on_homepage, show_for_parents, notify_newsletter, created_by, created_at, updated_at
       ) VALUES (
-        ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber}, ${payload.weekNumberEnd},
+        ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.category}, ${payload.weekNumber}, ${payload.weekNumberEnd},
         ${payload.weekdayStart}, ${payload.weekdayEnd}, ${payload.date}, ${payload.startTime}, ${payload.endTime}, ${payload.title}, ${payload.description}, ${payload.color},
         ${payload.showOnHomepage}, ${payload.showForParents}, ${payload.notifyNewsletter}, ${user.name || user.username || 'ukjent'}, ${now}, ${now}
       )
@@ -373,6 +382,7 @@ export default withApiHandler(async function handler(req, res) {
           year = ${payload.year},
           month = ${payload.month},
           entry_type = ${payload.entryType},
+          category = ${payload.category},
           week_number = ${payload.weekNumber},
           week_number_end = ${payload.weekNumberEnd},
           weekday_start = ${payload.weekdayStart},

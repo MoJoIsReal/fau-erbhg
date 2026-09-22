@@ -29,6 +29,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { YearlyCalendarEntry } from "@shared/schema";
+import type { CalendarEntryKind } from "@shared/calendar-entries";
+import { YEARLY_CALENDAR_CATEGORIES } from "@shared/calendar-entries";
+import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
 
 export type EntryDraft = {
@@ -36,6 +39,14 @@ export type EntryDraft = {
   year: number;
   month: number;
   entryType: "week_event" | "day_event" | "food" | "note" | "closed";
+  /**
+   * The category chip the calendar shows. Separate from `entryType`, which
+   * only says what shape the row has: a dated row is not automatically "I
+   * barnehagen" — it can be a registration deadline, an internal SU meeting
+   * or a festival the parents are invited to. `null` follows the type, which
+   * is what every row did before this field existed.
+   */
+  category?: CalendarEntryKind | null;
   weekNumber?: number | null;
   weekNumberEnd?: number | null;
   date?: string | null;
@@ -59,6 +70,9 @@ interface Props {
 
 const TYPES: EntryDraft["entryType"][] = ["week_event", "day_event", "food", "closed", "note"];
 
+/** What the category select means by "follow the type". */
+const FOLLOWS_TYPE = "__auto__";
+
 const COLORS = ["red", "yellow", "green", "orange", "blue", "pink", "purple"] as const;
 
 const PRESET_HEX: Record<(typeof COLORS)[number], string> = {
@@ -81,6 +95,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const isEditing = !!existing?.id;
 
   const [entryType, setEntryType] = useState<EntryDraft["entryType"]>("week_event");
+  const [category, setCategory] = useState<string>(FOLLOWS_TYPE);
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(1);
   const [weekNumber, setWeekNumber] = useState<string>("");
@@ -99,6 +114,9 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     if (!isOpen) return;
     const seed: any = existing ?? initial ?? {};
     setEntryType((seed.entryType as EntryDraft["entryType"]) || "week_event");
+    setCategory(
+      typeof seed.category === "string" && seed.category ? seed.category : FOLLOWS_TYPE,
+    );
     setYear(seed.year ?? new Date().getFullYear());
     setMonth(seed.month ?? 1);
     setWeekNumber(seed.weekNumber != null ? String(seed.weekNumber) : "");
@@ -125,6 +143,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         year,
         month,
         entryType,
+        category: category === FOLLOWS_TYPE ? null : category,
         title,
         description: description || null,
         color: color || null,
@@ -222,6 +241,30 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          <div>
+            <Label>{t.yearlyCalendar.modal.category}</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FOLLOWS_TYPE}>
+                  {t.yearlyCalendar.modal.categoryAuto}
+                </SelectItem>
+                {YEARLY_CALENDAR_CATEGORIES.map((kind) => (
+                  <SelectItem key={kind} value={kind}>
+                    <span className="flex items-center gap-2">
+                      <span
+                        className={`h-2 w-2 shrink-0 rounded-pill ${KIND_STYLE[kind].dot}`}
+                        aria-hidden="true"
+                      />
+                      {t.calendar.kinds[kind]}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-subtle">{t.yearlyCalendar.modal.categoryHint}</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
