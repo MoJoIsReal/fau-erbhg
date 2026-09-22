@@ -179,7 +179,6 @@ export default function Contact() {
       <PageHero
         layout="editorial"
         tone="peach"
-        nativeRatio
         priority
         title={t.contact.title}
         lead={t.contact.heroLead}

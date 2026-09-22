@@ -1,14 +1,30 @@
 # Source illustrations
 
 The six commissioned originals, one per page, each with a `-dark` sibling
-drawn as the same scene after nightfall, at the resolution they were delivered
+drawn as the same place after nightfall, at the resolution they were delivered
 in (~2.4MB PNG each). **Nothing here is served.** They live outside `client/`
 on purpose: `client/public/` is copied verbatim into the Vercel deploy, so
 keeping them there shipped 14MB of unresized PNG to every visitor.
 
-What ships is the webp/jpg pair derived from each into
+What ships is the webp/jpg pairs derived from each into
 `client/src/assets/illustrations/`, which Vite fingerprints and which
-`client/src/components/site/illustrations.ts` serves through a `srcset`.
+`client/src/components/site/illustrations.ts` serves through a `<picture>`.
+
+## Two crops per scene
+
+Each original is cut **twice**, because a hero is a 3:1 ribbon on a laptop and
+close to 4:3 on a phone and one rectangle cannot be both — `object-fit: cover`
+would just eat the sides on the phone and take the noticeboard, the postbox or
+a child with it:
+
+- `hero-<page>-<w>` — the **wide** crop, for the desktop band or column.
+- `hero-<page>-narrow-<w>` — the **narrow** crop, composed for a phone around
+  whatever that page's picture is actually about.
+
+`-dark` goes before the width in both (`hero-news-narrow-dark-430.webp`).
+`Artwork` picks between the two with a `media` query, so exactly one is
+fetched, and the phone frame then renders the narrow crop at its own ratio —
+nothing is cropped a second time.
 
 ## Regenerating a derivative
 
@@ -34,20 +50,33 @@ for (const w of [small, large]) {
 }
 ```
 
-Then update the `width`/`height` passed to `set()` in `illustrations.ts` —
-they are the crop's dimensions, and the layout reserves space from them.
+Widths are `[840, 1400]` for a wide band, `[782, 1120]` for the home column,
+`[620, 960]` for the values banner and `[430, 860]` for a narrow crop (743
+rather than 860 where the crop has no more pixels than that). Then update the
+`width`/`height` passed to `source()` in `illustrations.ts` — they are the
+crop's dimensions, and the layout reserves space and picks its ratios from
+them.
 
 ## The dark siblings
 
-`<source>-dark.png` derives to `<name>-dark-<w>.{webp,jpg}` through the same
-loop, and `Artwork` serves it whenever the dark theme is on. Use the *same*
-crop rectangle as the daylight version: the night scenes are drawn to the same
-geometry, so the two themes then frame the same thing. `contact-mailbox-dark`
-is the one exception — it was delivered 1672×941 where the day version is
-1916×821, so it is cropped to (0, 60, 1672×717) to keep the hero's proportions,
-which `illustrations.ts` records beside the set.
+Dark mode is a **swap, not a filter**: `Artwork` serves the night file whole,
+with no grayscale, dimming or overlay over it.
 
-## The two rules a crop has to obey
+Where the night scene was drawn to the same geometry as its daylight sibling
+— Hjem, Aktuelt, Kalender — use the *same* crop rectangle, and the two themes
+then frame the same thing. Two were redrawn rather than repainted and need
+their own rectangles:
+
+- **`contact-mailbox-dark`** was delivered 1672×941 where the day version is
+  1916×821, and moves the postbox to the right with no handwriting at all.
+- **`documents-information-dark`** is a different scene entirely: a desk by
+  lamplight, no signpost, the fjord seen past a window.
+
+Cut those to the *same ratio* as their daylight crop, so the page keeps one
+shape in both themes. `illustrations.ts` records each rectangle beside its
+set.
+
+## The three rules a crop has to obey
 
 1. Wherever a signpost appears it reads **FOR BARNA / SAMMEN / ENGASJEMENT**,
    complete. Never two of the three. This holds in both themes.
@@ -55,3 +84,5 @@ which `illustrations.ts` records beside the set.
    lettering that repeats the page's own heading, or a line the page already
    prints as HTML. "Små mennesker, store dager" stays a secondary brand
    phrase, but not on the page that prints it.
+3. An edge never cuts *through* lettering: it either clears a phrase
+   completely or keeps all of it.

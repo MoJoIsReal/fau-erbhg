@@ -155,7 +155,18 @@ Dark mode is a derived theme, not a second design: the same hues re-anchored on
 an ink ground in the `.dark` block. Anything you add should work by swapping
 tokens, not by adding `dark:` variants. The page illustrations are the one
 exception a token cannot cover — each was drawn a second time as a night scene,
-and `Artwork` serves that file instead when the dark theme is on.
+and `Artwork` serves that file instead when the dark theme is on. It is a swap,
+never a treatment: no grayscale, dimming or overlay over a night drawing.
+
+Each illustration is also cut **twice** — a wide crop for the desktop band or
+column and a narrow one composed for a phone — and `Artwork` art-directs
+between them with a `media` query, so a phone frame shows a picture framed for
+a phone rather than a centre-crop of a ribbon. Every rectangle, and the
+`object-position` each breakpoint tier holds on to, is documented in
+`client/src/components/site/illustrations.ts`; regenerate derivatives per
+`attached_assets/illustrations/README.md`. Whatever the crop, a signpost always
+reads FOR BARNA / SAMMEN / ENGASJEMENT complete, and no edge ever cuts through
+the artwork's lettering.
 
 Accessibility is part of the system, not a later pass: 4.5:1 for body text
 (3:1 for large text and meaningful graphics) in **both** themes, a visible 3px

@@ -169,13 +169,17 @@ export default function Files() {
 
   return (
     <div className="section-rhythm">
-      {/* A compact hero: the list below is the page, so the band is shallow
-          — but the page still needs an identity of its own, which is the
-          blue/slate tone plus its own crop (guide v1.1 §21). */}
+      {/* Split, not a band: this scene keeps "Nyttig og oversiktlig" and the
+          whole signpost, and those two overlap vertically, so the crop cannot
+          go wider than 2:1 without cutting one of them (see illustrations.ts).
+          Beside the heading it is a picture; stretched across the page it was
+          a blue slab with a photograph under it. The list below stays plain.
+          Identity is the blue/slate tone plus this page's own scene (guide
+          v1.1 §21). */}
       <PageHero
-        layout="editorial"
+        layout="split"
         tone="blue"
-        nativeRatio
+        titleSize="h1"
         priority
         title={t.documents.title}
         lead={t.documents.heroLead}

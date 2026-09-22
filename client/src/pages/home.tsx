@@ -102,10 +102,13 @@ export default function Home() {
 
   return (
     <div className="section-rhythm">
-      {/* Split, not a band: the only crop of the welcome artwork that clears
-          its own baked headline is a near-square block of the right-hand
-          side, and that belongs in a full-height column beside the text
-          rather than stretched across one (see illustrations.ts). */}
+      {/* Split, not a band: the welcome artwork writes "Velkommen til FAU
+          Erdal Barnehage" across its own sky, and the page says that in HTML,
+          so the only rectangle that clears the lettering is the right-hand
+          block — children, signpost, fjord (see illustrations.ts). Given the
+          larger of the two columns it opens the page at roughly 1288×510,
+          which is the presence the drawing was composed for; cut into a band
+          it would be a strip. */}
       <PageHero
         layout="split"
         tone="sand"

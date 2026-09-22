@@ -82,7 +82,13 @@ export function IllustrationBanner({
   return (
     <section className="overflow-hidden rounded-hero bg-green-50">
       <div className="grid md:grid-cols-2">
-        <div className="aspect-[16/9] md:aspect-auto md:h-full md:min-h-[240px]">
+        {/* Stacked, the band takes the narrow crop's own ratio so the phone
+            sees the picture the phone crop was cut for; side by side it fills
+            whatever height the text column asks for. */}
+        <div
+          className="md:aspect-auto md:h-full md:min-h-[240px]"
+          style={{ aspectRatio: art.ratio.narrow }}
+        >
           <Artwork illustration={art} alt={alt} sizes="(min-width: 768px) 50vw, 100vw" />
         </div>
         <div className="px-5 py-8 sm:px-8 md:px-10 md:py-10">

@@ -111,7 +111,6 @@ export default function News() {
       <PageHero
         layout="editorial"
         tone="sand"
-        nativeRatio
         priority
         title={t.navigation.updates}
         lead={t.newsPage.heroLead}
