@@ -18,8 +18,24 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DndContext,
+  KeyboardSensor,
+  MouseSensor,
+  TouchSensor,
+  closestCenter,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type Announcements,
+  type DragEndEvent,
+  type KeyboardCoordinateGetter,
+  type UniqueIdentifier,
+} from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Save } from "lucide-react";
+import { GripVertical, Loader2, Plus, Trash2, Save } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { FauBoardMember } from "@shared/schema";
 import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
@@ -43,6 +59,166 @@ function getRoleLabel(role: string, t: any): string {
   }
 }
 
+/** A row in the board editor: a member, plus a key that survives a reorder. */
+type BoardRow = Partial<FauBoardMember> & { uid: string };
+
+// An unsaved row needs an identity of its own. Dragging changes every index,
+// so a key derived from the position would follow the position rather than the
+// row, and the input you were typing in would jump to another member.
+let unsavedRows = 0;
+const newRowUid = () => `row-new-${(unsavedRows += 1)}`;
+
+// dnd-kit's keyboard default is 25px per arrow press, which in a list of
+// ~90px rows means four presses before anything moves. A press should be a
+// position, so the step is the row's own height plus the list's gap.
+const ROW_GAP = 16;
+const rowKeyboardCoordinates: KeyboardCoordinateGetter = (event, { currentCoordinates, context }) => {
+  if (event.code !== "ArrowDown" && event.code !== "ArrowUp") return undefined;
+  event.preventDefault();
+  const height = context.activeNode?.getBoundingClientRect().height ?? 0;
+  const step = height + ROW_GAP;
+  return {
+    ...currentCoordinates,
+    y: currentCoordinates.y + (event.code === "ArrowDown" ? step : -step),
+  };
+};
+
+const fill = (template: string, values: Record<string, string>) =>
+  template.replace(/\{(\w+)\}/g, (_, key: string) => values[key] ?? "");
+
+interface BoardMemberRowProps {
+  row: BoardRow;
+  index: number;
+  onChange: (uid: string, field: "name" | "role", value: string) => void;
+  onRemove: (uid: string) => void;
+  deleting: boolean;
+}
+
+/**
+ * One member of the board, and the unit the list reorders.
+ *
+ * The row is both what you pick up and what you can drop on, so a drop reads
+ * as "take this member's place" and the list needs no separate drop zone
+ * between every pair of rows. Only the grip is a drag handle — the name field
+ * has to stay a text field you can select inside of.
+ */
+function BoardMemberRow({ row, index, onChange, onRemove, deleting }: BoardMemberRowProps) {
+  const { language, t } = useLanguage();
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } =
+    useDraggable({ id: row.uid });
+  const { isOver, setNodeRef: setDropNodeRef } = useDroppable({ id: row.uid });
+  const name = row.name?.trim() || t.settings.unnamedMember;
+
+  // The same element is the draggable and the drop target, which is two refs
+  // for one node.
+  const setRowRef = (node: HTMLElement | null) => {
+    setNodeRef(node);
+    setDropNodeRef(node);
+  };
+
+  return (
+    <div
+      ref={setRowRef}
+      style={{ transform: CSS.Translate.toString(transform) }}
+      className={`grid grid-cols-[auto_1fr_auto] items-end gap-3 rounded-card border-b pb-4 sm:flex sm:gap-4 sm:border-0 sm:pb-0 ${
+        // A row being carried needs a ground of its own: with a transparent
+        // background it dragged as loose text over the row underneath it.
+        isDragging ? "relative z-50 border-0 bg-surface px-2 py-2 shadow-panel ring-2 ring-brand/50" : ""
+      } ${isOver && !isDragging ? "ring-2 ring-brand/40" : ""}`}
+    >
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...listeners}
+        {...attributes}
+        aria-label={fill(t.settings.moveMember, { name })}
+        className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-token text-subtle hover:bg-green-50 hover:text-brand active:cursor-grabbing dark:hover:bg-green-950/40"
+      >
+        <GripVertical className="h-4 w-4" aria-hidden="true" />
+      </button>
+
+      <div className="col-span-2 min-w-0 sm:flex-1">
+        <Label htmlFor={`name-${index}`}>
+          {t.settings.name}
+        </Label>
+        <Input
+          id={`name-${index}`}
+          value={row.name || ""}
+          onChange={(e) => onChange(row.uid, "name", e.target.value)}
+          placeholder={t.settings.johnDoe}
+        />
+      </div>
+      <div className="col-start-2 min-w-0 sm:flex-1">
+        <Label htmlFor={`role-${index}`}>
+          {t.settings.role}
+        </Label>
+        <Select
+          value={row.role || ""}
+          onValueChange={(value) => onChange(row.uid, "role", value)}
+        >
+          <SelectTrigger id={`role-${index}`}>
+            <SelectValue placeholder={t.settings.selectRole} />
+          </SelectTrigger>
+          <SelectContent>
+            {ROLE_VALUES.map((role) => (
+              <SelectItem key={role} value={role}>
+                {getRoleLabel(role, t)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+      {row.id ? (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="self-end shrink-0 border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+              disabled={deleting}
+              aria-label={t.settings.deleteMember}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {t.settings.deleteBoardMember}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {language === "no"
+                  ? `Dette sletter ${row.name || "medlemmet"} fra styret.`
+                  : `This removes ${row.name || "this member"} from the board.`}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t.settings.cancel}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => onRemove(row.uid)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {t.settings.delete}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      ) : (
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => onRemove(row.uid)}
+          className="self-end shrink-0 border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+          disabled={deleting}
+          aria-label={t.settings.removeMember}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+}
+
 interface KindergartenInfo {
   id: number;
   contactEmail: string;
@@ -59,7 +235,7 @@ export default function Settings() {
   const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [members, setMembers] = useState<Partial<FauBoardMember>[]>([]);
+  const [members, setMembers] = useState<BoardRow[]>([]);
 
   // Fetch FAU board members
   const { data: boardMembers, isLoading } = useQuery<FauBoardMember[]>({
@@ -69,7 +245,7 @@ export default function Settings() {
   // Update local state when data loads
   useEffect(() => {
     if (boardMembers) {
-      setMembers(boardMembers);
+      setMembers(boardMembers.map((member) => ({ ...member, uid: `row-${member.id}` })));
     }
   }, [boardMembers]);
 
@@ -98,11 +274,12 @@ export default function Settings() {
   });
 
   const addMember = () => {
-    setMembers([...members, { name: "", role: "", sortOrder: members.length }]);
+    setMembers((prev) => [...prev, { uid: newRowUid(), name: "", role: "" }]);
   };
 
-  const removeMember = async (index: number) => {
-    const member = members[index];
+  const removeMember = async (uid: string) => {
+    const member = members.find((row) => row.uid === uid);
+    if (!member) return;
     if (member.id) {
       try {
         await deleteMutation.mutateAsync(member.id);
@@ -120,14 +297,66 @@ export default function Settings() {
       }
     } else {
       // Just remove from local state if not saved yet
-      setMembers(members.filter((_, i) => i !== index));
+      setMembers((prev) => prev.filter((row) => row.uid !== uid));
     }
   };
 
-  const updateMember = (index: number, field: keyof FauBoardMember, value: string) => {
-    const updated = [...members];
-    updated[index] = { ...updated[index], [field]: value };
-    setMembers(updated);
+  const updateMember = (uid: string, field: "name" | "role", value: string) => {
+    setMembers((prev) => prev.map((row) => (row.uid === uid ? { ...row, [field]: value } : row)));
+  };
+
+  // The list is the order. A drop rewrites the list, and the save below stamps
+  // each row with its position, which is what the homepage reads back.
+  const moveMember = (fromUid: UniqueIdentifier, toUid: UniqueIdentifier) => {
+    setMembers((prev) => {
+      const from = prev.findIndex((row) => row.uid === fromUid);
+      const to = prev.findIndex((row) => row.uid === toUid);
+      if (from === -1 || to === -1 || from === to) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  };
+
+  // A grip is a small target on a phone, so touch needs a short press rather
+  // than a distance — a distance threshold would fight the page's own scroll.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: rowKeyboardCoordinates }),
+  );
+
+  const memberName = (uid: UniqueIdentifier | undefined) => {
+    const row = members.find((member) => member.uid === uid);
+    return row?.name?.trim() || t.settings.unnamedMember;
+  };
+
+  // dnd-kit announces in English by default, which a screen reader set to
+  // Norwegian would read out in the wrong language.
+  const reorderAnnouncements: Announcements = {
+    onDragStart: ({ active }) =>
+      fill(t.settings.reorder.onDragStart, { item: memberName(active.id) }),
+    onDragOver: ({ active, over }) =>
+      over
+        ? fill(t.settings.reorder.onDragOver, {
+            item: memberName(active.id),
+            target: memberName(over.id),
+          })
+        : fill(t.settings.reorder.onDragOverNoTarget, { item: memberName(active.id) }),
+    onDragEnd: ({ active, over }) =>
+      over
+        ? fill(t.settings.reorder.onDragEnd, {
+            item: memberName(active.id),
+            target: memberName(over.id),
+          })
+        : fill(t.settings.reorder.onDragEndNoTarget, { item: memberName(active.id) }),
+    onDragCancel: ({ active }) =>
+      fill(t.settings.reorder.onDragCancel, { item: memberName(active.id) }),
+  };
+
+  const handleReorderEnd = (event: DragEndEvent) => {
+    if (event.over) moveMember(event.active.id, event.over.id);
   };
 
   const handleSave = async () => {
@@ -159,14 +388,18 @@ export default function Settings() {
     let failure: unknown = null;
 
     try {
-      for (const member of members) {
+      for (const [index, member] of members.entries()) {
+        // The row's position is its sort order — that is what makes a drag
+        // stick, and what keeps the homepage listing the board in the order
+        // this page shows it in.
+        const payload = { name: member.name, role: member.role, sortOrder: index };
         try {
           if (member.id) {
             // Update existing
-            await updateMutation.mutateAsync({ id: member.id, member });
+            await updateMutation.mutateAsync({ id: member.id, member: payload });
           } else {
             // Create new
-            await createMutation.mutateAsync(member);
+            await createMutation.mutateAsync(payload);
           }
         } catch (error) {
           failedMember = member;
@@ -295,92 +528,33 @@ export default function Settings() {
               : "Define board members and their roles. This is shown on the homepage."}
           </p>
 
-          {/* Name gets its own line on a phone, with role and delete beside it
-              below — two inputs plus the button never fit on one row there. */}
-          <div className="space-y-4">
-            {members.map((member, index) => (
-              <div key={member.id || `new-${index}`} className="grid grid-cols-[1fr_auto] items-end gap-3 border-b pb-4 sm:flex sm:gap-4 sm:border-0 sm:pb-0">
-                <div className="col-span-2 min-w-0 sm:flex-1">
-                  <Label htmlFor={`name-${index}`}>
-                    {t.settings.name}
-                  </Label>
-                  <Input
-                    id={`name-${index}`}
-                    value={member.name || ""}
-                    onChange={(e) => updateMember(index, "name", e.target.value)}
-                    placeholder={t.settings.johnDoe}
-                  />
-                </div>
-                <div className="min-w-0 sm:flex-1">
-                  <Label htmlFor={`role-${index}`}>
-                    {t.settings.role}
-                  </Label>
-                  <Select
-                    value={member.role || ""}
-                    onValueChange={(value) => updateMember(index, "role", value)}
-                  >
-                    <SelectTrigger id={`role-${index}`}>
-                      <SelectValue placeholder={t.settings.selectRole} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLE_VALUES.map((role) => (
-                        <SelectItem key={role} value={role}>
-                          {getRoleLabel(role, t)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {member.id ? (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="icon"
-                        className="self-end shrink-0 border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                        disabled={deleteMutation.isPending}
-                        aria-label={t.settings.deleteMember}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          {t.settings.deleteBoardMember}
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {language === "no"
-                            ? `Dette sletter ${member.name || "medlemmet"} fra styret.`
-                            : `This removes ${member.name || "this member"} from the board.`}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t.settings.cancel}</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => removeMember(index)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          {t.settings.delete}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => removeMember(index)}
-                    className="self-end shrink-0 border-red-300 dark:border-red-900/70 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                    disabled={deleteMutation.isPending}
-                    aria-label={t.settings.removeMember}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
+          <p className="text-sm text-subtle mb-4">{t.settings.reorderHint}</p>
+
+          {/* Name gets its own line on a phone, with the grip, role and delete
+              beside it below — two inputs plus two buttons never fit on one
+              row there. */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleReorderEnd}
+            accessibility={{
+              announcements: reorderAnnouncements,
+              screenReaderInstructions: { draggable: t.settings.reorder.instructions },
+            }}
+          >
+            <div className="space-y-4">
+              {members.map((member, index) => (
+                <BoardMemberRow
+                  key={member.uid}
+                  row={member}
+                  index={index}
+                  onChange={updateMember}
+                  onRemove={removeMember}
+                  deleting={deleteMutation.isPending}
+                />
+              ))}
+            </div>
+          </DndContext>
 
           <Button
             variant="outline"
