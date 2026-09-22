@@ -1338,6 +1338,33 @@ function testSecureSettingsMapsWriteResponses() {
   );
 }
 
+// The board's order is the one the settings page shows and the homepage
+// prints. A drag writes sort_order, so that has to be compared first; the role
+// hierarchy is only the tiebreak for rows that were never ordered by hand,
+// which used to fall back to insertion order and list a Medlem under two Vara.
+function testBoardMembersOrderByHandThenRole() {
+  const source = readFileSync(new URL('../api/secure-settings.js', import.meta.url), 'utf8');
+  const query = source.match(/FROM fau_board_members[\s\S]*?`/);
+  assert.ok(query, 'The board members read should still select from fau_board_members');
+  assert.match(
+    query[0],
+    /ORDER BY sort_order ASC,[\s\S]*CASE role[\s\S]*'Leder' THEN 0[\s\S]*'Medlem' THEN 1[\s\S]*'Vara' THEN 2/,
+    'Board members must order by sort_order first, then by the role hierarchy',
+  );
+
+  const settingsPage = readFileSync(new URL('../client/src/pages/settings.tsx', import.meta.url), 'utf8');
+  assert.match(
+    settingsPage,
+    /sortOrder: index/,
+    'Saving the board must stamp each row with its position, or a reorder cannot stick',
+  );
+  assert.match(
+    settingsPage,
+    /key=\{member\.uid\}/,
+    'Board rows must be keyed by a stable uid, not by an index a reorder changes',
+  );
+}
+
 // Unvalidated ids reached integer columns and produced 500s; DELETEs answered
 // 200 "deleted successfully" without checking that anything matched.
 function testDeletesValidateIdAndCheckRows() {
@@ -1544,6 +1571,7 @@ function testRegistrationUpdatesEventRowOnce() {
 testNoBackticksInsideSqlComments();
 testImportMatchesOnMoreThanTitle();
 testSecureSettingsMapsWriteResponses();
+testBoardMembersOrderByHandThenRole();
 testDeletesValidateIdAndCheckRows();
 testRegistrationUpdatesEventRowOnce();
 testCalendarFeedIsCacheable();

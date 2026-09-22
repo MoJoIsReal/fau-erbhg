@@ -109,10 +109,22 @@ function roleDescription(role) {
 async function handleBoardMembers(req, res, sql) {
   // GET - Public access to view board members
   if (req.method === 'GET') {
+    // Rows that share a sort order — everything added before the settings
+    // page could reorder the board — fall back to the roles' own hierarchy
+    // rather than to insertion order, which had a Medlem listed under two
+    // Vara simply because they joined later. An order set by dragging wins:
+    // sort_order is compared first.
     const members = await sql`
       SELECT id, name, role, sort_order as "sortOrder"
       FROM fau_board_members
-      ORDER BY sort_order ASC, id ASC
+      ORDER BY sort_order ASC,
+               CASE role
+                 WHEN 'Leder' THEN 0
+                 WHEN 'Medlem' THEN 1
+                 WHEN 'Vara' THEN 2
+                 ELSE 3
+               END ASC,
+               id ASC
     `;
     return res.status(200).json(members);
   }

@@ -737,6 +737,18 @@ export interface Translations {
     delete: string;
     removeMember: string;
     addMember: string;
+    reorderHint: string;
+    moveMember: string;
+    unnamedMember: string;
+    reorder: {
+      instructions: string;
+      onDragStart: string;
+      onDragOver: string;
+      onDragOverNoTarget: string;
+      onDragEnd: string;
+      onDragEndNoTarget: string;
+      onDragCancel: string;
+    };
     saveChanges: string;
     kindergartenInformation: string;
     contactEmail: string;
@@ -1681,6 +1693,20 @@ export const translations: Record<Language, Translations> = {
       delete: "Slett",
       removeMember: "Fjern medlem",
       addMember: "Legg til medlem",
+      reorderHint:
+        "Dra i håndtaket til venstre for å endre rekkefølgen. Rekkefølgen lagres når du trykker «Lagre endringer», og er den samme som vises på nettsiden.",
+      moveMember: "Endre rekkefølge: {name}",
+      unnamedMember: "medlem uten navn",
+      reorder: {
+        instructions:
+          "Trykk mellomrom eller Enter for å ta tak i medlemmet. Bruk piltastene opp og ned for å velge ny plass, mellomrom eller Enter for å slippe, og Escape for å avbryte.",
+        onDragStart: "Flytter {item}.",
+        onDragOver: "{item} er nå over {target}.",
+        onDragOverNoTarget: "{item} er ikke over en plass i listen.",
+        onDragEnd: "{item} ble flyttet til plassen til {target}.",
+        onDragEndNoTarget: "{item} ble sluppet uten å bli flyttet.",
+        onDragCancel: "Flyttingen av {item} ble avbrutt.",
+      },
       saveChanges: "Lagre endringer",
       kindergartenInformation: "Barnehageinformasjon",
       contactEmail: "Kontakt e-post",
@@ -2624,6 +2650,20 @@ export const translations: Record<Language, Translations> = {
       delete: "Delete",
       removeMember: "Remove member",
       addMember: "Add member",
+      reorderHint:
+        "Drag the handle on the left to change the order. The order is saved when you press \u201cSave changes\u201d, and is the one shown on the website.",
+      moveMember: "Reorder: {name}",
+      unnamedMember: "unnamed member",
+      reorder: {
+        instructions:
+          "Press space or Enter to pick the member up. Use the up and down arrow keys to choose a new place, space or Enter to drop, and Escape to cancel.",
+        onDragStart: "Moving {item}.",
+        onDragOver: "{item} is now over {target}.",
+        onDragOverNoTarget: "{item} is not over a place in the list.",
+        onDragEnd: "{item} was moved to {target}'s place.",
+        onDragEndNoTarget: "{item} was dropped without being moved.",
+        onDragCancel: "Moving {item} was cancelled.",
+      },
       saveChanges: "Save changes",
       kindergartenInformation: "Kindergarten Information",
       contactEmail: "Contact email",
