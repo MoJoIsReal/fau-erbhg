@@ -10,7 +10,11 @@ type HeroTone = "sand" | "green" | "peach" | "blue";
  * Kontakt stays peach/terracotta in both themes (guide v1.1 §21).
  */
 const TONE: Record<HeroTone, string> = {
-  sand: "bg-sand",
+  // Sand is the page itself, so the front-door pages get no panel at all
+  // — in either theme. A panel that only exists after dark would inset the
+  // heading away from a band that runs flush, which is the misalignment
+  // `panel` below is about.
+  sand: "bg-transparent",
   green: "bg-green-50",
   peach: "bg-peach",
   blue: "bg-blue-50",
@@ -35,15 +39,10 @@ export interface PageHeroProps {
   /**
    * split     — artwork beside the text, bleeding to the container edge
    * editorial — heading over a wide band of artwork
-   * compact   — a shallow contextual heading, with or without a thin band
+   * compact   — a shallow contextual heading, with or without a band
    */
   layout?: HeroLayout;
   tone?: HeroTone;
-  /**
-   * Render the band at the artwork's own ratio instead of a fixed one, for a
-   * crop where nothing may be cut — the values signpost, for instance.
-   */
-  nativeRatio?: boolean;
   /** The page's own weight. Display is for the site's front door only. */
   titleSize?: "display" | "h1";
   /**
@@ -61,14 +60,18 @@ export interface PageHeroProps {
  * The opening of a page.
  *
  * Three deliberate variants rather than one template with switches, so pages
- * have personality without drifting apart: `split` gives the home page real
- * artwork beside real text, `editorial` runs a wide band under the heading
- * for pages whose picture is a mood rather than a subject, and `compact` is
- * for pages that mostly want to get out of the way.
+ * have personality without drifting apart: `split` gives a page real artwork
+ * beside real text and takes its height from the picture, `editorial` runs an
+ * illustrated band under the heading, and `compact` is for pages that mostly
+ * want to get out of the way.
  *
- * The heading and the lead are always real HTML. Where the artwork carries
- * lettering of its own it is cropped out, so the picture never becomes the
- * only place a sentence exists (guide v1.1 §23).
+ * The illustration is never wallpaper behind the words and never a thumbnail
+ * beside them: it holds a whole column or a whole band, cut for that frame in
+ * `illustrations.ts` and swapped for its night drawing in the dark theme. The
+ * heading and the lead stay real HTML — where the artwork carries lettering
+ * of its own the crop either clears it or keeps a phrase the page never says
+ * itself, so the picture is never the only place a sentence exists (guide
+ * v1.1 §23).
  */
 export default function PageHero({
   eyebrow,
@@ -80,15 +83,39 @@ export default function PageHero({
   illustration,
   layout = "compact",
   tone = "sand",
-  nativeRatio = false,
   titleSize,
   wide = false,
   priority = false,
 }: PageHeroProps) {
   const isSplit = layout === "split";
   const display = (titleSize ?? (isSplit ? "display" : "h1")) === "display";
-  const bandRatio = nativeRatio && illustration
-    ? { aspectRatio: `${illustration.art.width} / ${illustration.art.height}` }
+  /**
+   * Sand heroes have no panel, so they have nothing to inset against: their
+   * heading lines up with the band under it and with the rest of the page.
+   * Without this the title on Aktuelt sat 56px inside a band that ran flush
+   * to the container, which reads as a mistake rather than as a margin. The
+   * split hero keeps its padding either way, because it bleeds wider than the
+   * container and the padding is what walks the text back to the page.
+   */
+  const panel = tone !== "sand";
+  const textPad = panel
+    ? "px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14"
+    : "pb-9 sm:pb-10 lg:pb-12";
+
+  /**
+   * Both frames follow the crops: `--art-wide` is the desktop rectangle's
+   * ratio and `--art-narrow` the phone one's, which is what lets a phone show
+   * the narrow crop entire instead of cropping an already-cropped picture.
+   */
+  const frame = illustration
+    ? ({
+        "--art-wide": illustration.art.ratio.wide,
+        "--art-narrow": illustration.art.ratio.narrow,
+        // Between the two, a split column is 16:9 unless the crop is wider
+        // than that — showing a 2:1 crop in a 16:9 frame costs 14% of its
+        // width, and on Dokumenter that is the T of ENGASJEMENT.
+        "--art-mid": Math.max(16 / 9, illustration.art.ratio.wide),
+      } as CSSProperties)
     : undefined;
 
   const text = (
@@ -119,29 +146,32 @@ export default function PageHero({
       // Wider than the reading container: a hero that stops at 1200px on a
       // 1440px screen reads as a small page in a big window (guide v1.1 §24).
       <section className={`bleed-wide overflow-hidden rounded-hero ${TONE[tone]}`}>
-        {/* Two columns only from 1280px. Between 1024 and 1280 the text
-            column is tall enough (a three-line heading) that the artwork
-            beside it would be framed portrait, and object-cover would then
-            crop it horizontally — straight through the value signpost. */}
-        <div className="grid items-stretch xl:grid-cols-[minmax(0,1fr)_minmax(0,0.92fr)]">
-          <div className="px-6 pb-10 pt-10 sm:px-10 sm:pt-14 xl:py-16 xl:pl-14 xl:pr-4">{text}</div>
+        {/* Two columns only from 1280px, and the artwork takes the larger of
+            them: at 1288px that is a ~720px picture against a ~568px text
+            column, which is the difference between an illustration that opens
+            the page and one that decorates it. Between 1024 and 1280 the text
+            is tall enough that a column beside it would be framed portrait,
+            and object-cover would then crop a landscape crop sideways —
+            straight through the value signpost. */}
+        <div className="grid items-stretch xl:grid-cols-[minmax(0,1fr)_minmax(0,1.27fr)]">
+          {/* Stacked, the artwork goes first: a phone otherwise opens on a
+              screenful of heading and lead with the illustration entirely
+              below the fold, which is the opposite of what it is for. The
+              heading still comes first in the DOM, so the reading order and
+              the document outline are unchanged. */}
+          <div className="order-2 px-6 pb-10 pt-8 sm:px-10 sm:pb-12 sm:pt-10 xl:order-1 xl:py-14 xl:pl-[var(--hero-split-pad)] xl:pr-6">
+            {text}
+          </div>
           {/* The artwork runs to the panel's own edge rather than sitting in
               it with a margin — that gap is what made it read as a thumbnail
               rather than a hero. The frame's own rules live with
               `.art-frame` in index.css. */}
-          <div
-            className="art-frame"
-            style={
-              {
-                "--art": `${illustration.art.width} / ${illustration.art.height}`,
-              } as CSSProperties
-            }
-          >
+          <div className="art-frame order-1 xl:order-2" style={frame}>
             <Artwork
               illustration={illustration.art}
               alt={illustration.alt}
               priority={priority}
-              sizes="(min-width: 1280px) 46vw, 100vw"
+              sizes="(min-width: 1360px) 721px, (min-width: 1280px) 50vw, 100vw"
             />
           </div>
         </div>
@@ -149,38 +179,32 @@ export default function PageHero({
     );
   }
 
+  const band = illustration && (
+    <div className="hero-band" style={frame}>
+      <Artwork
+        illustration={illustration.art}
+        alt={illustration.alt}
+        priority={priority}
+        sizes="(min-width: 1360px) 1288px, (min-width: 1232px) 1136px, 100vw"
+      />
+    </div>
+  );
+
   if (layout === "editorial" && illustration) {
     return (
       <section className={`${wide ? "bleed-wide " : ""}overflow-hidden rounded-hero ${TONE[tone]}`}>
-        <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14">{text}</div>
-        <div
-          className={bandRatio ? "" : "aspect-[16/8] sm:aspect-[16/6] lg:aspect-[16/5]"}
-          style={bandRatio}
-        >
-          <Artwork
-            illustration={illustration.art}
-            alt={illustration.alt}
-            priority={priority}
-            sizes="(min-width: 1360px) 1288px, (min-width: 1232px) 1136px, 100vw"
-          />
-        </div>
+        <div className={textPad}>{text}</div>
+        {band}
       </section>
     );
   }
 
   return (
     <section className={`${wide ? "bleed-wide " : ""}overflow-hidden rounded-hero ${TONE[tone]}`}>
-      <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-14 lg:py-14">{text}</div>
-      {illustration && (
-        <div className="aspect-[16/6] sm:aspect-[5/1]">
-          <Artwork
-            illustration={illustration.art}
-            alt={illustration.alt}
-            priority={priority}
-            sizes="(min-width: 1360px) 1288px, (min-width: 1232px) 1136px, 100vw"
-          />
-        </div>
-      )}
+      <div className={panel ? "px-6 py-9 sm:px-10 sm:py-10 lg:px-14 lg:py-12" : "pb-8 lg:pb-10"}>
+        {text}
+      </div>
+      {band}
     </section>
   );
 }

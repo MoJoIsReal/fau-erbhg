@@ -220,7 +220,6 @@ export default function CalendarViews() {
       <PageHero
         layout="editorial"
         tone="green"
-        nativeRatio
         priority
         eyebrow={t.calendar.title}
         title={<span className={view === "month" ? "capitalize" : undefined}>{heading}</span>}

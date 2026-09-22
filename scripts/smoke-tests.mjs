@@ -384,10 +384,24 @@ function testClientRegressionGuards() {
     new URL('../client/src/components/site/illustrations.ts', import.meta.url),
     'utf8',
   );
+  const sets = (illustrations.match(/^export const ILLUSTRATION_/gm) ?? []).length;
+  // Four crops per scene: a wide one and a narrow one, in daylight and at
+  // night. A missing one would silently fall back to centre-cropping the
+  // other, which is what the two rectangles exist to avoid.
   assert.equal(
-    (illustrations.match(/smallJpg: \w+Dark\d+Jpg,/g) ?? []).length,
-    (illustrations.match(/^export const ILLUSTRATION_/gm) ?? []).length,
-    'Every illustration must ship a dark sibling alongside its daylight crop',
+    (illustrations.match(/^ {4}wide: source\(/gm) ?? []).length,
+    sets * 2,
+    'Every illustration must ship a wide crop in both the light and dark theme',
+  );
+  assert.equal(
+    (illustrations.match(/^ {4}narrow: source\(/gm) ?? []).length,
+    sets * 2,
+    'Every illustration must ship a narrow crop in both the light and dark theme',
+  );
+  assert.equal(
+    (illustrations.match(/^ {4}focus: \{ narrow: /gm) ?? []).length,
+    sets * 2,
+    'Every illustration must name its object-position for all three breakpoint tiers',
   );
 
   const artwork = readFileSync(
@@ -396,8 +410,19 @@ function testClientRegressionGuards() {
   );
   assert.match(
     artwork,
-    /const art = isDark \? illustration\.dark : illustration;/,
+    /const art = isDark \? illustration\.dark : illustration\.light;/,
     'Artwork must serve the night illustration when the dark theme is on',
+  );
+  assert.match(
+    artwork,
+    /<source media=\{NARROW\}/,
+    'Artwork must art-direct the narrow crop rather than let sizes pick a width',
+  );
+  // Dark mode is a different drawing, never a treatment of the daylight one.
+  assert.equal(
+    /grayscale|brightness\(|saturate\(|\bfilter:|mix-blend|opacity-\d/.test(artwork),
+    false,
+    'Dark-mode illustrations must be swapped, not dimmed, filtered or overlaid',
   );
 
   const filesPage = readFileSync(new URL('../client/src/pages/files.tsx', import.meta.url), 'utf8');

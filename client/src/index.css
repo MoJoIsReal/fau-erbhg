@@ -142,6 +142,14 @@
   /* Heroes and editorial bands may reach past the reading container so a
      1440px screen is not mostly passive margin (guide v1.1 §24). */
   --container-wide: 1288px;
+  /* The container's own side padding. Declared here because `.bleed-wide`
+     has to subtract it to land a band on --container-wide exactly. */
+  --page-gutter: 16px;
+  /* The split hero's own left padding. It is a token rather than a utility
+     because the value has to change with the bleed: once the hero reaches
+     past the reading container it has to pay that distance back, or its
+     heading sits 76px to the left of everything under it. */
+  --hero-split-pad: 56px;
   --shadow-card: 0 4px 18px rgba(16, 42, 36, 0.06);
   --shadow-panel: 0 18px 50px rgba(16, 42, 36, 0.14);
   --header-height: 76px;
@@ -279,6 +287,29 @@
   --ring: 148 56% 61.8%;
 }
 
+/* The page gutter grows with the viewport. It lives out here beside the rest
+   of the tokens rather than inside `@layer components`, because an unlayered
+   `:root` would otherwise win over a layered override. */
+@media (min-width: 640px) {
+  :root {
+    --page-gutter: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --page-gutter: 32px;
+  }
+}
+
+@media (min-width: 1360px) {
+  :root {
+    --hero-split-pad: calc(
+      (var(--container-wide) - var(--container) + var(--page-gutter) * 2) / 2
+    );
+  }
+}
+
 @layer base {
   * {
     @apply border-border;
@@ -342,20 +373,9 @@
     width: 100%;
     max-width: var(--container);
     margin-inline: auto;
-    padding-inline: 16px;
+    padding-inline: var(--page-gutter);
   }
 
-  @media (min-width: 640px) {
-    .container-page {
-      padding-inline: 24px;
-    }
-  }
-
-  @media (min-width: 1024px) {
-    .container-page {
-      padding-inline: 32px;
-    }
-  }
 
   /* Vertical rhythm between top-level sections of a page: 40px on mobile,
      64px from desktop (guide §4). */
@@ -373,34 +393,87 @@
      once the viewport is genuinely wider than the wide container — below
      that the page is already using its full width, and pulling the margins
      out would push the section past the viewport instead of into spare
-     room. The negative margin is exactly the difference between the two
-     containers, so the band lines up rather than guessing. */
-  /* The split hero's artwork frame.
-     Stacked it is 16:9, which shows about four fifths of these crops'
-     height — enough for a whole signpost and the children's faces, and a
-     sane block on a phone. Once the hero is two columns the frame takes the
-     artwork's own ratio instead and centres itself, because the column's
-     height is then set by however long the heading happens to wrap, and a
-     portrait frame would crop a landscape crop sideways — straight through
-     the values on the sign. */
-  .art-frame {
-    aspect-ratio: 16 / 9;
-  }
-
-  @media (min-width: 1280px) {
-    .art-frame {
-      aspect-ratio: var(--art);
-      align-self: center;
-    }
-  }
-
+     room. The negative margin is the difference between the two containers
+     *after* the page gutter, which is the part the container has already
+     taken off the content box — without it the band stops 64px short of the
+     1288px it is meant to reach. */
   .bleed-wide {
     margin-inline: 0;
   }
 
   @media (min-width: 1360px) {
     .bleed-wide {
-      margin-inline: calc((var(--container) - var(--container-wide)) / 2);
+      margin-inline: calc(
+        (var(--container) - var(--page-gutter) * 2 - var(--container-wide)) / 2
+      );
+    }
+  }
+
+  /* Where a frame narrower than the crop holds on. The illustration supplies
+     all three values (see illustrations.ts); the fallbacks only matter for
+     artwork rendered outside `Artwork`. */
+  .art-img {
+    object-position: var(--art-pos, 50% 50%);
+  }
+
+  @media (min-width: 768px) {
+    .art-img {
+      object-position: var(--art-pos-md, var(--art-pos, 50% 50%));
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .art-img {
+      object-position: var(--art-pos-lg, var(--art-pos-md, var(--art-pos, 50% 50%)));
+    }
+  }
+
+  /* The hero band: one editorial ribbon, the same depth on every page that
+     runs one, so Aktuelt, Kalender and Kontakt open on the same beat.
+
+     The height grows with the viewport rather than stepping at breakpoints,
+     and that is not a flourish: the reading container runs from 720px to
+     1136px, so a *fixed* height would swing the band between 2.5:1 and
+     3.2:1 and `cover` would start eating the sides — which on Aktuelt means
+     the signpost. Tracking 30vw between 240px and 352px holds the band
+     between 3.0:1 and 3.3:1 all the way up, just past every wide crop, so a
+     band only ever gives up sky and never a subject.
+
+     Below 768px it takes the narrow crop's own ratio instead of a height.
+     That is the point of cutting two rectangles: the picture is already
+     framed for the frame, so nothing is cropped a second time. */
+  .hero-band {
+    aspect-ratio: var(--art-narrow);
+  }
+
+  @media (min-width: 768px) {
+    .hero-band {
+      aspect-ratio: auto;
+      height: clamp(15rem, 30vw, 22rem);
+    }
+  }
+
+  /* The split hero's artwork column.
+     Stacked on a phone it is the narrow crop at its own ratio; from 768px it
+     is 16:9, or the crop's own ratio where that is wider — never narrower,
+     because a frame narrower than the crop crops it sideways and Dokumenter
+     loses the end of ENGASJEMENT. Once the hero is two columns the frame
+     takes the artwork's own ratio and sets the hero's height, so the picture
+     is shown entire and the text column centres against it. */
+  .art-frame {
+    aspect-ratio: var(--art-narrow);
+  }
+
+  @media (min-width: 768px) {
+    .art-frame {
+      aspect-ratio: var(--art-mid, 16 / 9);
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .art-frame {
+      aspect-ratio: var(--art-wide);
+      align-self: center;
     }
   }
 
