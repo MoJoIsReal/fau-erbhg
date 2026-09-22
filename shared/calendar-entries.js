@@ -13,8 +13,16 @@ import { isoWeek } from './yearly-calendar-display.js';
 // `yearly_calendar_entries`, which staff may edit too. That split is also how
 // the filter chips are grouped, so it is worth keeping visible.
 export const EVENT_CALENDAR_KINDS = ['arrangement', 'mote', 'dugnad', 'foto', 'internt'];
-export const YEARLY_CALENDAR_KINDS = ['bhgdag', 'varmmat', 'temauke', 'stengt', 'beskjed'];
+export const YEARLY_CALENDAR_KINDS = ['bhgdag', 'varmmat', 'temauke', 'stengt', 'beskjed', 'info'];
 export const CALENDAR_ENTRY_KINDS = [...EVENT_CALENDAR_KINDS, ...YEARLY_CALENDAR_KINDS];
+
+// A yearly entry may carry any of them. `entry_type` says what shape a row
+// has — one day, a whole week, a note across a span — and that is a different
+// question from what the row *is*: a dated row can be a registration deadline
+// (info), an SU meeting (internt) or a festival the parents are invited to
+// (arrangement). Before `category` existed, entry_type answered both, so
+// every dated row came out as "I barnehagen".
+export const YEARLY_CALENDAR_CATEGORIES = CALENDAR_ENTRY_KINDS;
 
 // events.type is free text in the DB but the creation modal offers exactly
 // these; anything unrecognised is a plain arrangement rather than dropped.
@@ -43,8 +51,26 @@ export function calendarKindForEntryType(entryType) {
   return ENTRY_TYPE_TO_KIND[entryType] ?? 'beskjed';
 }
 
+/**
+ * Which table a kind is *native* to, for grouping the filter chips.
+ *
+ * It is not a permission check and never was: a yearly entry may now carry an
+ * event-native category such as `internt`, and who may edit a row is decided
+ * by `entry.source`, which says where the row actually came from.
+ */
 export function calendarKindSource(kind) {
   return EVENT_CALENDAR_KINDS.includes(kind) ? 'event' : 'yearly';
+}
+
+/**
+ * The category a yearly entry shows. An explicit `category` wins; without one
+ * the entry type decides, which is what every row did before the column
+ * existed — so an untouched calendar reads exactly as it did.
+ */
+export function calendarKindForEntry(entry) {
+  const category = entry?.category;
+  if (typeof category === 'string' && CALENDAR_ENTRY_KINDS.includes(category)) return category;
+  return calendarKindForEntryType(entry?.entryType);
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -174,7 +200,7 @@ export function normalizeEvent(event, now = new Date()) {
 }
 
 export function normalizeYearlyEntry(entry) {
-  const kind = calendarKindForEntryType(entry?.entryType);
+  const kind = calendarKindForEntry(entry);
   const date = parseCalendarDate(entry?.date);
 
   if (date) {
@@ -241,6 +267,10 @@ export function normalizeYearlyEntry(entry) {
  * wins and the day_event is dropped — the same rule useUpcomingItems applies
  * on the homepage. "Stengt" is never a duplicate of an event, even on a day
  * that has one, so it always survives.
+ *
+ * The test is the row's *shape*, not its category: a day_event that someone
+ * has categorised as `info` or `internt` is still the årskalender's line for
+ * that day, and still the one the event duplicates.
  */
 export function dropDayEntriesCoveredByEvents(entries) {
   const daysWithEvent = new Set(
@@ -248,7 +278,12 @@ export function dropDayEntriesCoveredByEvents(entries) {
   );
   if (daysWithEvent.size === 0) return entries;
   return entries.filter(
-    (item) => !(item.source === 'yearly' && item.kind === 'bhgdag' && daysWithEvent.has(item.date)),
+    (item) =>
+      !(
+        item.source === 'yearly' &&
+        item.entry?.entryType === 'day_event' &&
+        daysWithEvent.has(item.date)
+      ),
   );
 }
 

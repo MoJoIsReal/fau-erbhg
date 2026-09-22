@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CALENDAR_ENTRY_KINDS,
+  calendarKindForEntry,
   calendarKindForEntryType,
   calendarKindForEventType,
   calendarKindSource,
@@ -86,9 +87,40 @@ test('every yearly entry type maps to a known kind', () => {
 test('kinds split into the two tables that own them', () => {
   const sources = CALENDAR_ENTRY_KINDS.map(calendarKindSource);
   assert.equal(sources.filter((s) => s === 'event').length, 5);
-  assert.equal(sources.filter((s) => s === 'yearly').length, 5);
+  assert.equal(sources.filter((s) => s === 'yearly').length, 6);
   assert.equal(calendarKindSource('dugnad'), 'event');
   assert.equal(calendarKindSource('varmmat'), 'yearly');
+  assert.equal(calendarKindSource('info'), 'yearly');
+});
+
+test('an entry without a category still follows its type', () => {
+  // The column is nullable, and null has to read exactly as the calendar did
+  // before it existed — otherwise every row already in the database changes
+  // category the day the migration runs.
+  assert.equal(calendarKindForEntry({ entryType: 'day_event' }), 'bhgdag');
+  assert.equal(calendarKindForEntry({ entryType: 'day_event', category: null }), 'bhgdag');
+  assert.equal(calendarKindForEntry({ entryType: 'closed' }), 'stengt');
+  assert.equal(calendarKindForEntry(undefined), 'beskjed');
+});
+
+test('a category overrides the type it was derived from', () => {
+  // The three rows that prompted the column: a registration deadline, an SU
+  // meeting and a festival parents are invited to were all day_event, so all
+  // three read "I barnehagen".
+  assert.equal(calendarKindForEntry({ entryType: 'day_event', category: 'info' }), 'info');
+  assert.equal(calendarKindForEntry({ entryType: 'day_event', category: 'internt' }), 'internt');
+  assert.equal(
+    calendarKindForEntry({ entryType: 'day_event', category: 'arrangement' }),
+    'arrangement',
+  );
+  // A week row may be categorised too.
+  assert.equal(calendarKindForEntry({ entryType: 'week_event', category: 'info' }), 'info');
+});
+
+test('an unknown category falls back to the type rather than leaking through', () => {
+  assert.equal(calendarKindForEntry({ entryType: 'day_event', category: 'tull' }), 'bhgdag');
+  assert.equal(calendarKindForEntry({ entryType: 'food', category: '' }), 'varmmat');
+  assert.equal(calendarKindForEntry({ entryType: 'note', category: 42 }), 'beskjed');
 });
 
 test('ISO date strings parse as local midnight, not UTC', () => {
@@ -255,6 +287,39 @@ test('merging drops duplicates so overlapping school-year fetches are safe', () 
   const shared = entry({ id: 7, weekNumber: 39 });
   const merged = mergeCalendarEntries({ entries: [shared, { ...shared }] });
   assert.equal(merged.length, 1);
+});
+
+test('a categorised day entry is still the one an event on that day replaces', () => {
+  // The dedupe used to key on the kind being "bhgdag". Once a day row can be
+  // categorised as info or internt, that test would let the duplicate through
+  // — so it keys on the entry's shape instead.
+  const merged = mergeCalendarEntries({
+    events: [event({ id: 1, date: '2026-09-25', title: 'Foreldredugnad' })],
+    entries: [
+      entry({ id: 1, entryType: 'day_event', date: '2026-09-25', category: 'info', title: 'Dugnad' }),
+    ],
+  });
+
+  assert.deepEqual(merged.map((e) => e.title), ['Foreldredugnad']);
+});
+
+test('a categorised entry carries its category as the kind it shows', () => {
+  const merged = mergeCalendarEntries({
+    entries: [
+      entry({ id: 1, entryType: 'day_event', date: '2026-04-16', category: 'info', title: 'Frist sommerferie' }),
+      entry({ id: 2, entryType: 'day_event', date: '2026-02-08', category: 'internt', title: 'SU' }),
+      entry({ id: 3, entryType: 'day_event', date: '2026-10-29', title: 'Uten kategori' }),
+    ],
+  });
+
+  assert.deepEqual(
+    merged.map((e) => [e.title, e.kind]),
+    [
+      ['SU', 'internt'],
+      ['Frist sommerferie', 'info'],
+      ['Uten kategori', 'bhgdag'],
+    ],
+  );
 });
 
 test('grouping separates what spans a week from what happens on a day', () => {

@@ -46,6 +46,7 @@ function upcomingParts(item: UpcomingItem) {
       location: item.event.location ?? "",
       description: item.event.description ?? "",
       closed: false,
+      audience: null,
     };
   }
   return {
@@ -55,7 +56,28 @@ function upcomingParts(item: UpcomingItem) {
     location: "",
     description: item.entry.description ?? "",
     closed: item.entry.entryType === "closed",
+    audience: upcomingAudience(item.entry),
   };
+}
+
+/**
+ * Which of the two homepage flags a yearly entry is listed under.
+ *
+ * The flags decide whether an entry reaches this page at all
+ * (`useUpcomingItems`), and the editor's own help text has always promised
+ * that it arrives "merket 'For foreldre'" — so the badge is what makes the
+ * two checkboxes mean different things. "For foreldre" wins when both are
+ * set: who it is for is what a parent scanning the list needs, and one pill
+ * per row is enough. A closed day says "Stengt" instead and needs no
+ * audience.
+ */
+function upcomingAudience(entry: {
+  showForParents?: boolean | null;
+  showOnHomepage?: boolean | null;
+}) {
+  if (entry.showForParents === true) return "parents" as const;
+  if (entry.showOnHomepage === true) return "kindergarten" as const;
+  return null;
 }
 
 /**
@@ -184,6 +206,13 @@ export default function Home() {
                     {parts.closed && (
                       <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>
                     )}
+                    {!parts.closed && parts.audience && (
+                      <StatusPill tone="info">
+                        {parts.audience === "parents"
+                          ? t.yearlyCalendar.forParentsBadge
+                          : t.yearlyCalendar.inKindergartenBadge}
+                      </StatusPill>
+                    )}
                   </div>
 
                   <div className="flex items-start gap-5">
@@ -260,9 +289,13 @@ export default function Home() {
                           <span className="block text-small font-semibold text-ink">
                             {parts.title}
                           </span>
-                          {(parts.time || parts.closed) && (
+                          {(parts.time || parts.closed || parts.audience) && (
                             <span className="block text-micro text-subtle">
-                              {parts.closed ? t.yearlyCalendar.closedBadge : parts.time}
+                              {parts.closed
+                                ? t.yearlyCalendar.closedBadge
+                                : parts.time || (parts.audience === "parents"
+                                    ? t.yearlyCalendar.forParentsBadge
+                                    : t.yearlyCalendar.inKindergartenBadge)}
                             </span>
                           )}
                         </span>

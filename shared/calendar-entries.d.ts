@@ -1,7 +1,7 @@
 import type { Event, YearlyCalendarEntry } from './schema';
 
 export type EventCalendarKind = 'arrangement' | 'mote' | 'dugnad' | 'foto' | 'internt';
-export type YearlyCalendarKind = 'bhgdag' | 'varmmat' | 'temauke' | 'stengt' | 'beskjed';
+export type YearlyCalendarKind = 'bhgdag' | 'varmmat' | 'temauke' | 'stengt' | 'beskjed' | 'info';
 export type CalendarEntryKind = EventCalendarKind | YearlyCalendarKind;
 export type CalendarEntrySource = 'event' | 'yearly';
 export type CalendarSignupMode = 'registration' | 'vigilo' | 'none' | 'internal';
@@ -9,6 +9,8 @@ export type CalendarSignupMode = 'registration' | 'vigilo' | 'none' | 'internal'
 export const EVENT_CALENDAR_KINDS: readonly EventCalendarKind[];
 export const YEARLY_CALENDAR_KINDS: readonly YearlyCalendarKind[];
 export const CALENDAR_ENTRY_KINDS: readonly CalendarEntryKind[];
+/** Every kind a yearly entry may be categorised as, native table aside. */
+export const YEARLY_CALENDAR_CATEGORIES: readonly CalendarEntryKind[];
 
 export type CalendarSignupState = {
   mode: CalendarSignupMode;
@@ -59,6 +61,7 @@ export type CalendarWeekGroup = {
 export function calendarKindForEventType(type: unknown): CalendarEntryKind;
 export function calendarKindForEntryType(entryType: unknown): CalendarEntryKind;
 export function calendarKindSource(kind: CalendarEntryKind): CalendarEntrySource;
+export function calendarKindForEntry(entry: unknown): CalendarEntryKind;
 
 export function parseCalendarDate(value: unknown): Date | null;
 export function isoWeekYear(date: Date): number;

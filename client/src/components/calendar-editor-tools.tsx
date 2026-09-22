@@ -30,20 +30,30 @@ import YearlyCalendarEntryModal from "@/components/yearly-calendar-entry-modal";
 import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
 import AttendeeTooltip from "@/components/attendee-tooltip";
 
-// The five yearly kinds map straight onto entry_type, so the picker can
-// prefill the form. Events cannot: their type is one field among many in a
-// form that also carries signup, so that branch opens the event form as it is.
+// What shape a row takes when the picker starts it from a category. Category
+// and entry_type are separate fields now — the type says whether a row is one
+// day, a whole week or a note across a span — so this is only the sensible
+// starting shape, which the form can then change. `info` starts as a dated
+// day because that is what an info row usually is: a deadline. Events cannot
+// be prefilled this way: their type is one field among many in a form that
+// also carries signup, so that branch opens the event form as it is.
 const KIND_TO_ENTRY_TYPE: Record<YearlyCalendarKind, YearlyCalendarEntryType> = {
   bhgdag: "day_event",
   varmmat: "food",
   temauke: "week_event",
   stengt: "closed",
   beskjed: "note",
+  info: "day_event",
 };
 
 type CreationTarget =
   | { kind: "event"; event: Event | null }
-  | { kind: "yearly"; entryType: YearlyCalendarEntryType; existing: YearlyCalendarEntry | null };
+  | {
+      kind: "yearly";
+      entryType: YearlyCalendarEntryType;
+      category: YearlyCalendarKind | null;
+      existing: YearlyCalendarEntry | null;
+    };
 
 export type CalendarEditor = {
   isEditor: boolean;
@@ -221,6 +231,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
                 setCreating({
                   kind: "yearly",
                   entryType: entry.entry.entryType as YearlyCalendarEntryType,
+                  category: null,
                   existing: entry.entry,
                 })
           }
@@ -295,7 +306,12 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
                   variant="outline"
                   className="justify-start gap-2"
                   onClick={() =>
-                    pick({ kind: "yearly", entryType: KIND_TO_ENTRY_TYPE[kind], existing: null })
+                    pick({
+                      kind: "yearly",
+                      entryType: KIND_TO_ENTRY_TYPE[kind],
+                      category: kind,
+                      existing: null,
+                    })
                   }
                 >
                   <span
@@ -322,7 +338,11 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           onClose={() => setCreating(null)}
           schoolYear={schoolYear}
           existing={creating.existing}
-          initial={creating.existing ? undefined : { entryType: creating.entryType }}
+          initial={
+            creating.existing
+              ? undefined
+              : { entryType: creating.entryType, category: creating.category }
+          }
         />
       )}
 
