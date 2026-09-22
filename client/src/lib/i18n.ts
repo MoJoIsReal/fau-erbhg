@@ -21,6 +21,7 @@ export interface Translations {
     year: string;
     format: string;
     onsiteSignup: string;
+    photoSignupHint: string;
     noSignup: string;
     vigiloSignup: string;
     internalSignup: string;
@@ -1022,6 +1023,7 @@ export const translations: Record<Language, Translations> = {
       year: "År",
       format: "Varighet / oppføringstype",
       onsiteSignup: "Påmelding på nettsiden",
+      photoSignupHint: "Foto bruker påmelding med barnas navn og tildelte fototider. På forsiden og i kalenderen vises arrangementet under For barna.",
       noSignup: "Ingen påmelding",
       vigiloSignup: "Påmelding i Vigilo",
       internalSignup: "Interne møter vises offentlig, men har ingen påmelding.",
@@ -2023,6 +2025,7 @@ export const translations: Record<Language, Translations> = {
       year: "Year",
       format: "Duration / entry type",
       onsiteSignup: "Registration on this website",
+      photoSignupHint: "Photo registration collects children’s names and assigns photo time slots. The event appears under For children on the homepage and calendar.",
       noSignup: "No registration",
       vigiloSignup: "Registration in Vigilo",
       internalSignup: "Internal meetings are publicly listed, without registration.",

@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntryKind } from "@shared/calendar-entries";
-import { CALENDAR_DISPLAY_KINDS, calendarDisplayKindForEntry } from "@shared/calendar-entries";
+import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarDisplayKindForEntry } from "@shared/calendar-entries";
 import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
 
 export type EntryDraft = {
@@ -112,7 +112,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     if (!isOpen) return;
     const seed: any = existing ?? initial ?? {};
     setEntryType((seed.entryType as EntryDraft["entryType"]) || "week_event");
-    setCategory(calendarDisplayKindForEntry(seed));
+    setCategory(calendarDisplayKind(calendarDisplayKindForEntry(seed)));
     setYear(seed.year ?? new Date().getFullYear());
     setMonth(seed.month ?? 1);
     setWeekNumber(seed.weekNumber != null ? String(seed.weekNumber) : "");
@@ -138,7 +138,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         year: date && (entryType === "day_event" || entryType === "closed") ? Number(date.slice(0, 4)) : year,
         month: date && (entryType === "day_event" || entryType === "closed") ? Number(date.slice(5, 7)) : month,
         entryType,
-        category,
+        category: entryType === "day_event" ? category : null,
         title,
         description: description || null,
         color: color || null,
@@ -274,6 +274,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
           </div>
 
 
+            {entryType === "day_event" && <>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="entry-category">{t.entryEditor.category}</Label>
@@ -290,6 +291,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
               </div>
             </div>
             <p className="text-small text-subtle">{t.entryEditor.categoryHint}</p>
+            </>}
           </EditorSection>
           <EditorSection title={t.entryEditor.schedule}>
           <div>
@@ -309,6 +311,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
               </SelectContent>
             </Select>
           </div>
+
+            {entryType !== "day_event" && <CalendarCategory kind={calendarDisplayKindForEntry({ entryType })} />}
 
             {entryType !== "day_event" && entryType !== "closed" && <>
           <div className="grid grid-cols-2 gap-3">

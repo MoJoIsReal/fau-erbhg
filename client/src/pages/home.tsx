@@ -186,7 +186,6 @@ export default function Home() {
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill tone="now">{t.home.nextUpLabel}</StatusPill>
                     <CalendarCategory kind={parts.displayKind} />
-                    {parts.closed && <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>}
                   </div>
 
                   <div className="flex items-start gap-5">
@@ -265,7 +264,6 @@ export default function Home() {
                           </span>
                           <span className="mt-1 block"><CalendarCategory kind={parts.displayKind} /></span>
                           {parts.time && <span className="block text-micro text-subtle">{parts.time}</span>}
-                          {parts.closed && <span className="block text-micro text-subtle">{t.yearlyCalendar.closedBadge}</span>}
                         </span>
                       </li>
                     );

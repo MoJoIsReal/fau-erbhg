@@ -349,9 +349,18 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 <FormField control={form.control} name="type" render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t.entryEditor.category}</FormLabel>
-                    <Select value={displayKind} onValueChange={(kind) => field.onChange(({ bhgdag: "activity", arrangement: "event", info: "info", internt: "internal" })[kind])}>
+                    <Select value={selectedType === "foto" ? "foto" : displayKind} onValueChange={(kind) => {
+                      field.onChange(({ bhgdag: "activity", arrangement: "event", info: "info", internt: "internal", foto: "foto" })[kind]);
+                      if (kind === "foto") {
+                        form.setValue("noSignup", false, { shouldDirty: true });
+                        form.setValue("vigiloSignup", false, { shouldDirty: true });
+                      }
+                    }}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
-                      <SelectContent>{CALENDAR_DISPLAY_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{t.entryEditor.categories[kind]}</SelectItem>)}</SelectContent>
+                      <SelectContent>
+                        {CALENDAR_DISPLAY_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{t.entryEditor.categories[kind]}</SelectItem>)}
+                        <SelectItem value="foto">{t.modals.eventCreation.types.foto}</SelectItem>
+                      </SelectContent>
                     </Select>
                     <FormMessage />
                   </FormItem>
@@ -453,6 +462,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
 
             </EditorSection>
             <EditorSection title={t.entryEditor.signup}>
+              {selectedType === "foto" && <p className="text-small text-subtle">{t.entryEditor.photoSignupHint}</p>}
               {selectedType === "internal" ? <p className="text-small text-subtle">{t.entryEditor.internalSignup}</p> : <>
                 <Select value={registrationMode} onValueChange={(mode) => {
                   form.setValue("noSignup", mode === "none", { shouldDirty: true });
@@ -460,7 +470,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 }}>
                   <SelectTrigger aria-label={t.entryEditor.signup}><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="website">{t.entryEditor.onsiteSignup}</SelectItem>
+                    <SelectItem value="website">{selectedType === "foto" ? t.events.registerPhotoSession : t.entryEditor.onsiteSignup}</SelectItem>
                     <SelectItem value="none">{t.entryEditor.noSignup}</SelectItem>
                     <SelectItem value="vigilo">{t.entryEditor.vigiloSignup}</SelectItem>
                   </SelectContent>

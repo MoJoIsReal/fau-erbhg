@@ -322,7 +322,7 @@ export default function CalendarView({
                                 it, and the category, to a screen reader. */}
                             <span className="sr-only">
                               {" "}
-                              — {t.entryEditor.categories[band.entry.displayKind]}, {t.calendar.allWeek}
+                              — {{ ...t.calendar.kinds, ...t.entryEditor.categories }[band.entry.displayKind]}, {t.calendar.allWeek}
                             </span>
                             {band.continuesAfter && (
                               <ChevronRight className="ml-auto h-3 w-3 shrink-0" aria-hidden="true" />

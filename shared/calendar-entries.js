@@ -24,8 +24,10 @@ export const CALENDAR_ENTRY_KINDS = [...EVENT_CALENDAR_KINDS, ...YEARLY_CALENDAR
 // every dated row came out as "I barnehagen".
 export const YEARLY_CALENDAR_CATEGORIES = CALENDAR_ENTRY_KINDS;
 
-// Public categories are independent of the stored scheduling/legacy types.
+// Day entries and events choose a category; the other yearly entry types
+// describe themselves (closed, hot meals, theme weeks and notes).
 export const CALENDAR_DISPLAY_KINDS = ['bhgdag', 'arrangement', 'info', 'internt'];
+export const CALENDAR_FILTER_KINDS = [...CALENDAR_DISPLAY_KINDS, 'varmmat', 'temauke', 'stengt', 'beskjed'];
 
 export function calendarDisplayKind(kind) {
   if (kind === 'internt') return 'internt';
@@ -35,6 +37,7 @@ export function calendarDisplayKind(kind) {
 }
 
 export function calendarDisplayKindForEntry(entry) {
+  if (entry.entryType !== 'day_event') return calendarKindForEntryType(entry.entryType);
   // Honour the old parent selection until an editor chooses a category.
   if (!entry.category && entry.entryType === 'day_event' && entry.showForParents) return 'arrangement';
   return calendarDisplayKind(calendarKindForEntry(entry));

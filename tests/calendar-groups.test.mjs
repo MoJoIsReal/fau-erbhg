@@ -1,9 +1,9 @@
 import { EVENT_TYPES } from "../shared/constants.js";
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { calendarDisplayKind, mergeCalendarEntries, normalizeEvent, normalizeYearlyEntry } from '../shared/calendar-entries.js';
+import { calendarDisplayKind, calendarDisplayKindForEntry, mergeCalendarEntries, normalizeEvent, normalizeYearlyEntry } from '../shared/calendar-entries.js';
 
-test('four public groups cover every entry without hiding internal meetings', () => {
+test('day categories group legacy kinds without hiding internal meetings', () => {
   for (const kind of ['arrangement', 'mote', 'dugnad']) assert.equal(calendarDisplayKind(kind), 'arrangement');
   for (const kind of ['bhgdag', 'varmmat', 'temauke', 'foto']) assert.equal(calendarDisplayKind(kind), 'bhgdag');
   for (const kind of ['info', 'beskjed', 'stengt']) assert.equal(calendarDisplayKind(kind), 'info');
@@ -17,6 +17,26 @@ test('legacy parent flag supplies a group only when no explicit category exists'
   assert.equal(normalizeYearlyEntry({ ...row, category: 'internt' }).displayKind, 'internt');
   assert.equal(normalizeYearlyEntry({ ...row, category: 'bhgdag' }).displayKind, 'bhgdag');
   assert.equal(normalizeYearlyEntry({ ...row, showForParents: false }).displayKind, 'bhgdag');
+});
+
+test('photo events retain their special signup type under the For children label', () => {
+  const photo = { id: 9, title: 'Fotografering', date: '2026-11-10', type: 'foto', noSignup: false, vigiloSignup: false };
+  const normalized = normalizeEvent(photo);
+  assert.equal(normalized.kind, 'foto');
+  assert.equal(normalized.displayKind, 'bhgdag');
+  assert.equal(normalized.signup.mode, 'registration');
+  assert.equal(normalized.event.type, 'foto', 'The signup modal receives the original photo type');
+});
+
+test('non-day entries keep their type label even with a previously saved category', () => {
+  for (const [entryType, expected] of [['closed', 'stengt'], ['food', 'varmmat'], ['week_event', 'temauke'], ['note', 'beskjed']]) {
+    for (const category of [null, 'info', 'internt', 'arrangement']) {
+      const row = { id: 8, title: 'Oppføring', year: 2026, month: 11, weekNumber: 45,
+        entryType, category, showForParents: true, date: entryType === 'closed' ? '2026-11-06' : null };
+      assert.equal(calendarDisplayKindForEntry(row), expected, 'Homepage label follows the non-day type');
+      assert.equal(normalizeYearlyEntry(row).displayKind, expected, 'Calendar uses the same label');
+    }
+  }
 });
 
 test('internal FAU meetings stay in the public calendar with registration disabled', () => {

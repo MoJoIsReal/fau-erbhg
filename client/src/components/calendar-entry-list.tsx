@@ -1,4 +1,3 @@
-import { calendarDisplayKind } from "@shared/calendar-entries";
 import { CalendarCategory } from "@/components/site/calendar-category";
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
@@ -32,11 +31,11 @@ interface CalendarEntryListProps {
  */
 function weekFacts(spanning: CalendarEntry[], foodLabel: string) {
   return spanning.map((entry) => {
-    if (entry.kind === "varmmat") {
-      return { id: entry.id, kind: entry.kind, label: foodLabel, value: entry.title };
+    if (entry.displayKind === "varmmat") {
+      return { id: entry.id, kind: entry.displayKind, label: foodLabel, value: entry.title };
     }
     const detail = entry.description?.replace(/<[^>]*>/g, "").trim();
-    return { id: entry.id, kind: entry.kind, label: entry.title, value: detail ?? "" };
+    return { id: entry.id, kind: entry.displayKind, label: entry.title, value: detail ?? "" };
   });
 }
 
@@ -100,7 +99,6 @@ function DayRow({
 
           {/* The kind label above already says "Stengt", so only a cancelled
               entry needs a pill of its own here. */}
-          {entry.entry?.entryType === "closed" && <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>}
           {entry.cancelled && <StatusPill tone="warn">{t.events.cancelled2}</StatusPill>}
         </div>
 
@@ -237,7 +235,7 @@ export default function CalendarEntryList({
                         <dt className="inline-flex items-baseline gap-1.5 font-semibold text-ink">
                           <span
                             className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
-                              KIND_STYLE[calendarDisplayKind(fact.kind)].dot
+                              KIND_STYLE[fact.kind].dot
                             }`}
                             aria-hidden="true"
                           />

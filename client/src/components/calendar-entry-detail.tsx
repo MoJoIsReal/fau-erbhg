@@ -91,7 +91,6 @@ export default function CalendarEntryDetail({
         >
           <CalendarCategory kind={entry.displayKind} />
         </span>
-        {entry.entry?.entryType === "closed" && <span className="ml-2"><StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill></span>}
         <h2
           className={`mt-3 text-h2 font-bold leading-tight tracking-tight text-ink ${
             entry.cancelled ? "line-through" : ""

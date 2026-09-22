@@ -3,7 +3,7 @@ import { Bell, CalendarDays, CalendarRange, List, Loader2, SlidersHorizontal } f
 import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries";
 import {
   CALENDAR_ENTRY_KINDS,
-  CALENDAR_DISPLAY_KINDS,
+  CALENDAR_FILTER_KINDS,
   calendarWeekKey,
   isoWeekYear,
 } from "@shared/calendar-entries";
@@ -125,8 +125,8 @@ export default function CalendarViews() {
   }, [active, mode]);
 
   const visible = useMemo(() => entries.filter((entry) => active[entry.displayKind]), [entries, active]);
-  const activeCount = CALENDAR_DISPLAY_KINDS.filter((kind) => active[kind]).length;
-  const allOn = activeCount === CALENDAR_DISPLAY_KINDS.length;
+  const activeCount = CALENDAR_FILTER_KINDS.filter((kind) => active[kind]).length;
+  const allOn = activeCount === CALENDAR_FILTER_KINDS.length;
 
   const toggle = (kind: CalendarEntryKind) => setActive((prev) => ({ ...prev, [kind]: !prev[kind] }));
 
@@ -292,10 +292,10 @@ export default function CalendarViews() {
                 pressed={allOn}
                 onClick={() => setActive(allKindsOn())}
               />
-              {CALENDAR_DISPLAY_KINDS.map((kind) => (
+              {CALENDAR_FILTER_KINDS.map((kind) => (
                 <FilterChip
                   key={kind}
-                  label={t.entryEditor.categories[kind]}
+                  label={{ ...t.calendar.kinds, ...t.entryEditor.categories }[kind]}
                   pressed={active[kind]}
                   onClick={() => toggle(kind)}
                   dotClass={KIND_STYLE[kind].dot}

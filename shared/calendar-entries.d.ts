@@ -4,9 +4,11 @@ export type EventCalendarKind = 'arrangement' | 'mote' | 'dugnad' | 'foto' | 'in
 export type YearlyCalendarKind = 'bhgdag' | 'varmmat' | 'temauke' | 'stengt' | 'beskjed' | 'info';
 export type CalendarEntryKind = EventCalendarKind | YearlyCalendarKind;
 export type CalendarEntrySource = 'event' | 'yearly';
-export type CalendarDisplayKind = 'bhgdag' | 'arrangement' | 'info' | 'internt';
-export const CALENDAR_DISPLAY_KINDS: readonly CalendarDisplayKind[];
-export function calendarDisplayKind(kind: CalendarEntryKind): CalendarDisplayKind;
+export type CalendarDayKind = 'bhgdag' | 'arrangement' | 'info' | 'internt';
+export type CalendarDisplayKind = CalendarDayKind | 'varmmat' | 'temauke' | 'stengt' | 'beskjed';
+export const CALENDAR_DISPLAY_KINDS: readonly CalendarDayKind[];
+export const CALENDAR_FILTER_KINDS: readonly CalendarDisplayKind[];
+export function calendarDisplayKind(kind: CalendarEntryKind): CalendarDayKind;
 export function calendarDisplayKindForEntry(entry: Partial<YearlyCalendarEntry>): CalendarDisplayKind;
 export type CalendarSignupMode = 'registration' | 'vigilo' | 'none' | 'internal';
 
