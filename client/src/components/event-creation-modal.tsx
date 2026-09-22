@@ -350,7 +350,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                   <FormItem>
                     <FormLabel>{t.entryEditor.category}</FormLabel>
                     <Select value={selectedType === "foto" ? "foto" : displayKind} onValueChange={(kind) => {
-                      field.onChange(({ bhgdag: "activity", arrangement: "event", info: "info", internt: "internal", foto: "foto" })[kind]);
+                      field.onChange(({ bhgdag: "activity", arrangement: "event", family: "family", info: "info", internt: "internal", foto: "foto" })[kind]);
                       if (kind === "foto") {
                         form.setValue("noSignup", false, { shouldDirty: true });
                         form.setValue("vigiloSignup", false, { shouldDirty: true });

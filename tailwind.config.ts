@@ -142,6 +142,9 @@ export default {
 
         // --- Calendar categories (§7). Paired with a label everywhere. ---
         cat: {
+          "family-dot": "var(--cat-family-dot)",
+          "family-text": "var(--cat-family-text)",
+          "family-tint": "var(--cat-family-tint)",
           "arrangement-dot": "var(--cat-arrangement-dot)",
           "arrangement-text": "var(--cat-arrangement-text)",
           "arrangement-tint": "var(--cat-arrangement-tint)",

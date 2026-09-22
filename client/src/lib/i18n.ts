@@ -51,7 +51,7 @@ export interface Translations {
     placeLarge: string;
     placeMeeting: string;
     placeOutside: string;
-    categories: { bhgdag: string; arrangement: string; info: string; internt: string };
+    categories: { bhgdag: string; arrangement: string; family: string; info: string; internt: string };
   };
 
   // Navigation
@@ -229,6 +229,7 @@ export interface Translations {
     loadFailed: string;
     kinds: {
       arrangement: string;
+      family: string;
       mote: string;
       dugnad: string;
       foto: string;
@@ -1087,6 +1088,7 @@ export const translations: Record<Language, Translations> = {
       categories: {
           bhgdag: "For barna",
           arrangement: "For foreldre",
+          family: "For foreldre og barn",
           info: "Info",
           internt: "Internt møte"
       }
@@ -1266,6 +1268,7 @@ export const translations: Record<Language, Translations> = {
       loadFailed: "Klarte ikke å hente kalenderen. Prøv å laste siden på nytt.",
       kinds: {
         arrangement: "Arrangement",
+        family: "For foreldre og barn",
         mote: "Møte",
         dugnad: "Dugnad",
         foto: "Foto",
@@ -2120,6 +2123,7 @@ export const translations: Record<Language, Translations> = {
       categories: {
           bhgdag: "For children",
           arrangement: "For parents",
+          family: "For parents and children",
           info: "Information",
           internt: "Internal meeting"
       }
@@ -2299,6 +2303,7 @@ export const translations: Record<Language, Translations> = {
       loadFailed: "Could not load the calendar. Try reloading the page.",
       kinds: {
         arrangement: "Event",
+        family: "For parents and children",
         mote: "Meeting",
         dugnad: "Working bee",
         foto: "Photos",

@@ -29,6 +29,7 @@ export const EVENT_TYPES = [
   'meeting',
   'event',
   'activity',
+  'family',
   'dugnad',
   'foto',
   'internal',

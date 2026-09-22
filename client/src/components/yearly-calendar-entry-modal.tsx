@@ -32,7 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { YearlyCalendarEntry } from "@shared/schema";
-import type { CalendarEntryKind } from "@shared/calendar-entries";
+import type { CalendarEntryKind, CalendarDayKind } from "@shared/calendar-entries";
 import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarDisplayKindForEntry } from "@shared/calendar-entries";
 import { resolveYearlyCalendarPlacement } from "@shared/yearly-calendar-placement";
 import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
@@ -97,7 +97,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
   const isEditing = !!existing?.id;
 
   const [entryType, setEntryType] = useState<EntryDraft["entryType"]>("week_event");
-  const [category, setCategory] = useState<"bhgdag" | "arrangement" | "info" | "internt">("bhgdag");
+  const [category, setCategory] = useState<CalendarDayKind>("bhgdag");
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(1);
   const [weekNumber, setWeekNumber] = useState<string>("");

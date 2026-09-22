@@ -39,6 +39,12 @@ export type CalendarKindStyle = {
 // file for literal class strings, and a template literal would leave every
 // one of these utilities out of the stylesheet.
 export const KIND_STYLE: Record<CalendarEntryKind, CalendarKindStyle> = {
+  family: {
+    dot: "bg-cat-family-dot",
+    text: "text-cat-family-text",
+    bar: "border-l-cat-family-dot",
+    tint: "bg-cat-family-tint",
+  },
   arrangement: {
     dot: "bg-cat-arrangement-dot",
     text: "text-cat-arrangement-text",

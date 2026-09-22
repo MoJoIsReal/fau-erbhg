@@ -86,6 +86,9 @@
   --cat-arrangement-dot: #E76F51;
   --cat-arrangement-text: #C23C1B;
   --cat-arrangement-tint: #FAECE8;
+  --cat-family-dot: #0F6B46;
+  --cat-family-text: #0F6B46;
+  --cat-family-tint: #E8F3E8;
   --cat-mote-dot: #2F80ED;
   --cat-mote-text: #1367D8;
   --cat-mote-tint: #E8F0FA;
@@ -234,6 +237,9 @@
   --cat-arrangement-dot: #E76F51;
   --cat-arrangement-text: #E76F51;
   --cat-arrangement-tint: #291612;
+  --cat-family-dot: #67D49A;
+  --cat-family-text: #67D49A;
+  --cat-family-tint: #173128;
   --cat-mote-dot: #4D92F0;
   --cat-mote-text: #4D92F0;
   --cat-mote-tint: #121C29;

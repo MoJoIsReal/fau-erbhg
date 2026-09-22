@@ -248,7 +248,8 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   // *shape* a row has — one day, a whole week, a note across a span — and a
   // dated row is not automatically "I barnehagen": it can be a deadline
   // (info), an SU meeting (internt) or a festival the parents are invited to.
-  // Values are the calendar's kinds from shared/calendar-entries.js.
+  // Values are the calendar's kinds from shared/calendar-entries.js,
+  // including family (parents and children); enforced by migration 0014.
   category: text("category"),
   // When true (only meaningful for day_event entries), surface this entry in
   // the homepage "Kommende arrangementer" list with an "I barnehagen" badge.

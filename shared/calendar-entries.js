@@ -8,11 +8,11 @@
 // than in client/src/lib/. Nothing in api/ imports this file.
 import { isoWeek } from './yearly-calendar-display.js';
 
-// The kinds a merged entry can have. The first five come from `events` and
-// only COUNCIL_ROLES may edit them; the last five come from
+// The kinds a merged entry can have. The event kinds come from `events` and
+// only COUNCIL_ROLES may edit them; the yearly kinds come from
 // `yearly_calendar_entries`, which staff may edit too. That split is also how
 // the filter chips are grouped, so it is worth keeping visible.
-export const EVENT_CALENDAR_KINDS = ['arrangement', 'mote', 'dugnad', 'foto', 'internt'];
+export const EVENT_CALENDAR_KINDS = ['arrangement', 'family', 'mote', 'dugnad', 'foto', 'internt'];
 export const YEARLY_CALENDAR_KINDS = ['bhgdag', 'varmmat', 'temauke', 'stengt', 'beskjed', 'info'];
 export const CALENDAR_ENTRY_KINDS = [...EVENT_CALENDAR_KINDS, ...YEARLY_CALENDAR_KINDS];
 
@@ -26,10 +26,11 @@ export const YEARLY_CALENDAR_CATEGORIES = CALENDAR_ENTRY_KINDS;
 
 // Day entries and events choose a category; the other yearly entry types
 // describe themselves (closed, hot meals, theme weeks and notes).
-export const CALENDAR_DISPLAY_KINDS = ['bhgdag', 'arrangement', 'info', 'internt'];
+export const CALENDAR_DISPLAY_KINDS = ['bhgdag', 'arrangement', 'family', 'info', 'internt'];
 export const CALENDAR_FILTER_KINDS = [...CALENDAR_DISPLAY_KINDS, 'varmmat', 'temauke', 'stengt', 'beskjed'];
 
 export function calendarDisplayKind(kind) {
+  if (kind === 'family') return 'family';
   if (kind === 'internt') return 'internt';
   if (['info', 'beskjed', 'stengt'].includes(kind)) return 'info';
   if (['arrangement', 'mote', 'dugnad'].includes(kind)) return 'arrangement';
@@ -46,6 +47,7 @@ export function calendarDisplayKindForEntry(entry) {
 // events.type is free text in the DB but the creation modal offers exactly
 // these; anything unrecognised is a plain arrangement rather than dropped.
 const EVENT_TYPE_TO_KIND = {
+  family: 'family',
   meeting: 'mote',
   activity: 'bhgdag',
   info: 'info',

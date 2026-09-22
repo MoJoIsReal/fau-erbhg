@@ -1,10 +1,10 @@
 import type { Event, YearlyCalendarEntry } from './schema';
 
-export type EventCalendarKind = 'arrangement' | 'mote' | 'dugnad' | 'foto' | 'internt';
+export type EventCalendarKind = 'arrangement' | 'family' | 'mote' | 'dugnad' | 'foto' | 'internt';
 export type YearlyCalendarKind = 'bhgdag' | 'varmmat' | 'temauke' | 'stengt' | 'beskjed' | 'info';
 export type CalendarEntryKind = EventCalendarKind | YearlyCalendarKind;
 export type CalendarEntrySource = 'event' | 'yearly';
-export type CalendarDayKind = 'bhgdag' | 'arrangement' | 'info' | 'internt';
+export type CalendarDayKind = 'bhgdag' | 'arrangement' | 'family' | 'info' | 'internt';
 export type CalendarDisplayKind = CalendarDayKind | 'varmmat' | 'temauke' | 'stengt' | 'beskjed';
 export const CALENDAR_DISPLAY_KINDS: readonly CalendarDayKind[];
 export const CALENDAR_FILTER_KINDS: readonly CalendarDisplayKind[];

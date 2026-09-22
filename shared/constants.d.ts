@@ -18,6 +18,7 @@ export const EVENT_TYPES: readonly [
   'meeting',
   'event',
   'activity',
+  'family',
   'dugnad',
   'foto',
   'internal',

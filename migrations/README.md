@@ -67,3 +67,9 @@ FROM information_schema.columns
 WHERE table_name = 'blog_posts'
   AND column_name IN ('notify_newsletter', 'newsletter_sent_at');
 ```
+
+### Parents and children category
+
+Apply `0014_calendar_family_category.sql` before deploying support for the
+`family` category. It extends the yearly-entry constraint; existing categories
+and entries remain unchanged.

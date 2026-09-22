@@ -102,7 +102,7 @@ test('every yearly entry type maps to a known kind', () => {
 
 test('kinds split into the two tables that own them', () => {
   const sources = CALENDAR_ENTRY_KINDS.map(calendarKindSource);
-  assert.equal(sources.filter((s) => s === 'event').length, 5);
+  assert.equal(sources.filter((s) => s === 'event').length, 6);
   assert.equal(sources.filter((s) => s === 'yearly').length, 6);
   assert.equal(calendarKindSource('dugnad'), 'event');
   assert.equal(calendarKindSource('varmmat'), 'yearly');
@@ -489,4 +489,27 @@ test('the school year covers the weeks its own entries fall in', () => {
   for (const item of merged) {
     assert.ok(keys.has(calendarWeekKey(item.weekYear, item.week)), `${item.title} fell outside the year`);
   }
+});
+
+test('parents and children stays distinct across events and dated calendar entries', () => {
+  const familyEvent = normalizeEvent(event({ type: 'family', title: 'Lysfesten' }));
+  const familyEntry = normalizeYearlyEntry(entry({
+    entryType: 'day_event', category: 'family', date: '2026-09-25',
+  }));
+  assert.equal(familyEvent.kind, 'family');
+  assert.equal(familyEvent.displayKind, 'family');
+  assert.equal(familyEntry.displayKind, 'family');
+  assert.equal(normalizeEvent(event({ type: 'meeting' })).displayKind, 'arrangement');
+  assert.equal(normalizeEvent(event({ type: 'activity' })).displayKind, 'bhgdag');
+  assert.equal(normalizeYearlyEntry(entry({
+    entryType: 'closed', category: 'family', date: '2026-09-25',
+  })).displayKind, 'stengt');
+});
+
+test('family is accepted by the API type list and offered in calendar filters', async () => {
+  const { EVENT_TYPES } = await import('../shared/constants.js');
+  const { CALENDAR_DISPLAY_KINDS, YEARLY_CALENDAR_CATEGORIES } = await import('../shared/calendar-entries.js');
+  assert.ok(EVENT_TYPES.includes('family'));
+  assert.ok(CALENDAR_DISPLAY_KINDS.includes('family'));
+  assert.ok(YEARLY_CALENDAR_CATEGORIES.includes('family'));
 });
