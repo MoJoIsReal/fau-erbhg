@@ -5,7 +5,7 @@
 // broken @page handling and Vercel's serverless chromium quirks that
 // blocked the previous server-rendered approach.
 //
-// This module is dynamic-import'd from yearly-calendar.tsx so the
+// This module is dynamic-import'd from calendar-month-tools.tsx so the
 // ~600 KB gzipped @react-pdf bundle only loads when the user clicks
 // "Last ned PDF".
 
@@ -25,15 +25,13 @@ import {
 } from "@shared/yearly-calendar-display";
 
 // ──────────────────────────────────────────────────────────────────
-// Helpers (mirrors client/src/pages/yearly-calendar.tsx so the PDF
-// looks like the on-screen calendar).
+// Helpers for the original printable poster layout.
 // ──────────────────────────────────────────────────────────────────
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-// Hex equivalents of ENTRY_COLOR_CLASSES in
-// client/src/pages/yearly-calendar.tsx and PRESET_HEX in
-// client/src/components/yearly-calendar-entry-modal.tsx. Keep all three
+// Hex equivalents of PRESET_HEX in
+// client/src/components/yearly-calendar-entry-modal.tsx. Keep both
 // in sync so a swatch the user picks renders the same shade everywhere.
 const ENTRY_COLOR_HEX: Record<string, string> = {
   red: "#ef4444",
@@ -47,7 +45,7 @@ const ENTRY_COLOR_HEX: Record<string, string> = {
 
 // Default badge colour per entry type, used when an entry has no explicit
 // colour override. Mirror of defaultColorForType in
-// client/src/pages/yearly-calendar.tsx.
+// the original poster calendar.
 // Mat=gul, Uke info=blå, Stengt=rød, Dags events=grønn, Note=rød.
 const TYPE_COLOR: Record<string, { background: string; color: string }> = {
   food:       { background: "#fde047", color: "#1f2937" },

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import { Bell, CalendarDays, CalendarRange, List, Loader2, SlidersHorizontal } from "lucide-react";
+import { Bell, CalendarDays, List, Loader2, SlidersHorizontal } from "lucide-react";
 import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries";
 import {
   CALENDAR_ENTRY_KINDS,
@@ -10,7 +10,6 @@ import {
 import { isoWeek } from "@shared/yearly-calendar-display";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { useCalendarEntries } from "@/hooks/useCalendarEntries";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
@@ -29,12 +28,12 @@ import { ILLUSTRATION_CALENDAR } from "@/components/site/illustrations";
 
 // The grids are only paid for when someone switches to them.
 const CalendarView = lazy(() => import("@/components/calendar-view"));
-const CalendarYearView = lazy(() => import("@/components/calendar-year-view"));
+const CalendarMonthTools = lazy(() => import("@/components/calendar-month-tools"));
 
-type CalendarViewMode = "list" | "month" | "year";
+type CalendarViewMode = "list" | "month";
 export type MonthCursor = { year: number; month: number };
 
-const VIEW_MODES: CalendarViewMode[] = ["list", "month", "year"];
+const VIEW_MODES: CalendarViewMode[] = ["list", "month"];
 const STORAGE_KEY = "fau-calendar-view-groups";
 
 // Which view and which filters someone last used is a convenience, not data:
@@ -68,28 +67,14 @@ function initialActive(): Record<CalendarEntryKind, boolean> {
 }
 
 function initialMode(): CalendarViewMode {
+  if (new URLSearchParams(window.location.search).get("view") === "month") return "month";
   const stored = readPreferences().mode;
   return stored && VIEW_MODES.includes(stored) ? stored : "list";
 }
 
-/**
- * The combined calendar: one set of entries, one set of filters, and the three
- * views that render them.
- *
- * The three views are one system rather than three components that happen to
- * share a page — same hero, same filter row, same category colours, same
- * detail panel. What changes between them is density, not language: the list
- * answers "what is happening in my week", the month grid "where in the month
- * does this fall", and the year "when is it busy".
- *
- * The control strip follows the guide's §11 order: the segmented view switch
- * first, the kindergarten year beside it, the public filters under both, and
- * the editor's own toolbar below that on a sand surface of its own — never
- * interleaved with the filters a parent uses.
- */
+/** One calendar with a week-first list and an editable month view. */
 export default function CalendarViews() {
   const { language, t } = useLanguage();
-  const { entries, isLoading, isError } = useCalendarEntries();
   const [active, setActive] = useState<Record<CalendarEntryKind, boolean>>(initialActive);
   const [mode, setMode] = useState<CalendarViewMode>(initialMode);
   const [showPast, setShowPast] = useState(false);
@@ -107,13 +92,16 @@ export default function CalendarViews() {
   const today = new Date();
   const currentWeekKey = calendarWeekKey(isoWeekYear(today), isoWeek(today));
   const thisSchoolYear = getKindergartenSchoolYear(new Date());
-  const [schoolYear, setSchoolYear] = useState(thisSchoolYear);
-  // The displayed month lives here so the heading can name it, and so the year
-  // view can hand a month over to the month view.
+
+  // The displayed month also determines the editor and download scope.
   const [monthCursor, setMonthCursor] = useState<MonthCursor>({
     year: today.getFullYear(),
     month: today.getMonth() + 1,
   });
+  const schoolYear = mode === "month"
+    ? getKindergartenSchoolYear(new Date(monthCursor.year, monthCursor.month - 1, 1))
+    : thisSchoolYear;
+  const { entries, yearlyEntries, isLoading, isError } = useCalendarEntries(schoolYear);
 
   useEffect(() => {
     try {
@@ -146,21 +134,8 @@ export default function CalendarViews() {
     setSelected((current) => current ? entries.find((entry) => entry.id === current.id) ?? null : null);
   }, [entries]);
 
-  const editor = useCalendarEditor({ schoolYear });
-  const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
-
-  // Month and year are tablet-and-up views. On a phone a month grid is a worse
-  // version of the list — a wall of dots you then have to tap to read a single
-  // line — so below the guide's mobile breakpoint the switch is not offered and
-  // the list is simply what the calendar is. `mode` itself is left untouched,
-  // so someone who chose "Måned" on a laptop still finds it there.
-  const compact = !useMediaQuery("(min-width: 640px)");
-  const view = compact ? "list" : mode;
-
-  // The kindergarten-year picker only changes the year view and the editor's
-  // export scope; it does nothing to the list. On a phone, where the list is
-  // the only public view, it would be a control that appears to do nothing.
-  const showSchoolYear = !compact || editor.toolbar !== null;
+  const editor = useCalendarEditor({ schoolYear, month: monthCursor });
+  const view = mode;
 
   const modes = [
     {
@@ -173,11 +148,6 @@ export default function CalendarViews() {
       label: t.calendar.monthView,
       icon: <CalendarDays className="h-4 w-4" aria-hidden="true" />,
     },
-    {
-      id: "year" as const,
-      label: t.calendar.yearView,
-      icon: <CalendarRange className="h-4 w-4" aria-hidden="true" />,
-    },
   ];
 
   const heading =
@@ -186,16 +156,12 @@ export default function CalendarViews() {
           month: "long",
           year: "numeric",
         })
-      : view === "year"
-        ? `${t.calendar.yearHeading} ${schoolYear}/${schoolYear + 1}`
-        : t.calendar.listHeading;
+      : t.calendar.listHeading;
 
   const intro =
     view === "month"
       ? t.calendar.monthIntro
-      : view === "year"
-        ? t.calendar.yearIntro
-        : t.calendar.listIntro;
+      : t.calendar.listIntro;
 
   if (isLoading) {
     return (
@@ -236,31 +202,12 @@ export default function CalendarViews() {
           list are the thing worth keeping on screen. */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          {!compact && (
-            <SegmentedControl
-              options={modes}
-              value={mode}
-              onChange={changeMode}
-              label={t.calendar.viewLabel}
-            />
-          )}
-
-          {showSchoolYear && (
-            <label className="flex items-center gap-2 text-small text-subtle">
-              {t.yearlyCalendar.schoolYearLabel}
-              <select
-                value={schoolYear}
-                onChange={(event) => setSchoolYear(Number(event.target.value))}
-                className="h-11 rounded-token border border-hairline bg-surface px-3 text-small font-semibold text-ink"
-              >
-                {schoolYearOptions.map((year) => (
-                  <option key={year} value={year}>
-                    {year}/{year + 1}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
+          <SegmentedControl
+            options={modes}
+            value={mode}
+            onChange={changeMode}
+            label={t.calendar.viewLabel}
+          />
         </div>
 
         <div>
@@ -276,7 +223,7 @@ export default function CalendarViews() {
             {t.calendar.filtersLabel}
             {!allOn && (
               <span className="rounded-pill bg-green-50 px-2 py-0.5 text-micro tabular-nums text-brand">
-                {activeCount}/{CALENDAR_ENTRY_KINDS.length}
+                {activeCount}/{CALENDAR_FILTER_KINDS.length}
               </span>
             )}
           </button>
@@ -327,24 +274,15 @@ export default function CalendarViews() {
             </div>
           }
         >
-          {view === "month" ? (
+          <CalendarMonthTools month={monthCursor} schoolYear={schoolYear} entries={yearlyEntries} editor={editor} showNotes={active.beskjed} />
             <CalendarView
               entries={visible}
               month={monthCursor}
               onMonthChange={setMonthCursor}
               onRegister={registerFor}
               editorActionsFor={editor.actionsFor}
+              onCreate={editor.isEditor ? editor.createYearly : undefined}
             />
-          ) : (
-            <CalendarYearView
-              entries={visible}
-              schoolYear={schoolYear}
-              onMonthPick={(picked) => {
-                setMonthCursor(picked);
-                changeMode("month");
-              }}
-            />
-          )}
         </Suspense>
       )}
 

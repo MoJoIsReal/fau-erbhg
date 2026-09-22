@@ -29,10 +29,12 @@ import {
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntryKind } from "@shared/calendar-entries";
 import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarDisplayKindForEntry } from "@shared/calendar-entries";
+import { resolveYearlyCalendarPlacement } from "@shared/yearly-calendar-placement";
 import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
 
 export type EntryDraft = {
@@ -50,6 +52,8 @@ export type EntryDraft = {
   category?: CalendarEntryKind | null;
   weekNumber?: number | null;
   weekNumberEnd?: number | null;
+  weekdayStart?: number | null;
+  weekdayEnd?: number | null;
   date?: string | null;
   startTime?: string | null;
   endTime?: string | null;
@@ -64,7 +68,6 @@ export type EntryDraft = {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  schoolYear: number;
   initial?: Partial<EntryDraft> & { id?: number };
   existing?: YearlyCalendarEntry | null;
 }
@@ -86,8 +89,8 @@ const PRESET_HEX: Record<(typeof COLORS)[number], string> = {
 
 const HEX_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, initial, existing }: Props) {
-  const { t } = useLanguage();
+export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, existing }: Props) {
+  const { language, t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -99,6 +102,9 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const [month, setMonth] = useState<number>(1);
   const [weekNumber, setWeekNumber] = useState<string>("");
   const [weekNumberEnd, setWeekNumberEnd] = useState<string>("");
+  const [wholeMonth, setWholeMonth] = useState(false);
+  const [weekdayStart, setWeekdayStart] = useState("");
+  const [weekdayEnd, setWeekdayEnd] = useState("");
   const [date, setDate] = useState<string>("");
   const [startTime, setStartTime] = useState<string>("");
   const [endTime, setEndTime] = useState<string>("");
@@ -114,7 +120,10 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setEntryType((seed.entryType as EntryDraft["entryType"]) || "week_event");
     setCategory(calendarDisplayKind(calendarDisplayKindForEntry(seed)));
     setYear(seed.year ?? new Date().getFullYear());
-    setMonth(seed.month ?? 1);
+    setMonth(seed.month ?? new Date().getMonth() + 1);
+    setWholeMonth(seed.entryType === "note" && seed.weekNumber == null);
+    setWeekdayStart(seed.weekdayStart != null ? String(seed.weekdayStart) : "");
+    setWeekdayEnd(seed.weekdayEnd != null ? String(seed.weekdayEnd) : "");
     setWeekNumber(seed.weekNumber != null ? String(seed.weekNumber) : "");
     setWeekNumberEnd(seed.weekNumberEnd != null ? String(seed.weekNumberEnd) : "");
     setDate(seed.date ?? "");
@@ -127,32 +136,31 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setNotifyNewsletter(seed.notifyNewsletter === true);
   }, [isOpen, initial, existing]);
 
+  const placement = resolveYearlyCalendarPlacement({
+    entryType, year, month, date,
+    weekNumber: entryType === "note" && wholeMonth ? null : weekNumber ? Number(weekNumber) : null,
+    weekNumberEnd: weekNumberEnd ? Number(weekNumberEnd) : null,
+    weekdayStart: weekdayStart ? Number(weekdayStart) : null,
+    weekdayEnd: weekdayEnd ? Number(weekdayEnd) : null,
+  });
+
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // Multi-week spans are only meaningful for week_event and note. Food is
-      // always a single week, day_event uses date instead.
-      const supportsSpan = entryType === "week_event" || entryType === "note";
+      if (!placement) throw new Error(t.calendarWorkspace.placementError);
       const supportsNewsletter = supportsYearlyCalendarNewsletter(entryType);
       const body: any = {
-        schoolYear: existing?.schoolYear ?? schoolYear,
-        year: date && (entryType === "day_event" || entryType === "closed") ? Number(date.slice(0, 4)) : year,
-        month: date && (entryType === "day_event" || entryType === "closed") ? Number(date.slice(5, 7)) : month,
+        ...placement,
         entryType,
         category: entryType === "day_event" ? category : null,
         title,
         description: description || null,
         color: color || null,
-        weekNumber: weekNumber ? parseInt(weekNumber) : null,
-        weekNumberEnd: supportsSpan && weekNumberEnd ? parseInt(weekNumberEnd) : null,
-        date: entryType === "day_event" || entryType === "closed" ? (date || null) : null,
         // Only a day_event carries a clock time; the server drops an end that
         // isn't after the start, so don't send one either.
         startTime: entryType === "day_event" ? (startTime || null) : null,
         endTime: entryType === "day_event" && startTime && endTime > startTime ? endTime : null,
         showOnHomepage: entryType === "day_event" ? showOnHomepage : false,
         showForParents: false,
-        weekdayStart: supportsSpan ? existing?.weekdayStart ?? null : null,
-        weekdayEnd: supportsSpan ? existing?.weekdayEnd ?? null : null,
         notifyNewsletter: supportsNewsletter ? notifyNewsletter : false,
       };
       if (isEditing) {
@@ -254,7 +262,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             <Button
               type="button"
               onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending || deleteMutation.isPending || !title.trim() || ((entryType === "day_event" || entryType === "closed") ? !date : !weekNumber)}
+              disabled={saveMutation.isPending || deleteMutation.isPending || !title.trim() || !placement}
             >
               {saveMutation.isPending ? t.yearlyCalendar.modal.saving : t.yearlyCalendar.modal.save}
             </Button>
@@ -335,7 +343,13 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
 
             </>}
-          {entryType !== "day_event" && entryType !== "closed" && (
+          {entryType === "note" && (
+            <label className="flex min-h-11 items-center gap-3" htmlFor="entry-whole-month">
+              <Checkbox id="entry-whole-month" checked={wholeMonth} onCheckedChange={(checked) => setWholeMonth(checked === true)} />
+              {t.calendarWorkspace.wholeMonth}
+            </label>
+          )}
+          {entryType !== "day_event" && entryType !== "closed" && !(entryType === "note" && wholeMonth) && (
             <div className={entryType === "week_event" || entryType === "note" ? "grid grid-cols-2 gap-3" : ""}>
               <div>
                 <Label htmlFor="entry-week">{t.yearlyCalendar.modal.weekNumber}</Label>
@@ -353,7 +367,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                   <Label htmlFor="entry-end-week">{t.yearlyCalendar.modal.weekNumberEnd}</Label>
                   <Input
                     type="number"
-                    min={weekNumber ? parseInt(weekNumber) + 1 : 2}
+                    min={weekNumber ? Number(weekNumber) : 1}
                     max={53}
                     id="entry-end-week"
                   value={weekNumberEnd}
@@ -362,6 +376,32 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                   />
                 </div>
               )}
+            </div>
+          )}
+
+          {(entryType === "week_event" || (entryType === "note" && !wholeMonth)) && (
+            <div className="grid grid-cols-2 gap-3">
+              {[{ id: "entry-weekday-start", label: t.calendarWorkspace.weekdayStart, value: weekdayStart, set: setWeekdayStart },
+                { id: "entry-weekday-end", label: t.calendarWorkspace.weekdayEnd, value: weekdayEnd, set: setWeekdayEnd }].map((field) => (
+                <div key={field.id}>
+                  <Label htmlFor={field.id}>{field.label}</Label>
+                  <Select value={field.value || "all"} onValueChange={(value) => {
+                    field.set(value === "all" ? "" : value);
+                    if (value === "all") { setWeekdayStart(""); setWeekdayEnd(""); }
+                    else if (!weekdayStart || !weekdayEnd) { setWeekdayStart("1"); setWeekdayEnd("7"); field.set(value); }
+                  }}>
+                    <SelectTrigger id={field.id}><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">{t.calendar.allWeek}</SelectItem>
+                      {Array.from({ length: 7 }, (_, index) => (
+                        <SelectItem key={index} value={String(index + 1)}>
+                          {formatDate(new Date(2026, 8, 21 + index), language, { weekday: "long" })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              ))}
             </div>
           )}
 
@@ -394,6 +434,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
           )}
 
 
+          {!placement && <p className="text-small text-subtle">{t.calendarWorkspace.placementError}</p>}
           </EditorSection>
           <EditorSection title={t.entryEditor.publishing}>
             {entryType === "day_event" && (

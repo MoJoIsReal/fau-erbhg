@@ -173,10 +173,10 @@ Accessibility is part of the system, not a later pass: 4.5:1 for body text
 focus ring, 44px minimum touch targets, and category or status never carried by
 colour alone — always a label or an icon beside the dot.
 
-Two areas are intentionally outside it. `client/src/pages/yearly-calendar.tsx`
-keeps its poster styling because it mirrors the PDF it generates
-(`client/src/lib/yearly-calendar-pdf.tsx`), and the colour values users pick for
-yearly-calendar entries are stored data rather than design tokens.
+Two areas are intentionally outside it. The downloadable poster calendar
+(`client/src/lib/yearly-calendar-pdf.tsx`) keeps its print styling, and the colour
+values users pick for yearly-calendar entries are stored data rather than design
+tokens. On-screen calendar editing uses the regular month view and design system.
 
 ## Conventions
 

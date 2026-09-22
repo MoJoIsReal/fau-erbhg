@@ -12,7 +12,6 @@ const CalendarPage = lazy(() => import("@/pages/calendar"));
 // The yearly calendar is no longer a public tab. It stays as the editor
 // surface for the printable årskalender — drag-and-drop month layout and the
 // month-by-month PDF — reached from the calendar's editor toolbar.
-const YearlyCalendar = lazy(() => import("@/pages/yearly-calendar"));
 const News = lazy(() => import("@/pages/news"));
 const NewsPost = lazy(() => import("@/pages/news-post"));
 const Contact = lazy(() => import("@/pages/contact"));
@@ -106,7 +105,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/kalender" component={CalendarPage} />
           <Route path="/kalender/arskalender">
-            <YearlyCalendar />
+            <Redirect to="/kalender?view=month" />
           </Route>
           {/* Was the "Hva skjer" tab until the calendar merged into one view. */}
           <Route path="/kalender/arrangementer">
@@ -151,12 +150,12 @@ function Router() {
             </RequireAuth>
           </Route>
           <Route path="/arskalender">
-            <Redirect to="/kalender/arskalender" />
+            <Redirect to="/kalender?view=month" />
           </Route>
           {/* Shipped briefly as /kalender/arshjul before the page settled on
               "Årskalender" everywhere. */}
           <Route path="/kalender/arshjul">
-            <Redirect to="/kalender/arskalender" />
+            <Redirect to="/kalender?view=month" />
           </Route>
           <Route path="/nyhetsbrev" component={Newsletter} />
           <Route path="/newsletter" component={Newsletter} />

@@ -1,7 +1,7 @@
 import { CalendarCategory } from "@/components/site/calendar-category";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, MapPin, Plus } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
@@ -11,9 +11,13 @@ import {
   CALENDAR_DAYS_PER_WEEK,
   toCalendarIsoDate,
   weeksOfMonth,
+  isoWeek,
 } from "@shared/yearly-calendar-display";
 import SafeHtml from "@/components/safe-html";
 import { StatusPill } from "@/components/site/controls";
+import { EditorSurface } from "@/components/site/cards";
+import { Input } from "@/components/ui/input";
+import type { EntryDraft } from "@/components/yearly-calendar-entry-modal";
 import { Surface } from "@/components/site/section";
 
 export type MonthCursor = { year: number; month: number };
@@ -23,6 +27,7 @@ interface CalendarViewProps {
   month: MonthCursor;
   onMonthChange: (month: MonthCursor) => void;
   onRegister: (entry: CalendarEntry) => void;
+  onCreate?: (initial: Partial<EntryDraft>) => void;
   editorActionsFor?: (entry: CalendarEntry) => ReactNode;
 }
 
@@ -70,11 +75,7 @@ type WeekBand = {
  * days it covers, and opens the week rather than a day. The grid used to put
  * those in Monday's cell, which read as Monday being a very busy day.
  *
- * Below 640px the grid drops its event labels and shows dots only, with the
- * agenda under the selected day doing the reading. The calendar page no longer
- * offers this view on a phone — it only ever renders from 640px up — so those
- * rules are a safety net for a resize and for anyone embedding the grid in a
- * narrower column, not the primary mobile design.
+ * Below 640px the grid shows dots, with the readable agenda under the picked day.
  */
 export default function CalendarView({
   entries,
@@ -82,6 +83,7 @@ export default function CalendarView({
   onMonthChange,
   onRegister,
   editorActionsFor,
+  onCreate,
 }: CalendarViewProps) {
   const { language, t } = useLanguage();
   const todayIso = toCalendarIsoDate(new Date());
@@ -239,6 +241,19 @@ export default function CalendarView({
           </Button>
         </div>
 
+        <label className="flex flex-wrap items-center gap-3 border-t border-hairline px-4 py-3 text-small font-semibold text-copy">
+          {t.calendarWorkspace.jumpMonth}
+          <Input type="month" className="w-auto max-w-full" min="2020-08" max="2100-07"
+            value={`${month.year}-${String(month.month).padStart(2, "0")}`}
+            onChange={(event) => {
+              const [year, value] = event.target.value.split("-").map(Number);
+              if (year >= 2020 && year <= 2100 && value >= 1 && value <= 12) {
+                setSelected(null);
+                setExpanded(new Set());
+                onMonthChange({ year, month: value });
+              }
+            }} />
+        </label>
         <div className="border-t border-hairline">
           {/* Week number in its own narrow rail from tablet up: the whole
               kindergarten year is spoken about in week numbers, so the grid
@@ -275,8 +290,12 @@ export default function CalendarView({
                 key={`${row.weekYear}-${week.weekNumber}`}
                 className={`flex ${weekIndex > 0 ? "border-t border-calendar-grid" : ""}`}
               >
-                <div className="hidden w-12 shrink-0 items-start justify-center border-r border-calendar-grid bg-surface-soft pt-3 text-micro font-semibold tabular-nums text-subtle sm:flex">
-                  {week.weekNumber}
+                <div className="hidden w-12 shrink-0 border-r border-calendar-grid bg-surface-soft sm:block">
+                  <button type="button" className="min-h-11 w-full text-small font-semibold tabular-nums text-subtle hover:bg-calendar-hover"
+                    aria-label={weekHeading(row.weekYear, week.weekNumber)} aria-pressed={weekSelected}
+                    onClick={() => setSelected({ kind: "week", weekYear: row.weekYear, week: week.weekNumber })}>
+                    {week.weekNumber}
+                  </button>
                 </div>
 
                 <div className="min-w-0 flex-1">
@@ -306,7 +325,7 @@ export default function CalendarView({
                               gridColumn: `${band.startColumn} / ${band.endColumn + 1}`,
                               gridRow: `${bandIndex + 1}`,
                             }}
-                            className={`flex min-w-0 items-center gap-1.5 rounded-pill px-2 py-1 text-left text-micro font-semibold transition-shadow duration-micro ease-guide hover:ring-2 hover:ring-brand/30 ${
+                            className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-token px-2 py-1 text-left text-micro font-semibold transition-shadow duration-micro ease-guide hover:ring-2 hover:ring-brand/30 ${
                               style.tint
                             } ${style.text} ${weekSelected ? "ring-2 ring-brand/50" : ""}`}
                           >
@@ -345,7 +364,7 @@ export default function CalendarView({
                     return (
                       <div
                         key={iso}
-                        className={`min-h-[68px] px-1 py-2 transition-colors duration-micro ease-guide sm:min-h-[132px] sm:px-2.5 sm:py-2.5 ${
+                        className={`min-h-[68px] px-0 py-2 transition-colors duration-micro ease-guide sm:min-h-[132px] sm:px-2.5 sm:py-2.5 ${
                           isSelected
                             ? "bg-green-50"
                             : day.inMonth
@@ -357,7 +376,7 @@ export default function CalendarView({
                           type="button"
                           onClick={() => setSelected(isSelected ? null : { kind: "day", iso })}
                           aria-pressed={isSelected}
-                          className="mx-auto block sm:mx-0"
+                          className="mx-auto flex min-h-11 w-full items-center justify-center sm:mx-0 sm:w-11"
                         >
                           <span className="sr-only">
                             {formatDate(day.date, language, {
@@ -407,7 +426,7 @@ export default function CalendarView({
                               type="button"
                               onClick={() => setSelected({ kind: "day", iso })}
                               title={entry.title}
-                              className="flex items-baseline gap-1.5 rounded-sm text-left text-micro leading-snug text-copy hover:text-brand"
+                              className="flex min-h-11 items-center gap-1.5 rounded-sm text-left text-micro leading-snug text-copy hover:text-brand"
                             >
                               <span
                                 className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
@@ -426,7 +445,7 @@ export default function CalendarView({
                             <button
                               type="button"
                               onClick={() => setExpanded((prev) => new Set(prev).add(iso))}
-                              className="text-left text-micro font-semibold text-subtle hover:text-brand"
+                              className="min-h-11 text-left text-micro font-semibold text-subtle hover:text-brand"
                             >
                               +{dayEntries.length - MAX_PER_CELL} {t.events.more}
                             </button>
@@ -461,6 +480,25 @@ export default function CalendarView({
                   })
                 : weekHeading(selected.weekYear, selected.week)}
             </h3>
+
+            {onCreate && (
+              <div className="mt-4">
+                <EditorSurface label={t.calendar.editorLabel}>
+                  {selected.kind === "day" && (
+                    <Button size="sm" onClick={() => onCreate({
+                      entryType: "day_event", date: selected.iso,
+                      year: Number(selected.iso.slice(0, 4)), month: Number(selected.iso.slice(5, 7)),
+                    })}><Plus className="mr-2 h-4 w-4" aria-hidden="true" />{t.calendarWorkspace.addDay}</Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => {
+                    const date = selected.kind === "day" ? new Date(`${selected.iso}T12:00:00`) : null;
+                    onCreate({ entryType: "week_event", year: date?.getFullYear() ?? month.year,
+                      month: date ? date.getMonth() + 1 : month.month,
+                      weekNumber: date ? isoWeek(date) : selected.kind === "week" ? selected.week : null });
+                  }}><Plus className="mr-2 h-4 w-4" aria-hidden="true" />{t.calendarWorkspace.addWeek}</Button>
+                </EditorSurface>
+              </div>
+            )}
 
             {selectedEntries.length === 0 ? (
               <p className="mt-3 text-small text-subtle">

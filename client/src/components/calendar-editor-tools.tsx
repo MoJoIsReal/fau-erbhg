@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
-import { Link } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, FileSpreadsheet, Plus, Table, Upload, Users } from "lucide-react";
+import { FileSpreadsheet, Plus, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -24,7 +23,7 @@ import type { YearlyCalendarEntryType } from "@shared/yearly-calendar-utils";
 import type { CalendarEntry, YearlyCalendarKind } from "@shared/calendar-entries";
 import EventCreationModal from "@/components/event-creation-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
-import YearlyCalendarEntryModal from "@/components/yearly-calendar-entry-modal";
+import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
 import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
 import AttendeeTooltip from "@/components/attendee-tooltip";
 
@@ -35,11 +34,14 @@ type CreationTarget =
       entryType: YearlyCalendarEntryType;
       category: YearlyCalendarKind | null;
       existing: YearlyCalendarEntry | null;
+      initial?: Partial<EntryDraft>;
     };
 
 export type CalendarEditor = {
   isEditor: boolean;
   toolbar: ReactNode;
+  createYearly: (initial: Partial<EntryDraft>) => void;
+  editYearly: (entry: YearlyCalendarEntry) => void;
   modals: ReactNode;
   actionsFor: (entry: CalendarEntry) => ReactNode;
   /** The attendee count as a tooltip naming who is coming, for editors. */
@@ -58,9 +60,9 @@ export type CalendarEditor = {
  * so the picker is where that split belongs. Both branches then open the
  * existing modal unchanged.
  */
-export function useCalendarEditor({ schoolYear }: { schoolYear: number }): CalendarEditor {
+export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; month: { year: number; month: number } }): CalendarEditor {
   const { user } = useAuth();
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -72,11 +74,9 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
   const [registrationsFor, setRegistrationsFor] = useState<Event | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [confirming, setConfirming] = useState<{ event: Event; action: "cancel" | "delete" } | null>(null);
-  const [busy, setBusy] = useState<"pdf" | "template" | null>(null);
+  const [busy, setBusy] = useState<"template" | null>(null);
 
-  // PDF and Excel both work on the raw rows for one school year, not on the
-  // merged shape. Same query keys as everywhere else, so this is the cache.
-  const { data: events = [] } = useQuery<Event[]>({ queryKey: ["/api/events"] });
+  // Excel uses raw rows for the school year containing the displayed month.
   const { data: yearlyEntries = [] } = useQuery<YearlyCalendarEntry[]>({
     queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`],
   });
@@ -117,23 +117,6 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     },
   });
 
-  const downloadPdf = async () => {
-    setBusy("pdf");
-    try {
-      const { downloadYearlyCalendarPdf } = await import("@/lib/yearly-calendar-pdf");
-      await downloadYearlyCalendarPdf({ entries: yearlyEntries, events, schoolYear, lang: language });
-    } catch (err) {
-      toast({
-        title: t.yearlyCalendar.pdfErrorTitle,
-        description: t.yearlyCalendar.pdfErrorDescription,
-        variant: "destructive",
-      });
-      console.error("Yearly calendar PDF download failed", err);
-    } finally {
-      setBusy(null);
-    }
-  };
-
   const downloadTemplate = async () => {
     setBusy("template");
     try {
@@ -156,12 +139,21 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     setCreating(target);
   };
 
+  const createYearly = (initial: Partial<EntryDraft>) => {
+    if (!canEditYearly) return;
+    pick({ kind: "yearly", entryType: initial.entryType ?? "day_event", category: null, existing: null,
+      initial: { ...month, ...initial } });
+  };
+  const editYearly = (entry: YearlyCalendarEntry) => {
+    if (canEditYearly) pick({ kind: "yearly", entryType: entry.entryType as YearlyCalendarEntryType, category: null, existing: entry });
+  };
+
   // The editor's own strip of the page, on a sand surface with a dashed edge
   // and a label of its own. The guide is explicit that admin actions must not
   // sit among the public filters (§11), and the dashed border is what tells a
   // logged-in editor at a glance which controls the parents can also see.
   const toolbar = !canEditYearly ? null : (
-    <EditorSurface collapsible label={t.calendar.editorLabel} hint={t.calendar.excelScopeNote}>
+    <EditorSurface collapsible label={t.calendar.editorLabel} hint={`${t.calendarWorkspace.editHint} ${t.yearlyCalendar.schoolYearLabel}: ${schoolYear}/${schoolYear + 1}. ${t.calendar.excelScopeNote}`}>
       <Button size="sm" onClick={() => setPickerOpen(true)}>
         <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
         {t.calendar.newEntry}
@@ -173,19 +165,6 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
       <Button size="sm" variant="outline" onClick={() => setImportOpen(true)}>
         <Upload className="mr-1 h-4 w-4" aria-hidden="true" />
         {t.yearlyCalendar.importExcel}
-      </Button>
-      <Button size="sm" variant="outline" onClick={downloadPdf} disabled={busy !== null}>
-        <Download className="mr-1 h-4 w-4" aria-hidden="true" />
-        {busy === "pdf" ? t.yearlyCalendar.pdfGenerating : t.yearlyCalendar.downloadAllPdf}
-      </Button>
-      {/* The printable årskalender keeps its own editing surface: a
-          month-by-month layout with drag-and-drop, which a week list and a
-          month grid cannot replace. It is no longer a public tab. */}
-      <Button size="sm" variant="outline" asChild>
-        <Link href="/kalender/arskalender">
-          <Table className="mr-1 h-4 w-4" aria-hidden="true" />
-          {t.calendar.openYearlyEditor}
-        </Link>
       </Button>
     </EditorSurface>
   );
@@ -281,7 +260,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
               {t.calendar.newEntry}
             </h3>
             <p className="text-micro text-subtle">{t.calendar.newYearlyHint}</p>
-            <Button variant="outline" className="w-full justify-start" onClick={() => pick({ kind: "yearly", entryType: "day_event", category: null, existing: null })}>
+            <Button variant="outline" className="w-full justify-start" onClick={() => createYearly({ entryType: "day_event" })}>
               {t.yearlyCalendar.modal.addTitle}
             </Button>
           </div>
@@ -298,13 +277,8 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
         <YearlyCalendarEntryModal
           isOpen
           onClose={() => setCreating(null)}
-          schoolYear={schoolYear}
           existing={creating.existing}
-          initial={
-            creating.existing
-              ? undefined
-              : { entryType: creating.entryType, category: creating.category }
-          }
+          initial={creating.initial}
         />
       )}
 
@@ -359,5 +333,5 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
     );
   };
 
-  return { isEditor: canEditYearly, toolbar, modals, actionsFor, attendeeCountFor };
+  return { isEditor: canEditYearly, toolbar, modals, actionsFor, attendeeCountFor, createYearly, editYearly };
 }

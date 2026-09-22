@@ -6,7 +6,8 @@ Everything else lives in [`AGENTS.md`](../AGENTS.md).
 
 ## Yearly calendar
 
-Files: `client/src/pages/yearly-calendar.tsx`, `api/yearly-calendar.js`,
+Files: `client/src/components/calendar-{views,view,month-tools}.tsx`,
+`client/src/components/yearly-calendar-entry-modal.tsx`, `api/yearly-calendar.js`,
 `shared/yearly-calendar-display.js`, `shared/yearly-calendar-utils.js`,
 `client/src/lib/yearly-calendar-{excel,pdf}.*`.
 
@@ -14,8 +15,8 @@ The month grid runs **Monday–Sunday**. The kindergarten week is Mon–Fri, but
 arrangements (dugnad, sommerfest) fall on weekends, so the weekend columns exist
 and are only dimmed. `weeksOfMonth()` in `shared/yearly-calendar-display.js` is
 the single source for that grid — the page and the PDF export both use it; do
-not re-derive weeks locally. On phones an empty weekend row is hidden unless the
-viewer can edit, so there is still somewhere to add a Saturday entry.
+not re-derive weeks locally. All seven days remain selectable on phones; the
+agenda below the grid contains the readable details and editor controls.
 
 A `day_event` can carry an optional `startTime`/`endTime` ("HH:MM", Norwegian
 local time). Without a start time it stays an all-day entry, which is what most
@@ -26,11 +27,21 @@ that is not after the start is dropped rather than rejected, the same way
 day or a whole week — and the Excel import does not carry them, so re-importing
 never wipes a time set in the UI.
 
-Signup events (`/api/events`) are rendered inside the day cells alongside the
-yearly entries, in orange, read-only (they link back to the "Hva skjer" tab,
-which owns creating and editing them) and never draggable — drag-and-drop moves
-yearly entries only. Cancelled events stay visible, struck through. The PDF
-export takes the same events and prints them the same way.
+The public calendar has List and Month views. The month view replaces the old
+standalone yearly calendar; its legacy URLs redirect to `/kalender?view=month`.
+Editors select a day or week to create an entry and edit its date, month, year,
+week span or weekdays in the form to move it. `shared/yearly-calendar-placement.js`
+derives the school year from that placement, including moves across July/August.
+Month notes without a week are shown above the grid. The editor's complete month
+list also exposes yearly entries hidden by filters or deduplicated against events.
+Staff can edit yearly entries; only council roles can edit signup events.
+
+PDF downloads (selected month or full August–July school year) are public in the
+month view, including on phones. They use the existing poster layout and complete
+source rows, regardless of active filters; downloads stay disabled if a required
+source failed to load. Signup events and cancelled events are included as before.
+Excel import/export remains in the editor toolbar, scoped to the displayed month’s
+school year (or the current school year in List view).
 
 ## Calendar feed
 

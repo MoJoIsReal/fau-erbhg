@@ -7,6 +7,7 @@ import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 
 export type UseCalendarEntriesResult = {
   entries: CalendarEntry[];
+  yearlyEntries: YearlyCalendarEntry[];
   isLoading: boolean;
   isError: boolean;
 };
@@ -17,15 +18,16 @@ export type UseCalendarEntriesResult = {
  * `shared/calendar-entries.js` so they are covered by
  * `tests/calendar-entries.test.mjs`; this hook only does the fetching.
  *
- * Three queries, all on keys other pages already use, so TanStack Query serves
+ * Queries use the same keys as the editor and exports, so TanStack Query serves
  * them from the same cache rather than refetching.
  */
-export function useCalendarEntries(): UseCalendarEntriesResult {
+export function useCalendarEntries(schoolYear = getKindergartenSchoolYear(new Date())): UseCalendarEntriesResult {
   const eventsQuery = useQuery<Event[]>({ queryKey: ["/api/events"] });
 
-  // The kindergarten year starts in August, so a calendar looking twelve
-  // months ahead always straddles two of them.
-  const schoolYear = getKindergartenSchoolYear(new Date());
+  // Adjacent school years cover grid days and week bands crossing August.
+  const previousYearQuery = useQuery<YearlyCalendarEntry[]>({
+    queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear - 1}`],
+  });
   const currentYearQuery = useQuery<YearlyCalendarEntry[]>({
     queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`],
   });
@@ -37,18 +39,23 @@ export function useCalendarEntries(): UseCalendarEntriesResult {
   const currentYearEntries = currentYearQuery.data;
   const nextYearEntries = nextYearQuery.data;
 
+  const yearlyEntries = useMemo(
+    () => [...(previousYearQuery.data ?? []), ...(currentYearEntries ?? []), ...(nextYearEntries ?? [])],
+    [previousYearQuery.data, currentYearEntries, nextYearEntries],
+  );
   const entries = useMemo(
     () =>
       mergeCalendarEntries({
         events: events ?? [],
-        entries: [...(currentYearEntries ?? []), ...(nextYearEntries ?? [])],
+        entries: yearlyEntries,
       }),
-    [events, currentYearEntries, nextYearEntries],
+    [events, yearlyEntries],
   );
 
   return {
     entries,
-    isLoading: eventsQuery.isLoading || currentYearQuery.isLoading || nextYearQuery.isLoading,
+    yearlyEntries,
+    isLoading: eventsQuery.isLoading || previousYearQuery.isLoading || currentYearQuery.isLoading || nextYearQuery.isLoading,
     // A missing school year is not a failure worth blanking the page for —
     // only give up when every source is unavailable.
     isError: eventsQuery.isError && currentYearQuery.isError && nextYearQuery.isError,

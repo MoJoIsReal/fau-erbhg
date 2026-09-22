@@ -1,6 +1,20 @@
 export type Language = 'no' | 'en';
 
 export interface Translations {
+  calendarWorkspace: {
+    editHint: string;
+    allEntries: string;
+    allEntriesHint: string;
+    wholeMonth: string;
+    addDay: string;
+    addWeek: string;
+    addNote: string;
+    jumpMonth: string;
+    downloadHint: string;
+    weekdayStart: string;
+    weekdayEnd: string;
+    placementError: string;
+  };
   entryEditor: {
     intro: string;
     content: string;
@@ -1003,6 +1017,20 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   no: {
+    calendarWorkspace: {
+      editHint: "Velg en dato eller uke i måneden for å legge til. Endre dato eller uke i skjemaet for å flytte en oppføring.",
+      allEntries: "Månedens oppføringer",
+      allEntriesHint: "Alle kalenderoppføringer i måneden, også de som skjules av filtre eller vises sammen med et arrangement.",
+      wholeMonth: "Hele måneden",
+      addDay: "Legg til på datoen",
+      addWeek: "Legg til i uken",
+      addNote: "Legg til månedsnotat",
+      jumpMonth: "Gå til måned",
+      downloadHint: "PDF inkluderer alle oppføringer, uavhengig av filtrene. Barnehageåret går fra august til juli.",
+      weekdayStart: "Fra ukedag",
+      weekdayEnd: "Til ukedag",
+      placementError: "Velg en gyldig dato, måned og uke. Slutt må være etter eller lik start.",
+    },
     entryEditor: {
       intro: "Velg innhold, tidspunkt og hvordan oppføringen skal vises.",
       content: "Innhold og kategori",
@@ -2005,6 +2033,20 @@ export const translations: Record<Language, Translations> = {
     }
   },
   en: {
+    calendarWorkspace: {
+      editHint: "Select a date or week in the month to add an entry. Change its date or week in the form to move it.",
+      allEntries: "Entries this month",
+      allEntriesHint: "All calendar entries in this month, including entries hidden by filters or displayed alongside an event.",
+      wholeMonth: "Whole month",
+      addDay: "Add on this date",
+      addWeek: "Add in this week",
+      addNote: "Add month note",
+      jumpMonth: "Go to month",
+      downloadHint: "PDF includes all entries, regardless of filters. The kindergarten year runs from August to July.",
+      weekdayStart: "From weekday",
+      weekdayEnd: "To weekday",
+      placementError: "Choose a valid date, month and week. The end must be on or after the start.",
+    },
     entryEditor: {
       intro: "Choose the content, timing and how the entry is displayed.",
       content: "Content and category",
