@@ -206,10 +206,19 @@ export default function CalendarView({
 
   return (
     <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_21rem]">
-      <Surface className="overflow-hidden">
+      {/* `overflow-clip`, not `overflow-hidden`: hidden makes this a scroll
+          container, and a sticky child of a scroll container only sticks
+          inside it — i.e. never. Clip rounds the corners without that. */}
+      <Surface className="overflow-clip">
         {/* The month nav wraps on a narrow phone rather than squeezing
-            "September 2026" into an ellipsis next to two chevrons. */}
-        <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-3 sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-4">
+            "September 2026" into an ellipsis next to two chevrons.
+
+            It follows the month down: on a six-week month the grid is taller
+            than the viewport, and paging to the next month meant scrolling
+            back to the top first. It parks under the site header — the only
+            other sticky element on this page — and carries the divider the
+            row beneath it used to draw, so the resting layout is unchanged. */}
+        <div className="sticky top-[var(--header-height-mobile)] z-20 flex flex-wrap items-center justify-between gap-2 border-b border-hairline bg-surface px-3 py-3 sm:flex-nowrap sm:gap-3 sm:px-5 sm:py-4 lg:top-[var(--header-height)]">
           <div className="flex min-w-0 flex-1 items-center gap-1">
             <Button
               variant="ghost"
@@ -241,7 +250,7 @@ export default function CalendarView({
           </Button>
         </div>
 
-        <label className="flex flex-wrap items-center gap-3 border-t border-hairline px-4 py-3 text-small font-semibold text-copy">
+        <label className="flex flex-wrap items-center gap-3 px-4 py-3 text-small font-semibold text-copy">
           {t.calendarWorkspace.jumpMonth}
           <Input type="month" className="w-auto max-w-full" min="2020-08" max="2100-07"
             value={`${month.year}-${String(month.month).padStart(2, "0")}`}
@@ -325,7 +334,7 @@ export default function CalendarView({
                               gridColumn: `${band.startColumn} / ${band.endColumn + 1}`,
                               gridRow: `${bandIndex + 1}`,
                             }}
-                            className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-token px-2 py-1 text-left text-micro font-semibold transition-shadow duration-micro ease-guide hover:ring-2 hover:ring-brand/30 ${
+                            className={`flex min-h-11 min-w-0 items-center gap-1.5 rounded-token px-2 py-1.5 text-left text-micro font-semibold leading-snug transition-shadow duration-micro ease-guide hover:ring-2 hover:ring-brand/30 ${
                               style.tint
                             } ${style.text} ${weekSelected ? "ring-2 ring-brand/50" : ""}`}
                           >
@@ -336,7 +345,13 @@ export default function CalendarView({
                               className={`h-1.5 w-1.5 shrink-0 rounded-pill ${style.dot}`}
                               aria-hidden="true"
                             />
-                            <span className="truncate">{band.entry.title}</span>
+                            {/* Two lines, then an ellipsis — a band is only
+                                as wide as the days it covers, and "Havregrøt
+                                + samiskinspirert mat" on a two-day band was
+                                one word and a cut. */}
+                            <span className="line-clamp-2 min-w-0 hyphens-auto break-words">
+                              {band.entry.title}
+                            </span>
                             {/* The width says "all week" to the eye; this says
                                 it, and the category, to a screen reader. */}
                             <span className="sr-only">
@@ -364,7 +379,7 @@ export default function CalendarView({
                     return (
                       <div
                         key={iso}
-                        className={`min-h-[68px] px-0 py-2 transition-colors duration-micro ease-guide sm:min-h-[132px] sm:px-2.5 sm:py-2.5 ${
+                        className={`min-h-[68px] px-0 py-2 transition-colors duration-micro ease-guide sm:min-h-[132px] sm:px-2 sm:py-2.5 ${
                           isSelected
                             ? "bg-green-50"
                             : day.inMonth
@@ -426,17 +441,29 @@ export default function CalendarView({
                               type="button"
                               onClick={() => setSelected({ kind: "day", iso })}
                               title={entry.title}
-                              className="flex min-h-11 items-center gap-1.5 rounded-sm text-left text-micro leading-snug text-copy hover:text-brand"
+                              className="flex min-h-11 w-full items-center rounded-sm py-0.5 text-left text-micro leading-snug text-copy hover:text-brand"
                             >
+                              {/* A cell is a seventh of the grid, so a title
+                                  of any length needs to wrap: "Markering av
+                                  samefolkets dag" read as "Markering av s…"
+                                  until it could. Three lines holds the
+                                  ordinary ones whole; past that the day panel
+                                  takes over, which is what it is for.
+
+                                  The dot is taken out of the text flow and
+                                  hung in the indent: inline, it was a break
+                                  opportunity, and a first word that did not
+                                  fit beside it left the dot alone on a line
+                                  the clamp then counted. */}
                               <span
-                                className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
-                                  KIND_STYLE[entry.displayKind].dot
-                                }`}
-                                aria-hidden="true"
-                              />
-                              <span
-                                className={`truncate ${entry.cancelled ? "line-through decoration-1" : ""}`}
+                                className={`relative line-clamp-3 min-w-0 hyphens-auto break-words pl-3 ${entry.cancelled ? "line-through decoration-1" : ""}`}
                               >
+                                <span
+                                  className={`absolute left-0 top-1.5 h-1.5 w-1.5 rounded-pill ${
+                                    KIND_STYLE[entry.displayKind].dot
+                                  }`}
+                                  aria-hidden="true"
+                                />
                                 {entry.title}
                               </span>
                             </button>
