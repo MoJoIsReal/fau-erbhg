@@ -54,6 +54,7 @@ export function TimeInput24h({ value, onChange, onBlur, disabled, name }: TimeIn
       onChange={handleChange}
       onBlur={handleBlur}
       disabled={disabled}
+      id={name}
       name={name}
     />
   );

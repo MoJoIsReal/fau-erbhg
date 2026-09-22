@@ -1,3 +1,5 @@
+import { CalendarCategory } from "@/components/site/calendar-category";
+import { calendarDisplayKind, calendarDisplayKindForEntry, calendarKindForEventType } from "@shared/calendar-entries";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { ArrowRight, CalendarDays, Clock, Heart, MapPin, Sparkles, Users } from "lucide-react";
@@ -46,38 +48,18 @@ function upcomingParts(item: UpcomingItem) {
       location: item.event.location ?? "",
       description: item.event.description ?? "",
       closed: false,
-      audience: null,
+      displayKind: calendarDisplayKind(calendarKindForEventType(item.event.type)),
     };
   }
   return {
     title: item.entry.title,
     date: item.entry.date as string,
-    time: "",
+    time: [item.entry.startTime, item.entry.endTime].filter(Boolean).join("–"),
     location: "",
     description: item.entry.description ?? "",
     closed: item.entry.entryType === "closed",
-    audience: upcomingAudience(item.entry),
+    displayKind: calendarDisplayKindForEntry(item.entry),
   };
-}
-
-/**
- * Which of the two homepage flags a yearly entry is listed under.
- *
- * The flags decide whether an entry reaches this page at all
- * (`useUpcomingItems`), and the editor's own help text has always promised
- * that it arrives "merket 'For foreldre'" — so the badge is what makes the
- * two checkboxes mean different things. "For foreldre" wins when both are
- * set: who it is for is what a parent scanning the list needs, and one pill
- * per row is enough. A closed day says "Stengt" instead and needs no
- * audience.
- */
-function upcomingAudience(entry: {
-  showForParents?: boolean | null;
-  showOnHomepage?: boolean | null;
-}) {
-  if (entry.showForParents === true) return "parents" as const;
-  if (entry.showOnHomepage === true) return "kindergarten" as const;
-  return null;
 }
 
 /**
@@ -203,16 +185,8 @@ export default function Home() {
                 <Surface tone="raised" as="article" className="flex flex-col gap-4 p-6 sm:p-8">
                   <div className="flex flex-wrap items-center gap-2">
                     <StatusPill tone="now">{t.home.nextUpLabel}</StatusPill>
-                    {parts.closed && (
-                      <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>
-                    )}
-                    {!parts.closed && parts.audience && (
-                      <StatusPill tone="info">
-                        {parts.audience === "parents"
-                          ? t.yearlyCalendar.forParentsBadge
-                          : t.yearlyCalendar.inKindergartenBadge}
-                      </StatusPill>
-                    )}
+                    <CalendarCategory kind={parts.displayKind} />
+                    {parts.closed && <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>}
                   </div>
 
                   <div className="flex items-start gap-5">
@@ -289,15 +263,9 @@ export default function Home() {
                           <span className="block text-small font-semibold text-ink">
                             {parts.title}
                           </span>
-                          {(parts.time || parts.closed || parts.audience) && (
-                            <span className="block text-micro text-subtle">
-                              {parts.closed
-                                ? t.yearlyCalendar.closedBadge
-                                : parts.time || (parts.audience === "parents"
-                                    ? t.yearlyCalendar.forParentsBadge
-                                    : t.yearlyCalendar.inKindergartenBadge)}
-                            </span>
-                          )}
+                          <span className="mt-1 block"><CalendarCategory kind={parts.displayKind} /></span>
+                          {parts.time && <span className="block text-micro text-subtle">{parts.time}</span>}
+                          {parts.closed && <span className="block text-micro text-subtle">{t.yearlyCalendar.closedBadge}</span>}
                         </span>
                       </li>
                     );

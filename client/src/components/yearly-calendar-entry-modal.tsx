@@ -1,5 +1,7 @@
+import { EditorDialog, EditorSection } from "@/components/site/editor-dialog";
+import { CalendarCategory } from "@/components/site/calendar-category";
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogFooter } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,8 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntryKind } from "@shared/calendar-entries";
-import { YEARLY_CALENDAR_CATEGORIES } from "@shared/calendar-entries";
-import { KIND_STYLE } from "@/lib/calendar-kind-style";
+import { CALENDAR_DISPLAY_KINDS, calendarDisplayKindForEntry } from "@shared/calendar-entries";
 import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
 
 export type EntryDraft = {
@@ -70,8 +71,6 @@ interface Props {
 
 const TYPES: EntryDraft["entryType"][] = ["week_event", "day_event", "food", "closed", "note"];
 
-/** What the category select means by "follow the type". */
-const FOLLOWS_TYPE = "__auto__";
 
 const COLORS = ["red", "yellow", "green", "orange", "blue", "pink", "purple"] as const;
 
@@ -95,7 +94,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const isEditing = !!existing?.id;
 
   const [entryType, setEntryType] = useState<EntryDraft["entryType"]>("week_event");
-  const [category, setCategory] = useState<string>(FOLLOWS_TYPE);
+  const [category, setCategory] = useState<"bhgdag" | "arrangement" | "info" | "internt">("bhgdag");
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(1);
   const [weekNumber, setWeekNumber] = useState<string>("");
@@ -107,16 +106,13 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
   const [description, setDescription] = useState<string>("");
   const [color, setColor] = useState<string>("");
   const [showOnHomepage, setShowOnHomepage] = useState<boolean>(false);
-  const [showForParents, setShowForParents] = useState<boolean>(false);
   const [notifyNewsletter, setNotifyNewsletter] = useState<boolean>(false);
 
   useEffect(() => {
     if (!isOpen) return;
     const seed: any = existing ?? initial ?? {};
     setEntryType((seed.entryType as EntryDraft["entryType"]) || "week_event");
-    setCategory(
-      typeof seed.category === "string" && seed.category ? seed.category : FOLLOWS_TYPE,
-    );
+    setCategory(calendarDisplayKindForEntry(seed));
     setYear(seed.year ?? new Date().getFullYear());
     setMonth(seed.month ?? 1);
     setWeekNumber(seed.weekNumber != null ? String(seed.weekNumber) : "");
@@ -127,8 +123,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
     setTitle(seed.title ?? "");
     setDescription(seed.description ?? "");
     setColor(seed.color ?? "");
-    setShowOnHomepage(seed.showOnHomepage === true);
-    setShowForParents(seed.showForParents === true);
+    setShowOnHomepage(seed.showOnHomepage === true || seed.showForParents === true);
     setNotifyNewsletter(seed.notifyNewsletter === true);
   }, [isOpen, initial, existing]);
 
@@ -139,11 +134,11 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
       const supportsSpan = entryType === "week_event" || entryType === "note";
       const supportsNewsletter = supportsYearlyCalendarNewsletter(entryType);
       const body: any = {
-        schoolYear,
-        year,
-        month,
+        schoolYear: existing?.schoolYear ?? schoolYear,
+        year: date && (entryType === "day_event" || entryType === "closed") ? Number(date.slice(0, 4)) : year,
+        month: date && (entryType === "day_event" || entryType === "closed") ? Number(date.slice(5, 7)) : month,
         entryType,
-        category: category === FOLLOWS_TYPE ? null : category,
+        category,
         title,
         description: description || null,
         color: color || null,
@@ -155,7 +150,9 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
         startTime: entryType === "day_event" ? (startTime || null) : null,
         endTime: entryType === "day_event" && startTime && endTime > startTime ? endTime : null,
         showOnHomepage: entryType === "day_event" ? showOnHomepage : false,
-        showForParents: entryType === "day_event" ? showForParents : false,
+        showForParents: false,
+        weekdayStart: supportsSpan ? existing?.weekdayStart ?? null : null,
+        weekdayEnd: supportsSpan ? existing?.weekdayEnd ?? null : null,
         notifyNewsletter: supportsNewsletter ? notifyNewsletter : false,
       };
       if (isEditing) {
@@ -166,7 +163,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`] });
+      queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/yearly-calendar?") });
       toast({ title: t.yearlyCalendar.modal.success });
       onClose();
     },
@@ -188,7 +185,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`] });
+      queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/yearly-calendar?") });
       onClose();
     },
     onError: (err: any) => {
@@ -217,18 +214,88 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? t.yearlyCalendar.modal.editTitle : t.yearlyCalendar.modal.addTitle}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
+      <EditorDialog title={isEditing ? t.yearlyCalendar.modal.editTitle : t.yearlyCalendar.modal.addTitle}
+        description={t.entryEditor.intro} footer={
+        <DialogFooter className="flex-row items-center justify-between gap-2 sm:justify-between">
+          {isEditing ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={deleteMutation.isPending || saveMutation.isPending}
+                >
+                  {t.yearlyCalendar.modal.delete}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t.yearlyCalendar.modal.delete}</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t.yearlyCalendar.modal.deleteConfirm}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t.yearlyCalendar.modal.cancel}</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => deleteMutation.mutate()}
+                  >
+                    {t.yearlyCalendar.modal.delete}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : <span />}
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={onClose} disabled={saveMutation.isPending}>
+              {t.yearlyCalendar.modal.cancel}
+            </Button>
+            <Button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending || deleteMutation.isPending || !title.trim() || ((entryType === "day_event" || entryType === "closed") ? !date : !weekNumber)}
+            >
+              {saveMutation.isPending ? t.yearlyCalendar.modal.saving : t.yearlyCalendar.modal.save}
+            </Button>
+          </div>
+        </DialogFooter>
+        }>
+        <div className="space-y-8 [&_label]:text-small [&_label]:text-copy [&_input]:text-body [&_textarea]:text-body">
+          <EditorSection title={t.entryEditor.content}>
           <div>
-            <Label>{t.yearlyCalendar.modal.type}</Label>
+            <Label htmlFor="entry-title">{t.yearlyCalendar.modal.title}</Label>
+            <Input id="entry-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
+          </div>
+
+          <div>
+            <Label htmlFor="entry-description">{t.yearlyCalendar.modal.description}</Label>
+            <Textarea id="entry-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
+          </div>
+
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="entry-category">{t.entryEditor.category}</Label>
+                <Select value={category} onValueChange={(value) => setCategory(value as typeof category)}>
+                  <SelectTrigger id="entry-category"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CALENDAR_DISPLAY_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{t.entryEditor.categories[kind]}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col justify-end gap-2 pb-3">
+                <span className="text-micro text-subtle">{t.entryEditor.preview}</span>
+                <CalendarCategory kind={category} />
+              </div>
+            </div>
+            <p className="text-small text-subtle">{t.entryEditor.categoryHint}</p>
+          </EditorSection>
+          <EditorSection title={t.entryEditor.schedule}>
+          <div>
+            <Label htmlFor="entry-format">{t.entryEditor.format}</Label>
             <Select value={entryType} onValueChange={(v) => setEntryType(v as EntryDraft["entryType"])}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger id="entry-format"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {TYPES.map((typ) => (
                   <SelectItem key={typ} value={typ}>
@@ -243,35 +310,12 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
             </Select>
           </div>
 
-          <div>
-            <Label>{t.yearlyCalendar.modal.category}</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={FOLLOWS_TYPE}>
-                  {t.yearlyCalendar.modal.categoryAuto}
-                </SelectItem>
-                {YEARLY_CALENDAR_CATEGORIES.map((kind) => (
-                  <SelectItem key={kind} value={kind}>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={`h-2 w-2 shrink-0 rounded-pill ${KIND_STYLE[kind].dot}`}
-                        aria-hidden="true"
-                      />
-                      {t.calendar.kinds[kind]}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="mt-1 text-xs text-subtle">{t.yearlyCalendar.modal.categoryHint}</p>
-          </div>
-
+            {entryType !== "day_event" && entryType !== "closed" && <>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>{t.events.date}</Label>
+              <Label htmlFor="entry-month">{t.entryEditor.month}</Label>
               <Select value={String(month)} onValueChange={(v) => setMonth(parseInt(v))}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger id="entry-month"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {monthNames.map((name, idx) => (
                     <SelectItem key={idx + 1} value={String(idx + 1)}>{name}</SelectItem>
@@ -280,31 +324,35 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
               </Select>
             </div>
             <div>
-              <Label>{t.yearlyCalendar.schoolYearLabel}</Label>
-              <Input type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value) || year)} />
+              <Label htmlFor="entry-year">{t.entryEditor.year}</Label>
+              <Input id="entry-year" type="number" value={year} onChange={(e) => setYear(parseInt(e.target.value) || year)} />
             </div>
           </div>
 
+
+            </>}
           {entryType !== "day_event" && entryType !== "closed" && (
             <div className={entryType === "week_event" || entryType === "note" ? "grid grid-cols-2 gap-3" : ""}>
               <div>
-                <Label>{t.yearlyCalendar.modal.weekNumber}</Label>
+                <Label htmlFor="entry-week">{t.yearlyCalendar.modal.weekNumber}</Label>
                 <Input
                   type="number"
                   min={1}
                   max={53}
+                  id="entry-week"
                   value={weekNumber}
                   onChange={(e) => setWeekNumber(e.target.value)}
                 />
               </div>
               {(entryType === "week_event" || entryType === "note") && (
                 <div>
-                  <Label>{t.yearlyCalendar.modal.weekNumberEnd}</Label>
+                  <Label htmlFor="entry-end-week">{t.yearlyCalendar.modal.weekNumberEnd}</Label>
                   <Input
                     type="number"
                     min={weekNumber ? parseInt(weekNumber) + 1 : 2}
                     max={53}
-                    value={weekNumberEnd}
+                    id="entry-end-week"
+                  value={weekNumberEnd}
                     onChange={(e) => setWeekNumberEnd(e.target.value)}
                     placeholder="—"
                   />
@@ -315,8 +363,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
 
           {(entryType === "day_event" || entryType === "closed") && (
             <div>
-              <Label>{t.yearlyCalendar.modal.date}</Label>
-              <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              <Label htmlFor="entry-date">{t.yearlyCalendar.modal.date}</Label>
+              <Input id="entry-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             </div>
           )}
 
@@ -335,88 +383,45 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                   <TimeInput24h name="entry-end-time" value={endTime} onChange={setEndTime} disabled={!startTime} />
                 </div>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 text-small text-muted-foreground">
                 {t.yearlyCalendar.modal.timeHint}
               </p>
             </div>
           )}
 
-          {supportsYearlyCalendarNewsletter(entryType) && (
-            <div className="space-y-3 rounded-md border border-hairline bg-sand p-3">
-              {entryType === "day_event" && (
-                <>
-                  <div className="flex flex-row items-start space-x-3 space-y-0">
-                    <Checkbox
-                      id="show-on-homepage"
-                      checked={showOnHomepage}
-                      onCheckedChange={(checked) => setShowOnHomepage(checked === true)}
-                    />
-                    <div className="space-y-1 leading-none">
-                      <Label htmlFor="show-on-homepage" className="cursor-pointer">
-                        {t.yearlyCalendar.modal.showOnHomepage}
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        {t.yearlyCalendar.modal.showOnHomepageHint}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-row items-start space-x-3 space-y-0">
-                    <Checkbox
-                      id="show-for-parents"
-                      checked={showForParents}
-                      onCheckedChange={(checked) => setShowForParents(checked === true)}
-                    />
-                    <div className="space-y-1 leading-none">
-                      <Label htmlFor="show-for-parents" className="cursor-pointer">
-                        {t.yearlyCalendar.modal.showForParents}
-                      </Label>
-                      <p className="text-sm text-muted-foreground">
-                        {t.yearlyCalendar.modal.showForParentsHint}
-                      </p>
-                    </div>
-                  </div>
-                </>
-              )}
-              <div className="flex flex-row items-start space-x-3 space-y-0">
-                <Checkbox
-                  id="notify-newsletter"
-                  checked={notifyNewsletter}
-                  onCheckedChange={(checked) => setNotifyNewsletter(checked === true)}
-                />
-                <div className="space-y-1 leading-none">
-                  <Label htmlFor="notify-newsletter" className="cursor-pointer">
-                    {t.yearlyCalendar.modal.notifyNewsletter}
-                  </Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t.yearlyCalendar.modal.notifyNewsletterHint}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
 
-          <div>
-            <Label>{t.yearlyCalendar.modal.title}</Label>
-            <Input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
-          </div>
-
-          <div>
-            <Label>{t.yearlyCalendar.modal.description}</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
-          </div>
-
+          </EditorSection>
+          <EditorSection title={t.entryEditor.publishing}>
+            {entryType === "day_event" && (
+              <label className="flex min-h-11 cursor-pointer items-center gap-3" htmlFor="show-on-homepage">
+                <Checkbox id="show-on-homepage" checked={showOnHomepage} onCheckedChange={(checked) => setShowOnHomepage(checked === true)} />
+                <span><span className="block font-semibold">{t.entryEditor.homepage}</span><span className="block text-small text-subtle">{showOnHomepage ? t.entryEditor.homepageHint : t.entryEditor.calendarOnly}</span></span>
+              </label>
+            )}
+            {entryType === "closed" && <p className="text-small text-subtle">{t.entryEditor.closedHint}</p>}
+            {supportsYearlyCalendarNewsletter(entryType) && (
+              <label className="flex min-h-11 cursor-pointer items-center gap-3" htmlFor="notify-newsletter">
+                <Checkbox id="notify-newsletter" checked={notifyNewsletter} onCheckedChange={(checked) => setNotifyNewsletter(checked === true)} />
+                <span><span className="block font-semibold">{t.yearlyCalendar.modal.notifyNewsletter}</span><span className="block text-small text-subtle">{t.yearlyCalendar.modal.notifyNewsletterHint}</span></span>
+              </label>
+            )}
+            {!supportsYearlyCalendarNewsletter(entryType) && <p className="text-small text-subtle">{t.entryEditor.calendarOnly}</p>}
+          </EditorSection>
+          <details className="border-t border-hairline pt-3">
+            <summary className="min-h-11 cursor-pointer py-3 text-small font-semibold text-subtle">{t.entryEditor.advanced}</summary>
           <div>
             <Label>{t.yearlyCalendar.modal.color}</Label>
-            <p className="text-xs text-subtle mt-1 mb-2">
-              {t.yearlyCalendar.modal.colorHint}
+            <p className="text-micro text-subtle mt-1 mb-2">
+              {t.entryEditor.colorHint}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => setColor("")}
-                className={`h-7 w-7 rounded-pill border-2 bg-surface text-subtle text-xs flex items-center justify-center ${
+                className={`h-11 w-11 rounded-pill border-2 bg-surface text-subtle text-micro flex items-center justify-center ${
                   !color ? "border-ink ring-2 ring-hairline" : "border-hairline"
                 }`}
+                aria-pressed={!color}
                 title={t.yearlyCalendar.colors.none}
                 aria-label={t.yearlyCalendar.colors.none}
               >
@@ -430,9 +435,10 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                     type="button"
                     onClick={() => setColor(c)}
                     style={{ backgroundColor: PRESET_HEX[c] }}
-                    className={`h-7 w-7 rounded-pill border-2 ${
-                      selected ? "border-ink ring-2 ring-hairline" : "border-surface shadow"
+                    className={`h-11 w-11 rounded-pill border-2 ${
+                      selected ? "border-ink ring-2 ring-hairline" : "border-surface shadow-card"
                     }`}
+                    aria-pressed={selected}
                     title={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
                     aria-label={t.yearlyCalendar.colors[c as keyof typeof t.yearlyCalendar.colors]}
                   />
@@ -442,68 +448,25 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, schoolYear, 
                 type="color"
                 value={HEX_RE.test(color) ? color : "#F4A261"}
                 onChange={(e) => setColor(e.target.value)}
-                className="h-7 w-8 rounded cursor-pointer border border-hairline p-0"
+                className="h-11 w-11 rounded cursor-pointer border border-hairline p-0"
                 aria-label={t.yearlyCalendar.modal.color}
               />
               <Input
+                aria-label={t.yearlyCalendar.modal.color}
                 value={color}
                 onChange={(e) => setColor(e.target.value)}
                 placeholder="#rrggbb"
                 maxLength={7}
-                className="w-28 font-mono text-xs"
+                className="w-28 font-mono text-micro"
               />
             </div>
             {color && !HEX_RE.test(color) && !COLORS.includes(color as any) && (
-              <p className="text-xs text-red-500 mt-1">#rrggbb</p>
+              <p className="text-micro text-destructive mt-1">#rrggbb</p>
             )}
           </div>
+          </details>
         </div>
-
-        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:justify-between gap-2">
-          {isEditing ? (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  disabled={deleteMutation.isPending}
-                >
-                  {t.yearlyCalendar.modal.delete}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>{t.yearlyCalendar.modal.delete}</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t.yearlyCalendar.modal.deleteConfirm}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t.yearlyCalendar.modal.cancel}</AlertDialogCancel>
-                  <AlertDialogAction
-                    className="bg-red-600 text-white hover:bg-red-700"
-                    onClick={() => deleteMutation.mutate()}
-                  >
-                    {t.yearlyCalendar.modal.delete}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          ) : <span />}
-          <div className="flex gap-2">
-            <Button type="button" variant="outline" onClick={onClose} disabled={saveMutation.isPending}>
-              {t.yearlyCalendar.modal.cancel}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending || !title || !entryType}
-            >
-              {saveMutation.isPending ? t.yearlyCalendar.modal.saving : t.yearlyCalendar.modal.save}
-            </Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
+      </EditorDialog>
     </Dialog>
   );
 }

@@ -3,8 +3,7 @@ import { Bell, CalendarDays, CalendarRange, List, Loader2, SlidersHorizontal } f
 import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries";
 import {
   CALENDAR_ENTRY_KINDS,
-  EVENT_CALENDAR_KINDS,
-  YEARLY_CALENDAR_KINDS,
+  CALENDAR_DISPLAY_KINDS,
   calendarWeekKey,
   isoWeekYear,
 } from "@shared/calendar-entries";
@@ -36,7 +35,7 @@ type CalendarViewMode = "list" | "month" | "year";
 export type MonthCursor = { year: number; month: number };
 
 const VIEW_MODES: CalendarViewMode[] = ["list", "month", "year"];
-const STORAGE_KEY = "fau-calendar-view";
+const STORAGE_KEY = "fau-calendar-view-groups";
 
 // Which view and which filters someone last used is a convenience, not data:
 // it lives in this browser only, and a blocked or cleared store just means
@@ -125,9 +124,9 @@ export default function CalendarViews() {
     }
   }, [active, mode]);
 
-  const visible = useMemo(() => entries.filter((entry) => active[entry.kind]), [entries, active]);
-  const activeCount = CALENDAR_ENTRY_KINDS.filter((kind) => active[kind]).length;
-  const allOn = activeCount === CALENDAR_ENTRY_KINDS.length;
+  const visible = useMemo(() => entries.filter((entry) => active[entry.displayKind]), [entries, active]);
+  const activeCount = CALENDAR_DISPLAY_KINDS.filter((kind) => active[kind]).length;
+  const allOn = activeCount === CALENDAR_DISPLAY_KINDS.length;
 
   const toggle = (kind: CalendarEntryKind) => setActive((prev) => ({ ...prev, [kind]: !prev[kind] }));
 
@@ -142,6 +141,10 @@ export default function CalendarViews() {
     setSheetOpen(false);
     setMode(next);
   };
+
+  useEffect(() => {
+    setSelected((current) => current ? entries.find((entry) => entry.id === current.id) ?? null : null);
+  }, [entries]);
 
   const editor = useCalendarEditor({ schoolYear });
   const schoolYearOptions = [thisSchoolYear - 1, thisSchoolYear, thisSchoolYear + 1];
@@ -289,27 +292,17 @@ export default function CalendarViews() {
                 pressed={allOn}
                 onClick={() => setActive(allKindsOn())}
               />
-              {EVENT_CALENDAR_KINDS.map((kind) => (
+              {CALENDAR_DISPLAY_KINDS.map((kind) => (
                 <FilterChip
                   key={kind}
-                  label={t.calendar.kinds[kind]}
+                  label={t.entryEditor.categories[kind]}
                   pressed={active[kind]}
                   onClick={() => toggle(kind)}
                   dotClass={KIND_STYLE[kind].dot}
                 />
               ))}
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {YEARLY_CALENDAR_KINDS.map((kind) => (
-                <FilterChip
-                  key={kind}
-                  label={t.calendar.kinds[kind]}
-                  pressed={active[kind]}
-                  onClick={() => toggle(kind)}
-                  dotClass={KIND_STYLE[kind].dot}
-                />
-              ))}
-            </div>
+
           </div>
         </div>
       </div>

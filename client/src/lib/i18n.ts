@@ -1,6 +1,41 @@
 export type Language = 'no' | 'en';
 
 export interface Translations {
+  entryEditor: {
+    intro: string;
+    content: string;
+    schedule: string;
+    publishing: string;
+    signup: string;
+    preview: string;
+    category: string;
+    categoryHint: string;
+    homepage: string;
+    homepageHint: string;
+    calendarOnly: string;
+    closedHint: string;
+    eventHomepageHint: string;
+    advanced: string;
+    colorHint: string;
+    month: string;
+    year: string;
+    format: string;
+    onsiteSignup: string;
+    noSignup: string;
+    vigiloSignup: string;
+    internalSignup: string;
+    updated: string;
+    update: string;
+    saving: string;
+    error: string;
+    addressError: string;
+    placeSmall: string;
+    placeLarge: string;
+    placeMeeting: string;
+    placeOutside: string;
+    categories: { bhgdag: string; arrangement: string; info: string; internt: string };
+  };
+
   // Navigation
   navigation: {
     home: string;
@@ -967,6 +1002,45 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   no: {
+    entryEditor: {
+      intro: "Velg innhold, tidspunkt og hvordan oppføringen skal vises.",
+      content: "Innhold og kategori",
+      schedule: "Tidspunkt",
+      publishing: "Synlighet og påminnelse",
+      signup: "Påmelding",
+      preview: "Slik vises merket",
+      category: "Kategori",
+      categoryHint: "Samme merking på forsiden og i kalenderen. Interne møter er også synlige for foreldrene.",
+      homepage: "Vis på forsiden",
+      homepageHint: "Oppføringen vises også under kommende arrangementer.",
+      calendarOnly: "Oppføringen er fortsatt synlig i kalenderen.",
+      closedHint: "Stengte dager vises alltid på forsiden.",
+      eventHomepageHint: "Arrangementet vises på forsiden og i kalenderen, også når det er et internt møte.",
+      advanced: "Farge i årsplanen",
+      colorHint: "Gjelder bare årsplanen og PDF-en. Forsiden og kalenderen bruker kategoriens farge.",
+      month: "Måned",
+      year: "År",
+      format: "Varighet / oppføringstype",
+      onsiteSignup: "Påmelding på nettsiden",
+      noSignup: "Ingen påmelding",
+      vigiloSignup: "Påmelding i Vigilo",
+      internalSignup: "Interne møter vises offentlig, men har ingen påmelding.",
+      updated: "Arrangement oppdatert",
+      update: "Lagre endringer",
+      saving: "Lagrer …",
+      error: "Kunne ikke lagre endringene",
+      addressError: "Oppgi en gyldig adresse (minst 5 tegn).",
+      placeSmall: "Småbarnsfløyen",
+      placeLarge: "Storbarnsfløyen",
+      placeMeeting: "Møterom",
+      placeOutside: "Ute",
+      categories: {
+          bhgdag: "For barna",
+          arrangement: "For foreldre",
+          info: "Info",
+          internt: "Internt møte"
+      }
+    },
     navigation: {
       home: "Hjem",
       updates: "Aktuelt",
@@ -1115,7 +1189,7 @@ export const translations: Record<Language, Translations> = {
       newPickerHint: "Velg hva du legger inn — resten av skjemaet retter seg etter valget.",
       newEventButton: "Arrangement med påmelding",
       newEventHint: "Deltakerliste, maks antall, påmeldingsfrist og varsel på nyhetsbrevet.",
-      newYearlyHint: "Uke eller dato, farge, og om den skal vises på forsiden.",
+      newYearlyHint: "Dato eller uke, med valgfri visning på forsiden.",
       staffCannotCreateEvents:
         "Som ansatt kan du legge inn i årskalenderen, men ikke opprette arrangementer med påmelding — de krever FAU-rolle.",
       excelScopeNote:
@@ -1892,7 +1966,7 @@ export const translations: Record<Language, Translations> = {
           showForParents: "For foreldre"
         }
       },
-      inKindergartenBadge: "I barnehagen",
+      inKindergartenBadge: "For barna",
       forParentsBadge: "For foreldre",
       closedBadge: "Stengt",
       colors: {
@@ -1929,6 +2003,45 @@ export const translations: Record<Language, Translations> = {
     }
   },
   en: {
+    entryEditor: {
+      intro: "Choose the content, timing and how the entry is displayed.",
+      content: "Content and category",
+      schedule: "Timing",
+      publishing: "Visibility and reminder",
+      signup: "Registration",
+      preview: "Label preview",
+      category: "Category",
+      categoryHint: "The same label on the homepage and calendar. Internal meetings are also visible to parents.",
+      homepage: "Show on homepage",
+      homepageHint: "Also include this entry in upcoming events.",
+      calendarOnly: "The entry remains visible in the calendar.",
+      closedHint: "Closed days always appear on the homepage.",
+      eventHomepageHint: "The event appears on the homepage and calendar, including internal meetings.",
+      advanced: "Yearly plan colour",
+      colorHint: "Only affects the yearly plan and PDF. The homepage and calendar use the category colour.",
+      month: "Month",
+      year: "Year",
+      format: "Duration / entry type",
+      onsiteSignup: "Registration on this website",
+      noSignup: "No registration",
+      vigiloSignup: "Registration in Vigilo",
+      internalSignup: "Internal meetings are publicly listed, without registration.",
+      updated: "Event updated",
+      update: "Save changes",
+      saving: "Saving …",
+      error: "Could not save changes",
+      addressError: "Enter a valid address (at least 5 characters).",
+      placeSmall: "Toddler wing",
+      placeLarge: "Older children’s wing",
+      placeMeeting: "Meeting room",
+      placeOutside: "Outside",
+      categories: {
+          bhgdag: "For children",
+          arrangement: "For parents",
+          info: "Information",
+          internt: "Internal meeting"
+      }
+    },
     navigation: {
       home: "Home",
       updates: "Updates",
@@ -2077,7 +2190,7 @@ export const translations: Record<Language, Translations> = {
       newPickerHint: "Choose what you are adding — the rest of the form follows from it.",
       newEventButton: "Event with signup",
       newEventHint: "Attendee list, maximum, registration deadline and newsletter notice.",
-      newYearlyHint: "Week or date, colour, and whether it shows on the front page.",
+      newYearlyHint: "A date or week, optionally shown on the homepage.",
       staffCannotCreateEvents:
         "As staff you can add to the yearly calendar, but not create events with signup — those need a council role.",
       excelScopeNote:
@@ -2854,7 +2967,7 @@ export const translations: Record<Language, Translations> = {
           showForParents: "For parents"
         }
       },
-      inKindergartenBadge: "At the kindergarten",
+      inKindergartenBadge: "For children",
       forParentsBadge: "For parents",
       closedBadge: "Closed",
       colors: {

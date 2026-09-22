@@ -135,7 +135,7 @@ export default function CalendarYearView({ entries, schoolYear, onMonthPick }: C
                           {dayEntries.slice(0, MAX_DOTS).map((entry) => (
                             <span
                               key={entry.id}
-                              className={`h-1.5 w-1.5 rounded-pill ${KIND_STYLE[entry.kind].dot}`}
+                              className={`h-1.5 w-1.5 rounded-pill ${KIND_STYLE[entry.displayKind].dot}`}
                               aria-hidden="true"
                             />
                           ))}

@@ -162,7 +162,7 @@ function pushImportFailure(summary, rowNumber, message) {
 
 async function getEntriesForSchoolYear(sql, schoolYear) {
   const rows = await sql`
-    SELECT id, school_year, year, month, entry_type, week_number, week_number_end,
+    SELECT id, school_year, year, month, entry_type, category, week_number, week_number_end,
            weekday_start, weekday_end, date, start_time, end_time, title, description, color,
            show_on_homepage, show_for_parents, notify_newsletter, newsletter_sent_at,
            created_by, created_at, updated_at

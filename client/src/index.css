@@ -144,6 +144,7 @@
 
   /* --- Layout and depth (guide §4, §5) --- */
   --container: 1200px;
+  --container-editor: 768px;
   /* Heroes and editorial bands may reach past the reading container so a
      1440px screen is not mostly passive margin (guide v1.1 §24). */
   --container-wide: 1288px;

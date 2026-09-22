@@ -4,6 +4,10 @@ export type EventCalendarKind = 'arrangement' | 'mote' | 'dugnad' | 'foto' | 'in
 export type YearlyCalendarKind = 'bhgdag' | 'varmmat' | 'temauke' | 'stengt' | 'beskjed' | 'info';
 export type CalendarEntryKind = EventCalendarKind | YearlyCalendarKind;
 export type CalendarEntrySource = 'event' | 'yearly';
+export type CalendarDisplayKind = 'bhgdag' | 'arrangement' | 'info' | 'internt';
+export const CALENDAR_DISPLAY_KINDS: readonly CalendarDisplayKind[];
+export function calendarDisplayKind(kind: CalendarEntryKind): CalendarDisplayKind;
+export function calendarDisplayKindForEntry(entry: Partial<YearlyCalendarEntry>): CalendarDisplayKind;
 export type CalendarSignupMode = 'registration' | 'vigilo' | 'none' | 'internal';
 
 export const EVENT_CALENDAR_KINDS: readonly EventCalendarKind[];
@@ -28,6 +32,7 @@ export type CalendarEntry = {
   sourceId: number;
   source: CalendarEntrySource;
   kind: CalendarEntryKind;
+  displayKind: CalendarDisplayKind;
   title: string;
   description: string;
   /** ISO date for a dated entry, null for one that spans whole weeks. */

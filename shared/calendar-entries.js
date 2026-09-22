@@ -24,10 +24,28 @@ export const CALENDAR_ENTRY_KINDS = [...EVENT_CALENDAR_KINDS, ...YEARLY_CALENDAR
 // every dated row came out as "I barnehagen".
 export const YEARLY_CALENDAR_CATEGORIES = CALENDAR_ENTRY_KINDS;
 
+// Public categories are independent of the stored scheduling/legacy types.
+export const CALENDAR_DISPLAY_KINDS = ['bhgdag', 'arrangement', 'info', 'internt'];
+
+export function calendarDisplayKind(kind) {
+  if (kind === 'internt') return 'internt';
+  if (['info', 'beskjed', 'stengt'].includes(kind)) return 'info';
+  if (['arrangement', 'mote', 'dugnad'].includes(kind)) return 'arrangement';
+  return 'bhgdag';
+}
+
+export function calendarDisplayKindForEntry(entry) {
+  // Honour the old parent selection until an editor chooses a category.
+  if (!entry.category && entry.entryType === 'day_event' && entry.showForParents) return 'arrangement';
+  return calendarDisplayKind(calendarKindForEntry(entry));
+}
+
 // events.type is free text in the DB but the creation modal offers exactly
 // these; anything unrecognised is a plain arrangement rather than dropped.
 const EVENT_TYPE_TO_KIND = {
   meeting: 'mote',
+  activity: 'bhgdag',
+  info: 'info',
   dugnad: 'dugnad',
   foto: 'foto',
   internal: 'internt',
@@ -180,6 +198,7 @@ export function normalizeEvent(event, now = new Date()) {
     sourceId: event.id,
     source: 'event',
     kind: calendarKindForEventType(event.type),
+    displayKind: calendarDisplayKind(calendarKindForEventType(event.type)),
     title: event.title,
     description: event.description ?? '',
     date: event.date,
@@ -201,6 +220,7 @@ export function normalizeEvent(event, now = new Date()) {
 
 export function normalizeYearlyEntry(entry) {
   const kind = calendarKindForEntry(entry);
+  const displayKind = calendarDisplayKindForEntry(entry);
   const date = parseCalendarDate(entry?.date);
 
   if (date) {
@@ -210,6 +230,7 @@ export function normalizeYearlyEntry(entry) {
       sourceId: entry.id,
       source: 'yearly',
       kind,
+      displayKind,
       title: entry.title,
       description: entry.description ?? '',
       date: entry.date,
@@ -240,6 +261,7 @@ export function normalizeYearlyEntry(entry) {
     sourceId: entry.id,
     source: 'yearly',
     kind,
+    displayKind,
     title: entry.title,
     description: entry.description ?? '',
     date: null,
@@ -282,6 +304,7 @@ export function dropDayEntriesCoveredByEvents(entries) {
       !(
         item.source === 'yearly' &&
         item.entry?.entryType === 'day_event' &&
+        item.displayKind !== 'internt' &&
         daysWithEvent.has(item.date)
       ),
   );

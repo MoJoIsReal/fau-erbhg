@@ -1,3 +1,4 @@
+import { CalendarCategory } from "@/components/site/calendar-category";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, Clock, MapPin } from "lucide-react";
@@ -287,7 +288,7 @@ export default function CalendarView({
                   {row.bands.length > 0 && (
                     <div className="grid grid-cols-7 gap-y-1 border-b border-calendar-grid bg-calendar-cell px-1 py-1.5 sm:px-2 sm:py-2">
                       {row.bands.map((band, bandIndex) => {
-                        const style = KIND_STYLE[band.entry.kind];
+                        const style = KIND_STYLE[band.entry.displayKind];
 
                         return (
                           <button
@@ -321,7 +322,7 @@ export default function CalendarView({
                                 it, and the category, to a screen reader. */}
                             <span className="sr-only">
                               {" "}
-                              — {t.calendar.kinds[band.entry.kind]}, {t.calendar.allWeek}
+                              — {t.entryEditor.categories[band.entry.displayKind]}, {t.calendar.allWeek}
                             </span>
                             {band.continuesAfter && (
                               <ChevronRight className="ml-auto h-3 w-3 shrink-0" aria-hidden="true" />
@@ -393,7 +394,7 @@ export default function CalendarView({
                             {dayEntries.slice(0, MAX_PER_CELL).map((entry) => (
                               <span
                                 key={`dot-${entry.id}`}
-                                className={`h-1.5 w-1.5 rounded-pill ${KIND_STYLE[entry.kind].dot}`}
+                                className={`h-1.5 w-1.5 rounded-pill ${KIND_STYLE[entry.displayKind].dot}`}
                               />
                             ))}
                           </div>
@@ -410,7 +411,7 @@ export default function CalendarView({
                             >
                               <span
                                 className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
-                                  KIND_STYLE[entry.kind].dot
+                                  KIND_STYLE[entry.displayKind].dot
                                 }`}
                                 aria-hidden="true"
                               />
@@ -468,7 +469,7 @@ export default function CalendarView({
             ) : (
               <div className="mt-5 divide-y divide-hairline">
                 {selectedEntries.map((entry) => {
-                  const style = KIND_STYLE[entry.kind];
+                  const style = KIND_STYLE[entry.displayKind];
                   const time = entry.startTime
                     ? entry.endTime
                       ? `${entry.startTime} – ${entry.endTime}`
@@ -482,8 +483,7 @@ export default function CalendarView({
                       <span
                         className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-micro font-semibold ${style.tint} ${style.text}`}
                       >
-                        <span className={`h-2 w-2 rounded-pill ${style.dot}`} aria-hidden="true" />
-                        {t.calendar.kinds[entry.kind]}
+                        <CalendarCategory kind={entry.displayKind} />
                       </span>
 
                       <h4

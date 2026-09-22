@@ -1,3 +1,4 @@
+import { calendarDisplayKindForEntry } from "@shared/calendar-entries";
 import { useQuery } from "@tanstack/react-query";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
@@ -66,7 +67,7 @@ export function useUpcomingItems(): UpcomingItem[] {
       // Day events only show when at least one homepage flag is set, and only
       // when no event already covers that day.
       if (entry.entryType === "day_event") {
-        if (daysWithEvent.has(dayKey(entry.date))) return false;
+        if (daysWithEvent.has(dayKey(entry.date)) && calendarDisplayKindForEntry(entry) !== "internt") return false;
         return entry.showOnHomepage === true || entry.showForParents === true;
       }
       return false;

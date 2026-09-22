@@ -1,3 +1,4 @@
+import { CalendarCategory } from "@/components/site/calendar-category";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { StatusPill } from "@/components/site/controls";
@@ -54,7 +55,7 @@ export default function CalendarEntryDetail({
     );
   }
 
-  const style = KIND_STYLE[entry.kind];
+  const style = KIND_STYLE[entry.displayKind];
   const date = entry.date ? parseCalendarDate(entry.date) : null;
   const time = entry.startTime
     ? entry.endTime
@@ -88,9 +89,9 @@ export default function CalendarEntryDetail({
         <span
           className={`inline-flex items-center gap-2 rounded-pill bg-surface/80 px-2.5 py-1 text-micro font-semibold ${style.text}`}
         >
-          <span className={`h-2 w-2 rounded-pill ${style.dot}`} aria-hidden="true" />
-          {t.calendar.kinds[entry.kind]}
+          <CalendarCategory kind={entry.displayKind} />
         </span>
+        {entry.entry?.entryType === "closed" && <span className="ml-2"><StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill></span>}
         <h2
           className={`mt-3 text-h2 font-bold leading-tight tracking-tight text-ink ${
             entry.cancelled ? "line-through" : ""

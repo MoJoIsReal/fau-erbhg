@@ -1,3 +1,5 @@
+import { calendarDisplayKind } from "@shared/calendar-entries";
+import { CalendarCategory } from "@/components/site/calendar-category";
 import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,7 +52,7 @@ function DayRow({
   language: Language;
 }) {
   const { t } = useLanguage();
-  const style = KIND_STYLE[entry.kind];
+  const style = KIND_STYLE[entry.displayKind];
   const date = new Date(entry.date as string);
   const signup = entry.signup;
   const time = entry.startTime
@@ -82,10 +84,6 @@ function DayRow({
             className="inline-flex max-w-full items-baseline gap-2 text-left"
           >
             <span
-              className={`relative top-[-1px] h-2 w-2 shrink-0 rounded-pill ${style.dot}`}
-              aria-hidden="true"
-            />
-            <span
               className={`text-body-lg font-semibold text-ink hover:text-brand hover:underline ${
                 entry.cancelled ? "line-through decoration-1" : ""
               }`}
@@ -97,11 +95,12 @@ function DayRow({
           {/* The category in words beside its dot, so the colour is never
               carrying the meaning on its own (guide §7). */}
           <span className={`text-micro font-semibold ${style.text}`}>
-            {t.calendar.kinds[entry.kind]}
+            <CalendarCategory kind={entry.displayKind} />
           </span>
 
           {/* The kind label above already says "Stengt", so only a cancelled
               entry needs a pill of its own here. */}
+          {entry.entry?.entryType === "closed" && <StatusPill tone="warn">{t.yearlyCalendar.closedBadge}</StatusPill>}
           {entry.cancelled && <StatusPill tone="warn">{t.events.cancelled2}</StatusPill>}
         </div>
 
@@ -238,7 +237,7 @@ export default function CalendarEntryList({
                         <dt className="inline-flex items-baseline gap-1.5 font-semibold text-ink">
                           <span
                             className={`relative top-[-1px] h-1.5 w-1.5 shrink-0 rounded-pill ${
-                              KIND_STYLE[fact.kind].dot
+                              KIND_STYLE[calendarDisplayKind(fact.kind)].dot
                             }`}
                             aria-hidden="true"
                           />

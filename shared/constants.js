@@ -32,6 +32,7 @@ export const EVENT_TYPES = [
   'dugnad',
   'foto',
   'internal',
+  'info',
   'annet',
   'other',
 ];

@@ -1,8 +1,11 @@
+import { EditorDialog, EditorSection } from "@/components/site/editor-dialog";
+import { CalendarCategory } from "@/components/site/calendar-category";
+import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarKindForEventType } from "@shared/calendar-entries";
 import { useForm, useWatch } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -30,7 +33,7 @@ const formSchema = insertEventSchema.extend({
       return !val || validateAddress(val);
     },
     {
-      message: "Vennligst oppgi en gyldig adresse (minimum 5 tegn, kun bokstaver, tall og standard tegn)"
+      message: "invalid_address"
     }
   ),
   vigiloSignup: z.boolean().default(false),
@@ -107,7 +110,7 @@ function DatePickerInput({ value, onChange, language, placeholder }: DatePickerI
         <Button
           type="button"
           variant="outline"
-          className={cn("h-10 w-full justify-start px-3 text-left font-normal", !value && "text-muted-foreground")}
+          className={cn("min-h-11 w-full justify-start px-3 text-left font-normal", !value && "text-muted-foreground")}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
           {value ? formatDisplayDate(value, language) : placeholder}
@@ -162,7 +165,7 @@ function DateTimePicker24h({ value, onChange, onBlur, language }: DateTimePicker
         />
       </div>
       {value && (
-        <Button type="button" variant="ghost" size="sm" className="h-8 px-2" onClick={() => onChange("")}>
+        <Button type="button" variant="ghost" size="sm" className="min-h-11 px-2" onClick={() => onChange("")}>
           {t.events.clearDeadline}
         </Button>
       )}
@@ -202,7 +205,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       date: "",
       time: "",
       location: "",
-      type: "meeting",
+      type: "event",
       maxAttendees: null,
       registrationDeadline: "",
       customLocation: "",
@@ -235,7 +238,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         date: "",
         time: "",
         location: "",
-        type: "meeting",
+        type: "event",
         maxAttendees: null,
         registrationDeadline: "",
         customLocation: "",
@@ -244,7 +247,13 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         notifyNewsletter: false
       });
     }
-  }, [event, form]);
+  }, [event, form, isOpen]);
+
+  const selectedType = useWatch({ control: form.control, name: "type" });
+  const noSignup = useWatch({ control: form.control, name: "noSignup" });
+  const vigiloSignup = useWatch({ control: form.control, name: "vigiloSignup" });
+  const registrationMode = selectedType === "internal" ? "none" : vigiloSignup ? "vigilo" : noSignup ? "none" : "website";
+  const displayKind = calendarDisplayKind(calendarKindForEventType(selectedType));
 
   const selectedLocation = useWatch({
     control: form.control,
@@ -255,7 +264,10 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
     mutationFn: (data: FormData) => {
       const eventData = {
         ...data,
-        registrationDeadline: toIsoDateTime(data.registrationDeadline),
+        registrationDeadline: registrationMode === "website" ? toIsoDateTime(data.registrationDeadline) : null,
+        maxAttendees: registrationMode === "website" ? data.maxAttendees : null,
+        noSignup: registrationMode === "none",
+        vigiloSignup: registrationMode === "vigilo",
         customLocation: data.location === "Annet" ? data.customLocation : null
       };
 
@@ -267,10 +279,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
     },
     onSuccess: () => {
       toast({
-        title: event ? "Arrangement oppdatert!" : "Arrangement opprettet!",
-        description: event
-          ? "Arrangementet har blitt oppdatert."
-          : "Det nye arrangementet er nå tilgjengelig for påmelding.",
+        title: event ? t.entryEditor.updated : t.modals.eventCreation.success,
+        description: t.entryEditor.eventHomepageHint,
       });
       form.reset();
       onClose();
@@ -278,8 +288,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
     },
     onError: (error: any) => {
       toast({
-        title: event ? "Feil ved oppdatering" : "Feil ved opprettelse",
-        description: error.message || (event ? "Kunne ikke oppdatere arrangementet. Prøv igjen senere." : "Kunne ikke opprette arrangementet. Prøv igjen senere."),
+        title: t.entryEditor.error,
+        description: error.message || t.modals.eventCreation.errorDesc,
         variant: "destructive"
       });
     }
@@ -290,29 +300,18 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      {/*
-       * Mobile: full-screen (top-0 left-0, no translate, rounded-none, h-dvh)
-       * Desktop (sm+): centered modal (translate-x/y -50%, max-w-[560px], max-h-[90dvh])
-       * flex flex-col + gap-0 overrides the base "grid gap-4 p-6"
-       */}
-      <DialogContent className="flex flex-col gap-0 p-0 top-0 left-0 translate-x-0 translate-y-0 w-full max-w-none h-dvh max-h-dvh rounded-none sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-[560px] sm:h-auto sm:max-h-[90dvh] sm:rounded-lg">
-
-        {/* ── Sticky header ── */}
-        <div className="flex-shrink-0 px-4 pt-4 pb-3 pr-12 border-b border-border sm:px-6 sm:pt-6 sm:pb-4">
-          <DialogTitle className="text-base font-semibold leading-snug sm:text-lg">
-            {event ? (t.modals.eventEdit?.title || "Rediger arrangement") : t.modals.eventCreation.title}
-          </DialogTitle>
-          <DialogDescription className="text-sm text-muted-foreground mt-1">
-            {event ? (t.modals.eventEdit?.description || "Oppdater arrangementets detaljer") : t.modals.eventCreation.description}
-          </DialogDescription>
-        </div>
-
-        {/* ── Scrollable form body ── */}
-        <div className="flex-1 overflow-y-auto overscroll-contain">
-          <Form {...form}>
-            <form id="event-form" onSubmit={form.handleSubmit(onSubmit)} className="px-4 py-4 space-y-4 sm:px-6">
-
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <EditorDialog title={event ? t.modals.eventEdit.title : t.modals.eventCreation.title}
+        description={t.entryEditor.intro}
+        footer={<div className="flex justify-end gap-3">
+          <Button type="button" variant="outline" onClick={onClose} disabled={mutation.isPending}>{t.modals.eventCreation.cancel}</Button>
+          <Button form="event-form" type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? t.entryEditor.saving : event ? t.entryEditor.update : t.modals.eventCreation.create}
+          </Button>
+        </div>}>
+        <Form {...form}>
+          <form id="event-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-8 [&_label]:text-small [&_label]:text-copy">
+            <EditorSection title={t.entryEditor.content}>
               <FormField
                 control={form.control}
                 name="title"
@@ -320,7 +319,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                   <FormItem>
                     <FormLabel>{t.modals.eventCreation.titleLabel}</FormLabel>
                     <FormControl>
-                      <Input placeholder={t.modals.eventCreation.titlePlaceholder} {...field} />
+                      <Input autoFocus placeholder={t.modals.eventCreation.titlePlaceholder} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -345,6 +344,26 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 )}
               />
 
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField control={form.control} name="type" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.entryEditor.category}</FormLabel>
+                    <Select value={displayKind} onValueChange={(kind) => field.onChange(({ bhgdag: "activity", arrangement: "event", info: "info", internt: "internal" })[kind])}>
+                      <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                      <SelectContent>{CALENDAR_DISPLAY_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{t.entryEditor.categories[kind]}</SelectItem>)}</SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <div className="flex flex-col justify-end gap-2 pb-3">
+                  <span className="text-micro text-subtle">{t.entryEditor.preview}</span>
+                  <CalendarCategory kind={displayKind} />
+                </div>
+              </div>
+              <p className="text-small text-subtle">{t.entryEditor.categoryHint}</p>
+            </EditorSection>
+            <EditorSection title={t.entryEditor.schedule}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -398,10 +417,10 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="Småbarnsfløyen">Småbarnsfløyen</SelectItem>
-                        <SelectItem value="Storbarnsfløyen">Storbarnsfløyen</SelectItem>
-                        <SelectItem value="Møterom">Møterom</SelectItem>
-                        <SelectItem value="Ute">Ute</SelectItem>
+                        <SelectItem value="Småbarnsfløyen">{t.entryEditor.placeSmall}</SelectItem>
+                        <SelectItem value="Storbarnsfløyen">{t.entryEditor.placeLarge}</SelectItem>
+                        <SelectItem value="Møterom">{t.entryEditor.placeMeeting}</SelectItem>
+                        <SelectItem value="Ute">{t.entryEditor.placeOutside}</SelectItem>
                         <SelectItem value="Digitalt">{t.modals.eventCreation.locations.digitalt}</SelectItem>
                         <SelectItem value="Annet">{t.modals.eventCreation.locations.annet}</SelectItem>
                       </SelectContent>
@@ -415,7 +434,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 <FormField
                   control={form.control}
                   name="customLocation"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
                       <FormLabel>{t.modals.eventCreation.customLocationLabel}</FormLabel>
                       <FormControl>
@@ -425,38 +444,28 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                           value={field.value || ""}
                         />
                       </FormControl>
-                      <FormMessage />
+                      {fieldState.error && <p className="text-small text-destructive">{t.entryEditor.addressError}</p>}
                     </FormItem>
                   )}
                 />
               )}
 
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t.modals.eventCreation.typeLabel}</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Velg type arrangement" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="meeting">{t.modals.eventCreation.types.meeting}</SelectItem>
-                        <SelectItem value="event">{t.modals.eventCreation.types.event}</SelectItem>
-                        <SelectItem value="dugnad">{t.modals.eventCreation.types.dugnad}</SelectItem>
-                        <SelectItem value="foto">{t.modals.eventCreation.types.foto}</SelectItem>
-                        <SelectItem value="internal">{t.modals.eventCreation.types.internal}</SelectItem>
-                        <SelectItem value="annet">{t.modals.eventCreation.types.annet}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
+            </EditorSection>
+            <EditorSection title={t.entryEditor.signup}>
+              {selectedType === "internal" ? <p className="text-small text-subtle">{t.entryEditor.internalSignup}</p> : <>
+                <Select value={registrationMode} onValueChange={(mode) => {
+                  form.setValue("noSignup", mode === "none", { shouldDirty: true });
+                  form.setValue("vigiloSignup", mode === "vigilo", { shouldDirty: true });
+                }}>
+                  <SelectTrigger aria-label={t.entryEditor.signup}><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="website">{t.entryEditor.onsiteSignup}</SelectItem>
+                    <SelectItem value="none">{t.entryEditor.noSignup}</SelectItem>
+                    <SelectItem value="vigilo">{t.entryEditor.vigiloSignup}</SelectItem>
+                  </SelectContent>
+                </Select>
+                {registrationMode === "website" && <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="maxAttendees"
@@ -491,7 +500,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                         language={language}
                       />
                     </FormControl>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-small text-muted-foreground">
                       {t.modals.eventCreation.registrationDeadlineHint}
                     </p>
                     <FormMessage />
@@ -499,58 +508,12 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 )}
               />
 
-              <FormField
-                control={form.control}
-                name="vigiloSignup"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        {t.events.vigiloSignup}
-                      </FormLabel>
-                      <p className="text-sm text-muted-foreground">
-                        {language === 'no'
-                          ? 'Bruk Vigilo-plattformen for påmelding til dette arrangementet'
-                          : 'Use Vigilo platform for event registration'
-                        }
-                      </p>
-                    </div>
-                  </FormItem>
-                )}
-              />
 
-              <FormField
-                control={form.control}
-                name="noSignup"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2 pb-2">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>
-                        {t.events.noSignup}
-                      </FormLabel>
-                      <p className="text-sm text-muted-foreground">
-                        {language === 'no'
-                          ? 'Dette arrangementet krever ikke påmelding'
-                          : 'This event does not require registration'
-                        }
-                      </p>
-                    </div>
-                  </FormItem>
-                )}
-              />
-
+                </div>}
+              </>}
+            </EditorSection>
+            <EditorSection title={t.entryEditor.publishing}>
+              <p className="text-small text-subtle">{t.entryEditor.eventHomepageHint}</p>
               <FormField
                 control={form.control}
                 name="notifyNewsletter"
@@ -566,37 +529,18 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                       <FormLabel>
                         {t.events.sendNewsletterReminder}
                       </FormLabel>
-                      <p className="text-sm text-muted-foreground">
-                        {language === 'no'
-                          ? 'Dagen før sendes en påminnelse på e-post til alle påmeldte nyhetsbrev-abonnenter'
-                          : 'The day before, a reminder is emailed to all confirmed newsletter subscribers'
-                        }
+                      <p className="text-small text-muted-foreground">
+                        {t.yearlyCalendar.modal.notifyNewsletterHint}
                       </p>
                     </div>
                   </FormItem>
                 )}
               />
 
-            </form>
-          </Form>
-        </div>
-
-        {/* ── Sticky footer with action buttons ── */}
-        <div className="flex-shrink-0 px-4 pt-3 pb-4 border-t border-border sm:px-6 sm:pt-4 sm:pb-6">
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
-            <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={onClose}>
-              {t.modals.eventCreation.cancel}
-            </Button>
-            <Button form="event-form" type="submit" className="w-full sm:w-auto" disabled={mutation.isPending}>
-              {mutation.isPending
-                ? (event ? "Oppdaterer..." : t.modals.eventCreation.creating)
-                : (event ? "Oppdater arrangement" : t.modals.eventCreation.create)
-              }
-            </Button>
-          </div>
-        </div>
-
-      </DialogContent>
+            </EditorSection>
+          </form>
+        </Form>
+      </EditorDialog>
     </Dialog>
   );
 }

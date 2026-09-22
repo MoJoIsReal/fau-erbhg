@@ -19,32 +19,14 @@ import { EditorSurface } from "@/components/site/cards";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiRequest, getApiErrorBody, getApiErrorMessage } from "@/lib/queryClient";
-import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import type { YearlyCalendarEntryType } from "@shared/yearly-calendar-utils";
 import type { CalendarEntry, YearlyCalendarKind } from "@shared/calendar-entries";
-import { YEARLY_CALENDAR_KINDS } from "@shared/calendar-entries";
 import EventCreationModal from "@/components/event-creation-modal";
 import EventRegistrationsModal from "@/components/event-registrations-modal";
 import YearlyCalendarEntryModal from "@/components/yearly-calendar-entry-modal";
 import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
 import AttendeeTooltip from "@/components/attendee-tooltip";
-
-// What shape a row takes when the picker starts it from a category. Category
-// and entry_type are separate fields now — the type says whether a row is one
-// day, a whole week or a note across a span — so this is only the sensible
-// starting shape, which the form can then change. `info` starts as a dated
-// day because that is what an info row usually is: a deadline. Events cannot
-// be prefilled this way: their type is one field among many in a form that
-// also carries signup, so that branch opens the event form as it is.
-const KIND_TO_ENTRY_TYPE: Record<YearlyCalendarKind, YearlyCalendarEntryType> = {
-  bhgdag: "day_event",
-  varmmat: "food",
-  temauke: "week_event",
-  stengt: "closed",
-  beskjed: "note",
-  info: "day_event",
-};
 
 type CreationTarget =
   | { kind: "event"; event: Event | null }
@@ -253,7 +235,7 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           <Button
             size="sm"
             variant="outline"
-            className="border-red-500 text-red-600 dark:text-red-300"
+            className="border-destructive text-destructive"
             onClick={() =>
               setConfirming({ event: entry.event as Event, action: hasAttendees ? "cancel" : "delete" })
             }
@@ -272,13 +254,13 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
           <DialogHeader>
             <DialogTitle>{t.calendar.newEntry}</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-subtle">{t.calendar.newPickerHint}</p>
+          <p className="text-small text-subtle">{t.calendar.newPickerHint}</p>
 
           <div className="space-y-2">
-            <h3 className="text-xs uppercase tracking-wide text-subtle">
-              {t.calendar.filterSignup}
+            <h3 className="text-micro uppercase tracking-wide text-subtle">
+              {t.entryEditor.signup}
             </h3>
-            <p className="text-xs text-subtle">{t.calendar.newEventHint}</p>
+            <p className="text-micro text-subtle">{t.calendar.newEventHint}</p>
             <Button
               variant="outline"
               className="w-full justify-start"
@@ -288,40 +270,20 @@ export function useCalendarEditor({ schoolYear }: { schoolYear: number }): Calen
               {t.calendar.newEventButton}
             </Button>
             {!canEditEvents && (
-              <p className="border-l-2 border-red-500 pl-2 text-xs text-subtle">
+              <p className="border-l-2 border-destructive pl-2 text-micro text-subtle">
                 {t.calendar.staffCannotCreateEvents}
               </p>
             )}
           </div>
 
           <div className="space-y-2">
-            <h3 className="text-xs uppercase tracking-wide text-subtle">
-              {t.calendar.filterKindergarten}
+            <h3 className="text-micro uppercase tracking-wide text-subtle">
+              {t.calendar.newEntry}
             </h3>
-            <p className="text-xs text-subtle">{t.calendar.newYearlyHint}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {YEARLY_CALENDAR_KINDS.map((kind) => (
-                <Button
-                  key={kind}
-                  variant="outline"
-                  className="justify-start gap-2"
-                  onClick={() =>
-                    pick({
-                      kind: "yearly",
-                      entryType: KIND_TO_ENTRY_TYPE[kind],
-                      category: kind,
-                      existing: null,
-                    })
-                  }
-                >
-                  <span
-                    className={`h-2 w-2 shrink-0 rounded-pill ${KIND_STYLE[kind].dot}`}
-                    aria-hidden="true"
-                  />
-                  {t.calendar.kinds[kind]}
-                </Button>
-              ))}
-            </div>
+            <p className="text-micro text-subtle">{t.calendar.newYearlyHint}</p>
+            <Button variant="outline" className="w-full justify-start" onClick={() => pick({ kind: "yearly", entryType: "day_event", category: null, existing: null })}>
+              {t.yearlyCalendar.modal.addTitle}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

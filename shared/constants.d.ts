@@ -21,6 +21,7 @@ export const EVENT_TYPES: readonly [
   'dugnad',
   'foto',
   'internal',
+  'info',
   'annet',
   'other',
 ];

@@ -62,6 +62,7 @@ export default {
       },
       maxWidth: {
         container: "var(--container)",
+        editor: "var(--container-editor)",
         wide: "var(--container-wide)",
         measure: "68ch",
       },
