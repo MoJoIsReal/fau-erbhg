@@ -208,6 +208,10 @@ export default function CalendarViews() {
             onChange={changeMode}
             label={t.calendar.viewLabel}
           />
+          {/* In the list view the banner below sits under every week of the
+              year, so the subscribe action is also offered where the page
+              starts. */}
+          <CalendarSubscribe triggerSize="default" triggerClassName="rounded-pill bg-surface" />
         </div>
 
         <div>
@@ -287,8 +291,8 @@ export default function CalendarViews() {
       )}
 
       {/* The feed is the one thing that turns this page into something you
-          never have to open again, so it is said out loud at the bottom rather
-          than hidden behind an icon. */}
+          never have to open again, so it is also said out loud at the bottom,
+          with the reason, rather than only as a button. */}
       <InfoBanner
         tone="calm"
         icon={<Bell className="h-5 w-5" aria-hidden="true" />}
