@@ -20,6 +20,7 @@ import {
   nextAttemptAt,
   runWithConcurrency,
 } from '../_shared/delivery.js';
+import { cancellationText } from '../_shared/registration-cancel.js';
 
 // Per-batch claim sizes. These are upper bounds on what one claim query takes;
 // the real protection against being killed mid-batch is RUN_BUDGET_MS below,
@@ -81,7 +82,7 @@ function tomorrowInOslo() {
   return formatOsloDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
 }
 
-function reminderEmail(registration) {
+export function registrationReminderEmail(registration) {
   const isNorwegian = registration.language !== 'en';
   const locale = isNorwegian ? 'no-NO' : 'en-US';
   const date = new Date(registration.eventDate).toLocaleDateString(locale, {
@@ -93,6 +94,11 @@ function reminderEmail(registration) {
   const location = registration.customLocation
     ? `${registration.location} (${registration.customLocation})`
     : registration.location;
+
+  const cancellation = cancellationText({
+    language: registration.language,
+    cancelToken: registration.cancelToken,
+  });
 
   const subject = isNorwegian
     ? `Påminnelse: ${registration.eventTitle} i morgen`
@@ -111,6 +117,8 @@ Arrangementsinformasjon:
 
 ${registration.photoSlots ? `Fototidspunkt: ${registration.photoSlots}\n\n` : ''}Vi gleder oss til å se deg!
 
+${cancellation}
+
 Med vennlig hilsen,
 FAU Erdal Barnehage
 ` : `
@@ -125,6 +133,8 @@ Event information:
 - Number of attendees: ${registration.attendeeCount || 1}
 
 ${registration.photoSlots ? `Photo slot: ${registration.photoSlots}\n\n` : ''}We look forward to seeing you!
+
+${cancellation}
 
 Best regards,
 FAU Erdal Barnehage
@@ -478,9 +488,20 @@ export async function cleanupPrivacyRetention(sql) {
     RETURNING r.id
   `;
 
+  // Recorded self-service cancellations (migration 0016) follow the same
+  // window as the registrations they were copied from.
+  const deletedCancellations = await sql`
+    DELETE FROM event_registration_cancellations c
+    USING events e
+    WHERE e.id = c.event_id
+      AND e.date::date < CURRENT_DATE - INTERVAL '6 months'
+    RETURNING c.id
+  `;
+
   return {
     contactMessagesDeleted: deletedContactMessages.length,
     eventRegistrationsDeleted: deletedRegistrations.length,
+    registrationCancellationsDeleted: deletedCancellations.length,
   };
 }
 
@@ -510,6 +531,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
           r.language,
           r.attendee_count as "attendeeCount",
           r.photo_slots as "photoSlots",
+          r.cancel_token as "cancelToken",
           e.title as "eventTitle",
           e.date as "eventDate",
           e.time as "eventTime",
@@ -557,7 +579,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
         return;
       }
       try {
-        const { subject, text } = reminderEmail(registration);
+        const { subject, text } = registrationReminderEmail(registration);
         await send({
           to: registration.email,
           subject,

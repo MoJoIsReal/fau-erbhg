@@ -155,10 +155,15 @@ test('privacy retention deletes only past its windows', async () => {
 
   const result = await cleanupPrivacyRetention(sql);
 
-  assert.deepEqual(result, { contactMessagesDeleted: 2, eventRegistrationsDeleted: 1 });
-  assert.equal(statements.length, 2);
+  assert.deepEqual(result, {
+    contactMessagesDeleted: 2,
+    eventRegistrationsDeleted: 1,
+    registrationCancellationsDeleted: 1,
+  });
+  assert.equal(statements.length, 3);
   assert.match(statements[0], /^DELETE FROM contact_messages WHERE created_at::timestamptz < NOW\(\) - INTERVAL '12 months'/);
   assert.match(statements[1], /^DELETE FROM event_registrations r USING events e WHERE e\.id = r\.event_id AND e\.date::date < CURRENT_DATE - INTERVAL '6 months'/);
+  assert.match(statements[2], /^DELETE FROM event_registration_cancellations c USING events e WHERE e\.id = c\.event_id AND e\.date::date < CURRENT_DATE - INTERVAL '6 months'/);
 });
 
 // The morning run is reminders first, then housekeeping. A reminder the
@@ -172,7 +177,11 @@ test('the morning run still runs retention after a provider failure', async () =
   });
 
   assert.deepEqual(result.reminders, { claimed: 2, sent: 1, failed: 1 });
-  assert.deepEqual(result.retention, { contactMessagesDeleted: 0, eventRegistrationsDeleted: 0 });
+  assert.deepEqual(result.retention, {
+    contactMessagesDeleted: 0,
+    eventRegistrationsDeleted: 0,
+    registrationCancellationsDeleted: 0,
+  });
 
   const order = [
     'WITH due AS',

@@ -16,6 +16,11 @@ contents of each migration file. The current migrations are:
 9. `0009_registration_integrity.sql`
 10. `0010_blog_post_newsletter.sql`
 11. `0011_yearly_calendar_times.sql`
+12. `0012_registration_capacity_repair.sql`
+13. `0013_yearly_calendar_category.sql`
+14. `0014_calendar_family_category.sql`
+15. `0015_registration_cancel_token.sql`
+16. `0016_registration_cancellations.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -73,3 +78,21 @@ WHERE table_name = 'blog_posts'
 Apply `0014_calendar_family_category.sql` before deploying support for the
 `family` category. It extends the yearly-entry constraint; existing categories
 and entries remain unchanged.
+
+## Self-service registration cancellation
+
+`0015_registration_cancel_token.sql` adds `event_registrations.cancel_token`, a
+secret per registration that the confirmation and reminder emails link to
+(`/avmelding?token=…`). The column's database default generates the token, so
+the migration is safe to apply before the code: old code simply ignores it.
+Apply it **before** deploying the matching code, which selects the column in
+the reminder cron and looks registrations up by it. Verify with:
+
+```sql
+SELECT COUNT(*) FROM event_registrations WHERE cancel_token IS NULL;  -- 0
+```
+
+`0016_registration_cancellations.sql` adds `event_registration_cancellations`,
+where a self-service cancellation copies the registration before deleting it,
+so council members can see who cancelled. Apply it together with 0015, before
+deploying: the cancel statement and the nightly retention both write to it.
