@@ -379,6 +379,21 @@ function testClientRegressionGuards() {
     false,
     'Week-spanning entries must not be stacked into the Monday cell of their week',
   );
+  assert.match(
+    calendarView,
+    /sticky top-\[var\(--header-height-mobile\)\][^"]*lg:top-\[var\(--header-height\)\]/,
+    'The month nav must follow the grid down, parked under the site header',
+  );
+  assert.match(
+    calendarView,
+    /<Surface className="overflow-clip">/,
+    'The month surface must clip, not scroll: overflow-hidden would trap the sticky month nav',
+  );
+  assert.equal(
+    calendarView.includes('truncate'),
+    false,
+    'Entry titles in the month grid must wrap and clamp, not be cut to one line',
+  );
 
   const calendarShared = readFileSync(
     new URL('../shared/calendar-entries.js', import.meta.url),
