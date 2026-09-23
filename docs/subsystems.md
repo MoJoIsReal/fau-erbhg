@@ -60,7 +60,9 @@ document is assembled by `shared/calendar-feed.js`; keep RFC 5545 concerns
 (escaping, 75-octet line folding, `VTIMEZONE`) there rather than in the handler,
 and keep `UID`s stable (`event-<id>@`, `yearly-<id>@`) — **a changed UID makes
 every subscriber's calendar duplicate the entry.** Week-based yearly entries have
-no date and are deliberately left out. Cancelled events stay in the feed with
+no date and are deliberately left out. Like the site, the feed drops a
+`day_event` on a day that also has a signup event (the event wins; `closed` and
+`internt` entries stay). Cancelled events stay in the feed with
 `STATUS:CANCELLED` so subscribers see the cancellation.
 
 A signup event's `time` must be `HH:MM` — that is the only shape

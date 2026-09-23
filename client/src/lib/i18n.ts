@@ -197,6 +197,7 @@ export interface Translations {
     subscribeDescription: string;
     subscribeGoogle: string;
     subscribeApple: string;
+    subscribeOutlook: string;
     subscribeUrlLabel: string;
     subscribeUrlHint: string;
     subscribeCopy: string;
@@ -1056,7 +1057,8 @@ export const translations: Record<Language, Translations> = {
       subscribeDescription:
         "Få arrangementer, møter og datoer fra årskalenderen rett inn i din egen kalender. Nye og endrede datoer oppdateres automatisk.",
       subscribeGoogle: "Legg til i Google Kalender",
-      subscribeApple: "Abonner i Apple Kalender eller Outlook",
+      subscribeApple: "Abonner i Apple Kalender",
+      subscribeOutlook: "Abonner i Outlook",
       subscribeUrlLabel: "Kalenderadresse (URL)",
       subscribeUrlHint:
         "Kopier adressen og lim den inn der kalenderappen din spør etter «abonner på kalender fra URL».",
@@ -1909,7 +1911,8 @@ export const translations: Record<Language, Translations> = {
       subscribeDescription:
         "Get events, meetings and the dates from the yearly calendar straight into your own calendar. New and changed dates update automatically.",
       subscribeGoogle: "Add to Google Calendar",
-      subscribeApple: "Subscribe in Apple Calendar or Outlook",
+      subscribeApple: "Subscribe in Apple Calendar",
+      subscribeOutlook: "Subscribe in Outlook",
       subscribeUrlLabel: "Calendar address (URL)",
       subscribeUrlHint:
         "Copy the address and paste it where your calendar app asks to subscribe to a calendar from a URL.",

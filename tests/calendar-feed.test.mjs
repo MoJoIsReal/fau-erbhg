@@ -205,3 +205,31 @@ test('only H:MM event times survive into the feed', () => {
     );
   }
 });
+
+test('a day entry on a day with a signup event is left out, as on the site', () => {
+  const feed = buildCalendarFeed({
+    events: [signupEvent({ id: 7, title: 'Høstdugnad', date: '2026-09-20', time: '11:00' })],
+    entries: [
+      { id: 20, title: 'Foreldredugnad i regi av FAU', entryType: 'day_event', date: '2026-09-20' },
+      { id: 21, title: 'SU-møte', entryType: 'day_event', category: 'internt', date: '2026-09-20' },
+      { id: 22, title: 'Stengt', entryType: 'closed', date: '2026-09-20' },
+      { id: 23, title: 'Brannverndag', entryType: 'day_event', date: '2026-09-18' },
+    ],
+    now: NOW,
+  });
+  assert.ok(feed.includes('UID:event-7@erdal-bhg.no'));
+  assert.ok(!feed.includes('UID:yearly-20@erdal-bhg.no'));
+  assert.ok(feed.includes('UID:yearly-21@erdal-bhg.no'));
+  assert.ok(feed.includes('UID:yearly-22@erdal-bhg.no'));
+  assert.ok(feed.includes('UID:yearly-23@erdal-bhg.no'));
+});
+
+test('an event the feed cannot render does not hide the day entry', () => {
+  const feed = buildCalendarFeed({
+    events: [signupEvent({ id: 8, date: '2026-09-20', time: '17.00' })],
+    entries: [{ id: 24, title: 'Dugnad', entryType: 'day_event', date: '2026-09-20' }],
+    now: NOW,
+  });
+  assert.ok(!feed.includes('UID:event-8@erdal-bhg.no'));
+  assert.ok(feed.includes('UID:yearly-24@erdal-bhg.no'));
+});
