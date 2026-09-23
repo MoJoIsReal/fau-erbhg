@@ -188,7 +188,11 @@
   --secondary-foreground: 166 45% 11.4%;
   --accent: 120 31% 93.1%; /* green-50 — the hover/selected wash */
   --accent-foreground: 156 75% 23.9%;
-  --destructive: 11 66% 44.5%; /* #BC3B27 — 5.5:1 under white text */
+  /* #AE3D24. White on it is 6.0:1, and still 5.0:1 on the /90 hover wash the
+     delete buttons use; as text it is 5.6:1 on sand and 5.4:1 on muted, so a
+     FormMessage clears 4.5:1 on every light surface (A11Y-004). The previous
+     #BC3B27 left the hover wash at exactly 4.50:1 on a card. */
+  --destructive: 11 66% 41%;
   --destructive-foreground: 0 0% 100%;
   --ring: 156 75% 23.9%;
 }
