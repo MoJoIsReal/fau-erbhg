@@ -6,6 +6,7 @@ references it links to; read one only when a task needs it.
 
 | Document | Read it when |
 |---|---|
+| [design/style-guide.md](./design/style-guide.md) | **Before any visual change.** The UI Design & Style Guide 1.1 (light + dark), transcribed from the [PDF](./design/FAU_Erdal_Barnehage_UI_Design_Style_Guide_v1.1.pdf) beside it, with a guide → repo mapping and a checklist. |
 | [architecture.md](./architecture.md) | You need the boundary/trust model: who validates what across browser → handler → Neon/Cloudinary/Gmail. |
 | [subsystems.md](./subsystems.md) | You are touching the yearly calendar, the `/kalender.ics` feed, or the newsletter broadcast. These have invariants the code alone does not reveal. |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploying or operating on Vercel: environment variables, database setup, verification, monitoring, rollback. |

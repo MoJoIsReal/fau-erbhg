@@ -17,6 +17,10 @@ about the repository. This file holds only Claude Code workflow notes.
 - Load `docs/subsystems.md`, `docs/architecture.md`, `docs/DEPLOYMENT.md` or
   `docs/review-backlog.md` only when the task actually touches them — they are
   deliberately not part of the always-loaded context.
+- **Visual changes are the exception: always read `docs/design/style-guide.md`
+  first** (grep a section heading, e.g. `## 7.` or `## 21.`, rather than
+  loading all of it). Use the text version; the PDF next to it is the
+  original and needs a renderer.
 - Before adding a pattern, read one sibling: another `api/*.js` handler, another
   page in `client/src/pages/`, or another suite in `tests/`.
 
