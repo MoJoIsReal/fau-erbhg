@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
 const FEED_PATH = "/kalender.ics";
+const FEED_NAME = "FAU Erdal Barnehage";
 
 interface CalendarSubscribeProps {
   /** Extra classes for the trigger, so it can match the surface it sits on. */
@@ -44,6 +45,10 @@ export default function CalendarSubscribe({
   const httpUrl = `${origin}${FEED_PATH}${query}`;
   const webcalUrl = httpUrl.replace(/^https?:/, "webcal:");
   const googleUrl = `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(webcalUrl)}`;
+  // Outlook gets its own web deep link with the https URL. Handing it the
+  // webcal:// link makes Outlook for Windows drop the scheme and prefill
+  // "//host/kalender.ics", which its subscribe dialog rejects as invalid.
+  const outlookUrl = `https://outlook.live.com/calendar/0/addfromweb?url=${encodeURIComponent(httpUrl)}&name=${encodeURIComponent(FEED_NAME)}`;
 
   const handleCopy = async () => {
     try {
@@ -90,6 +95,11 @@ export default function CalendarSubscribe({
             </Button>
             <Button asChild variant="outline" className="h-auto min-w-0 flex-1 whitespace-normal py-2 text-center">
               <a href={webcalUrl}>{t.calendar.subscribeApple}</a>
+            </Button>
+            <Button asChild variant="outline" className="h-auto min-w-0 flex-1 whitespace-normal py-2 text-center">
+              <a href={outlookUrl} target="_blank" rel="noopener noreferrer">
+                {t.calendar.subscribeOutlook}
+              </a>
             </Button>
           </div>
 
