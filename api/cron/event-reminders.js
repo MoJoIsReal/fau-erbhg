@@ -463,7 +463,7 @@ async function cleanupDeliveryHistory(sql) {
   return deleted.length;
 }
 
-async function cleanupPrivacyRetention(sql) {
+export async function cleanupPrivacyRetention(sql) {
   const deletedContactMessages = await sql`
     DELETE FROM contact_messages
     WHERE created_at::timestamptz < NOW() - INTERVAL '12 months'
@@ -588,6 +588,27 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
   return { claimed: claimedTotal, sent, failed };
 }
 
+// The 07:00 run: reminders first, then the housekeeping. Split out of the
+// handler so the whole sequence — including the irreversible GDPR delete — is
+// reachable from a test with an injected sql and sender (TEST-002).
+export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
+  let reminders;
+  try {
+    reminders = await sendEventReminders(sql, targetDate, send, deadline);
+  } finally {
+    closePooledTransporter();
+  }
+
+  const retention = await cleanupPrivacyRetention(sql);
+  // After the retention delete, not before: the purge is the one writer that
+  // reliably leaves the counter above the rows that remain.
+  const attendeeCountsRepaired = await reconcileEventAttendeeCounts(sql);
+  const expiredRateLimitsDeleted = await cleanupExpiredRateLimits(sql);
+  const deliveryHistoryDeleted = await cleanupDeliveryHistory(sql);
+
+  return { reminders, retention, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted };
+}
+
 export default withApiHandler(async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -620,19 +641,8 @@ export default withApiHandler(async function handler(req, res) {
     }
   }
 
-  let reminders;
-  try {
-    reminders = await sendEventReminders(sql, targetDate, sendPooledEmail, deadline);
-  } finally {
-    closePooledTransporter();
-  }
-
-  const retention = await cleanupPrivacyRetention(sql);
-  // After the retention delete, not before: the purge is the one writer that
-  // reliably leaves the counter above the rows that remain.
-  const attendeeCountsRepaired = await reconcileEventAttendeeCounts(sql);
-  const expiredRateLimitsDeleted = await cleanupExpiredRateLimits(sql);
-  const deliveryHistoryDeleted = await cleanupDeliveryHistory(sql);
+  const { reminders, retention, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted } =
+    await runMorningTasks(sql, targetDate, sendPooledEmail, deadline);
   logRun('reminders', {
     ...reminders,
     ...retention,
