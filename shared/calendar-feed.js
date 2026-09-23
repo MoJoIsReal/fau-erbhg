@@ -227,6 +227,23 @@ function yearlyEntryLines(entry, { dtstamp, baseUrl, language }) {
 }
 
 /**
+ * The årskalender usually writes a happening up twice: as a signup event and
+ * as a plain day_event row ("Høstdugnad" and "Foreldredugnad i regi av FAU" on
+ * the same Saturday). The site shows only the event — dropDayEntriesCoveredByEvents
+ * in shared/calendar-entries.js — and the feed follows the same rule, or every
+ * subscriber sees both. Closures and entries categorised `internt` always
+ * survive, as they do on the site. Only events the feed actually emitted count,
+ * so a dropped event never takes its day entry with it.
+ */
+function isDayEntryCoveredByEvent(entry, daysWithEvent) {
+  return (
+    entry?.entryType === 'day_event' &&
+    entry.category !== 'internt' &&
+    daysWithEvent.has(entry.date)
+  );
+}
+
+/**
  * Build the subscribable calendar feed.
  *
  * @param {Object} input
@@ -266,12 +283,17 @@ export function buildCalendarFeed({
     ...OSLO_VTIMEZONE,
   ];
 
+  const daysWithEvent = new Set();
   for (const event of events) {
     const eventLines = signupEventLines(event, context);
-    if (eventLines) lines.push(...eventLines);
+    if (eventLines) {
+      lines.push(...eventLines);
+      daysWithEvent.add(event.date);
+    }
   }
 
   for (const entry of entries) {
+    if (isDayEntryCoveredByEvent(entry, daysWithEvent)) continue;
     const entryLines = yearlyEntryLines(entry, context);
     if (entryLines) lines.push(...entryLines);
   }
