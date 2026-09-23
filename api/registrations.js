@@ -17,11 +17,19 @@ import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import Sentry from './_shared/sentry.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { COUNCIL_ROLES } from '../shared/constants.js';
+import {
+  cancellationText,
+  isCancelToken,
+  isCancellationOpen,
+  osloToday
+} from './_shared/registration-cancel.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
 const REGISTRATION_MAX_ATTEMPTS = 10;
 const MAX_CHILD_NAME_LENGTH = 100;
 const PHOTO_SLOT_ALLOCATION_ATTEMPTS = 3;
+const CANCEL_WINDOW_SECONDS = 10 * 60;
+const CANCEL_MAX_ATTEMPTS = 30;
 
 export function isPhotoSlotConflict(error) {
   return error?.code === '23505'
@@ -49,8 +57,87 @@ function sanitizeChildrenNames(raw, maxCount) {
   return cleaned.length > 0 ? JSON.stringify(cleaned) : null;
 }
 
+// Self-service cancellation through the secret link in the registration
+// emails. The token alone authorizes it, like the newsletter unsubscribe link,
+// so there is no session and no CSRF. Two steps so that a mail scanner that
+// prefetches the link can never cancel anything: the page first looks the
+// registration up, and only an explicit click on "cancel" deletes it.
+//   POST /api/registrations?action=cancel-lookup  { token }
+//   POST /api/registrations?action=cancel         { token }
+export async function handleCancel(req, res, sql, action) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+  if (!isCancelToken(token)) {
+    return res.status(400).json({ error: 'Invalid token' });
+  }
+
+  const ipLimit = await checkRateLimit(sql, {
+    key: rateLimitKey(req, 'registration-cancel-ip', ''),
+    limit: CANCEL_MAX_ATTEMPTS,
+    windowSeconds: CANCEL_WINDOW_SECONDS
+  });
+  if (!ipLimit.allowed) {
+    res.setHeader('Retry-After', String(ipLimit.retryAfter));
+    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+  }
+
+  if (action === 'cancel-lookup') {
+    const rows = await sql`
+      SELECT r.name, r.attendee_count as "attendeeCount",
+             e.title as "eventTitle", e.date as "eventDate", e.time as "eventTime",
+             e.location, e.custom_location as "customLocation"
+      FROM event_registrations r
+      JOIN events e ON e.id = r.event_id
+      WHERE r.cancel_token = ${token}
+    `;
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    const registration = rows[0];
+    return res.status(200).json({
+      ...registration,
+      cancellable: isCancellationOpen(registration.eventDate)
+    });
+  }
+
+  // Same delete-and-release as the council's DELETE below, plus the date
+  // guard: once the event day is over the registration is history.
+  const cancelled = await sql`
+    WITH deleted AS (
+      DELETE FROM event_registrations r
+      USING events e
+      WHERE r.cancel_token = ${token}
+        AND e.id = r.event_id
+        AND e.date >= ${osloToday()}
+      RETURNING r.id, r.event_id, r.attendee_count
+    ), updated_event AS (
+      UPDATE events e
+      SET current_attendees = GREATEST(0, COALESCE(e.current_attendees, 0) - COALESCE(d.attendee_count, 1))
+      FROM deleted d
+      WHERE e.id = d.event_id
+      RETURNING e.id
+    )
+    SELECT d.id, EXISTS (SELECT 1 FROM updated_event) as "eventUpdated"
+    FROM deleted d
+  `;
+
+  if (cancelled.length === 0) {
+    return res.status(404).json({ error: 'Registration not found or can no longer be cancelled' });
+  }
+
+  return res.status(200).json({ success: true });
+}
+
 export default withApiHandler(async function handler(req, res) {
   const sql = getDb();
+
+  const { action } = req.query;
+  if (action === 'cancel-lookup' || action === 'cancel') {
+    return handleCancel(req, res, sql, action);
+  }
 
   if (req.method === 'GET') {
     const { eventId } = req.query;
@@ -383,7 +470,9 @@ export default withApiHandler(async function handler(req, res) {
         })
     );
 
-    return res.status(201).json(newRegistration[0]);
+    // The cancel token only ever travels in the confirmation email.
+    const { cancel_token: _cancelToken, ...publicRegistration } = newRegistration[0];
+    return res.status(201).json(publicRegistration);
   }
 
   if (req.method === 'DELETE') {
@@ -457,7 +546,8 @@ async function sendEventConfirmationEmail(params) {
       for (let i = 0; i < childrenNames.length; i++) {
         fotoContent += `${childrenNames[i]} har fått tidspunkt ${photoSlots[i] || 'TBD'}\n`;
       }
-      fotoContent += `\nDersom dere av en eller annen grunn ikke kan stille, vennligst meld i fra til FAU snarest mulig ved å svare på denne eposten.\n\n`;
+      fotoContent += `\nDersom dere av en eller annen grunn ikke kan stille, vennligst meld dere av snarest mulig, slik at tiden kan gå til andre.\n`;
+      fotoContent += `${cancellationText({ language, cancelToken: registration.cancel_token })}\n\n`;
       fotoContent += `Mvh\nFAU Erdal Barnehage`;
     } else {
       fotoContent += `Hi ${registration.name}\n\n`;
@@ -465,7 +555,8 @@ async function sendEventConfirmationEmail(params) {
       for (let i = 0; i < childrenNames.length; i++) {
         fotoContent += `${childrenNames[i]} has been assigned time slot ${photoSlots[i] || 'TBD'}\n`;
       }
-      fotoContent += `\nIf for any reason you cannot attend, please notify FAU as soon as possible by replying to this email.\n\n`;
+      fotoContent += `\nIf for any reason you cannot attend, please cancel as soon as possible so the slot can go to someone else.\n`;
+      fotoContent += `${cancellationText({ language, cancelToken: registration.cancel_token })}\n\n`;
       fotoContent += `Best regards\nFAU Erdal Barnehage`;
     }
 
@@ -501,6 +592,8 @@ Arrangementsinformasjon:
 
 Vi ser fram til å se deg!
 
+${cancellationText({ language, cancelToken: registration.cancel_token })}
+
 Med vennlig hilsen,
 FAU Erdal Barnehage
 ` : `
@@ -522,6 +615,8 @@ Event information:
 - Location: ${event.location}${event.custom_location ? ` (${event.custom_location})` : ''}
 
 We look forward to seeing you!
+
+${cancellationText({ language, cancelToken: registration.cancel_token })}
 
 Best regards,
 FAU Erdal Barnehage

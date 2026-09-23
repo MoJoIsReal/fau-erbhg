@@ -339,6 +339,27 @@ export interface Translations {
       deleteConfirm: string;
     };
   };
+  // Self-service cancellation of an event registration (/avmelding)
+  registrationCancel: {
+    navTitle: string;
+    title: string;
+    subtitle: string;
+    loading: string;
+    registeredAs: string;
+    attendees: string;
+    confirmQuestion: string;
+    cancelButton: string;
+    cancelling: string;
+    successTitle: string;
+    successDesc: string;
+    closedTitle: string;
+    closedDesc: string;
+    notFoundTitle: string;
+    notFoundDesc: string;
+    errorTitle: string;
+    errorDesc: string;
+    missingTokenDesc: string;
+  };
   // Documents page
   documents: {
     documentDeleted: string;
@@ -1198,6 +1219,26 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "Dette fjerner abonnenten permanent."
       }
     },
+    registrationCancel: {
+      navTitle: "Avmelding",
+      title: "Meld deg av arrangement",
+      subtitle: "Kan du likevel ikke komme? Her kan du melde deg av, så plassen går til andre.",
+      loading: "Henter påmeldingen...",
+      registeredAs: "Påmeldt som",
+      attendees: "Antall deltakere",
+      confirmQuestion: "Vil du melde deg av dette arrangementet?",
+      cancelButton: "Meld meg av",
+      cancelling: "Melder deg av...",
+      successTitle: "Du er nå avmeldt",
+      successDesc: "Påmeldingen er slettet. Du kan melde deg på igjen fra kalenderen dersom det er ledige plasser.",
+      closedTitle: "Avmelding er stengt",
+      closedDesc: "Arrangementet har allerede funnet sted, så påmeldingen kan ikke lenger endres.",
+      notFoundTitle: "Fant ikke påmeldingen",
+      notFoundDesc: "Lenken er ugyldig, eller så er påmeldingen allerede slettet.",
+      errorTitle: "Noe gikk galt",
+      errorDesc: "Kunne ikke melde deg av. Prøv igjen senere, eller kontakt FAU.",
+      missingTokenDesc: "Bruk lenken i bekreftelses- eller påminnelses-e-posten for å melde deg av."
+    },
     documents: {
       documentDeleted: "Dokument slettet",
       documentWasDeletedSuccessfully: "Dokumentet ble slettet.",
@@ -1299,7 +1340,7 @@ export const translations: Record<Language, Translations> = {
       },
       eventRegistration: {
         success: "Påmelding vellykket!",
-        successDesc: "Du er nå påmeldt arrangementet.",
+        successDesc: "Du er nå påmeldt arrangementet. Bekreftelsen på e-post har en lenke du kan bruke hvis du må melde deg av.",
         error: "Feil ved påmelding",
         errorDesc: "Kunne ikke melde deg på. Prøv igjen senere."
       }
@@ -2051,6 +2092,26 @@ export const translations: Record<Language, Translations> = {
         deleteConfirm: "This permanently removes the subscriber."
       }
     },
+    registrationCancel: {
+      navTitle: "Cancel registration",
+      title: "Cancel your registration",
+      subtitle: "Can no longer attend? Cancel here so the place can go to someone else.",
+      loading: "Loading your registration...",
+      registeredAs: "Registered as",
+      attendees: "Number of attendees",
+      confirmQuestion: "Do you want to cancel your registration for this event?",
+      cancelButton: "Cancel my registration",
+      cancelling: "Cancelling...",
+      successTitle: "Your registration is cancelled",
+      successDesc: "The registration has been deleted. You can sign up again from the calendar if there are places left.",
+      closedTitle: "Cancellation is closed",
+      closedDesc: "The event has already taken place, so the registration can no longer be changed.",
+      notFoundTitle: "Registration not found",
+      notFoundDesc: "The link is invalid, or the registration has already been cancelled.",
+      errorTitle: "Something went wrong",
+      errorDesc: "Could not cancel your registration. Please try again later, or contact FAU.",
+      missingTokenDesc: "Use the link in your confirmation or reminder email to cancel your registration."
+    },
     documents: {
       documentDeleted: "Document deleted",
       documentWasDeletedSuccessfully: "The document was deleted successfully.",
@@ -2152,7 +2213,7 @@ export const translations: Record<Language, Translations> = {
       },
       eventRegistration: {
         success: "Registration successful!",
-        successDesc: "You are now registered for the event.",
+        successDesc: "You are now registered for the event. The confirmation email has a link you can use if you need to cancel.",
         error: "Registration error",
         errorDesc: "Could not register you. Please try again later."
       }

@@ -67,6 +67,7 @@ write your own try/catch envelope.
 functions and 9 are used, so several handlers multiplex resources:
 `api/auth.js?action=csrf|login|logout|me|change-password`,
 `api/documents.js?action=download`,
+`api/registrations.js?action=cancel-lookup|cancel`,
 `api/contact.js?action=newsletter-subscribe|newsletter-confirm|newsletter-unsubscribe`,
 `api/secure-settings.js?resource=users|staff-users|board-members|kindergarten-info|blog-posts|contact-messages|newsletter-subscribers`.
 Prefer extending an existing handler over adding a file. (This is also why there
