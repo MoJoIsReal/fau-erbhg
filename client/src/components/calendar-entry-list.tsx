@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { CalendarEntry } from "@shared/calendar-entries";
 import { groupCalendarEntriesByWeek, isoWeekRange } from "@shared/calendar-entries";
+import { htmlToPlainText } from "@shared/html-text";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate, type Language } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
@@ -34,8 +35,7 @@ function weekFacts(spanning: CalendarEntry[], foodLabel: string) {
     if (entry.displayKind === "varmmat") {
       return { id: entry.id, kind: entry.displayKind, label: foodLabel, value: entry.title };
     }
-    const detail = entry.description?.replace(/<[^>]*>/g, "").trim();
-    return { id: entry.id, kind: entry.displayKind, label: entry.title, value: detail ?? "" };
+    return { id: entry.id, kind: entry.displayKind, label: entry.title, value: htmlToPlainText(entry.description) };
   });
 }
 

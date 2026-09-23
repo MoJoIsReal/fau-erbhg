@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   CalendarDays,
@@ -66,6 +66,19 @@ export default function Layout({ children }: LayoutProps) {
   const { t, language } = useLanguage();
   const isAdmin = user?.role === "admin";
   const isCouncil = user?.role === "admin" || user?.role === "member";
+
+  // wouter swaps the page without a document load, so focus would stay on the
+  // link that was just activated, somewhere in the header. Move it to <main>
+  // on every client-side navigation so a keyboard or screen-reader user
+  // starts at the new page's content. The first render is skipped: on a
+  // fresh load the browser already starts at the top of the document.
+  const mainRef = useRef<HTMLElement>(null);
+  const previousLocation = useRef(location);
+  useEffect(() => {
+    if (previousLocation.current === location) return;
+    previousLocation.current = location;
+    mainRef.current?.focus({ preventScroll: true });
+  }, [location]);
 
   // The guide's recommended order: Hjem | Aktuelt | Kalender | Dokumenter |
   // Kontakt. News and tips share one page with a category switch, so
@@ -355,9 +368,14 @@ export default function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
+      {/* tabIndex -1 makes <main> a focus target for the skip link and the
+          navigation reset above without adding it to the tab order. It is a
+          landmark, not a control, so it carries no focus ring of its own. */}
       <main
         id="main"
-        className="container-page w-full min-w-0 flex-1 py-10 lg:py-14 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
+        ref={mainRef}
+        tabIndex={-1}
+        className="container-page focus:outline-none w-full min-w-0 flex-1 py-10 lg:py-14 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-200"
       >
         {children}
       </main>

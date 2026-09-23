@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isAuthorizedCron, sendEventReminders } from '../api/cron/event-reminders.js';
+import {
+  cleanupPrivacyRetention,
+  isAuthorizedCron,
+  runMorningTasks,
+  sendEventReminders,
+} from '../api/cron/event-reminders.js';
 
 process.env.GMAIL_USER = 'sender@example.test';
 process.env.GMAIL_APP_PASSWORD = 'test-only-password';
@@ -110,6 +115,75 @@ test('the run stops claiming once the budget is spent', async () => {
 
   assert.deepEqual(result, { claimed: 0, sent: 0, failed: 0 });
   assert.equal(calls.length, 0, 'an expired budget should not even claim a batch');
+});
+
+// TEST-002. The claim's guards are what make a reminder go out exactly once:
+// a stamped row is never selected again, and a claimed one only once its
+// 10-minute lease has run out. Both halves of the claim — the SELECT … FOR
+// UPDATE and the UPDATE that stamps the lease — must carry them, or a row
+// sent between the two could be claimed a second time. The statement itself
+// was executed against PostgreSQL 16 (stamped, live-lease and expired-lease
+// rows) when this suite was written; the fake can only pin its shape.
+test('the claim only selects unsent rows whose lease has expired', async () => {
+  const { sql, calls } = scriptedSql([[]]);
+  await sendEventReminders(sql, '2026-09-10', async () => {});
+
+  const claim = calls.find(({ statement }) => statement.includes('WITH due AS'));
+  assert.ok(claim, 'the run should issue the claim');
+  assert.deepEqual(claim.values.slice(0, 1), ['2026-09-10'], 'the claim is scoped to the target date');
+  const [select, update] = claim.statement.split('claimed AS');
+  for (const [half, text] of [['select', select], ['update', update]]) {
+    assert.match(text, /reminder_sent_at IS NULL/, `the ${half} must skip already-sent rows`);
+    assert.match(
+      text,
+      /reminder_claimed_at IS NULL OR r\.reminder_claimed_at < NOW\(\) - INTERVAL '10 minutes'/,
+      `the ${half} must honour a live lease and reclaim an expired one`,
+    );
+  }
+  assert.match(select, /FOR UPDATE OF r SKIP LOCKED/, 'concurrent runs must not claim the same row');
+});
+
+// The retention windows are irreversible deletes of personal data, so their
+// bounds are pinned: registrations go 6 months after their event, contact
+// messages after 12 months, and nothing else is touched.
+test('privacy retention deletes only past its windows', async () => {
+  const statements = [];
+  const sql = async (strings) => {
+    statements.push(strings.join('?').replace(/\s+/g, ' ').trim());
+    return statements.length === 1 ? [{ id: 1 }, { id: 2 }] : [{ id: 3 }];
+  };
+
+  const result = await cleanupPrivacyRetention(sql);
+
+  assert.deepEqual(result, { contactMessagesDeleted: 2, eventRegistrationsDeleted: 1 });
+  assert.equal(statements.length, 2);
+  assert.match(statements[0], /^DELETE FROM contact_messages WHERE created_at::timestamptz < NOW\(\) - INTERVAL '12 months'/);
+  assert.match(statements[1], /^DELETE FROM event_registrations r USING events e WHERE e\.id = r\.event_id AND e\.date::date < CURRENT_DATE - INTERVAL '6 months'/);
+});
+
+// The morning run is reminders first, then housekeeping. A reminder the
+// provider rejects is released for a later run, and it must not cost the
+// run its GDPR retention delete.
+test('the morning run still runs retention after a provider failure', async () => {
+  const { sql, calls } = scriptedSql([[registration(1), registration(2)]]);
+
+  const result = await runMorningTasks(sql, '2026-09-10', async (message) => {
+    if (message.to === 'parent1@example.test') throw new Error('SMTP temporarily unavailable');
+  });
+
+  assert.deepEqual(result.reminders, { claimed: 2, sent: 1, failed: 1 });
+  assert.deepEqual(result.retention, { contactMessagesDeleted: 0, eventRegistrationsDeleted: 0 });
+
+  const order = [
+    'WITH due AS',
+    'DELETE FROM contact_messages',
+    'DELETE FROM event_registrations',
+    'UPDATE events e SET current_attendees',
+    'DELETE FROM api_rate_limits',
+    'DELETE FROM newsletter_deliveries',
+  ].map((needle) => calls.findIndex(({ statement }) => statement.includes(needle)));
+  assert.ok(order.every((index) => index >= 0), 'every morning task should run');
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'reminders, then retention, then reconcile and cleanup');
 });
 
 // SEC-004. Without CRON_SECRET this used to authorize anyone whenever NODE_ENV

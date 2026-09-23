@@ -147,6 +147,15 @@ function testThemeScriptHashIsInCsp() {
     scriptSrc.split(/\s+/).slice(1).includes(`'${hash}'`),
     `CSP script-src must allow the inline theme script: expected '${hash}'`,
   );
+
+  // The reverse drift: a hash left behind after its script was edited or
+  // removed keeps authorizing code that no longer ships.
+  const hashes = scriptSrc.split(/\s+/).filter((source) => source.startsWith("'sha256-"));
+  assert.deepEqual(
+    hashes,
+    [`'${hash}'`],
+    'CSP script-src must carry exactly the hash of the inline theme script, no stale ones',
+  );
 }
 
 function testRateLimitKeys() {

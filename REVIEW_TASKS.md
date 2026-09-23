@@ -1,5 +1,32 @@
 # Review Remediation Tasks — 2026-09-18 audit
 
+> **The last four open tasks are closed** (2026-09-23): TEST-002, A11Y-002,
+> A11Y-003 and A11Y-004. Three had been partly done by later work, so each
+> closed only what was still missing:
+>
+> TEST-002 — `sendEventReminders` had already been extracted by PERF-002. The
+> rest of the 07:00 run is now `runMorningTasks`, and `cleanupPrivacyRetention`
+> is exported, so the whole sequence can be tested. The claim guards
+> (already-stamped, live lease, expired lease), the release of a failed
+> send and the 6-/12-month retention bounds were executed against PostgreSQL
+> 16. The suite pins their shape and the run order, and checks that retention
+> still runs after a provider failure. The handler's behaviour is unchanged.
+>
+> A11Y-002 — the localized skip link already existed. `<main>` now takes
+> `tabIndex={-1}`, and focus moves to it on every client-side navigation
+> (checked in Chromium: Tab → skip link, Enter → `<main>`, the next Tab stays
+> inside it, and a header link lands focus on `<main>` of the new page).
+>
+> A11Y-003 — `TimeInput24h` already used `name` as its `id`. It now passes
+> every other `Input` prop through, so the `id`, `aria-describedby` and
+> `aria-invalid` that `<FormControl>` injects reach the `<input>`.
+>
+> A11Y-004 — the audit's three pairs already passed after the design-system
+> rewrite. `--destructive` is darkened from `#BC3B27` to `#AE3D24` anyway,
+> because white on the `/90` hover wash of the delete buttons was exactly
+> 4.50:1. It is now 5.0:1, with 6.0:1 on the fill. Dark mode was already at
+> 7.5:1 and is unchanged. No `components/ui` edit was needed.
+>
 > **Phase 3 is complete** (2026-09-21): OBS-001 + OBS-002, SEC-002, SEC-004,
 > REL-003, DB-002, DB-003, DB-004, PERF-003 and MAINT-006/007/008 are
 > implemented and verified. PERF-004 was on the Phase 3 list but had already
@@ -676,7 +703,7 @@ OBS-003, OBS-004, OBS-005, REL-001.
 
 ---
 
-## [ ] TEST-002 — Make the 07:00 cron half testable, then test it
+## [x] TEST-002 — Make the 07:00 cron half testable, then test it
 
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed · **Effort:** Medium · **Area:** Testing
 
@@ -696,13 +723,13 @@ Extract `sendEventReminders(sql, targetDate, send = sendEmail)` and
 newsletter suite.
 
 ### Acceptance criteria
-- [ ] Happy path: N due reminders claimed, sent, and stamped `reminder_sent_at`.
-- [ ] Provider throws: the row is released (`reminder_claimed_at = NULL`), the run continues,
+- [x] Happy path: N due reminders claimed, sent, and stamped `reminder_sent_at`.
+- [x] Provider throws: the row is released (`reminder_claimed_at = NULL`), the run continues,
       and retention cleanup still executes.
-- [ ] Idempotency: an already-stamped registration is never re-claimed.
-- [ ] Lease expiry: a row claimed more than 10 minutes ago is reclaimable.
-- [ ] Retention: only registrations for events older than 6 months are deleted.
-- [ ] The default handler's behaviour is unchanged.
+- [x] Idempotency: an already-stamped registration is never re-claimed.
+- [x] Lease expiry: a row claimed more than 10 minutes ago is reclaimable.
+- [x] Retention: only registrations for events older than 6 months are deleted.
+- [x] The default handler's behaviour is unchanged.
 
 ### Verification
 `node --test tests/event-reminders.test.mjs`, then `npm run verify`.
@@ -715,7 +742,7 @@ PERF-002, TEST-003, REL-001, DB-002.
 
 ---
 
-## [ ] A11Y-002 — Add a localized skip link and make `<main>` a focus target
+## [x] A11Y-002 — Add a localized skip link and make `<main>` a focus target
 
 **Priority:** P1 · **Severity:** Serious · **Confidence:** Confirmed · **Effort:** Small · **Area:** Accessibility
 **WCAG:** 2.4.1 Bypass Blocks (Level A)
@@ -740,10 +767,10 @@ Add `skipToContent` to **both** `no` and `en` in `i18n.ts`. Pair it with a route
 reset (`useEffect` on `location` → `mainRef.current?.focus()`).
 
 ### Acceptance criteria
-- [ ] Tab once on any page reveals a legible link; Enter moves focus to `<main>`.
-- [ ] The next Tab lands on the first in-page control, not back in the header.
-- [ ] Focus moves to `<main>` on client-side navigation.
-- [ ] Both languages present.
+- [x] Tab once on any page reveals a legible link; Enter moves focus to `<main>`.
+- [x] The next Tab lands on the first in-page control, not back in the header.
+- [x] Focus moves to `<main>` on client-side navigation.
+- [x] Both languages present.
 
 ### Verification
 Keyboard pass in both languages, light and dark. `npm run check` (the i18n ratchet enforces
@@ -757,7 +784,7 @@ A11Y-016. Matches open backlog item **A11Y-002**.
 
 ---
 
-## [ ] A11Y-003 — Give `TimeInput24h` a real `id` so its labels work
+## [x] A11Y-003 — Give `TimeInput24h` a real `id` so its labels work
 
 **Priority:** P1 · **Severity:** Serious · **Confidence:** Confirmed · **Effort:** Small · **Area:** Accessibility
 **WCAG:** 1.3.1, 4.1.2, 3.3.2 (all Level A)
@@ -786,10 +813,10 @@ Spread `...rest` **after** the explicit handlers. Pass `id="entry-start-time"` /
 `id="entry-end-time"` at the entry-modal call sites (keep `name` if the form relies on it).
 
 ### Acceptance criteria
-- [ ] `document.querySelector('label[for="entry-start-time"]')` and
+- [x] `document.querySelector('label[for="entry-start-time"]')` and
       `document.getElementById('entry-start-time')` both resolve.
-- [ ] Inside `<FormControl>`, the input carries `aria-invalid` and `aria-describedby`.
-- [ ] Existing typing/formatting behaviour is unchanged.
+- [x] Inside `<FormControl>`, the input carries `aria-invalid` and `aria-describedby`.
+- [x] Existing typing/formatting behaviour is unchanged.
 
 ### Verification
 NVDA or VoiceOver: focusing each field speaks its label. Trigger a `time` validation error in
@@ -803,7 +830,7 @@ A11Y-006, A11Y-013.
 
 ---
 
-## [ ] A11Y-004 — Fix the destructive colour token
+## [x] A11Y-004 — Fix the destructive colour token
 
 **Priority:** P1 · **Severity:** Serious · **Confidence:** Confirmed (computed) · **Effort:** Small · **Area:** Accessibility
 **WCAG:** 1.4.3 Contrast (Minimum) (Level AA)
@@ -836,9 +863,9 @@ If you want to stay strictly inside that boundary, ship the token change alone a
 dark-mode text case separately.
 
 ### Acceptance criteria
-- [ ] All three pairs above meet 4.5:1, recomputed.
-- [ ] Destructive buttons and toasts remain visually distinct from primary.
-- [ ] Verified in light and dark.
+- [x] All three pairs above meet 4.5:1, recomputed.
+- [x] Destructive buttons and toasts remain visually distinct from primary.
+- [x] Verified in light and dark.
 
 ### Verification
 Recompute the ratios from the new tokens. Submit `pages/contact.tsx` empty in both modes;
