@@ -1,15 +1,16 @@
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ComponentProps } from "react";
 
-interface TimeInput24hProps {
+// Every other Input prop passes through, so a <Label htmlFor> and the id,
+// aria-describedby and aria-invalid that <FormControl> injects reach the
+// actual <input> — a validation error on the field is then announced too.
+type TimeInput24hProps = Omit<ComponentProps<typeof Input>, "value" | "onChange" | "onBlur"> & {
   value?: string;
   onChange?: (value: string) => void;
   onBlur?: () => void;
-  disabled?: boolean;
-  name?: string;
-}
+};
 
-export function TimeInput24h({ value, onChange, onBlur, disabled, name }: TimeInput24hProps) {
+export function TimeInput24h({ value, onChange, onBlur, id, name, ...rest }: TimeInput24hProps) {
   const [displayValue, setDisplayValue] = useState(value || "");
 
   useEffect(() => {
@@ -50,11 +51,11 @@ export function TimeInput24h({ value, onChange, onBlur, disabled, name }: TimeIn
       inputMode="numeric"
       pattern="[0-2]?[0-9]:[0-5][0-9]"
       placeholder="HH:MM"
+      {...rest}
       value={displayValue}
       onChange={handleChange}
       onBlur={handleBlur}
-      disabled={disabled}
-      id={name}
+      id={id ?? name}
       name={name}
     />
   );
