@@ -23,7 +23,7 @@
       "destination": "/api/events?format=ics"
     },
     {
-      "source": "/((?!api).*)",
+      "source": "/((?!api|assets/).*)",
       "destination": "/index.html"
     }
   ],
