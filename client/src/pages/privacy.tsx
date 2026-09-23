@@ -25,7 +25,7 @@ const content = {
       },
       {
         title: "Sletting",
-        body: "Kontakthenvendelser slettes automatisk etter 12 måneder. Arrangementspåmeldinger slettes automatisk 6 måneder etter at arrangementet er gjennomført."
+        body: "Kontakthenvendelser slettes automatisk etter 12 måneder. Arrangementspåmeldinger, og registrerte avmeldinger, slettes automatisk 6 måneder etter at arrangementet er gjennomført."
       },
       {
         title: "Tilgang og databehandlere",
@@ -67,7 +67,7 @@ const content = {
       },
       {
         title: "Deletion",
-        body: "Contact messages are automatically deleted after 12 months. Event registrations are automatically deleted 6 months after the event has taken place."
+        body: "Contact messages are automatically deleted after 12 months. Event registrations, and recorded cancellations, are automatically deleted 6 months after the event has taken place."
       },
       {
         title: "Access and processors",

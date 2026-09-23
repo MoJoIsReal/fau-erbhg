@@ -151,6 +151,9 @@ test('cancel deletes by token, guards on the event date and releases the seats',
   assert.match(deletion.statement, /DELETE FROM event_registrations r USING events e WHERE r\.cancel_token = \?/);
   assert.match(deletion.statement, /e\.date >= \?/);
   assert.match(deletion.statement, /SET current_attendees = GREATEST\(0,/);
+  // The same statement records who cancelled, for the council's list.
+  assert.match(deletion.statement, /recorded AS \( INSERT INTO event_registration_cancellations/);
+  assert.match(deletion.statement, /FROM deleted d/);
   assert.equal(deletion.values[0], TOKEN);
   assert.match(deletion.values[1], /^\d{4}-\d{2}-\d{2}$/);
 });
@@ -181,4 +184,26 @@ test('migration generates, backfills and uniquely indexes the token', () => {
   assert.match(migration, /WHERE cancel_token IS NULL/);
   assert.match(migration, /SET NOT NULL/);
   assert.match(migration, /CREATE UNIQUE INDEX IF NOT EXISTS event_registrations_cancel_token_idx/);
+});
+
+test('only the self-service cancel records a cancellation, not the council delete', () => {
+  const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
+  const councilDelete = source.slice(source.indexOf("if (req.method === 'DELETE')"));
+  assert.doesNotMatch(councilDelete.slice(0, councilDelete.indexOf('Method not allowed')), /event_registration_cancellations/);
+});
+
+test('the cancellation list is council-only and hides people who signed up again', () => {
+  const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
+  const list = source.slice(source.indexOf("req.query.cancelled === '1'"), source.indexOf('if (isCouncilMember) {'));
+  assert.match(list, /requireRole\(req, res, COUNCIL_ROLES, sql\)/);
+  assert.match(list, /NOT EXISTS[\s\S]*lower\(r\.email\) = lower\(c\.email\)/);
+});
+
+test('cancellation migration cascades with the event', () => {
+  const migration = readFileSync(
+    new URL('../migrations/0016_registration_cancellations.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(migration, /CREATE TABLE IF NOT EXISTS event_registration_cancellations/);
+  assert.match(migration, /REFERENCES events\(id\) ON DELETE CASCADE/);
 });

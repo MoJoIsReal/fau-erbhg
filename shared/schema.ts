@@ -62,6 +62,24 @@ export const eventRegistrations = pgTable("event_registrations", {
   cancelTokenIdx: uniqueIndex("event_registrations_cancel_token_idx").on(table.cancelToken),
 }));
 
+// Registrations a parent cancelled through the link in their email. The cancel
+// deletes the registration (releasing the seat) and copies it here in the same
+// statement, so council members can see who cancelled (migration 0016).
+export const eventRegistrationCancellations = pgTable("event_registration_cancellations", {
+  id: serial("id").primaryKey(),
+  eventId: integer("event_id").notNull().references(() => events.id, { onDelete: "cascade" }),
+  registrationId: integer("registration_id").notNull(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  phone: text("phone"),
+  attendeeCount: integer("attendee_count"),
+  childrenNames: text("children_names"),
+  registeredAt: text("registered_at"),
+  cancelledAt: timestamp("cancelled_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  eventIdIdx: index("event_registration_cancellations_event_id_idx").on(table.eventId),
+}));
+
 // Normalized reservations for newly-created photo registrations. Legacy rows
 // remain represented by event_registrations.photo_slots; the unique index here
 // is the database backstop that makes concurrent new allocations race-safe.
@@ -302,6 +320,10 @@ export type InsertYearlyCalendarEntry = z.infer<typeof insertYearlyCalendarEntry
 
 export type Event = typeof events.$inferSelect;
 export type EventRegistration = typeof eventRegistrations.$inferSelect;
+// Wire shape of GET /api/registrations?eventId=…&cancelled=1 (council only).
+export type EventRegistrationCancellation = Omit<typeof eventRegistrationCancellations.$inferSelect, "cancelledAt"> & {
+  cancelledAt: string;
+};
 export type PhotoEventSlot = typeof photoEventSlots.$inferSelect;
 export type ContactMessage = typeof contactMessages.$inferSelect;
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;

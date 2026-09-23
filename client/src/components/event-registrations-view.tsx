@@ -13,13 +13,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Users, Mail, Phone, MessageSquare, Calendar, Camera, Clock, Download, Trash2 } from "lucide-react";
+import { Users, Mail, Phone, MessageSquare, Calendar, Camera, Clock, Download, Trash2, UserX } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { exportAttendeesToExcel } from "@/lib/excel-export";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Event, EventRegistration } from "@shared/schema";
+import type { Event, EventRegistration, EventRegistrationCancellation } from "@shared/schema";
 import { resolvePhotoSlotsForRegistration } from "@shared/photo-slots";
 
 interface EventRegistrationsViewProps {
@@ -33,6 +33,12 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
 
   const { data: registrations = [], isLoading } = useQuery<EventRegistration[]>({
     queryKey: [`/api/registrations?eventId=${event.id}`],
+  });
+
+  // Parents who cancelled through the link in their email. Their seats are
+  // already released, so they are not part of the counts above.
+  const { data: cancellations = [] } = useQuery<EventRegistrationCancellation[]>({
+    queryKey: [`/api/registrations?eventId=${event.id}&cancelled=1`],
   });
 
   const deleteRegistrationMutation = useMutation({
@@ -98,6 +104,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     // left holding an optimistic value.
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}&cancelled=1`] });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
   });
@@ -119,6 +126,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
   }
 
   const totalAttendees = registrations.reduce((sum, reg) => sum + (reg.attendeeCount || 1), 0);
+  const totalCancelled = cancellations.reduce((sum, c) => sum + (c.attendeeCount || 1), 0);
   const isFotoEvent = event.type === 'foto';
 
   // Resolve photo slots for a registration — prefers stored slots, falls back to legacy replay.
@@ -153,7 +161,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
             <div>
               <p className="text-sm text-subtle">{t.events.date}</p>
               <p className="font-medium">{formatDate(event.date, language)}</p>
@@ -175,6 +183,13 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                   </span>
                 )}
               </div>
+            </div>
+            <div>
+              <p className="text-sm text-subtle">{t.events.cancelled}</p>
+              <Badge variant="outline" className="flex w-fit items-center space-x-1">
+                <UserX className="h-3 w-3" aria-hidden="true" />
+                <span>{totalCancelled}</span>
+              </Badge>
             </div>
           </div>
         </CardContent>
@@ -329,6 +344,61 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
           )}
         </CardContent>
       </Card>
+
+      {cancellations.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {t.events.cancellationList} ({cancellations.length})
+            </CardTitle>
+            <p className="text-sm text-subtle">{t.events.cancellationListDesc}</p>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {cancellations.map((cancellation) => (
+                <li key={cancellation.id} className="border rounded-lg p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <h4 className="font-medium text-ink break-words">{cancellation.name}</h4>
+                      <Badge variant="outline" className="mt-1">
+                        {isFotoEvent
+                          ? `${cancellation.attendeeCount || 1} ${t.events.children}`
+                          : `${cancellation.attendeeCount || 1} ${t.events.people}`}
+                      </Badge>
+                    </div>
+                    <p className="flex items-center gap-1 text-sm text-subtle">
+                      <UserX className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      {t.events.cancelledAt}{" "}
+                      {formatDate(cancellation.cancelledAt, language, {
+                        day: "numeric",
+                        month: "short",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    <div className="flex items-center space-x-2 text-sm min-w-0">
+                      <Mail className="h-4 w-4 shrink-0 text-subtle" aria-hidden="true" />
+                      <a href={`mailto:${cancellation.email}`} className="text-primary hover:underline break-all">
+                        {cancellation.email}
+                      </a>
+                    </div>
+                    {cancellation.phone && (
+                      <div className="flex items-center space-x-2 text-sm">
+                        <Phone className="h-4 w-4 shrink-0 text-subtle" aria-hidden="true" />
+                        <a href={`tel:${cancellation.phone}`} className="text-primary hover:underline">
+                          {cancellation.phone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

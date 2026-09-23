@@ -215,6 +215,10 @@ export interface Translations {
     loadingRegistrations: string;
     registered: string;
     registrationList: string;
+    cancelled: string;
+    cancellationList: string;
+    cancellationListDesc: string;
+    cancelledAt: string;
     downloadExcel: string;
     people: string;
     deleteRegistration: string;
@@ -1097,6 +1101,10 @@ export const translations: Record<Language, Translations> = {
       loadingRegistrations: "Laster påmeldinger...",
       registered: "Påmeldte",
       registrationList: "Påmeldingsliste",
+      cancelled: "Avmeldte",
+      cancellationList: "Avmeldinger",
+      cancellationListDesc: "Meldte seg av med lenken i e-posten. Plassene er frigitt.",
+      cancelledAt: "Avmeldt",
       downloadExcel: "Last ned Excel",
       people: "personer",
       deleteRegistration: "Slett påmelding",
@@ -1970,6 +1978,10 @@ export const translations: Record<Language, Translations> = {
       loadingRegistrations: "Loading registrations...",
       registered: "Registered",
       registrationList: "Registration List",
+      cancelled: "Cancelled",
+      cancellationList: "Cancellations",
+      cancellationListDesc: "Cancelled with the link in their email. The places have been released.",
+      cancelledAt: "Cancelled",
       downloadExcel: "Download Excel",
       people: "people",
       deleteRegistration: "Delete registration",

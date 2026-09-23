@@ -488,9 +488,20 @@ export async function cleanupPrivacyRetention(sql) {
     RETURNING r.id
   `;
 
+  // Recorded self-service cancellations (migration 0016) follow the same
+  // window as the registrations they were copied from.
+  const deletedCancellations = await sql`
+    DELETE FROM event_registration_cancellations c
+    USING events e
+    WHERE e.id = c.event_id
+      AND e.date::date < CURRENT_DATE - INTERVAL '6 months'
+    RETURNING c.id
+  `;
+
   return {
     contactMessagesDeleted: deletedContactMessages.length,
     eventRegistrationsDeleted: deletedRegistrations.length,
+    registrationCancellationsDeleted: deletedCancellations.length,
   };
 }
 

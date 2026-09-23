@@ -20,6 +20,7 @@ contents of each migration file. The current migrations are:
 13. `0013_yearly_calendar_category.sql`
 14. `0014_calendar_family_category.sql`
 15. `0015_registration_cancel_token.sql`
+16. `0016_registration_cancellations.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -90,3 +91,8 @@ the reminder cron and looks registrations up by it. Verify with:
 ```sql
 SELECT COUNT(*) FROM event_registrations WHERE cancel_token IS NULL;  -- 0
 ```
+
+`0016_registration_cancellations.sql` adds `event_registration_cancellations`,
+where a self-service cancellation copies the registration before deleting it,
+so council members can see who cancelled. Apply it together with 0015, before
+deploying: the cancel statement and the nightly retention both write to it.

@@ -104,7 +104,9 @@ export async function handleCancel(req, res, sql, action) {
   }
 
   // Same delete-and-release as the council's DELETE below, plus the date
-  // guard: once the event day is over the registration is history.
+  // guard: once the event day is over the registration is history. The row is
+  // copied to event_registration_cancellations in the same statement so the
+  // council can see who cancelled (migration 0016).
   const cancelled = await sql`
     WITH deleted AS (
       DELETE FROM event_registrations r
@@ -112,7 +114,15 @@ export async function handleCancel(req, res, sql, action) {
       WHERE r.cancel_token = ${token}
         AND e.id = r.event_id
         AND e.date >= ${osloToday()}
-      RETURNING r.id, r.event_id, r.attendee_count
+      RETURNING r.id, r.event_id, r.attendee_count, r.name, r.email, r.phone,
+                r.children_names, r.registered_at
+    ), recorded AS (
+      INSERT INTO event_registration_cancellations (
+        event_id, registration_id, name, email, phone, attendee_count, children_names, registered_at
+      )
+      SELECT d.event_id, d.id, d.name, d.email, d.phone, d.attendee_count, d.children_names, d.registered_at
+      FROM deleted d
+      RETURNING id
     ), updated_event AS (
       UPDATE events e
       SET current_attendees = GREATEST(0, COALESCE(e.current_attendees, 0) - COALESCE(d.attendee_count, 1))
@@ -154,6 +164,28 @@ export default withApiHandler(async function handler(req, res) {
     // aggregate. Authentication must never make a public endpoint stricter.
     const user = await parseAuthToken(req, sql);
     const isCouncilMember = user && !user.passwordChangeRequired && COUNCIL_ROLES.includes(user.role);
+
+    // ?cancelled=1 lists who cancelled through their email link. Council only:
+    // unlike the registrations list there is no public aggregate to fall back to.
+    if (req.query.cancelled === '1') {
+      if (!isCouncilMember && !(await requireRole(req, res, COUNCIL_ROLES, sql))) return;
+      // Someone who cancelled and then signed up again is on the registrations
+      // list, so they are not shown as cancelled.
+      const cancellations = await sql`
+        SELECT c.id, c.event_id as "eventId", c.registration_id as "registrationId",
+               c.name, c.email, c.phone, c.attendee_count as "attendeeCount",
+               c.children_names as "childrenNames", c.registered_at as "registeredAt",
+               c.cancelled_at as "cancelledAt"
+        FROM event_registration_cancellations c
+        WHERE c.event_id = ${eventIdNum}
+          AND NOT EXISTS (
+            SELECT 1 FROM event_registrations r
+            WHERE r.event_id = c.event_id AND lower(r.email) = lower(c.email)
+          )
+        ORDER BY c.cancelled_at DESC
+      `;
+      return res.status(200).json(cancellations);
+    }
 
     if (isCouncilMember) {
       const registrations = await sql`
