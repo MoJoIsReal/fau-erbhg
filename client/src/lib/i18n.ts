@@ -58,14 +58,9 @@ export interface Translations {
   navigation: {
     home: string;
     updates: string;
-    news: string;
-    tips: string;
-    events: string;
     calendar: string;
     contact: string;
     documents: string;
-    more: string;
-    yearlyCalendar: string;
   };
   // Shared chrome: skip link, menus, footer groups. Anything that appears
   // on more than one page and belongs to no single one.
@@ -85,8 +80,6 @@ export interface Translations {
     content: string;
     messages: string;
     settings: string;
-    openMenu: string;
-    at: string;
     switchLightMode: string;
     switchDarkMode: string;
     lightMode: string;
@@ -100,45 +93,20 @@ export interface Translations {
   // Home page
   home: {
     home: string;
-    childrenPlayingPlayground: string;
-    at: string;
     updates: string;
     tipsTricks: string;
     news: string;
     by: string;
     readMore: string;
-    children: string;
-    director: string;
     loadingInformation: string;
     title: string;
-    subtitle: string;
-    welcomeTitle: string;
     welcomeDescription: string;
-    missionTitle: string;
-    missionDescription: string;
     valuesTitle: string;
-    valuesDescription: string;
-    boardTitle: string;
-    boardDescription: string;
-    getInvolvedTitle: string;
-    getInvolvedDescription: string;
-    attendMeetings: string;
-    attendMeetingsDesc: string;
-    volunteerEvents: string;
-    volunteerEventsDesc: string;
-    shareIdeas: string;
-    shareIdeasDesc: string;
-    nextMeeting: string;
     moreInfo: string;
     aboutKindergarten: string;
-    address: string;
     municipality: string;
     openingHours: string;
-    numberOfChildren: string;
-    owner: string;
-    kindergartenDescription: string;
     fauTitle: string;
-    contact: string;
     fauBoard: string;
     leader: string;
     member: string;
@@ -147,9 +115,6 @@ export interface Translations {
     upcomingEvents: string;
     seeAllEvents: string;
     noEvents: string;
-    safety: string;
-    cooperation: string;
-    engagement: string;
     heroImageAlt: string;
     heroCalendarCta: string;
     heroContactCta: string;
@@ -172,13 +137,9 @@ export interface Translations {
   // Combined calendar page (events + yearly calendar as tabs)
   calendar: {
     title: string;
-    subtitle: string;
     viewLabel: string;
     listView: string;
     monthView: string;
-    yearView: string;
-    yearViewHint: string;
-    quietWeek: string;
     detailEmpty: string;
     detailPlace: string;
     detailWeek: string;
@@ -187,13 +148,10 @@ export interface Translations {
     noDescription: string;
     allTypes: string;
     allDay: string;
-    detailTimePrefix: string;
     listHeading: string;
     listIntro: string;
     monthIntro: string;
     pickADay: string;
-    yearHeading: string;
-    yearIntro: string;
     tagline: string;
     noEventsThisWeek: string;
     noEventsThisDay: string;
@@ -201,7 +159,6 @@ export interface Translations {
     reminderTitle: string;
     reminderBody: string;
     editorLabel: string;
-    openYearlyEditor: string;
     newEntry: string;
     newPickerHint: string;
     newEventButton: string;
@@ -212,16 +169,10 @@ export interface Translations {
     confirmCancelTitle: string;
     confirmCancelBody: string;
     confirmDeleteBody: string;
-    weekRailHint: string;
     week: string;
     thisWeek: string;
     allWeek: string;
-    weeksSpan: string;
-    filterSignup: string;
-    filterKindergarten: string;
-    showAllTypes: string;
     filtersLabel: string;
-    typesOn: string;
     showEarlier: string;
     nothingMatches: string;
     noTypesSelected: string;
@@ -272,11 +223,7 @@ export interface Translations {
     comment: string;
     selectDate: string;
     clearDeadline: string;
-    vigiloSignup: string;
-    noSignup: string;
     sendNewsletterReminder: string;
-    addCalendar: string;
-    downloadIcsFile: string;
     eventDeleted: string;
     eventHasBeenDeleted: string;
     cannotDelete: string;
@@ -286,31 +233,15 @@ export interface Translations {
     eventCancelled: string;
     eventHasBeenCancelled: string;
     cancellationError: string;
-    couldNotCancelEvent: string;
-    eventCancelled2: string;
-    cannotRegisterCancelledEvent: string;
     registerVigilo: string;
-    eventUsesVigiloRegistration: string;
     noSignupRequired: string;
-    eventDoesNotRequire: string;
-    eventCancelledRegistrationNot: string;
-    viewOptions: string;
-    listView: string;
-    calendarView: string;
-    loadingCalendar: string;
     at: string;
-    digitalEvent: string;
     internalEvent: string;
-    volunteer: string;
-    registerPhoto: string;
     cancelled2: string;
     deleteEvent: string;
-    attended: string;
-    viewAttendees: string;
     more: string;
     previousMonth: string;
     nextMonth: string;
-    event: string;
     today: string;
     noRegistrationsYet: string;
     loading: string;
@@ -324,29 +255,13 @@ export interface Translations {
     child: string;
     children: string;
     childrenSFirstNames: string;
-    title: string;
-    subtitle: string;
-    addEvent: string;
-    noEvents: string;
-    noEventsDesc: string;
     register: string;
     full: string;
     attendees: string;
     maxAttendees: string;
-    registrationDeadline: string;
     registrationClosed: string;
-    unlimited: string;
-    location: string;
     time: string;
     date: string;
-    cancelled: string;
-    viewList: string;
-    viewCalendar: string;
-    pastEvents: string;
-    showMorePast: string;
-    openYearlyCalendar: string;
-    noPastEvents: string;
-    noPastEventsDesc: string;
     viewRegistrations: string;
     edit: string;
     cancel: string;
@@ -355,7 +270,6 @@ export interface Translations {
   // Contact page  
   contact: {
     title: string;
-    subtitle: string;
     name: string;
     email: string;
     phone: string;
@@ -369,7 +283,6 @@ export interface Translations {
     errorDesc: string;
     anonymous: string;
     anonymousDesc: string;
-    contactMethod: string;
     fauContact: string;
     fauContactDesc: string;
     kindergartenContact: string;
@@ -417,9 +330,6 @@ export interface Translations {
     admin: {
       title: string;
       description: string;
-      email: string;
-      status: string;
-      subscribed: string;
       statusPending: string;
       statusActive: string;
       statusUnsubscribed: string;
@@ -437,11 +347,9 @@ export interface Translations {
     delete: string;
     deleteDocument: string;
     cancel: string;
-    uploaded: string;
     fileTypeNotAllowed: string;
     fileLargerThan10: string;
     title: string;
-    subtitle: string;
     upload: string;
     uploadDocument: string;
     uploadDescription: string;
@@ -461,25 +369,15 @@ export interface Translations {
     removeFile: string;
     categories: {
       protocol: string;
-      protocolDesc: string;
       regulations: string;
-      regulationsDesc: string;
       budget: string;
-      budgetDesc: string;
     };
     noDocuments: string;
     noDocumentsDesc: string;
     download: string;
-    uploadedBy: string;
-    uploadedAt: string;
     fileSize: string;
-    seeAll: string;
-    recentActivity: string;
-    noRecentActivity: string;
     heroLead: string;
     allCategories: string;
-    documentCount: string;
-    openDocument: string;
   };
   // Modals
   modals: {
@@ -513,7 +411,6 @@ export interface Translations {
 
     eventCreation: {
       title: string;
-      description: string;
       titleLabel: string;
       titlePlaceholder: string;
       descriptionLabel: string;
@@ -522,7 +419,6 @@ export interface Translations {
       timeLabel: string;
       locationLabel: string;
       locationPlaceholder: string;
-      typeLabel: string;
       maxAttendeesLabel: string;
       maxAttendeesPlaceholder: string;
       registrationDeadlineLabel: string;
@@ -531,40 +427,20 @@ export interface Translations {
       customLocationPlaceholder: string;
       cancel: string;
       create: string;
-      creating: string;
       success: string;
-      successDesc: string;
-      error: string;
       errorDesc: string;
       types: {
-        meeting: string;
-        event: string;
-        dugnad: string;
-        internal: string;
-        annet: string;
         foto: string;
       };
       locations: {
-        erdal: string;
         digitalt: string;
         annet: string;
       };
     };
     eventEdit: {
       title: string;
-      description: string;
     };
     eventRegistration: {
-      title: string;
-      name: string;
-      email: string;
-      phone: string;
-      attendees: string;
-      comments: string;
-      commentsPlaceholder: string;
-      cancel: string;
-      register: string;
-      registering: string;
       success: string;
       successDesc: string;
       error: string;
@@ -574,15 +450,10 @@ export interface Translations {
   // Footer
   footer: {
     description: string;
-    contactInfo: string;
-    address: string;
-    phone: string;
-    email: string;
     facebook: string;
     website: string;
     barnehageFakta: string;
     fubLink: string;
-    hours: string;
     usefulLinks: string;
     vigilo: string;
     meals: string;
@@ -595,7 +466,6 @@ export interface Translations {
     pageNotFoundBody: string;
     goHomePage: string;
     loading: string;
-    unknownSize: string;
     bytes: string;
     required: string;
     file: string;
@@ -633,7 +503,6 @@ export interface Translations {
     post: string;
     loading: string;
     postNotFound: string;
-    backNews: string;
     allTips: string;
     allNews: string;
     heroLead: string;
@@ -841,8 +710,6 @@ export interface Translations {
   };
   // Yearly calendar (Årskalender)
   yearlyCalendar: {
-    title: string;
-    subtitle: string;
     schoolYearLabel: string;
     downloadAllPdf: string;
     downloadMonthPdf: string;
@@ -853,39 +720,7 @@ export interface Translations {
     pdfErrorDescription: string;
     excelTemplateErrorTitle: string;
     excelTemplateErrorDescription: string;
-    addEntry: string;
-    noEntries: string;
-    currentAndUpcomingMonths: string;
-    currentAndUpcomingMonthsDescription: string;
-    pastMonths: string;
-    pastMonthsDescription: string;
-    currentMonthBadge: string;
-    pastMonthBadge: string;
-    thisWeekBadge: string;
-    todayBadge: string;
-    week: string;
-    weekHeader: string;
-    monday: string;
-    tuesday: string;
-    wednesday: string;
-    thursday: string;
-    friday: string;
-    saturday: string;
-    sunday: string;
-    eventLabel: string;
-    eventCancelledLabel: string;
-    eventsIncludedHint: string;
     notes: string;
-    tagline: string;
-    dragAndDrop: {
-      instructions: string;
-      onDragStart: string;
-      onDragOver: string;
-      onDragOverNoTarget: string;
-      onDragEnd: string;
-      onDragEndNoTarget: string;
-      onDragCancel: string;
-    };
     entryTypes: {
       weekEvent: string;
       dayEvent: string;
@@ -910,21 +745,12 @@ export interface Translations {
     modal: {
       addTitle: string;
       editTitle: string;
-      type: string;
       title: string;
       description: string;
       weekNumber: string;
       weekNumberEnd: string;
       date: string;
       color: string;
-      colorHint: string;
-      category: string;
-      categoryAuto: string;
-      categoryHint: string;
-      showOnHomepage: string;
-      showOnHomepageHint: string;
-      showForParents: string;
-      showForParentsHint: string;
       notifyNewsletter: string;
       notifyNewsletterHint: string;
       startTime: string;
@@ -962,7 +788,6 @@ export interface Translations {
       importError: string;
       partialImportTitle: string;
       partialImportDescription: string;
-      validationErrorsFromServer: string;
       unknownValidationError: string;
       emptyValue: string;
       validation: {
@@ -996,8 +821,6 @@ export interface Translations {
         showForParents: string;
       };
     };
-    inKindergartenBadge: string;
-    forParentsBadge: string;
     closedBadge: string;
     colors: {
       red: string;
@@ -1012,7 +835,6 @@ export interface Translations {
     staff: {
       manageTitle: string;
       manageDescription: string;
-      addStaff: string;
       username: string;
       name: string;
       role: string;
@@ -1096,14 +918,9 @@ export const translations: Record<Language, Translations> = {
     navigation: {
       home: "Hjem",
       updates: "Aktuelt",
-      news: "Nyheter",
-      tips: "Tips & triks",
-      events: "Arrangementer",
       calendar: "Kalender",
       contact: "Kontakt",
       documents: "Dokumenter",
-      more: "Mer",
-      yearlyCalendar: "Årskalender"
     },
     ui: {
       skipToContent: "Hopp til innholdet",
@@ -1120,8 +937,6 @@ export const translations: Record<Language, Translations> = {
       content: "Innhold",
       messages: "Meldinger",
       settings: "Innstillinger",
-      openMenu: "Åpne meny",
-      at: "Kl.",
       switchLightMode: "Bytt til lyst modus",
       switchDarkMode: "Bytt til mørkt modus",
       lightMode: "Lyst modus",
@@ -1134,45 +949,20 @@ export const translations: Record<Language, Translations> = {
     },
     home: {
       home: "Hjem",
-      childrenPlayingPlayground: "Barn som leker på lekeplass",
-      at: "kl.",
       updates: "Aktuelt",
       tipsTricks: "Tips & triks",
       news: "Nyheter",
       by: "av",
       readMore: "Les mer",
-      children: "barn",
-      director: "Styrer:",
       loadingInformation: "Laster informasjon...",
       title: "Velkommen til FAU Erdal Barnehage",
-      subtitle: "Sammen skaper vi det beste for våre barn",
-      welcomeTitle: "Velkommen til vårt arbeidsutvalg",
       welcomeDescription: "FAU Erdal Barnehage er foreldrenes egen frivillige forening. Vi jobber for å ivareta foreldrenes interesser og bidra til et godt miljø for barna.",
-      missionTitle: "Vårt oppdrag",
-      missionDescription: "Som frivillig foreldreforening arbeider vi uavhengig for å fremme foreldrenes syn og interesser i barnehagen.",
       valuesTitle: "Våre verdier",
-      valuesDescription: "Samarbeid, kvalitet og barnets beste står i sentrum. Vi tror på åpen dialog mellom foreldre, barnehage og kommune.",
-      boardTitle: "Vårt utvalg",
-      boardDescription: "FAU består av foreldrerepresentanter som er valgt for å ivareta alle familiers interesser i barnehagen.",
-      getInvolvedTitle: "Bli involvert",
-      getInvolvedDescription: "Det finnes mange måter å engasjere seg på i FAU:",
-      attendMeetings: "Delta på møter",
-      attendMeetingsDesc: "Kom på våre månedlige møter og vær med på beslutninger",
-      volunteerEvents: "Bidra på arrangementer", 
-      volunteerEventsDesc: "Hjelp til med dugnader og sosiale aktiviteter",
-      shareIdeas: "Del dine ideer",
-      shareIdeasDesc: "Kom med forslag til forbedringer og nye initiativ",
-      nextMeeting: "Neste møte",
       moreInfo: "Mer informasjon",
       aboutKindergarten: "Om Barnehagen",
-      address: "Kontakt:",
       municipality: "Adresse:",
       openingHours: "Åpningstider:",
-      numberOfChildren: "Antall barn:",
-      owner: "Eier:",
-      kindergartenDescription: "Erdal barnehage er en kommunal barnehage på Askøy som tilbyr et trygt og stimulerende miljø for barn. Barnehagen har fokus på utvikling gjennom lek og læring i naturskjønne omgivelser.",
       fauTitle: "Foreldrenes arbeidsutvalg (FAU)",
-      contact: "Kontakt:",
       fauBoard: "FAU-styre:",
       leader: "Leder:",
       member: "Medlem:",
@@ -1181,9 +971,6 @@ export const translations: Record<Language, Translations> = {
       upcomingEvents: "Hva skjer fremover",
       seeAllEvents: "Se hele kalenderen",
       noEvents: "Ingen planlagte arrangementer",
-      safety: "Trygghet",
-      cooperation: "Samarbeid",
-      engagement: "Engasjement",
       heroImageAlt: "Illustrasjon: to barn på tur mot et treskilt med ordene for barna, sammen og engasjement",
       heroCalendarCta: "Se hva som skjer",
       heroContactCta: "Ta kontakt",
@@ -1205,14 +992,9 @@ export const translations: Record<Language, Translations> = {
     },
     calendar: {
       title: "Kalender",
-      subtitle: "Alt som skjer i Erdal Barnehage, samlet på ett sted",
       viewLabel: "Visning",
       listView: "Liste",
       monthView: "Måned",
-      yearView: "År",
-      yearViewHint:
-        "Hele barnehageåret, én rad per uke. Rolige uker vises som rolige — det er dem du leter etter når noe skal planlegges.",
-      quietWeek: "rolig uke",
       detailEmpty: "Velg noe i kalenderen for å se detaljene her.",
       detailPlace: "Sted",
       detailWeek: "Uke",
@@ -1221,14 +1003,11 @@ export const translations: Record<Language, Translations> = {
       noDescription: "Ingen beskrivelse lagt inn.",
       allTypes: "Alle",
       allDay: "Hele dagen",
-      detailTimePrefix: "Kl.",
       listHeading: "Alt som skjer i Erdal Barnehage",
       listIntro:
         "En oversiktlig kalender for barnehageåret. Her finner du arrangementer, møter og viktige datoer.",
       monthIntro: "En oversikt over alle aktivitetene denne måneden. Klikk på en dato for å se mer informasjon.",
       pickADay: "Velg en dag i kalenderen for å se hva som skjer.",
-      yearHeading: "Barnehageåret",
-      yearIntro: "Få en rask oversikt over hele året. Klikk på en måned for å se detaljer.",
       tagline: "Små mennesker, store dager",
       noEventsThisWeek: "Ingen planlagte arrangementer denne uken.",
       noEventsThisDay: "Ingenting er lagt inn denne dagen.",
@@ -1236,7 +1015,6 @@ export const translations: Record<Language, Translations> = {
       reminderTitle: "Vil du ha påminnelser om viktige datoer?",
       reminderBody: "Legg til kalenderen i mobil eller nettbrett, så går du ikke glipp av noe.",
       editorLabel: "Redaktør",
-      openYearlyEditor: "Rediger årskalenderen",
       newEntry: "Nytt i kalenderen",
       newPickerHint: "Velg hva du legger inn — resten av skjemaet retter seg etter valget.",
       newEventButton: "Arrangement med påmelding",
@@ -1250,17 +1028,10 @@ export const translations: Record<Language, Translations> = {
       confirmCancelBody:
         "Arrangementet har påmeldte, så det kan ikke slettes. Det blir stående i kalenderen med gjennomstreket tittel, slik at de påmeldte ser at det er avlyst.",
       confirmDeleteBody: "Ingen er påmeldt, så oppføringen kan slettes. Dette kan ikke angres.",
-      weekRailHint:
-        "Ukekolonnen til venstre viser det som varer hele uken — varmmat, temauker og beskjeder. Rutene viser dagene.",
       week: "Uke",
       thisWeek: "Denne uken",
       allWeek: "hele uken",
-      weeksSpan: "uke",
-      filterSignup: "Påmelding",
-      filterKindergarten: "Barnehagen",
-      showAllTypes: "Vis alt",
       filtersLabel: "Filtre",
-      typesOn: "typer på",
       showEarlier: "Vis tidligere uker",
       nothingMatches: "Ingen oppføringer igjen med disse filtrene.",
       noTypesSelected: "Ingen typer er valgt. Trykk «Vis alt» for å få kalenderen tilbake.",
@@ -1313,11 +1084,7 @@ export const translations: Record<Language, Translations> = {
       comment: "Kommentar:",
       selectDate: "Velg dato",
       clearDeadline: "Fjern frist",
-      vigiloSignup: "Vigilo Påmelding",
-      noSignup: "Ingen påmelding",
       sendNewsletterReminder: "Send påminnelse på nyhetsbrev",
-      addCalendar: "Legg til i kalender",
-      downloadIcsFile: "Last ned .ics fil",
       eventDeleted: "Arrangement slettet",
       eventHasBeenDeleted: "Arrangementet har blitt slettet.",
       cannotDelete: "Kan ikke slette",
@@ -1327,31 +1094,15 @@ export const translations: Record<Language, Translations> = {
       eventCancelled: "Arrangement avlyst",
       eventHasBeenCancelled: "Arrangementet har blitt avlyst og e-poster er sendt til alle påmeldte.",
       cancellationError: "Feil ved avlysning",
-      couldNotCancelEvent: "Kunne ikke avlyse arrangementet. Prøv igjen senere.",
-      eventCancelled2: "Arrangementet er avlyst",
-      cannotRegisterCancelledEvent: "Du kan ikke melde deg på et avlyst arrangement.",
       registerVigilo: "Påmelding i Vigilo",
-      eventUsesVigiloRegistration: "Dette arrangementet bruker Vigilo for påmelding.",
       noSignupRequired: "Ingen påmelding nødvendig",
-      eventDoesNotRequire: "Dette arrangementet krever ikke påmelding.",
-      eventCancelledRegistrationNot: "Dette arrangementet er avlyst og påmelding er ikke mulig.",
-      viewOptions: "Visningsvalg",
-      listView: "Listevisning",
-      calendarView: "Kalendervisning",
-      loadingCalendar: "Laster kalender...",
       at: "kl.",
-      digitalEvent: "Digitalt arrangement",
       internalEvent: "Internt arrangement",
-      volunteer: "Meld deg som frivillig",
-      registerPhoto: "Meld på til fotografering",
       cancelled2: "AVLYST",
       deleteEvent: "Slette arrangement?",
-      attended: "deltok",
-      viewAttendees: "Se deltakere",
       more: "mer",
       previousMonth: "Forrige måned",
       nextMonth: "Neste måned",
-      event: "Arrangement",
       today: "I dag",
       noRegistrationsYet: "Ingen påmeldte ennå",
       loading: "Laster...",
@@ -1365,29 +1116,13 @@ export const translations: Record<Language, Translations> = {
       child: "barn",
       children: "barn",
       childrenSFirstNames: "Fornavn på barn",
-      title: "Arrangementer",
-      subtitle: "Kommende aktiviteter og møter i FAU Erdal Barnehage",
-      addEvent: "Legg til arrangement",
-      noEvents: "Ingen kommende arrangementer",
-      noEventsDesc: "FAU legger ut nye møter og dugnader fortløpende. Datoer som allerede er satt for barnehageåret finner du i årskalenderen.",
       register: "Meld deg på",
       full: "Fullt",
       attendees: "påmeldte",
       maxAttendees: "maks",
-      registrationDeadline: "Påmeldingsfrist",
       registrationClosed: "Påmeldingsfristen er utløpt",
-      unlimited: "ubegrenset",
-      location: "Sted",
       time: "Tid", 
       date: "Dato",
-      cancelled: "Avlyst",
-      viewList: "Liste",
-      viewCalendar: "Kalender",
-      pastEvents: "Tidligere arrangementer",
-      showMorePast: "Vis flere tidligere arrangementer",
-      openYearlyCalendar: "Åpne årskalenderen",
-      noPastEvents: "Ingen tidligere arrangementer",
-      noPastEventsDesc: "Det er ingen tidligere arrangementer å vise.",
       viewRegistrations: "Se påmeldte",
       edit: "Rediger",
       cancel: "Avlys",
@@ -1395,7 +1130,6 @@ export const translations: Record<Language, Translations> = {
     },
     contact: {
       title: "Kontakt oss",
-      subtitle: "Ta kontakt med FAU for spørsmål, forslag eller tilbakemeldinger",
       name: "Navn",
       email: "E-post",
       phone: "Telefon",
@@ -1409,7 +1143,6 @@ export const translations: Record<Language, Translations> = {
       errorDesc: "Kunne ikke sende meldingen. Prøv igjen senere.",
       anonymous: "Send anonym melding",
       anonymousDesc: "Send melding uten å oppgi kontaktinformasjon",
-      contactMethod: "Velg kontaktmetode",
       fauContact: "FAU Erdal Barnehage",
       fauContactDesc: "Kontakt for foreldrerepresentantene",
       kindergartenContact: "Erdal Barnehage",
@@ -1456,9 +1189,6 @@ export const translations: Record<Language, Translations> = {
       admin: {
         title: "Nyhetsbrev-abonnenter",
         description: "Foreldre som har bekreftet påmelding til nyhetsbrevet. Påminnelser sendes automatisk dagen før arrangementer som er huket av, og nyhetssaker som er huket av sendes ved neste utsending.",
-        email: "E-post",
-        status: "Status",
-        subscribed: "Påmeldt",
         statusPending: "Venter på bekreftelse",
         statusActive: "Aktiv",
         statusUnsubscribed: "Avmeldt",
@@ -1475,11 +1205,9 @@ export const translations: Record<Language, Translations> = {
       delete: "Slett",
       deleteDocument: "Slett dokument?",
       cancel: "Avbryt",
-      uploaded: "lastet opp",
       fileTypeNotAllowed: "Filtypen er ikke tillatt",
       fileLargerThan10: "Filen er større enn 10 MB",
       title: "Dokumenter",
-      subtitle: "Møtereferater, vedtekter og andre viktige dokumenter",
       upload: "Last opp dokument",
       uploadDocument: "Last opp dokument",
       uploadDescription: "Last opp dokumenter som møtereferat, budsjett eller andre viktige filer.",
@@ -1499,25 +1227,15 @@ export const translations: Record<Language, Translations> = {
       removeFile: "Fjern valgt fil",
       categories: {
         protocol: "Møtereferater",
-        protocolDesc: "Referater fra møter",
-        regulations: "Vedtekter", 
-        regulationsDesc: "Vedtekter og retningslinjer",
+        regulations: "Vedtekter",
         budget: "Årsplaner & Annet",
-        budgetDesc: "Årsplaner og andre dokumenter"
       },
       noDocuments: "Ingen dokumenter funnet",
       noDocumentsDesc: "Det er ingen dokumenter i denne kategorien ennå.",
       download: "Last ned",
-      uploadedBy: "Lastet opp av",
-      uploadedAt: "Dato",
       fileSize: "Ukjent størrelse",
-      seeAll: "Se alle",
-      recentActivity: "Nylig aktivitet",
-      noRecentActivity: "Ingen nylig aktivitet",
       heroLead: "Referater, vedtekter og budsjett – til å lese eller laste ned.",
       allCategories: "Alle",
-      documentCount: "dokumenter",
-      openDocument: "Åpne",
     },
     modals: {
       login: {
@@ -1550,7 +1268,6 @@ export const translations: Record<Language, Translations> = {
 
       eventCreation: {
         title: "Opprett nytt arrangement",
-        description: "Fyll ut skjemaet for å opprette et nytt arrangement eller møte.",
         titleLabel: "Tittel",
         titlePlaceholder: "Navn på arrangementet",
         descriptionLabel: "Beskrivelse",
@@ -1559,7 +1276,6 @@ export const translations: Record<Language, Translations> = {
         timeLabel: "Klokkeslett",
         locationLabel: "Sted",
         locationPlaceholder: "Velg sted",
-        typeLabel: "Type arrangement",
         maxAttendeesLabel: "Maks deltakere",
         maxAttendeesPlaceholder: "La stå tom for ubegrenset",
         registrationDeadlineLabel: "Påmeldingsfrist",
@@ -1568,40 +1284,20 @@ export const translations: Record<Language, Translations> = {
         customLocationPlaceholder: "Skriv inn adresse...",
         cancel: "Avbryt",
         create: "Opprett arrangement",
-        creating: "Oppretter...",
         success: "Arrangement opprettet!",
-        successDesc: "Det nye arrangementet er nå tilgjengelig for påmelding.",
-        error: "Feil ved opprettelse",
         errorDesc: "Kunne ikke opprette arrangementet. Prøv igjen senere.",
         types: {
-          meeting: "Møte",
-          event: "Arrangement",
-          dugnad: "Dugnad",
-          internal: "Internt",
-          annet: "Annet",
           foto: "Foto"
         },
         locations: {
-          erdal: "Erdal Barnehage",
           digitalt: "Digitalt",
           annet: "Annet"
         }
       },
       eventEdit: {
         title: "Rediger arrangement",
-        description: "Oppdater arrangementets detaljer"
       },
       eventRegistration: {
-        title: "Meld deg på arrangement",
-        name: "Navn",
-        email: "E-post",
-        phone: "Telefon",
-        attendees: "Antall deltakere",
-        comments: "Kommentarer",
-        commentsPlaceholder: "Eventuelle kommentarer eller spesielle behov...",
-        cancel: "Avbryt",
-        register: "Meld deg på",
-        registering: "Melder på...",
         success: "Påmelding vellykket!",
         successDesc: "Du er nå påmeldt arrangementet.",
         error: "Feil ved påmelding",
@@ -1610,15 +1306,10 @@ export const translations: Record<Language, Translations> = {
     },
     footer: {
       description: "Foreldrenes arbeidsutvalg (FAU) er foreldrenes egen frivillige organisasjon som jobber for å ivareta foreldrenes interesser og bidra til et godt miljø for barna i barnehagen.",
-      contactInfo: "Informasjon",
-      address: "",
-      phone: "",
-      email: "fauerdalbarnehage@gmail.com",
       facebook: "Facebook-gruppe for foreldre",
       website: "Erdal Barnehage sin nettside",
       barnehageFakta: "Barnehagefakta",
       fubLink: "FUB – råd og veiledning for foreldre",
-      hours: "",
       usefulLinks: "Nyttige lenker",
       vigilo: "Vigilo",
       meals: "Mat og måltider i barnehagen",
@@ -1630,7 +1321,6 @@ export const translations: Record<Language, Translations> = {
       pageNotFoundBody: "Lenken kan være utdatert, eller siden kan ha blitt flyttet.",
       goHomePage: "Gå til forsiden",
       loading: "Laster...",
-      unknownSize: "Ukjent størrelse",
       bytes: "Bytes",
       required: "påkrevd",
       file: "Fil",
@@ -1666,7 +1356,6 @@ export const translations: Record<Language, Translations> = {
       post: "Innlegg",
       loading: "Laster …",
       postNotFound: "Fant ikke innlegget",
-      backNews: "Til nyhetene",
       allTips: "Alle tips",
       allNews: "Alle nyheter",
       heroLead: "Nyheter, referater og praktiske tips fra FAU og barnehagen.",
@@ -1876,8 +1565,6 @@ export const translations: Record<Language, Translations> = {
       }
     },
     yearlyCalendar: {
-      title: "Årskalender",
-      subtitle: "Hva skjer i barnehagen måned for måned",
       schoolYearLabel: "Barnehageår",
       downloadAllPdf: "Last ned PDF (hele året)",
       downloadMonthPdf: "Last ned måned",
@@ -1888,41 +1575,7 @@ export const translations: Record<Language, Translations> = {
       pdfErrorDescription: "Noe gikk galt under generering av PDF-en. Prøv igjen om litt.",
       excelTemplateErrorTitle: "Klarte ikke å laste ned Excel-mal",
       excelTemplateErrorDescription: "Noe gikk galt under nedlasting av Excel-malen. Prøv igjen om litt.",
-      addEntry: "Legg til",
-      dragAndDrop: {
-        instructions:
-          "Trykk mellomrom eller Enter for å flytte oppføringen. Bruk piltastene for å velge ny plassering, mellomrom eller Enter for å slippe, og Escape for å avbryte.",
-        onDragStart: "Flytter oppføringen {item}.",
-        onDragOver: "Oppføringen {item} er nå over {target}.",
-        onDragOverNoTarget: "Oppføringen {item} er ikke over et gyldig felt.",
-        onDragEnd: "Oppføringen {item} ble flyttet til {target}.",
-        onDragEndNoTarget: "Oppføringen {item} ble sluppet uten å bli flyttet.",
-        onDragCancel: "Flyttingen av {item} ble avbrutt.",
-      },
-      noEntries: "Ingenting registrert ennå.",
-      currentAndUpcomingMonths: "Denne og kommende måneder",
-      currentAndUpcomingMonthsDescription: "Her ligger måneden vi er i nå og resten av barnehageåret fremover.",
-      pastMonths: "Måneder som er forbi",
-      pastMonthsDescription: "Tidligere måneder er samlet her, med den nyeste først.",
-      currentMonthBadge: "Denne måneden",
-      pastMonthBadge: "Forbi",
-      thisWeekBadge: "Denne uken",
-      todayBadge: "I dag",
-      week: "Uke",
-      weekHeader: "Uke",
-      monday: "Mandag",
-      tuesday: "Tirsdag",
-      wednesday: "Onsdag",
-      thursday: "Torsdag",
-      friday: "Fredag",
-      saturday: "Lørdag",
-      sunday: "Søndag",
-      eventLabel: "Arrangement",
-      eventCancelledLabel: "Avlyst",
-      eventsIncludedHint:
-        "Arrangementer fra «Hva skjer» vises også her, i oransje. Klikk på et arrangement for å melde deg på.",
       notes: "Notater",
-      tagline: "Kunsten å være sammen i lekens magiske verden",
       entryTypes: {
         weekEvent: "Hele uken",
         dayEvent: "Dag",
@@ -1947,21 +1600,12 @@ export const translations: Record<Language, Translations> = {
       modal: {
         addTitle: "Ny oppføring",
         editTitle: "Rediger oppføring",
-        type: "Type",
         title: "Tittel",
         description: "Beskrivelse",
         weekNumber: "Fra uke",
         weekNumberEnd: "Til uke (valgfri)",
         date: "Dato",
         color: "Farge",
-        colorHint: "Standardfarge bestemmes av type. Velg en farge her kun for spesielle unntak.",
-        category: "Kategori",
-        categoryAuto: "Følg typen",
-        categoryHint: "Merkelappen oppføringen får i kalenderen, og filteret den svarer på. Typen over sier bare om det er en dag, en uke eller et notat \u2014 en dato kan like gjerne være en frist (Info), et SU-møte (Internt) eller noe foreldrene inviteres til.",
-        showOnHomepage: "Vis på hjemmesiden (I barnehagen)",
-        showOnHomepageHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"I barnehagen\".",
-        showForParents: "Vis på hjemmesiden (For foreldre)",
-        showForParentsHint: "Vises under \"Kommende arrangementer\" på forsiden, merket \"For foreldre\".",
         notifyNewsletter: "Send påminnelse på nyhetsbrev",
         notifyNewsletterHint: "Dagen før sendes beskrivelsen som påminnelse på e-post til alle påmeldte nyhetsbrev-abonnenter.",
         startTime: "Starttid (valgfritt)",
@@ -1999,7 +1643,6 @@ export const translations: Record<Language, Translations> = {
         importError: "Kunne ikke importere årskalenderen",
         partialImportTitle: "Importen ble delvis fullført",
         partialImportDescription: "Noen rader kan være importert, mens andre feilet. Åpne importen på nytt og forhåndsvis filen igjen før du prøver på nytt.",
-        validationErrorsFromServer: "Raden har valideringsfeil fra serveren:",
         unknownValidationError: "Raden har en valideringsfeil fra serveren:",
         emptyValue: "(tom)",
         validation: {
@@ -2033,8 +1676,6 @@ export const translations: Record<Language, Translations> = {
           showForParents: "For foreldre"
         }
       },
-      inKindergartenBadge: "For barna",
-      forParentsBadge: "For foreldre",
       closedBadge: "Stengt",
       colors: {
         red: "Rød",
@@ -2049,7 +1690,6 @@ export const translations: Record<Language, Translations> = {
       staff: {
         manageTitle: "Brukere",
         manageDescription: "Opprett FAU-medlemmer og barnehageansatte. Systemet sender midlertidig passord på e-post og brukeren må endre passord ved første innlogging.",
-        addStaff: "Opprett bruker",
         username: "Brukernavn (e-post)",
         name: "Navn",
         role: "Rolle",
@@ -2131,14 +1771,9 @@ export const translations: Record<Language, Translations> = {
     navigation: {
       home: "Home",
       updates: "Updates",
-      news: "News",
-      tips: "Tips & Tricks",
-      events: "Events",
       calendar: "Calendar",
       contact: "Contact",
       documents: "Documents",
-      more: "More",
-      yearlyCalendar: "Yearly calendar"
     },
     ui: {
       skipToContent: "Skip to content",
@@ -2155,8 +1790,6 @@ export const translations: Record<Language, Translations> = {
       content: "Content",
       messages: "Messages",
       settings: "Settings",
-      openMenu: "Open menu",
-      at: "At",
       switchLightMode: "Switch to light mode",
       switchDarkMode: "Switch to dark mode",
       lightMode: "Light mode",
@@ -2169,45 +1802,20 @@ export const translations: Record<Language, Translations> = {
     },
     home: {
       home: "Home",
-      childrenPlayingPlayground: "Children playing on a playground",
-      at: "at",
       updates: "Updates",
       tipsTricks: "Tips & Tricks",
       news: "News",
       by: "by",
       readMore: "Read more",
-      children: "children",
-      director: "Director:",
       loadingInformation: "Loading information...",
       title: "Welcome to FAU Erdal Kindergarten",
-      subtitle: "Together we create the best for our children",
-      welcomeTitle: "Welcome to our parent council",
       welcomeDescription: "FAU Erdal Kindergarten is the parents' own voluntary association. We work to safeguard parents' interests and contribute to a good environment for the children.",
-      missionTitle: "Our mission",
-      missionDescription: "As a voluntary parent association, we work independently to promote parents' views and interests in the kindergarten.",
-      valuesTitle: "Our values", 
-      valuesDescription: "Openness, inclusion and quality are central to everything we do. We believe in cooperation and that all parents have something valuable to contribute.",
-      boardTitle: "Our board",
-      boardDescription: "The parent council consists of engaged parents who are elected to represent all families in the kindergarten.",
-      getInvolvedTitle: "Get involved",
-      getInvolvedDescription: "There are many ways to get involved in the parent council:",
-      attendMeetings: "Attend meetings",
-      attendMeetingsDesc: "Come to our monthly meetings and participate in decisions",
-      volunteerEvents: "Help with events",
-      volunteerEventsDesc: "Assist with work days and social activities",
-      shareIdeas: "Share your ideas",
-      shareIdeasDesc: "Come up with suggestions for improvements and new initiatives",
-      nextMeeting: "Next meeting",
+      valuesTitle: "Our values",
       moreInfo: "More information",
       aboutKindergarten: "About the Kindergarten",
-      address: "Address:",
       municipality: "Address:",
       openingHours: "Opening hours:",
-      numberOfChildren: "Number of children:",
-      owner: "Owner:",
-      kindergartenDescription: "Erdal kindergarten is a municipal kindergarten in Askøy that offers a safe and stimulating environment for children. The kindergarten focuses on development through play and learning in beautiful natural surroundings.",
       fauTitle: "Parents' Council Working Committee (FAU)",
-      contact: "Contact:",
       fauBoard: "FAU board:",
       leader: "Leader:",
       member: "Member:",
@@ -2216,9 +1824,6 @@ export const translations: Record<Language, Translations> = {
       seeAllEvents: "See the full calendar",
       upcomingEvents: "What's coming up",
       noEvents: "No Scheduled Events",
-      safety: "Safety",
-      cooperation: "Cooperation",
-      engagement: "Engagement",
       heroImageAlt: "Illustration: two children walking towards a wooden sign reading for barna, sammen and engasjement",
       heroCalendarCta: "See what's on",
       heroContactCta: "Get in touch",
@@ -2240,14 +1845,9 @@ export const translations: Record<Language, Translations> = {
     },
     calendar: {
       title: "Calendar",
-      subtitle: "Everything happening at Erdal Kindergarten, in one place",
       viewLabel: "View",
       listView: "List",
       monthView: "Month",
-      yearView: "Year",
-      yearViewHint:
-        "The whole kindergarten year, one row per week. Quiet weeks are shown as quiet — those are the ones you are looking for when something needs planning.",
-      quietWeek: "quiet week",
       detailEmpty: "Pick something in the calendar to see the details here.",
       detailPlace: "Place",
       detailWeek: "Week",
@@ -2256,14 +1856,11 @@ export const translations: Record<Language, Translations> = {
       noDescription: "No description added.",
       allTypes: "All",
       allDay: "All day",
-      detailTimePrefix: "At",
       listHeading: "Everything happening at Erdal Kindergarten",
       listIntro:
         "A clear calendar for the kindergarten year. Events, meetings and the dates that matter.",
       monthIntro: "An overview of everything happening this month. Pick a date to see more.",
       pickADay: "Pick a day in the calendar to see what is on.",
-      yearHeading: "Kindergarten year",
-      yearIntro: "A quick look at the whole year. Pick a month to see it in detail.",
       tagline: "Small people, big days",
       noEventsThisWeek: "Nothing planned this week.",
       noEventsThisDay: "Nothing is scheduled on this day.",
@@ -2271,7 +1868,6 @@ export const translations: Record<Language, Translations> = {
       reminderTitle: "Want reminders for the dates that matter?",
       reminderBody: "Add the calendar to your phone or tablet so nothing slips past you.",
       editorLabel: "Editor",
-      openYearlyEditor: "Edit the yearly calendar",
       newEntry: "New in the calendar",
       newPickerHint: "Choose what you are adding — the rest of the form follows from it.",
       newEventButton: "Event with signup",
@@ -2285,17 +1881,10 @@ export const translations: Record<Language, Translations> = {
       confirmCancelBody:
         "People have signed up, so it cannot be deleted. It stays in the calendar with its title struck through, so those who signed up can see it is cancelled.",
       confirmDeleteBody: "Nobody has signed up, so the entry can be deleted. This cannot be undone.",
-      weekRailHint:
-        "The week column on the left carries what lasts all week — hot meals, theme weeks and notices. The cells carry the days.",
       week: "Week",
       thisWeek: "This week",
       allWeek: "all week",
-      weeksSpan: "weeks",
-      filterSignup: "Signup",
-      filterKindergarten: "Kindergarten",
-      showAllTypes: "Show all",
       filtersLabel: "Filters",
-      typesOn: "types on",
       showEarlier: "Show earlier weeks",
       nothingMatches: "Nothing left with these filters.",
       noTypesSelected: "No types selected. Choose \u201cShow all\u201d to bring the calendar back.",
@@ -2348,11 +1937,7 @@ export const translations: Record<Language, Translations> = {
       comment: "Comment:",
       selectDate: "Select date",
       clearDeadline: "Clear deadline",
-      vigiloSignup: "Vigilo Signup",
-      noSignup: "No signup",
       sendNewsletterReminder: "Send newsletter reminder",
-      addCalendar: "Add to calendar",
-      downloadIcsFile: "Download .ics file",
       eventDeleted: "Event deleted",
       eventHasBeenDeleted: "The event has been deleted.",
       cannotDelete: "Cannot delete",
@@ -2362,31 +1947,15 @@ export const translations: Record<Language, Translations> = {
       eventCancelled: "Event cancelled",
       eventHasBeenCancelled: "The event has been cancelled and emails have been sent to all attendees.",
       cancellationError: "Cancellation error",
-      couldNotCancelEvent: "Could not cancel the event. Please try again later.",
-      eventCancelled2: "Event is cancelled",
-      cannotRegisterCancelledEvent: "You cannot register for a cancelled event.",
       registerVigilo: "Register in Vigilo",
-      eventUsesVigiloRegistration: "This event uses Vigilo for registration.",
       noSignupRequired: "No signup required",
-      eventDoesNotRequire: "This event does not require registration.",
-      eventCancelledRegistrationNot: "This event is cancelled and registration is not available.",
-      viewOptions: "View options",
-      listView: "List view",
-      calendarView: "Calendar view",
-      loadingCalendar: "Loading calendar...",
       at: "at",
-      digitalEvent: "Digital event",
       internalEvent: "Internal event",
-      volunteer: "Volunteer",
-      registerPhoto: "Register for photo",
       cancelled2: "CANCELLED",
       deleteEvent: "Delete event?",
-      attended: "attended",
-      viewAttendees: "View attendees",
       more: "more",
       previousMonth: "Previous month",
       nextMonth: "Next month",
-      event: "Event",
       today: "Today",
       noRegistrationsYet: "No registrations yet",
       loading: "Loading...",
@@ -2400,29 +1969,13 @@ export const translations: Record<Language, Translations> = {
       child: "child",
       children: "children",
       childrenSFirstNames: "Children\\'s first names",
-      title: "Events",
-      subtitle: "Upcoming activities and meetings at FAU Erdal Kindergarten",
-      addEvent: "Add event",
-      noEvents: "No upcoming events",
-      noEventsDesc: "FAU posts new meetings and working bees as they are planned. Dates already set for the kindergarten year are in the yearly calendar.",
       register: "Register",
       full: "Full",
       attendees: "registered",
       maxAttendees: "max",
-      registrationDeadline: "Registration deadline",
       registrationClosed: "Registration deadline has passed",
-      unlimited: "unlimited",
-      location: "Location",
       time: "Time",
       date: "Date",
-      cancelled: "Cancelled",
-      viewList: "List",
-      viewCalendar: "Calendar",
-      pastEvents: "Past events",
-      showMorePast: "Show more past events",
-      openYearlyCalendar: "Open the yearly calendar",
-      noPastEvents: "No past events",
-      noPastEventsDesc: "There are no past events to display.",
       viewRegistrations: "View registrations",
       edit: "Edit",
       cancel: "Cancel",
@@ -2430,7 +1983,6 @@ export const translations: Record<Language, Translations> = {
     },
     contact: {
       title: "Contact us",
-      subtitle: "Get in touch with the parent council for questions, suggestions or feedback",
       name: "Name",
       email: "Email",
       phone: "Phone",
@@ -2444,7 +1996,6 @@ export const translations: Record<Language, Translations> = {
       errorDesc: "Could not send the message. Please try again later.",
       anonymous: "Send anonymous message",
       anonymousDesc: "Send message without providing contact information",
-      contactMethod: "Select contact method",
       fauContact: "FAU Erdal Kindergarten",
       fauContactDesc: "Contact for parent representatives",
       kindergartenContact: "Erdal Kindergarten",
@@ -2491,9 +2042,6 @@ export const translations: Record<Language, Translations> = {
       admin: {
         title: "Newsletter subscribers",
         description: "Parents who have confirmed their newsletter subscription. Reminders are sent automatically the day before flagged events, and flagged news posts go out on the next send.",
-        email: "Email",
-        status: "Status",
-        subscribed: "Subscribed",
         statusPending: "Awaiting confirmation",
         statusActive: "Active",
         statusUnsubscribed: "Unsubscribed",
@@ -2510,11 +2058,9 @@ export const translations: Record<Language, Translations> = {
       delete: "Delete",
       deleteDocument: "Delete document?",
       cancel: "Cancel",
-      uploaded: "uploaded",
       fileTypeNotAllowed: "File type is not allowed",
       fileLargerThan10: "File is larger than 10 MB",
       title: "Documents",
-      subtitle: "Meeting minutes, bylaws and other important documents",
       upload: "Upload document",
       uploadDocument: "Upload Document",
       uploadDescription: "Upload documents such as meeting minutes, budget or other important files.",
@@ -2534,25 +2080,15 @@ export const translations: Record<Language, Translations> = {
       removeFile: "Remove selected file",
       categories: {
         protocol: "Meeting Minutes",
-        protocolDesc: "Meeting records",
         regulations: "Bylaws",
-        regulationsDesc: "Guidelines and bylaws",
         budget: "Annual Plans & Other",
-        budgetDesc: "Annual plans and other documents"
       },
       noDocuments: "No documents found",
       noDocumentsDesc: "There are no documents in this category yet.",
       download: "Download",
-      uploadedBy: "Uploaded by",
-      uploadedAt: "Date",
       fileSize: "Unknown size",
-      seeAll: "See all",
-      recentActivity: "Recent Activity",
-      noRecentActivity: "No recent activity",
       heroLead: "Minutes, statutes and budgets – to read or download.",
       allCategories: "All",
-      documentCount: "documents",
-      openDocument: "Open",
     },
     modals: {
       login: {
@@ -2585,7 +2121,6 @@ export const translations: Record<Language, Translations> = {
 
       eventCreation: {
         title: "Create new event",
-        description: "Fill out the form to create a new event or meeting.",
         titleLabel: "Title",
         titlePlaceholder: "Event name",
         descriptionLabel: "Description",
@@ -2594,7 +2129,6 @@ export const translations: Record<Language, Translations> = {
         timeLabel: "Time",
         locationLabel: "Location",
         locationPlaceholder: "Select location",
-        typeLabel: "Event type",
         maxAttendeesLabel: "Max attendees",
         maxAttendeesPlaceholder: "Leave empty for unlimited",
         registrationDeadlineLabel: "Registration deadline",
@@ -2603,40 +2137,20 @@ export const translations: Record<Language, Translations> = {
         customLocationPlaceholder: "Enter address...",
         cancel: "Cancel",
         create: "Create event",
-        creating: "Creating...",
         success: "Event created!",
-        successDesc: "The new event is now available for registration.",
-        error: "Creation error",
         errorDesc: "Could not create the event. Please try again later.",
         types: {
-          meeting: "Meeting",
-          event: "Event",
-          dugnad: "Volunteer work",
-          internal: "Internal",
-          annet: "Other",
           foto: "Photo"
         },
         locations: {
-          erdal: "Erdal Kindergarten",
           digitalt: "Digital",
           annet: "Other"
         }
       },
       eventEdit: {
         title: "Edit event",
-        description: "Update the event details"
       },
       eventRegistration: {
-        title: "Register for event",
-        name: "Name",
-        email: "Email",
-        phone: "Phone",
-        attendees: "Number of attendees",
-        comments: "Comments",
-        commentsPlaceholder: "Any comments or special needs...",
-        cancel: "Cancel",
-        register: "Register",
-        registering: "Registering...",
         success: "Registration successful!",
         successDesc: "You are now registered for the event.",
         error: "Registration error",
@@ -2644,16 +2158,11 @@ export const translations: Record<Language, Translations> = {
       }
     },
     footer: {
-      description: "The parent working committee (FAU) is the parents' own voluntary organization that works to safeguard parents' interests and contribute to a good environment for the children in the kindergarten.",
-      contactInfo: "Information",
-      address: "",
-      phone: "",
-      email: "fauerdalbarnehage@gmail.com", 
+      description: "The parent working committee (FAU) is the parents' own voluntary organization that works to safeguard parents' interests and contribute to a good environment for the children in the kindergarten.", 
       facebook: "Facebook group for parents",
       website: "Erdal Kindergarten website",
       barnehageFakta: "Barnehagefakta",
       fubLink: "FUB – advice and guidance for parents",
-      hours: "",
       usefulLinks: "Useful links",
       vigilo: "Vigilo",
       meals: "Food and meals in kindergarten",
@@ -2665,7 +2174,6 @@ export const translations: Record<Language, Translations> = {
       pageNotFoundBody: "The link may be out of date, or the page may have moved.",
       goHomePage: "Go to the home page",
       loading: "Loading...",
-      unknownSize: "Unknown size",
       bytes: "Bytes",
       required: "required",
       file: "File",
@@ -2701,7 +2209,6 @@ export const translations: Record<Language, Translations> = {
       post: "Post",
       loading: "Loading …",
       postNotFound: "Post not found",
-      backNews: "Back to news",
       allTips: "All tips",
       allNews: "All news",
       heroLead: "News, minutes and practical tips from FAU and the kindergarten.",
@@ -2911,8 +2418,6 @@ export const translations: Record<Language, Translations> = {
       }
     },
     yearlyCalendar: {
-      title: "Yearly calendar",
-      subtitle: "What's happening at the kindergarten, month by month",
       schoolYearLabel: "Kindergarten year",
       downloadAllPdf: "Download PDF (whole year)",
       downloadMonthPdf: "Download month",
@@ -2923,41 +2428,7 @@ export const translations: Record<Language, Translations> = {
       pdfErrorDescription: "Something went wrong while generating the PDF. Please try again in a moment.",
       excelTemplateErrorTitle: "Could not download Excel template",
       excelTemplateErrorDescription: "Something went wrong while downloading the Excel template. Please try again in a moment.",
-      addEntry: "Add entry",
-      dragAndDrop: {
-        instructions:
-          "Press space or Enter to pick the entry up. Use the arrow keys to choose a new position, space or Enter to drop it, and Escape to cancel.",
-        onDragStart: "Picked up the entry {item}.",
-        onDragOver: "The entry {item} is now over {target}.",
-        onDragOverNoTarget: "The entry {item} is not over a valid slot.",
-        onDragEnd: "The entry {item} was moved to {target}.",
-        onDragEndNoTarget: "The entry {item} was dropped without being moved.",
-        onDragCancel: "Moving {item} was cancelled.",
-      },
-      noEntries: "Nothing scheduled yet.",
-      currentAndUpcomingMonths: "This and upcoming months",
-      currentAndUpcomingMonthsDescription: "This section starts with the current month and continues through the rest of the kindergarten year.",
-      pastMonths: "Past months",
-      pastMonthsDescription: "Earlier months are collected here, with the most recent first.",
-      currentMonthBadge: "This month",
-      pastMonthBadge: "Past",
-      thisWeekBadge: "This week",
-      todayBadge: "Today",
-      week: "Week",
-      weekHeader: "Week",
-      monday: "Monday",
-      tuesday: "Tuesday",
-      wednesday: "Wednesday",
-      thursday: "Thursday",
-      friday: "Friday",
-      saturday: "Saturday",
-      sunday: "Sunday",
-      eventLabel: "Event",
-      eventCancelledLabel: "Cancelled",
-      eventsIncludedHint:
-        "Events from \"What's on\" appear here too, in orange. Click an event to sign up.",
       notes: "Notes",
-      tagline: "The art of being together in the magical world of play",
       entryTypes: {
         weekEvent: "All week",
         dayEvent: "Day",
@@ -2982,21 +2453,12 @@ export const translations: Record<Language, Translations> = {
       modal: {
         addTitle: "New entry",
         editTitle: "Edit entry",
-        type: "Type",
         title: "Title",
         description: "Description",
         weekNumber: "From week",
         weekNumberEnd: "To week (optional)",
         date: "Date",
         color: "Color",
-        colorHint: "Default colour is determined by entry type. Pick a colour here only for special exceptions.",
-        category: "Category",
-        categoryAuto: "Follow the type",
-        categoryHint: "The label this entry gets in the calendar, and the filter it answers to. The type above only says whether it is a day, a week or a note \u2014 a dated row can just as well be a deadline (Info), an internal SU meeting, or something parents are invited to.",
-        showOnHomepage: "Show on homepage (At the kindergarten)",
-        showOnHomepageHint: "Appears under \"Upcoming events\" on the front page, marked \"At the kindergarten\".",
-        showForParents: "Show on homepage (For parents)",
-        showForParentsHint: "Appears under \"Upcoming events\" on the front page, marked \"For parents\".",
         notifyNewsletter: "Send newsletter reminder",
         notifyNewsletterHint: "The day before, the description is emailed as a reminder to all confirmed newsletter subscribers.",
         startTime: "Start time (optional)",
@@ -3034,7 +2496,6 @@ export const translations: Record<Language, Translations> = {
         importError: "Could not import yearly calendar",
         partialImportTitle: "Import partially completed",
         partialImportDescription: "Some rows may have been imported while others failed. Reopen import and preview the file again before retrying.",
-        validationErrorsFromServer: "Row has validation errors from the server. Detailed server message:",
         unknownValidationError: "Row has a validation error from the server:",
         emptyValue: "(empty)",
         validation: {
@@ -3068,8 +2529,6 @@ export const translations: Record<Language, Translations> = {
           showForParents: "For parents"
         }
       },
-      inKindergartenBadge: "For children",
-      forParentsBadge: "For parents",
       closedBadge: "Closed",
       colors: {
         red: "Red",
@@ -3084,7 +2543,6 @@ export const translations: Record<Language, Translations> = {
       staff: {
         manageTitle: "Users",
         manageDescription: "Create FAU members and kindergarten employee users. The system emails a temporary password and the user must change it on first login.",
-        addStaff: "Create user",
         username: "Username (email)",
         name: "Name",
         role: "Role",

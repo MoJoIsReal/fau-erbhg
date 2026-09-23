@@ -7,7 +7,8 @@
 @config "../../tailwind.config.ts";
 
 /* ============================================================
-   DESIGN TOKENS — FAU Erdal Barnehage UI Design & Style Guide 1.0
+   DESIGN TOKENS — FAU Erdal Barnehage UI Design & Style Guide 1.1
+   (docs/design/style-guide.md — read it before changing any value here)
 
    These are the single source of truth for colour, radius, spacing,
    shadow and motion. Components read them through the Tailwind theme
