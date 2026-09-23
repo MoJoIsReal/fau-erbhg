@@ -112,8 +112,3 @@ export const KIND_STYLE: Record<CalendarEntryKind, CalendarKindStyle> = {
     tint: "bg-cat-info-tint",
   },
 };
-
-/** The dot on its own, for a row that carries no kind label. */
-export function kindDot(kind: CalendarEntryKind, className = "") {
-  return `${KIND_STYLE[kind].dot} ${className}`;
-}

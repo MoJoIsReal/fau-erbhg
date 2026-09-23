@@ -6,6 +6,8 @@ A comprehensive digital platform for FAU Erdal Barnehage that enhances parent-sc
 
 - [`AGENTS.md`](AGENTS.md) — architecture, conventions, commands and boundaries
   (also what AI coding agents load; `CLAUDE.md` imports it).
+- [`docs/design/style-guide.md`](docs/design/style-guide.md) — the UI Design &
+  Style Guide 1.1; read it before any visual change.
 - [`docs/`](docs/README.md) — deployment guide, architecture reference,
   subsystem rules and the review backlog.
 

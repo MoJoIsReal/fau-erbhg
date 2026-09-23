@@ -6,7 +6,6 @@
 // Week-based yearly entries have no date and are deliberately left out.
 import { htmlToPlainText } from './html-text.js';
 
-export const CALENDAR_FEED_PATH = '/kalender.ics';
 const UID_DOMAIN = 'erdal-bhg.no';
 
 // Norwegian local time, spelled out so clients that do not carry an Olson

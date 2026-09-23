@@ -8,5 +8,3 @@ export function isPasswordChangeRequired(
 ): boolean;
 
 export function isUndefinedColumnError(error: unknown): boolean;
-
-export function ensureUserPasswordPolicyColumns(sql: unknown): Promise<void>;

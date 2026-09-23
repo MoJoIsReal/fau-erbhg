@@ -49,6 +49,7 @@ attached_assets/    Uploaded source material, never served — including
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
 tests/*.test.mjs    node:test suites; scripts/smoke-tests.mjs is the second tier
 docs/               Architecture, subsystem rules, deployment, review backlog
+docs/design/        The UI Design & Style Guide (PDF + text transcription)
 ```
 
 ## Architecture rules
@@ -114,6 +115,7 @@ calendar, calendar feed, newsletter invariants),
 | Scheduled work | `api/cron/event-reminders.js`, schedules in `vercel.json` |
 | Video embeds (sanitizer + CSP) | `shared/video-embed.js`, and the four files [`docs/subsystems.md`](docs/subsystems.md) names |
 | Roles/enums shared by both tiers | `shared/constants.js` |
+| **Any visual change** — read first | [`docs/design/style-guide.md`](docs/design/style-guide.md) |
 | A colour, radius, shadow, spacing or type step | `client/src/index.css` tokens, exposed as utilities by `tailwind.config.ts` |
 | Hero, section, card, chip, banner, empty state | `client/src/components/site/` |
 | Calendar category colours | `client/src/lib/calendar-kind-style.ts` → the `--cat-*` tokens |
@@ -121,7 +123,13 @@ calendar, calendar feed, newsletter invariants),
 ## The design system
 
 The visual layer implements the *FAU Erdal Barnehage UI Design & Style Guide
-1.0*. Three rules keep it coherent:
+1.1* (light + dark mode). **Before any visual change** — a component, layout,
+colour, spacing, type, illustration, motion or theme change — read the relevant
+sections of [`docs/design/style-guide.md`](docs/design/style-guide.md), a text
+transcription of the PDF beside it that starts with a guide → repo mapping and a
+checklist. The guide is the visual source of truth: follow its rules rather
+than the look of the nearest existing code, and if a change would depart from
+it, say so explicitly in the PR description. Three rules keep it coherent:
 
 **Tokens are the source of truth.** Every colour, radius, shadow, container
 width, motion duration and type step is a custom property in
@@ -192,7 +200,7 @@ sends credentials.
 **i18n is enforced.** Every user-facing string goes in `client/src/lib/i18n.ts`
 so the typed `Translations` interface forces both languages. Inline
 `language === 'no' ? … : …` copy is capped by a ratchet in
-`scripts/check-i18n.mjs` (`BUDGET`, currently 45) that `npm run check` runs —
+`scripts/check-i18n.mjs` (`BUDGET`, currently 31) that `npm run check` runs —
 the number may fall, never rise. Locale ids and date-fns locales are the
 legitimate inline cases.
 
@@ -241,6 +249,8 @@ Before calling a change done:
    common breakages).
 2. The suite(s) covering what you touched, then `npm test`.
 3. `npm run build` if you changed anything under `client/` or the Vite config.
+4. For a visual change, check it against the style guide's checklist
+   (`docs/design/style-guide.md`) — both themes, 375–1440px widths.
 
 `npm run verify` covers all three when you'd otherwise run them individually.
 Add a test whenever you touch `api/_shared/` or `shared/` — that is the layer
