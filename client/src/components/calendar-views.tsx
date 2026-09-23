@@ -208,10 +208,6 @@ export default function CalendarViews() {
             onChange={changeMode}
             label={t.calendar.viewLabel}
           />
-          {/* In the list view the banner below sits under every week of the
-              year, so the subscribe action is also offered where the page
-              starts. */}
-          <CalendarSubscribe triggerSize="default" triggerClassName="rounded-pill bg-surface" />
         </div>
 
         <div>
@@ -260,7 +256,14 @@ export default function CalendarViews() {
 
       {editor.toolbar}
 
+      {/* In the list view the banner at the bottom sits under every week of
+          the year, so the subscribe action is also offered above the
+          calendar: on its own here, beside the PDF downloads in month view. */}
       {view === "list" ? (
+        <>
+        <div className="flex">
+          <CalendarSubscribe triggerSize="default" />
+        </div>
         <CalendarEntryList
           entries={visible}
           fromWeekKey={showPast ? null : currentWeekKey}
@@ -270,6 +273,7 @@ export default function CalendarViews() {
           onSelect={openEntry}
           emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
         />
+        </>
       ) : (
         <Suspense
           fallback={
@@ -278,7 +282,7 @@ export default function CalendarViews() {
             </div>
           }
         >
-          <CalendarMonthTools month={monthCursor} schoolYear={schoolYear} entries={yearlyEntries} editor={editor} showNotes={active.beskjed} events={events} dataReady={exportsReady} hasDataError={hasDataError} />
+          <CalendarMonthTools month={monthCursor} schoolYear={schoolYear} entries={yearlyEntries} editor={editor} showNotes={active.beskjed} events={events} dataReady={exportsReady} hasDataError={hasDataError} extraAction={<CalendarSubscribe triggerSize="default" />} />
             <CalendarView
               entries={visible}
               month={monthCursor}

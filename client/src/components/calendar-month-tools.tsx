@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Download, Plus } from "lucide-react";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -12,7 +12,7 @@ import type { CalendarEditor } from "@/components/calendar-editor-tools";
 import type { MonthCursor } from "@/components/calendar-view";
 
 /** Public exports use complete source rows; filters never remove content from a PDF. */
-export default function CalendarMonthTools({ month, schoolYear, entries, editor, showNotes, events, dataReady, hasDataError }: {
+export default function CalendarMonthTools({ month, schoolYear, entries, editor, showNotes, events, dataReady, hasDataError, extraAction }: {
   month: MonthCursor;
   schoolYear: number;
   entries: YearlyCalendarEntry[];
@@ -21,6 +21,8 @@ export default function CalendarMonthTools({ month, schoolYear, entries, editor,
   events: Event[];
   dataReady: boolean;
   hasDataError: boolean;
+  /** Rendered at the end of the download row (the calendar subscribe button). */
+  extraAction?: ReactNode;
 }) {
   const { language, t } = useLanguage();
   const { toast } = useToast();
@@ -60,6 +62,7 @@ export default function CalendarMonthTools({ month, schoolYear, entries, editor,
             <Download className="mr-2 h-4 w-4" aria-hidden="true" />
             {busy === "year" ? t.yearlyCalendar.pdfGenerating : `${t.yearlyCalendar.downloadAllPdf} ${schoolYear}/${schoolYear + 1}`}
           </Button>
+          {extraAction}
         </div>
         <p className="text-small text-subtle">{t.calendarWorkspace.downloadHint}</p>
         {hasDataError && <p role="alert" className="text-small text-destructive">{t.calendar.loadFailed}</p>}
