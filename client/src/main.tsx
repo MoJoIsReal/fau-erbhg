@@ -9,6 +9,7 @@ import { ThemeProvider } from "next-themes";
 import { Analytics } from "@vercel/analytics/react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import * as Sentry from "@sentry/react";
+import { reloadForStaleChunk } from "@/lib/stale-chunk";
 
 // Initialize Sentry for error tracking in production
 if (import.meta.env.VITE_SENTRY_DSN) {
@@ -27,6 +28,12 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     replaysOnErrorSampleRate: 1.0,
   });
 }
+
+// Vite fires this when a lazy chunk from an older deploy is gone; reloading
+// fetches the current build instead of showing the error screen.
+window.addEventListener("vite:preloadError", (event) => {
+  if (reloadForStaleChunk()) event.preventDefault();
+});
 
 createRoot(document.getElementById("root")!).render(
   <ErrorBoundary>

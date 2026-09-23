@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 import * as Sentry from '@sentry/react';
+import { isStaleChunkError, reloadForStaleChunk } from '@/lib/stale-chunk';
 
 interface Props {
   children: ReactNode;
@@ -24,6 +25,10 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    // A lazy route from a previous deploy: reload into the current build
+    // rather than reporting it as a crash.
+    if (isStaleChunkError(error) && reloadForStaleChunk()) return;
+
     console.error('Uncaught error:', error, errorInfo);
 
     // Send to Sentry in production

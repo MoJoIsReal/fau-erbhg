@@ -1524,6 +1524,23 @@ function testCalendarFeedIsCacheable() {
   );
 }
 
+// A tab left open across a deploy asks for hashed chunks the new build no
+// longer has. If the SPA rewrite caught /assets/*, Vercel answered with
+// index.html — a MIME error in the browser — and, because header rules match
+// the pre-rewrite path, stamped that HTML "immutable" for a year, so the
+// broken chunk URL stayed broken in the cache. Missing assets must 404.
+function testMissingAssetsAreNotRewrittenToIndex() {
+  const vercelConfig = JSON.parse(readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'));
+  const spaRule = vercelConfig.rewrites.find((rule) => rule.destination === '/index.html');
+  assert.ok(spaRule, 'vercel.json should still rewrite client routes to index.html');
+  const pattern = new RegExp(`^${spaRule.source}$`);
+  assert.ok(pattern.test('/kalender'), 'Client routes should still reach the SPA');
+  assert.ok(!pattern.test('/assets/messages-DejWTZW2.js'), 'A missing /assets/ file must not be served as index.html');
+
+  const main = readFileSync(new URL('../client/src/main.tsx', import.meta.url), 'utf8');
+  assert.match(main, /vite:preloadError/, 'The client should reload when a stale chunk fails to load');
+}
+
 // DB-002. events.current_attendees is a stored counter with three writers and,
 // until migration 0012, no way back once it drifted. Nothing should render it:
 // the read paths compute the sum of the registrations that exist right now.
@@ -1652,6 +1669,7 @@ testBoardMembersOrderByHandThenRole();
 testDeletesValidateIdAndCheckRows();
 testRegistrationUpdatesEventRowOnce();
 testCalendarFeedIsCacheable();
+testMissingAssetsAreNotRewrittenToIndex();
 testAttendeeCountIsDerivedOnRead();
 testNewsletterOutboxIsBounded();
 testYearlyCalendarValidNorwegianRow();
