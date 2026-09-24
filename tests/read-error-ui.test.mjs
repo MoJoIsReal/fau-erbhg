@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { build } from 'esbuild';
+import { importBundle } from './helpers.mjs';
 
 // Real pages, hooks and query cache rendered together. Only browser storage
 // and network results are supplied by fixtures; no page component is mocked.
 globalThis.localStorage = { getItem: () => 'no' };
-const result = await build({ stdin: { resolveDir: process.cwd(), loader: 'tsx', contents: `
+const { render, copy } = await importBundle({ stdin: { resolveDir: process.cwd(), loader: 'tsx', contents: `
   import React from 'react';
   import { renderToStaticMarkup } from 'react-dom/server';
   import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -30,9 +30,8 @@ const result = await build({ stdin: { resolveDir: process.cwd(), loader: 'tsx', 
     const Page = {home:Home, messages:Messages, admin:Admin, article:NewsPost, attendees:()=> <Attendees event={{id:1,title:'Test',type:'other'}}/>}[name];
     return renderToStaticMarkup(<Router ssrPath='/nyheter/42'><QueryClientProvider client={client}><LanguageProvider><Page/></LanguageProvider></QueryClientProvider></Router>);
   }
-` }, banner: { js: 'import { createRequire as testRequire } from "node:module"; const require = testRequire(' + JSON.stringify(import.meta.url) + ');' }, bundle: true, platform: 'node', format: 'esm', write: false, jsx: 'automatic',
+` }, platform: 'node', jsx: 'automatic',
   plugins: [{ name: 'asset-paths', setup(build) { build.onLoad({ filter: /\.(webp|png|jpg|svg)$/ }, args => ({ contents: 'export default ' + JSON.stringify(args.path), loader: 'js' })); } }], define: { 'import.meta.env.DEV': 'false' } });
-const { render, copy } = await import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString('base64')}`);
 
 for (const page of ['home', 'messages', 'admin', 'article', 'attendees']) {
   test(`${page}: failed reads expose retry rather than successful absence`, () => {

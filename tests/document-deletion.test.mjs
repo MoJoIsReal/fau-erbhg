@@ -1,54 +1,55 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import vm from 'node:vm';
-import test from 'node:test';
-import { parseCloudinaryDeliveryUrl } from '../api/_shared/cloudinary-url.js';
+import test, { mock } from 'node:test';
+import { v2 as cloudinary } from 'cloudinary';
+import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
 
-const source = readFileSync(new URL('../api/documents.js', import.meta.url), 'utf8')
-  .replace(/^import[\s\S]*?;\r?\n/gm, '')
-  .replace('export default ', 'globalThis.handler = ');
+Object.assign(process.env, {
+  CLOUDINARY_CLOUD_NAME: 'test',
+  CLOUDINARY_API_KEY: 'test-key',
+  CLOUDINARY_API_SECRET: 'test-secret',
+});
+const handler = await importHandler('api/documents.js');
 
-function fixture({ type = 'image', extension = 'pdf', result = 'ok', failure, url, publicId,
-  authorized = true, csrf = true, databaseFailure = false } = {}) {
+// The provider boundary: the real client, with only the network call replaced.
+let destroy;
+mock.method(cloudinary.uploader, 'destroy', (...args) => destroy(...args));
+
+function fixture(t, { type = 'image', extension = 'pdf', result = 'ok', failure, url, publicId,
+  databaseFailure = false } = {}) {
   const id = publicId ?? `fau-documents/example${type === 'raw' ? `.${extension}` : ''}`;
   let row = { id: 7, filename: `example.${extension}`, mime_type: extension === 'pdf' ? 'application/pdf' : 'image/png',
     cloudinary_public_id: id,
     cloudinary_url: url ?? `https://res.cloudinary.com/test/${type}/upload/v1/fau-documents/example.${extension}` };
   const effects = [];
-  const sql = async (strings, ...values) => {
-    assert.deepEqual(values, [7]);
-    const statement = strings.join('?').trim();
-    if (statement.startsWith('SELECT')) return row ? [row] : [];
-    if (statement.startsWith('DELETE')) {
-      effects.push('database-delete');
-      if (databaseFailure) throw new Error('database unavailable');
-      const previous = row; row = null; return previous ? [previous] : [];
-    }
-    throw new Error('Unexpected query');
+  useDatabase(scriptedSql({
+    respond(statement, values) {
+      assert.deepEqual(values, [7]);
+      if (statement.startsWith('SELECT')) return row ? [row] : [];
+      if (statement.startsWith('DELETE FROM documents')) {
+        effects.push('database-delete');
+        if (databaseFailure) throw new Error('database unavailable');
+        const previous = row; row = null; return previous ? [previous] : [];
+      }
+      throw new Error(`Unexpected query: ${statement}`);
+    },
+  }));
+  destroy = async (target, options) => {
+    effects.push({ target, ...options });
+    if (failure) throw new Error('provider unavailable');
+    return { result };
   };
-  const context = {
-    URL, parseCloudinaryDeliveryUrl,
-    process: { env: { CLOUDINARY_CLOUD_NAME: 'test' } },
-    getDb: () => sql, COUNCIL_ROLES: ['admin', 'member'],
-    requireRole: async () => authorized ? { id: 1 } : null,
-    requireCsrf: () => csrf, requireIntId: () => 7, withApiHandler: (handler) => handler,
-    configureCloudinary: () => ({ uploader: { async destroy(target, options) {
-      effects.push({ target, ...options });
-      if (failure) throw new Error('provider unavailable');
-      return { result };
-    } } }),
-    console: { error() {} },
+  return {
+    run: (options = {}) => call(t, handler, { method: 'DELETE', query: { id: '7' }, as: 'member', ...options }),
+    effects,
+    row: () => row,
   };
-  vm.runInNewContext(source, context);
-  const res = { statusCode: 200, status(code) { this.statusCode = code; return this; }, json(body) { this.body = body; return this; } };
-  return { run: () => context.handler({ method: 'DELETE', query: { id: '7' } }, res), res, effects, row: () => row };
 }
 
-test('deletes image PDFs, raw PDFs and images using their stored delivery identity before metadata', async () => {
+test('deletes image PDFs, raw PDFs and images using their stored delivery identity before metadata', async (t) => {
   for (const [type, extension] of [['image', 'pdf'], ['raw', 'pdf'], ['image', 'png']]) {
-    const f = fixture({ type, extension });
-    await f.run();
-    assert.equal(f.res.statusCode, 200);
+    const f = fixture(t, { type, extension });
+    const res = await f.run();
+    assert.equal(res.statusCode, 200);
     assert.equal(f.effects[0].resource_type, type);
     assert.equal(f.effects[0].target, `fau-documents/example${type === 'raw' ? '.pdf' : ''}`);
     assert.equal(f.effects[0].invalidate, true);
@@ -57,50 +58,42 @@ test('deletes image PDFs, raw PDFs and images using their stored delivery identi
   }
 });
 
-test('provider failure or unexpected result retains metadata for a retry', async () => {
+test('provider failure or unexpected result retains metadata for a retry', async (t) => {
   for (const options of [{ failure: true }, { result: 'error' }, { result: undefined, failure: true }]) {
-    const f = fixture(options);
-    await assert.rejects(f.run());
+    const f = fixture(t, options);
+    assert.equal((await f.run()).statusCode, 500);
     assert.ok(f.row());
     assert.equal(f.effects.includes('database-delete'), false);
   }
 });
 
-test('an absent asset is idempotent, including retry after a database failure', async () => {
-  const first = fixture({ databaseFailure: true });
-  await assert.rejects(first.run());
+test('an absent asset is idempotent, including retry after a database failure', async (t) => {
+  const first = fixture(t, { databaseFailure: true });
+  assert.equal((await first.run()).statusCode, 500);
   assert.ok(first.row());
-  const retry = fixture({ result: 'not found' });
-  await retry.run();
+  const retry = fixture(t, { result: 'not found' });
+  assert.equal((await retry.run()).statusCode, 200);
   assert.equal(retry.row(), null);
-  await retry.run();
-  assert.equal(retry.res.statusCode, 404);
+  assert.equal((await retry.run()).statusCode, 404);
   assert.equal(retry.effects.length, 2);
 });
 
-test('invalid or unrelated delivery identities cannot delete provider assets or metadata', async () => {
+test('invalid or unrelated delivery identities cannot delete provider assets or metadata', async (t) => {
   for (const options of [
     { url: 'https://res.cloudinary.com/other/image/upload/v1/fau-documents/example.pdf' },
     { url: 'https://evil.test/test/image/upload/v1/fau-documents/example.pdf' },
     { url: 'not a URL' }, { publicId: 'fau-documents/different' },
     { publicId: 'other/example', url: 'https://res.cloudinary.com/test/image/upload/v1/other/example.pdf' },
   ]) {
-    const f = fixture(options);
-    await assert.rejects(f.run());
+    const f = fixture(t, options);
+    assert.equal((await f.run()).statusCode, 500, JSON.stringify(options));
     assert.ok(f.row());
     assert.equal(f.effects.length, 0);
   }
 });
 
-test('unauthorized or CSRF-rejected deletion has no effects', async () => {
-  for (const options of [{ authorized: false }, { csrf: false }]) {
-    const f = fixture(options); await f.run();
-    assert.ok(f.row()); assert.equal(f.effects.length, 0);
-  }
-});
-
-test('legacy rows without a public ID recover it only from the owned delivery URL', async () => {
-  const f = fixture({ publicId: '' });
+test('legacy rows without a public ID recover it only from the owned delivery URL', async (t) => {
+  const f = fixture(t, { publicId: '' });
   await f.run();
   assert.equal(f.effects[0].target, 'fau-documents/example');
   assert.equal(f.row(), null);

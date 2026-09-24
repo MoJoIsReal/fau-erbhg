@@ -9,20 +9,7 @@ import {
   setRequestActor,
 } from '../api/_shared/log.js';
 import { handleError, parseCookies, withApiHandler } from '../api/_shared/middleware.js';
-
-function mockRes() {
-  const res = {
-    statusCode: 200,
-    headers: {},
-    body: undefined,
-    setHeader(key, value) { this.headers[key.toLowerCase()] = value; },
-    getHeader(key) { return this.headers[key.toLowerCase()]; },
-    status(code) { this.statusCode = code; return this; },
-    json(payload) { this.body = payload; return this; },
-    end() { return this; },
-  };
-  return res;
-}
+import { mockResponse } from './helpers.mjs';
 
 function mockReq(overrides = {}) {
   return {
@@ -136,7 +123,7 @@ test('a request with no platform id logs a null id rather than inventing one', (
 test('the request id is echoed so a user can quote it', async (t) => {
   captureLines(t);
   const req = mockReq();
-  const res = mockRes();
+  const res = mockResponse();
 
   await withApiHandler(async (_req, response) => response.status(200).json({ ok: true }))(req, res);
 
@@ -152,7 +139,7 @@ test('every non-2xx response produces exactly one attributable line', async (t) 
   });
   setRequestActor(req, { userId: 9, role: 'admin' });
 
-  await withApiHandler(async (_req, res) => res.status(404).json({ error: 'Not found' }))(req, mockRes());
+  await withApiHandler(async (_req, res) => res.status(404).json({ error: 'Not found' }))(req, mockResponse());
 
   const failures = lines.filter((line) => line.event === 'api.request_failed');
   assert.equal(failures.length, 1);
@@ -167,10 +154,10 @@ test('a successful read is not logged, a successful mutation is', async (t) => {
   const lines = captureLines(t);
   const ok = async (_req, res) => res.status(200).json({ ok: true });
 
-  await withApiHandler(ok)(mockReq({ method: 'GET' }), mockRes());
+  await withApiHandler(ok)(mockReq({ method: 'GET' }), mockResponse());
   assert.equal(lines.length, 0, 'reads are the bulk of the traffic and change nothing');
 
-  await withApiHandler(ok)(mockReq({ method: 'POST', url: '/api/events' }), mockRes());
+  await withApiHandler(ok)(mockReq({ method: 'POST', url: '/api/events' }), mockResponse());
   const mutations = lines.filter((line) => line.event === 'api.mutation');
   assert.equal(mutations.length, 1);
   assert.equal(mutations[0].method, 'POST');
@@ -179,7 +166,7 @@ test('a successful read is not logged, a successful mutation is', async (t) => {
 test('a throwing handler still answers, and logs one error line with context', async (t) => {
   const lines = captureLines(t);
   const req = mockReq({ method: 'POST', url: '/api/auth?action=login', query: { action: 'login' } });
-  const res = mockRes();
+  const res = mockResponse();
 
   await withApiHandler(async () => { throw new Error('boom'); })(req, res);
 
@@ -219,7 +206,7 @@ test('a capture never rejects, so awaiting one cannot break error handling', asy
 
   await Sentry.captureException(new Error('boom'));
 
-  const res = mockRes();
+  const res = mockResponse();
   await handleError(res, new Error('boom'), 500, mockReq());
   assert.equal(res.statusCode, 500);
 });

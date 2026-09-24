@@ -1,16 +1,11 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
-import { build } from 'esbuild';
 import { BrowserClient, createTransport } from '@sentry/browser';
+import { importBundle } from './helpers.mjs';
 
-const helperPath = 'client/src/lib/telemetry-privacy.ts';
-let privacy = {};
-if (existsSync(helperPath)) {
-  const bundled = await build({ entryPoints: [helperPath], bundle: true, format: 'esm', write: false });
-  privacy = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`);
-}
+const privacy = await importBundle({ entryPoints: ['client/src/lib/telemetry-privacy.ts'] });
 
 function setup(enabled = true) {
   const bodies = [];

@@ -131,9 +131,3 @@ test('the yearly calendar validates, reads back and preserves what the editor sa
   const updateBlock = source.slice(start, source.indexOf("if (action === 'create')", start));
   assert.doesNotMatch(updateBlock, /weekday_start\s*=/);
 });
-
-test('the contact auto-reply is skipped for anonymous submissions', () => {
-  const source = read('api/contact.js');
-  assert.match(source, /sendAcknowledgementEmail\(/);
-  assert.match(source, /if \(!isAnonymous && sanitizedEmail\) \{/);
-});

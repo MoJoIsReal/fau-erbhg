@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { build } from 'esbuild';
+import { importBundle } from './helpers.mjs';
 
-const output = await build({ entryPoints: ['client/src/lib/queryClient.ts'], bundle: true, platform: 'browser', format: 'esm', write: false, define: { 'import.meta.env.DEV': 'false' } });
-const { queryClient, apiRequest, getQueryFn } = await import(`data:text/javascript;base64,${Buffer.from(output.outputFiles[0].text).toString('base64')}`);
+const { queryClient, apiRequest, getQueryFn } = await importBundle({
+  entryPoints: ['client/src/lib/queryClient.ts'], platform: 'browser', define: { 'import.meta.env.DEV': 'false' },
+});
 
 test('401 clears the shared identity without depending on any mounted auth consumer', async (t) => {
   t.mock.method(globalThis, 'fetch', async () => new Response('{}', { status: 401 }));

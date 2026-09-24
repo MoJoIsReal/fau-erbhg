@@ -14,6 +14,7 @@ import {
 } from '../api/_shared/middleware.js';
 import { ADMIN_ONLY, COUNCIL_ROLES } from '../shared/constants.js';
 import { JWT_AUDIENCE, JWT_ISSUER } from '../api/_shared/jwt-config.js';
+import { mockResponse } from './helpers.mjs';
 
 const SESSION_SECRET = 'test-only-session-secret-with-at-least-32-bytes';
 process.env.SESSION_SECRET = SESSION_SECRET;
@@ -27,28 +28,6 @@ function request({ token, csrfCookie, csrfHeader } = {}) {
     headers: {
       ...(cookies.length > 0 ? { cookie: cookies.join('; ') } : {}),
       ...(csrfHeader ? { 'x-csrf-token': csrfHeader } : {}),
-    },
-  };
-}
-
-function response() {
-  const headers = new Map();
-  return {
-    statusCode: 200,
-    body: undefined,
-    setHeader(name, value) {
-      headers.set(name.toLowerCase(), value);
-    },
-    getHeader(name) {
-      return headers.get(name.toLowerCase());
-    },
-    status(code) {
-      this.statusCode = code;
-      return this;
-    },
-    json(body) {
-      this.body = body;
-      return this;
     },
   };
 }
@@ -86,7 +65,7 @@ test('CSRF tokens are random, require both channels, and compare exactly', () =>
   assert.equal(validateCsrfToken(request({ csrfCookie: first, csrfHeader: second })), false);
   assert.equal(validateCsrfToken(request({ csrfCookie: first })), false);
 
-  const res = response();
+  const res = mockResponse();
   assert.equal(requireCsrf(request({ csrfCookie: first }), res), false);
   assert.equal(res.statusCode, 403);
   assert.deepEqual(res.body, { error: 'Invalid CSRF token' });
@@ -96,13 +75,13 @@ test('security headers allow only configured origins and vary by Origin', () => 
   const previousNodeEnv = process.env.NODE_ENV;
   process.env.NODE_ENV = 'production';
   try {
-    const allowed = response();
+    const allowed = mockResponse();
     applySecurityHeaders(allowed, 'https://www.erdal-bhg.no');
     assert.equal(allowed.getHeader('Access-Control-Allow-Origin'), 'https://www.erdal-bhg.no');
     assert.equal(allowed.getHeader('Access-Control-Allow-Credentials'), 'true');
     assert.equal(allowed.getHeader('Vary'), 'Origin');
 
-    const rejected = response();
+    const rejected = mockResponse();
     applySecurityHeaders(rejected, 'https://attacker.example');
     assert.equal(rejected.getHeader('Access-Control-Allow-Origin'), undefined);
     assert.equal(rejected.getHeader('Access-Control-Allow-Credentials'), undefined);
@@ -125,7 +104,7 @@ test('JWT identity and role are refreshed from the database', async () => {
 });
 
 test('missing identity is rejected with 401', async () => {
-  const res = response();
+  const res = mockResponse();
   const user = await requireRole(request(), res, ADMIN_ONLY, userSql(activeAdmin));
   assert.equal(user, null);
   assert.equal(res.statusCode, 401);
@@ -134,7 +113,7 @@ test('missing identity is rejected with 401', async () => {
 
 test('wrong role is rejected with 403', async () => {
   const member = { ...activeAdmin, role: 'member' };
-  const res = response();
+  const res = mockResponse();
   const user = await requireRole(
     request({ token: tokenFor() }),
     res,
@@ -148,7 +127,7 @@ test('wrong role is rejected with 403', async () => {
 
 test('allowed roles receive the database-backed principal', async () => {
   const member = { ...activeAdmin, role: 'member' };
-  const res = response();
+  const res = mockResponse();
   const user = await requireRole(
     request({ token: tokenFor() }),
     res,
@@ -168,7 +147,7 @@ test('revoked token version and missing account are rejected', async () => {
 });
 
 test('password-change-required principal is blocked before role authorization', async () => {
-  const res = response();
+  const res = mockResponse();
   const user = await requireRole(
     request({ token: tokenFor() }),
     res,
@@ -188,12 +167,7 @@ test('password-change-required principal is blocked before role authorization', 
 // rather than a 400 naming the problem.
 test('requireIntId accepts positive integers and rejects everything else', () => {
   const call = (query) => {
-    const res = {
-      statusCode: 0,
-      body: null,
-      status(code) { this.statusCode = code; return this; },
-      json(body) { this.body = body; return this; },
-    };
+    const res = mockResponse();
     return { id: requireIntId({ query }, res), res };
   };
 
@@ -222,14 +196,10 @@ test('oversized fields are detected before sanitization runs', () => {
 });
 
 test('cookies default to SameSite=Strict and append rather than replace', () => {
-  const headers = {};
-  const res = {
-    getHeader: (name) => headers[name],
-    setHeader: (name, value) => { headers[name] = value; },
-  };
+  const res = mockResponse();
   setCookie(res, 'jwt', 'a b', { httpOnly: true, secure: true, maxAge: 60 });
   setCookie(res, 'csrf-token', 'x', { secure: false });
-  assert.deepEqual(headers['Set-Cookie'], [
+  assert.deepEqual(res.getHeader('Set-Cookie'), [
     'jwt=a%20b; Path=/; Max-Age=60; SameSite=Strict; HttpOnly; Secure',
     'csrf-token=x; Path=/; Max-Age=7200; SameSite=Strict',
   ]);

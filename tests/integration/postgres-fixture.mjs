@@ -2,8 +2,6 @@ import { spawn } from 'node:child_process';
 import { readFile, readdir, mkdir } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import path from 'node:path';
-import { build } from 'esbuild';
-import { generateDrizzleJson, generateMigration } from 'drizzle-kit/api';
 
 export function testConnection(value) {
   let url;
@@ -74,6 +72,11 @@ export async function initialize(query) {
   const [identity] = await query('SELECT current_database() AS db, current_user AS role;');
   if (identity.db !== 'fau_integration_test' || identity.role !== 'fau_test') throw new Error('Unexpected test database identity');
   await query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
+  // Loaded here rather than at the top: the offline guard test imports this
+  // module for testConnection alone, and drizzle-kit takes a second to load.
+  const [{ build }, { generateDrizzleJson, generateMigration }] = await Promise.all([
+    import('esbuild'), import('drizzle-kit/api'),
+  ]);
   const directory = path.resolve('node_modules/.cache/fau-integration');
   await mkdir(directory, { recursive: true });
   const outfile = path.join(directory, 'schema.mjs');
