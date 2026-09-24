@@ -74,16 +74,14 @@ and run as Vercel serverless functions in production.
 ### Verification
 
 ```bash
-npm run test:unit  # Executable middleware, RBAC and validation contracts
-npm run test:smoke # Shared business-logic and source-level regression guards
-npm test           # Both test tiers
+npm test           # Every offline suite in tests/ (node:test)
 npm run check      # TypeScript and bilingual-string checks
 npm run build      # Production frontend build
 npm run verify     # check + test + build (the same gate CI runs)
 ```
 
-The unit/contract tier uses Node's built-in test runner and does not require
-production credentials. Database concurrency and provider integration tests
+The suites use Node's built-in test runner and need no database, network or
+credentials. Database concurrency and provider integration tests
 still require an isolated test environment; never point automated tests at the
 production Neon database.
 

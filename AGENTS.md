@@ -17,7 +17,7 @@ and an admin area for council members. React SPA on Vercel + Neon PostgreSQL.
 npm ci             # install (required before any check/test/build)
 npm run dev        # Vite dev server on http://localhost:5000 (frontend only)
 npm run check      # tsc --noEmit + the i18n ratchet (scripts/check-i18n.mjs)
-npm test           # test:unit then test:smoke
+npm test           # every offline suite in tests/ (node:test)
 npm run build      # production frontend build (Vite → dist/public)
 npm run verify     # check + offline tests + build (CI's verify job)
 npm run test:integration # isolated PostgreSQL gate; see docs/database-testing.md
@@ -48,7 +48,7 @@ attached_assets/    Uploaded source material, never served — including
                     illustrations/, the six commissioned page originals and
                     the `-dark` night version of each
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
-tests/*.test.mjs    node:test suites; scripts/smoke-tests.mjs is the second tier
+tests/*.test.mjs    node:test suites, one per module or contract
 docs/               Architecture, subsystem rules, deployment and database testing
 docs/design/        The UI Design & Style Guide (PDF + text transcription)
 ```
@@ -236,12 +236,19 @@ serverless function.
 
 `tests/*.test.mjs` run on `node --test` with no database, network or
 credentials: they import `api/_shared/*` and `shared/*` directly and stub what
-they need. `scripts/smoke-tests.mjs` is an assertion-based second tier that also
-grep-guards source-level regressions.
+they need. There is one runner and one tier: a suite is named after the module
+it exercises (`rate-limit`, `photo-slots`, `emails`, …), and a new test goes in
+that suite rather than a new file. Three suites hold the source-level guards —
+checks that read a file because the behaviour cannot run offline:
+`backend-invariants` (SQL shape inside handlers), `client-invariants` (query
+keys, route guards, accessible names, illustration crops) and `deploy-config`
+(`vercel.json` / `index.html` against the code they must agree with). Add a
+guard there only for a bug that would otherwise fail silently; never to pin
+copy, class names or anything `npm run check` already catches.
 
 ```bash
 node --test tests/calendar-feed.test.mjs   # one suite while iterating
-npm test                                   # both tiers
+npm test                                   # every offline suite
 npm run verify                             # the full CI gate
 ```
 

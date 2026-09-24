@@ -9,6 +9,7 @@ import {
   requireCsrf,
   requireIntId,
   requireRole,
+  setCookie,
   validateCsrfToken,
 } from '../api/_shared/middleware.js';
 import { ADMIN_ONLY, COUNCIL_ROLES } from '../shared/constants.js';
@@ -218,4 +219,18 @@ test('oversized fields are detected before sanitization runs', () => {
   assert.equal(findOversizedField({}), null);
   assert.equal(findOversizedField(null), null);
   assert.equal(findOversizedField({ count: 12345 }), null, 'non-strings are not length-checked');
+});
+
+test('cookies default to SameSite=Strict and append rather than replace', () => {
+  const headers = {};
+  const res = {
+    getHeader: (name) => headers[name],
+    setHeader: (name, value) => { headers[name] = value; },
+  };
+  setCookie(res, 'jwt', 'a b', { httpOnly: true, secure: true, maxAge: 60 });
+  setCookie(res, 'csrf-token', 'x', { secure: false });
+  assert.deepEqual(headers['Set-Cookie'], [
+    'jwt=a%20b; Path=/; Max-Age=60; SameSite=Strict; HttpOnly; Secure',
+    'csrf-token=x; Path=/; Max-Age=7200; SameSite=Strict',
+  ]);
 });

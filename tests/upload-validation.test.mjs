@@ -8,6 +8,7 @@ import {
   validateUploadFile,
   withFileExtension,
 } from '../api/_shared/upload-validation.js';
+import { parseCloudinaryDeliveryUrl } from '../api/_shared/cloudinary-url.js';
 
 test('filename sanitization removes path and unsafe characters', () => {
   const sanitized = sanitizeFilename('../../FAU referat (juni).pdf');
@@ -146,4 +147,23 @@ test('the size limit still applies to a provider-verified image', () => {
 
   assert.equal(result.ok, false);
   assert.match(result.error, /exceeds maximum/);
+});
+
+// Deleting a document hands this public id to Cloudinary: an image id carries
+// no extension, a raw id keeps it, and the version segment is never part of it.
+test('delivery URLs parse to the public id Cloudinary expects per resource type', () => {
+  const parse = (path) => parseCloudinaryDeliveryUrl(new URL(`https://res.cloudinary.com${path}`));
+  assert.deepEqual(parse('/fau-demo/image/upload/v1770000000/fau-documents/1770000000000-tips.jpg'), {
+    cloudName: 'fau-demo',
+    resourceType: 'image',
+    deliveryType: 'upload',
+    publicId: 'fau-documents/1770000000000-tips',
+  });
+  assert.deepEqual(parse('/fau-demo/raw/upload/v1770000000/fau-documents/1770000000000-referat.pdf'), {
+    cloudName: 'fau-demo',
+    resourceType: 'raw',
+    deliveryType: 'upload',
+    publicId: 'fau-documents/1770000000000-referat.pdf',
+  });
+  assert.equal(parse('/fau-demo/image/upload/fau-documents/m%C3%B8te%20referat.png').publicId, 'fau-documents/møte referat');
 });

@@ -4,7 +4,13 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import { sanitizeHtml, sanitizeText } from '../api/_shared/middleware.js';
+import {
+  sanitizeEmail,
+  sanitizeHtml,
+  sanitizeNumber,
+  sanitizePhone,
+  sanitizeText,
+} from '../api/_shared/middleware.js';
 import { htmlToPlainText } from '../shared/html-text.js';
 
 const require = createRequire(import.meta.url);
@@ -61,6 +67,16 @@ test('the sanitizer still strips scripts, javascript: URLs and event handlers', 
   assert.equal(sanitizeHtml('<a href="javascript:alert(1)">x</a>').includes('javascript:'), false);
   assert.equal(sanitizeHtml('<img src=x onerror=alert(1)>').includes('onerror'), false);
   assert.equal(sanitizeHtml('<p>Blåbærsyltetøy &amp; kake</p>'), '<p>Blåbærsyltetøy &amp; kake</p>');
+  for (const payload of ['<svg/onload=alert(1)>', '<a href="java&#x73;cript:alert(1)">encoded</a>']) {
+    assert.doesNotMatch(sanitizeHtml(payload), /onload|javascript:|<svg/i, payload);
+  }
+});
+
+test('links keep their href and always open safely in a new tab', () => {
+  assert.equal(
+    sanitizeHtml('<a href="https://example.com">ok</a>'),
+    '<a href="https://example.com" target="_blank" rel="noopener noreferrer">ok</a>',
+  );
 });
 
 // Both were fixed in sanitize-html 2.17.6/2.17.7. Pinning the parser back must
@@ -166,4 +182,25 @@ test('sanitizeText still enforces maxLength and keeps Norwegian prose intact', (
   assert.equal(sanitizeText('Vi møtes kl. 18:30 i gymsalen.'), 'Vi møtes kl. 18:30 i gymsalen.');
   assert.equal(sanitizeText('Hei, æøå ÆØÅ — helt vanlig tekst!'), 'Hei, æøå ÆØÅ — helt vanlig tekst!');
   assert.equal(sanitizeText('onerror="alert(1)" hei'), 'hei');
+});
+
+test('sanitizeEmail normalizes a valid address and rejects anything else', () => {
+  assert.equal(sanitizeEmail('  Kari.Nordmann+fau@Example.NO '), 'kari.nordmann+fau@example.no');
+  for (const bad of ['', null, 42, 'kari', 'kari@', 'kari@example', 'a b@example.no', 'kari@example.no\nBcc: x@y.no']) {
+    assert.equal(sanitizeEmail(bad), null, JSON.stringify(bad));
+  }
+});
+
+test('sanitizePhone keeps dialling characters only and caps the length', () => {
+  assert.equal(sanitizePhone('+47 (999) 88-777'), '+47 (999) 88-777');
+  assert.equal(sanitizePhone('999<script>88777'), '99988777');
+  assert.equal(sanitizePhone('1'.repeat(40)).length, 20);
+  assert.equal(sanitizePhone(null), '');
+});
+
+test('sanitizeNumber returns null outside the bounds or for non-numbers', () => {
+  assert.equal(sanitizeNumber('3', 1, 10), 3);
+  assert.equal(sanitizeNumber('0', 1, 10), null);
+  assert.equal(sanitizeNumber('11', 1, 10), null);
+  assert.equal(sanitizeNumber('abc'), null);
 });
