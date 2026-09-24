@@ -21,6 +21,7 @@ contents of each migration file. The current migrations are:
 14. `0014_calendar_family_category.sql`
 15. `0015_registration_cancel_token.sql`
 16. `0016_registration_cancellations.sql`
+17. `0017_delivery_failed_status.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -96,3 +97,21 @@ SELECT COUNT(*) FROM event_registrations WHERE cancel_token IS NULL;  -- 0
 where a self-service cancellation copies the registration before deleting it,
 so council members can see who cancelled. Apply it together with 0015, before
 deploying: the cancel statement and the nightly retention both write to it.
+
+## Retired newsletter deliveries
+
+`0017_delivery_failed_status.sql` adds `'failed'` to
+`newsletter_deliveries_status_check`. The evening cron retires a delivery as
+`'failed'` after five unsuccessful sends, and 0008's check did not allow that
+state: the retiring `UPDATE` failed, so the row was retried every night, the
+run ended in a 500, and the source item was never stamped as sent. Apply it as
+soon as possible; the code already depends on it. Verify with:
+
+```sql
+SELECT pg_get_constraintdef(oid)
+FROM pg_constraint
+WHERE conname = 'newsletter_deliveries_status_check';  -- lists 'failed'
+```
+
+Rows already stuck by the old constraint recover on their own: the next run
+reclaims them after the lease and can now retire them.

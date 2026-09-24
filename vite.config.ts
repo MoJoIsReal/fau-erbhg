@@ -24,7 +24,10 @@ export default defineConfig({
         // app code (not React/Radix/TanStack Query) actually changed.
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
-          if (id.includes("/react/") || id.includes("/react-dom/") || id.includes("/scheduler/")) {
+          // The package directories themselves. A bare "/react/" substring
+          // also matched @tiptap/react, which dragged the council-only editor
+          // (ProseMirror) into this chunk and onto every public page load.
+          if (/node_modules\/(react|react-dom|scheduler)\//.test(id)) {
             return "vendor-react";
           }
           if (id.includes("@radix-ui")) {

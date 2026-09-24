@@ -42,3 +42,8 @@ export const EVENT_TYPES = [
 // above it rather than saving it as unlimited, and the event form checks the
 // same limit so the council sees the reason before submitting.
 export const MAX_EVENT_ATTENDEES = 1000;
+
+// Most people one public signup may register. The signup form offers fewer;
+// the API enforces this so a scripted request cannot take a whole event (or a
+// whole photo day) in one go.
+export const MAX_ATTENDEES_PER_REGISTRATION = 10;

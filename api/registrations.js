@@ -8,15 +8,14 @@ import {
   sanitizeText,
   sanitizeEmail,
   sanitizePhone,
-  sanitizeNumber,
   findOversizedField
 } from './_shared/middleware.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
-import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
+import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import Sentry from './_shared/sentry.js';
 import { reportProviderError } from './_shared/provider-errors.js';
-import { COUNCIL_ROLES } from '../shared/constants.js';
+import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION } from '../shared/constants.js';
 import {
   cancellationText,
   isCancelToken,
@@ -30,6 +29,19 @@ const MAX_CHILD_NAME_LENGTH = 100;
 const PHOTO_SLOT_ALLOCATION_ATTEMPTS = 3;
 const CANCEL_WINDOW_SECONDS = 10 * 60;
 const CANCEL_MAX_ATTEMPTS = 30;
+
+// Absent means one person. Anything else must be a whole number from 1 to
+// MAX_ATTENDEES_PER_REGISTRATION: the old `sanitizeNumber(…, 1, 100) || 1`
+// accepted up to 100 (the form allows 10 at most), so one scripted request
+// could fill an event, and it let fractions through to an integer column.
+// Returns null when invalid.
+function normalizeAttendeeCount(value) {
+  if (value === undefined || value === null || value === '') return 1;
+  const count = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+    ? Number(value)
+    : NaN;
+  return Number.isInteger(count) && count >= 1 && count <= MAX_ATTENDEES_PER_REGISTRATION ? count : null;
+}
 
 export function isPhotoSlotConflict(error) {
   return error?.code === '23505'
@@ -245,11 +257,19 @@ export default withApiHandler(async function handler(req, res) {
     const sanitizedEmail = sanitizeEmail(email);
     const sanitizedPhone = sanitizePhone(phone);
     const sanitizedComments = comments ? sanitizeText(comments, 1000) : null;
-    const sanitizedAttendeeCount = sanitizeNumber(attendeeCount, 1, 100) || 1;
+    const sanitizedAttendeeCount = normalizeAttendeeCount(attendeeCount);
     const sanitizedLanguage = ['no', 'en'].includes(language) ? language : 'no';
 
     if (!eventId || !sanitizedName || !sanitizedEmail) {
       return res.status(400).json({ error: 'Event ID, valid name and email are required' });
+    }
+
+    if (sanitizedAttendeeCount === null) {
+      return res.status(400).json({
+        error: sanitizedLanguage === 'no'
+          ? `Antall deltakere må være fra 1 til ${MAX_ATTENDEES_PER_REGISTRATION}`
+          : `Number of attendees must be from 1 to ${MAX_ATTENDEES_PER_REGISTRATION}`
+      });
     }
 
     // Check email domain against database blacklist
@@ -356,6 +376,19 @@ export default withApiHandler(async function handler(req, res) {
 
     const sanitizedChildrenNames = sanitizeChildrenNames(childrenNames, requestedAttendees);
 
+    // A photo booking is one slot per named child. Without a name for each,
+    // the registration used to be stored without any slot, so a photo
+    // registration must name every child it books for — which the form
+    // already requires.
+    if (event.type === 'foto'
+        && (!sanitizedChildrenNames || JSON.parse(sanitizedChildrenNames).length !== requestedAttendees)) {
+      return res.status(400).json({
+        error: sanitizedLanguage === 'no'
+          ? 'Oppgi fornavn på hvert barn som skal fotograferes'
+          : 'Please give the first name of each child to be photographed'
+      });
+    }
+
     // Photo slots are first proposed from the current registration snapshot, then
     // reserved by a unique (event_id, slot) database index in the same statement
     // as the registration. A concurrent winner makes the loser retry from a fresh
@@ -375,6 +408,17 @@ export default withApiHandler(async function handler(req, res) {
           WHERE event_id = ${eventIdNum}
         `;
         photoSlots = assignPhotoSlots(event, existingForSlots, requestedAttendees);
+        // Photo events have no seat limit; the day's slots are the limit.
+        // assignPhotoSlots drops slots that would run past midnight, so a
+        // full day comes back short — refuse rather than book a child with
+        // no time.
+        if (photoSlots.length < requestedAttendees) {
+          return res.status(409).json({
+            error: sanitizedLanguage === 'no'
+              ? 'Det er ikke nok ledige fototider igjen for denne påmeldingen'
+              : 'There are not enough photo slots left for this registration'
+          });
+        }
         photoSlotsJson = JSON.stringify(photoSlots);
       }
 
@@ -490,13 +534,13 @@ export default withApiHandler(async function handler(req, res) {
     // there's no reason to make the caller wait on Gmail's response time —
     // waitUntil() lets it finish after the response is already sent.
     waitUntil(
-      sendEventConfirmationEmail({
+      sendPublicMail(sql, 'registration-confirmation', () => sendEventConfirmationEmail({
         registration: newRegistration[0],
         event: updatedEvent,
         language: sanitizedLanguage,
         photoSlots: photoSlots
-      })
-        .then(() => console.log('Event confirmation email sent successfully'))
+      }))
+        .then((sent) => sent && console.log('Event confirmation email sent successfully'))
         .catch((emailError) => {
           reportProviderError('Failed to send event confirmation email', emailError);
         })
@@ -547,6 +591,10 @@ export default withApiHandler(async function handler(req, res) {
   return res.status(405).json({ error: 'Method not allowed' });
 });
 
+// The address is not verified before this goes out, so the mail carries only
+// what FAU wrote plus the name: the free-text comment is not echoed back, or
+// the form would send anyone's words to anyone from FAU's account. Council
+// members still see the comment in the registrations list.
 async function sendEventConfirmationEmail(params) {
   const { registration, event, language, photoSlots } = params;
 
@@ -614,7 +662,6 @@ Detaljer:
 - E-post: ${registration.email}
 - Telefon: ${registration.phone || 'Ikke oppgitt'}
 - Antall deltakere: ${registration.attendee_count || 1}
-${registration.comments ? `- Kommentarer: ${registration.comments}` : ''}
 
 Arrangementsinformasjon:
 - Tittel: ${event.title}
@@ -638,7 +685,6 @@ Details:
 - Email: ${registration.email}
 - Phone: ${registration.phone || 'Not provided'}
 - Number of attendees: ${registration.attendee_count || 1}
-${registration.comments ? `- Comments: ${registration.comments}` : ''}
 
 Event information:
 - Title: ${event.title}

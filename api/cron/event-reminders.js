@@ -251,14 +251,23 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
            COALESCE(ev.description, yc.description, left(bp.content, 4000), c.description)
              AS description,
            c.event_date as "eventDate",
+           -- The same predicate the fan-out above queues by, minus the date
+           -- and the stamp: whether the item is still one to send. A retry can
+           -- come round after its event was cancelled, its post archived, its
+           -- flag cleared or the item deleted.
+           CASE c.item_type
+             WHEN 'event' THEN COALESCE(ev.status = 'active' AND ev.notify_newsletter, false)
+             WHEN 'calendar' THEN COALESCE(yc.entry_type IN ('day_event', 'closed') AND yc.notify_newsletter, false)
+             WHEN 'news' THEN COALESCE(bp.status = 'published' AND bp.notify_newsletter, false)
+             ELSE false
+           END AS "sourceEligible",
            c.attempts, s.email, s.language, s.status as "subscriberStatus",
            s.unsubscribe_token as "unsubscribeToken"
     FROM claimed c
     LEFT JOIN newsletter_subscribers s ON s.id = c.subscriber_id
     -- The body is read from the item here rather than carried on the row. The
-    -- stored columns are still the last fallback, which is what keeps rows
-    -- queued before this change — and rows whose item has since been deleted —
-    -- sendable exactly as they were.
+    -- stored columns remain a fallback for rows queued before that change; a
+    -- row whose item has since been deleted is skipped (sourceEligible).
     LEFT JOIN events ev ON c.item_type = 'event' AND ev.id = c.item_id
     LEFT JOIN yearly_calendar_entries yc ON c.item_type = 'calendar' AND yc.id = c.item_id
     LEFT JOIN blog_posts bp ON c.item_type = 'news' AND bp.id = c.item_id
@@ -284,7 +293,12 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
       return;
     }
 
-    if (delivery.subscriberStatus !== 'active' || !delivery.email) {
+    // The claim takes anything due on or before tonight, so a reminder that
+    // failed the evening before its event would otherwise be retried the
+    // evening of it and on later nights. Only news rows carry the run date;
+    // an event or calendar row dated before tonight's target is past.
+    const past = delivery.itemType !== 'news' && delivery.eventDate < targetDate;
+    if (delivery.subscriberStatus !== 'active' || !delivery.email || !delivery.sourceEligible || past) {
       await sql`
         UPDATE newsletter_deliveries
         SET status = 'skipped', claimed_at = NULL, last_error = NULL, updated_at = NOW()

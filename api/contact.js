@@ -8,7 +8,7 @@ import {
   sanitizePhone,
   findOversizedField,
 } from './_shared/middleware.js';
-import { checkRateLimit, rateLimitKey } from './_shared/rate-limit.js';
+import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { confirmationEmail, newsletterToken } from './_shared/newsletter.js';
 import { contactAcknowledgementEmail } from './_shared/contact-emails.js';
@@ -125,15 +125,15 @@ export default withApiHandler(async function handler(req, res) {
     // there's no reason to make the caller wait on Gmail's response time —
     // waitUntil() lets it finish after the response is already sent.
     waitUntil(
-      sendContactEmail({
+      sendPublicMail(sql, 'contact-notification', () => sendContactEmail({
         name: isAnonymous ? 'Anonym' : sanitizedName,
         email: isAnonymous ? 'noreply@example.com' : sanitizedEmail,
         phone: sanitizedPhone,
         subject,
         message: sanitizedMessage,
         isAnonymous
-      })
-        .then(() => console.log('Contact email sent successfully'))
+      }))
+        .then((sent) => sent && console.log('Contact email sent successfully'))
         .catch((emailError) => {
           reportProviderError('Failed to send contact email', emailError);
         })
@@ -144,14 +144,14 @@ export default withApiHandler(async function handler(req, res) {
     // turn a stored inquiry into an error for the parent.
     if (!isAnonymous && sanitizedEmail) {
       waitUntil(
-        sendAcknowledgementEmail({
+        sendPublicMail(sql, 'contact-acknowledgement', () => sendAcknowledgementEmail({
           name: sanitizedName,
           email: sanitizedEmail,
           subject,
           language: language === 'en' ? 'en' : 'no',
           receivedAt: contactMessage?.created_at,
-        })
-          .then(() => console.log('Contact acknowledgement sent successfully'))
+        }))
+          .then((sent) => sent && console.log('Contact acknowledgement sent successfully'))
           .catch((emailError) => {
             reportProviderError('Failed to send contact acknowledgement', emailError);
           })
@@ -289,9 +289,10 @@ async function handleNewsletterSubscribe(req, res) {
     if (isEmailConfigured()) {
       const { subject, text } = confirmationEmail({ language: lang, confirmToken });
       waitUntil(
-        sendEmail({ to: sanitizedEmail, subject, text }).catch((emailError) => {
-          reportProviderError('Failed to send newsletter confirmation', emailError);
-        })
+        sendPublicMail(sql, 'newsletter-confirmation', () => sendEmail({ to: sanitizedEmail, subject, text }))
+          .catch((emailError) => {
+            reportProviderError('Failed to send newsletter confirmation', emailError);
+          })
       );
     }
 

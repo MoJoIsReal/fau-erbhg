@@ -91,6 +91,14 @@ is not tied to a date, so it goes out on the first run after it is flagged).
 Each item is stamped `newsletter_sent_at` once no delivery for it is still
 pending, which is what stops a second send.
 
+A delivery row ends `sent`, `skipped` or `failed` (five unsuccessful sends).
+Those states are enforced by `newsletter_deliveries_status_check`, which lives
+only in the migrations (0008, widened by 0017) — a new state needs a migration,
+not just code. A retry is skipped rather than sent when its item is no longer
+one the fan-out would queue (event cancelled, post archived, flag cleared, item
+deleted) or when an event/calendar row's date is before the run's target date,
+so a reminder never goes out after the day it is about.
+
 The broadcast runs from Vercel Cron at 19:00 UTC (≈21:00 Oslo); the 07:00 UTC
 run of the same handler does registration reminders and GDPR retention cleanup.
 Both schedules live in `vercel.json`, are fixed UTC, and do **not** follow
