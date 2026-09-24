@@ -120,7 +120,7 @@ There are 16 flows (see `TRACEABILITY_MATRIX.md`): 10 PASS, 5 PARTIAL, 1 FAIL.
   - F-03, signup: the validation hop is weaker than the UI.
   - F-08, documents: the return mapping leaks `uploadedBy`, and the 500-row limit is applied before editor images are filtered out.
   - F-09, contact: a non-ISO `created_at` is stored.
-  - F-14, public reads: over-fetching, and `createdBy` is public.
+  - F-14, public reads: over-fetching. (The public `createdBy` on year-calendar entries is intended: the owner confirmed that showing who created an entry is wanted.)
   - F-15, import: runs outside a transaction and one statement at a time.
 - **Reverse trace:** every route has a client caller except the `staff-users` alias. `site_settings` is declared but unused. `reminder_attempts` is written but never read.
 - **Contract checks that hold:** camelCase mapping, removal of `cancel_token` from responses, ISO deadlines and Oslo-date cancellation guards, the error code for a required password change, and 401 session recovery.

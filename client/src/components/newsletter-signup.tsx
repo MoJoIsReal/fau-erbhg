@@ -1,12 +1,18 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  TURNSTILE_FAILED,
+  TurnstileWidget,
+  turnstileEnabled,
+  type TurnstileHandle,
+} from "@/components/turnstile-widget";
 
 export default function NewsletterSignup() {
   const { t, language } = useLanguage();
@@ -15,6 +21,9 @@ export default function NewsletterSignup() {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [website, setWebsite] = useState(""); // honeypot
+  const turnstileRef = useRef<TurnstileHandle>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -23,15 +32,24 @@ export default function NewsletterSignup() {
         name,
         language,
         website,
+        turnstileToken,
       });
       return res.json();
     },
+    // A Turnstile token is single-use, whatever the outcome.
+    onSettled: () => turnstileRef.current?.reset(),
     onSuccess: () => {
       toast({ title: t.newsletter.successTitle, description: t.newsletter.successDesc });
       setEmail("");
       setName("");
     },
     onError: (error: any) => {
+      // Without a widget on the page (no site key in this build) there is
+      // nothing to show the message in, so the refusal falls through to the toast.
+      if (turnstileEnabled && getApiErrorBody(error)?.code === TURNSTILE_FAILED) {
+        setTurnstileNotReady(true);
+        return;
+      }
       toast({
         title: t.newsletter.errorTitle,
         description: error?.message || t.newsletter.errorDesc,
@@ -40,9 +58,18 @@ export default function NewsletterSignup() {
     },
   });
 
+  const onTurnstileToken = (token: string | null) => {
+    setTurnstileToken(token);
+    if (token) setTurnstileNotReady(false);
+  };
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
+    if (turnstileEnabled && !turnstileToken) {
+      setTurnstileNotReady(true);
+      return;
+    }
     mutation.mutate();
   };
 
@@ -82,6 +109,8 @@ export default function NewsletterSignup() {
       </div>
 
       <p className="text-xs text-subtle">{t.newsletter.consent}</p>
+
+      <TurnstileWidget ref={turnstileRef} onToken={onTurnstileToken} showNotReady={turnstileNotReady} />
 
       <Button
         type="submit"

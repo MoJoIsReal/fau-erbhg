@@ -311,6 +311,12 @@ export interface Translations {
     otherWays: string;
   };
   // Newsletter ("nyhetsbrev")
+  // Cloudflare Turnstile on the public forms (event signup, contact, newsletter).
+  turnstile: {
+    label: string;
+    notReady: string;
+    loadFailed: string;
+  };
   newsletter: {
     navTitle: string;
     title: string;
@@ -1207,6 +1213,11 @@ export const translations: Record<Language, Translations> = {
       formLead: "Feltene med stjerne må fylles ut. Velger du «Anonym henvendelse» sender vi meldingen uten navn og kontaktinfo.",
       otherWays: "Andre måter å nå oss på",
     },
+    turnstile: {
+      label: "Sikkerhetssjekk",
+      notReady: "Sikkerhetssjekken er ikke ferdig eller har utløpt. Vent til den er fullført, og send på nytt.",
+      loadFailed: "Sikkerhetssjekken kunne ikke lastes. Sjekk nettverket, slå av eventuelle blokkeringsutvidelser og last siden på nytt.",
+    },
     newsletter: {
       navTitle: "Nyhetsbrev",
       title: "Meld deg på nyhetsbrevet",
@@ -2095,6 +2106,11 @@ export const translations: Record<Language, Translations> = {
       formTitle: "Send us a message",
       formLead: "Fields marked with a star are required. Choosing an anonymous enquiry sends the message without your name or contact details.",
       otherWays: "Other ways to reach us",
+    },
+    turnstile: {
+      label: "Security check",
+      notReady: "The security check isn't finished or has expired. Wait for it to complete, then send again.",
+      loadFailed: "The security check could not load. Check your connection, turn off any blocking extensions and reload the page.",
     },
     newsletter: {
       navTitle: "Newsletter",

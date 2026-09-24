@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { insertContactMessageSchema } from "@shared/schema";
 import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
 import {
@@ -38,6 +38,12 @@ import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import NewsletterSignup from "@/components/newsletter-signup";
+import {
+  TURNSTILE_FAILED,
+  TurnstileWidget,
+  turnstileEnabled,
+  type TurnstileHandle,
+} from "@/components/turnstile-widget";
 import PageHero from "@/components/site/page-hero";
 import { SectionHeader, Surface } from "@/components/site/section";
 import { InfoBanner } from "@/components/site/banners";
@@ -85,6 +91,9 @@ export default function Contact() {
     path: "/contact",
   });
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const turnstileRef = useRef<TurnstileHandle>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
   const formSchema = insertContactMessageSchema.extend({
     subject: z.string().min(1, t.contact.selectSubject),
@@ -149,11 +158,14 @@ export default function Contact() {
           name: "",
           email: "",
           phone: "",
+          turnstileToken,
         });
       }
       // language decides which of the two auto-reply templates the sender gets.
-      return apiRequest("POST", "/api/contact", { ...data, language });
+      return apiRequest("POST", "/api/contact", { ...data, language, turnstileToken });
     },
+    // A Turnstile token is single-use, whatever the outcome.
+    onSettled: () => turnstileRef.current?.reset(),
     onSuccess: () => {
       toast({
         title: t.contact.success,
@@ -162,6 +174,12 @@ export default function Contact() {
       form.reset();
     },
     onError: (error: any) => {
+      // Without a widget on the page (no site key in this build) there is
+      // nothing to show the message in, so the refusal falls through to the toast.
+      if (turnstileEnabled && getApiErrorBody(error)?.code === TURNSTILE_FAILED) {
+        setTurnstileNotReady(true);
+        return;
+      }
       toast({
         title: t.contact.error,
         description: error.message || t.contact.errorDesc,
@@ -170,7 +188,16 @@ export default function Contact() {
     },
   });
 
+  const onTurnstileToken = (token: string | null) => {
+    setTurnstileToken(token);
+    if (token) setTurnstileNotReady(false);
+  };
+
   const onSubmit = (data: FormData) => {
+    if (turnstileEnabled && !turnstileToken) {
+      setTurnstileNotReady(true);
+      return;
+    }
     mutation.mutate(data);
   };
 
@@ -315,6 +342,12 @@ export default function Contact() {
                     <FormMessage />
                   </FormItem>
                 )}
+              />
+
+              <TurnstileWidget
+                ref={turnstileRef}
+                onToken={onTurnstileToken}
+                showNotReady={turnstileNotReady}
               />
 
               <Button type="submit" disabled={mutation.isPending}>

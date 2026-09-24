@@ -13,6 +13,7 @@ import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { confirmationEmail, newsletterToken } from './_shared/newsletter.js';
 import { contactAcknowledgementEmail } from './_shared/contact-emails.js';
 import { reportProviderError } from './_shared/provider-errors.js';
+import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 
 const CONTACT_WINDOW_SECONDS = 10 * 60;
 const CONTACT_MAX_ATTEMPTS = 3;
@@ -110,6 +111,10 @@ export default withApiHandler(async function handler(req, res) {
     if (!rateLimit.allowed) {
       res.setHeader('Retry-After', String(rateLimit.retryAfter));
       return res.status(429).json({ error: 'Too many messages. Try again later.' });
+    }
+
+    if (!(await verifyTurnstile(req, req.body?.turnstileToken, 'contact'))) {
+      return res.status(400).json(turnstileFailure(language));
     }
 
     // Create contact message in database
@@ -255,6 +260,10 @@ async function handleNewsletterSubscribe(req, res) {
     if (!emailLimit.allowed || !ipLimit.allowed) {
       res.setHeader('Retry-After', String(Math.max(emailLimit.retryAfter, ipLimit.retryAfter)));
       return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    }
+
+    if (!(await verifyTurnstile(req, req.body?.turnstileToken, 'newsletter'))) {
+      return res.status(400).json(turnstileFailure(lang));
     }
 
     const now = new Date().toISOString();

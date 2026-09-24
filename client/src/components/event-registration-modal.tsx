@@ -1,3 +1,4 @@
+import { useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,11 +9,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { insertEventRegistrationSchema } from "@shared/schema";
 import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  TURNSTILE_FAILED,
+  TurnstileWidget,
+  turnstileEnabled,
+  type TurnstileHandle,
+} from "@/components/turnstile-widget";
 import { z } from "zod";
 
 const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
@@ -34,6 +41,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const queryClient = useQueryClient();
   const { language, t } = useLanguage();
   const isFotoEvent = event?.type === "foto";
+  const turnstileRef = useRef<TurnstileHandle>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -76,8 +86,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
       if (!event) throw new Error("Ingen arrangement valgt");
-      return apiRequest("POST", `/api/registrations`, { ...data, eventId: event.id, language });
+      return apiRequest("POST", `/api/registrations`, { ...data, eventId: event.id, language, turnstileToken });
     },
+    // A Turnstile token is single-use, whatever the outcome.
+    onSettled: () => turnstileRef.current?.reset(),
     onSuccess: () => {
       toast({
         title: t.modals.eventRegistration.success,
@@ -89,6 +101,12 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
     onError: (error: any) => {
+      // Without a widget on the page (no site key in this build) there is
+      // nothing to show the message in, so the refusal falls through to the toast.
+      if (turnstileEnabled && getApiErrorBody(error)?.code === TURNSTILE_FAILED) {
+        setTurnstileNotReady(true);
+        return;
+      }
       // Parse error message - remove JSON parts if present
       let rawMessage = error.message || t.modals.eventRegistration.errorDesc;
 
@@ -166,7 +184,16 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       const trimmedNames = names.slice(0, count).map(n => n.trim());
       data.childrenNames = JSON.stringify(trimmedNames);
     }
+    if (turnstileEnabled && !turnstileToken) {
+      setTurnstileNotReady(true);
+      return;
+    }
     mutation.mutate(data);
+  };
+
+  const onTurnstileToken = (token: string | null) => {
+    setTurnstileToken(token);
+    if (token) setTurnstileNotReady(false);
   };
 
   const handleClose = () => {
@@ -337,6 +364,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                 </p>
               </div>
             )}
+
+            <TurnstileWidget ref={turnstileRef} onToken={onTurnstileToken} showNotReady={turnstileNotReady} />
 
             </form>
           </Form>

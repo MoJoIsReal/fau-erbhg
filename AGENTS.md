@@ -113,6 +113,7 @@ calendar, calendar feed, newsletter invariants),
 | Table shape, shared types, insert schemas | `shared/schema.ts` + a `migrations/*.sql` |
 | Email / newsletter sending | `api/_shared/{email,newsletter,delivery,contact-emails}.js` |
 | Uploads | `api/upload.js` + `api/_shared/upload-validation.js` |
+| Bot check on the public forms (Cloudflare Turnstile) | `api/_shared/turnstile.js` + `client/src/components/turnstile-widget.tsx`; keys and CSP in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 | Structured logs, request ids | `api/_shared/log.js` (`withApiHandler` calls it) |
 | Scheduled work | `api/cron/event-reminders.js`, schedules in `vercel.json` |
 | Video embeds (sanitizer + CSP) | `shared/video-embed.js`, and the four files [`docs/subsystems.md`](docs/subsystems.md) names |

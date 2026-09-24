@@ -2,7 +2,17 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { FAU_EMAIL } from "@shared/constants";
 
-const content = {
+type PrivacySection = {
+  title: string;
+  body: string;
+  link?: { href: string; label: string };
+};
+
+type PrivacyText = { title: string; intro: string; sections: PrivacySection[] };
+
+const TURNSTILE_PRIVACY_URL = "https://www.cloudflare.com/turnstile-privacy-policy/";
+
+const content: Record<"no" | "en", PrivacyText> = {
   no: {
     title: "Personvern",
     intro: "FAU Erdal Barnehage samler bare inn personopplysninger som trengs for kontakt, arrangementer og drift av FAU-arbeidet.",
@@ -29,7 +39,12 @@ const content = {
       },
       {
         title: "Tilgang og databehandlere",
-        body: "Kun autoriserte FAU-medlemmer har tilgang til admin-sidene. Appen bruker Vercel for hosting, Neon Postgres for database, Cloudinary for dokumentlagring og e-postleverandør for utsendinger. Disse opptrer som databehandlere på våre vegne."
+        body: "Kun autoriserte FAU-medlemmer har tilgang til admin-sidene. Appen bruker Vercel for hosting, Neon Postgres for database, Cloudinary for dokumentlagring, Cloudflare for sikkerhetssjekken på skjemaene og e-postleverandør for utsendinger. Disse opptrer som databehandlere på våre vegne."
+      },
+      {
+        title: "Sikkerhetssjekk på skjemaene",
+        body: "Skjemaene for arrangementspåmelding, kontakt og nyhetsbrev bruker Cloudflare Turnstile for å skille mennesker fra automatiserte roboter. Turnstile behandler tekniske opplysninger fra nettleseren din, som IP-adresse og nettleserdata, og brukes bare til denne kontrollen. Cloudflare behandler opplysningene på våre vegne, og som selvstendig behandlingsansvarlig for å forbedre Turnstiles robotgjenkjenning. Grunnlaget er vår berettigede interesse i å beskytte skjemaene mot misbruk.",
+        link: { href: TURNSTILE_PRIVACY_URL, label: "Cloudflares personvernvedlegg for Turnstile" }
       },
       {
         title: "Informasjonskapsler",
@@ -71,7 +86,12 @@ const content = {
       },
       {
         title: "Access and processors",
-        body: "Only authorized FAU members can access the admin pages. The app uses Vercel for hosting, Neon Postgres for the database, Cloudinary for document storage and an email provider for outgoing messages. These act as data processors on our behalf."
+        body: "Only authorized FAU members can access the admin pages. The app uses Vercel for hosting, Neon Postgres for the database, Cloudinary for document storage, Cloudflare for the security check on forms and an email provider for outgoing messages. These act as data processors on our behalf."
+      },
+      {
+        title: "Security check on forms",
+        body: "The event signup, contact and newsletter forms use Cloudflare Turnstile to tell people from automated bots. Turnstile processes technical data from your browser, such as your IP address and browser details, only for this check. Cloudflare processes this data on our behalf, and as an independent controller to improve Turnstile's bot detection. Our basis is our legitimate interest in protecting the forms from abuse.",
+        link: { href: TURNSTILE_PRIVACY_URL, label: "Cloudflare's Turnstile Privacy Addendum" }
       },
       {
         title: "Cookies",
@@ -114,6 +134,13 @@ export default function Privacy() {
           <section key={section.title} className="py-6 first:pt-0">
             <h2 className="text-h4 font-bold text-ink">{section.title}</h2>
             <p className="mt-2 text-copy">{section.body}</p>
+            {section.link && (
+              <p className="mt-2 text-copy">
+                <a href={section.link.href} className="font-semibold text-brand underline underline-offset-2">
+                  {section.link.label}
+                </a>
+              </p>
+            )}
           </section>
         ))}
       </div>
