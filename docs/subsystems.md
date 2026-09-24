@@ -142,7 +142,7 @@ An `<iframe>` is the one element whose rules span four files:
    tightened cannot render a frame the current rule rejects.
 4. `vercel.json` must list the same host in `frame-src`, or the browser blocks
    a frame both sanitizers approved and the visitor sees an empty box.
-   `scripts/smoke-tests.mjs` cross-checks the CSP against the shared host.
+   `tests/deploy-config.test.mjs` cross-checks the CSP against the shared host.
 
 The sanitizer strips the wrapper `<div data-youtube-video>` that
 `@tiptap/extension-youtube` renders, so a stored video is a bare `<iframe>`.

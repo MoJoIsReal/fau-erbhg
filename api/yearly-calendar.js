@@ -124,6 +124,16 @@ function sanitizeEntryPayload(body) {
   };
 }
 
+// school_year, year and month are NOT NULL, and sanitizeEntryPayload turns a
+// missing or out-of-range value into null. Create and update share this check:
+// update used to skip the placement fields, so a PUT without them reached the
+// database and came back as a not-null violation, a 500 rather than a 400.
+const REQUIRED_ENTRY_FIELDS_ERROR = 'entryType, title, schoolYear, year and month are required';
+
+function hasRequiredEntryFields(payload) {
+  return Boolean(payload.entryType && payload.title && payload.schoolYear && payload.year && payload.month);
+}
+
 function sanitizeInteger(value, min, max) {
   const num = sanitizeNumber(value, min, max);
   return Number.isInteger(num) ? num : null;
@@ -345,10 +355,8 @@ export default withApiHandler(async function handler(req, res) {
     }
 
     const payload = sanitizeEntryPayload(req.body || {});
-    if (!payload.entryType || !payload.title || !payload.schoolYear || !payload.year || !payload.month) {
-      return res.status(400).json({
-        error: 'entryType, title, schoolYear, year and month are required',
-      });
+    if (!hasRequiredEntryFields(payload)) {
+      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR });
     }
     const now = new Date().toISOString();
     const created = await sql`
@@ -372,8 +380,8 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: 'Valid id query parameter required' });
     }
     const payload = sanitizeEntryPayload(req.body || {});
-    if (!payload.entryType || !payload.title) {
-      return res.status(400).json({ error: 'entryType and title are required' });
+    if (!hasRequiredEntryFields(payload)) {
+      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR });
     }
     const now = new Date().toISOString();
     const updated = await sql`

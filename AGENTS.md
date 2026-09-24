@@ -17,7 +17,7 @@ and an admin area for council members. React SPA on Vercel + Neon PostgreSQL.
 npm ci             # install (required before any check/test/build)
 npm run dev        # Vite dev server on http://localhost:5000 (frontend only)
 npm run check      # tsc --noEmit + the i18n ratchet (scripts/check-i18n.mjs)
-npm test           # test:unit then test:smoke
+npm test           # every offline suite in tests/ (node:test)
 npm run build      # production frontend build (Vite → dist/public)
 npm run verify     # check + offline tests + build (CI's verify job)
 npm run test:integration # isolated PostgreSQL gate; see docs/database-testing.md
@@ -25,8 +25,8 @@ npm run db:push    # push shared/schema.ts to the DB (needs DATABASE_URL)
 ```
 
 There is **no local backend**. `api/*.js` only executes on Vercel (or under
-`vercel dev`). Don't add an Express/Node server to test handlers locally — test
-their extracted logic instead (see Testing).
+`vercel dev`). Don't add an Express/Node server to test handlers locally — run
+them through the handler harness in `tests/helpers.mjs` instead (see Testing).
 
 There is no ESLint/Prettier/formatter in this repo. Match the style of the file
 you are editing; do not add a linter as a side effect of another task.
@@ -48,7 +48,7 @@ attached_assets/    Uploaded source material, never served — including
                     illustrations/, the six commissioned page originals and
                     the `-dark` night version of each
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
-tests/*.test.mjs    node:test suites; scripts/smoke-tests.mjs is the second tier
+tests/*.test.mjs    node:test suites, one per module or contract
 docs/               Architecture, subsystem rules, deployment and database testing
 docs/design/        The UI Design & Style Guide (PDF + text transcription)
 ```
@@ -235,13 +235,38 @@ serverless function.
 ## Testing and validation
 
 `tests/*.test.mjs` run on `node --test` with no database, network or
-credentials: they import `api/_shared/*` and `shared/*` directly and stub what
-they need. `scripts/smoke-tests.mjs` is an assertion-based second tier that also
-grep-guards source-level regressions.
+credentials. There is one runner and one tier: a suite is named after the module
+it exercises (`rate-limit`, `photo-slots`, `emails`, …), and a new test goes in
+that suite rather than a new file.
+
+`tests/helpers.mjs` holds the shared fixtures; reuse them rather than writing
+another copy. `mockResponse()` is the response object. `importBundle()` bundles a
+client module with esbuild and imports it. The **handler harness** runs a real
+`api/*.js` handler, through the real middleware, against a scripted database:
+`importHandler()` loads it with only `database.js` mocked, `scriptedSql()`
+answers the identity lookup and rate limiter and records every statement,
+`fields()` reads a recorded INSERT/UPDATE back as `{ column: value }`, and
+`call(t, handler, { method, query, body, as: 'member', csrf })` signs in as a
+role and sends the request. A handler's request logic is tested in
+`<handler>-handler.test.mjs` (`events-handler`, `upload-handler`, …). It relies on Node's module mocks, so `npm test`
+passes `--experimental-test-module-mocks`, and a single handler suite needs it too.
+Stub a provider (Cloudinary, nodemailer) by mocking the method on its real
+client, not by rewriting source.
+
+`api-authorization` checks every protected route against every role and
+against a missing CSRF pair. A new route guarded by `requireRole` fails that
+suite until it is added to the matrix. Three suites hold the source-level guards —
+checks that read a file because the behaviour cannot run offline:
+`backend-invariants` (SQL shape inside handlers), `client-invariants` (query
+keys, route guards, accessible names, illustration crops) and `deploy-config`
+(`vercel.json` / `index.html` against the code they must agree with). Add a
+guard there only for a bug that would otherwise fail silently; never to pin
+copy, class names or anything `npm run check` already catches.
 
 ```bash
 node --test tests/calendar-feed.test.mjs   # one suite while iterating
-npm test                                   # both tiers
+node --test --experimental-test-module-mocks tests/auth-handler.test.mjs  # a handler suite
+npm test                                   # every offline suite
 npm run verify                             # the full CI gate
 ```
 
@@ -257,9 +282,8 @@ Before calling a change done:
 `npm run verify` covers all three when you'd otherwise run them individually.
 CI also runs a separate disposable PostgreSQL job; setup and the strictly local
 test-connection guard are documented in [`docs/database-testing.md`](docs/database-testing.md).
-Add a test whenever you touch `api/_shared/` or `shared/` — that is the layer
-the suites can actually reach. Never point automated tests at the production
-Neon database.
+Add a test whenever you touch `api/_shared/`, `shared/` or a handler's
+request logic. Never point automated tests at the production Neon database.
 
 ## Safety boundaries
 

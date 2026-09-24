@@ -2,7 +2,7 @@ import { EditorDialog, EditorSection } from "@/components/site/editor-dialog";
 import { CalendarCategory } from "@/components/site/calendar-category";
 import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarKindForEventType } from "@shared/calendar-entries";
 import { useForm, useWatch } from "react-hook-form";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/dialog";
@@ -17,6 +17,7 @@ import { TimeInput24h } from "@/components/time-input-24h";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertEventSchema, type Event } from "@shared/schema";
+import { MAX_EVENT_ATTENDEES } from "@shared/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { validateAddress } from "@/lib/location-utils";
 import { cn } from "@/lib/utils";
@@ -25,8 +26,16 @@ import { enGB, nb } from "date-fns/locale";
 import { z } from "zod";
 import RichTextEditor from "@/components/RichTextEditor";
 
-const formSchema = insertEventSchema.extend({
-  maxAttendees: z.number().min(1).optional().nullable(),
+// Built per language so the capacity message is translated. The API enforces
+// the same MAX_EVENT_ATTENDEES limit; checking it here names the problem on the
+// field instead of in an English error toast after submitting.
+const createFormSchema = (maxAttendeesRange: string) => insertEventSchema.extend({
+  maxAttendees: z.number({ error: maxAttendeesRange })
+    .int(maxAttendeesRange)
+    .min(1, maxAttendeesRange)
+    .max(MAX_EVENT_ATTENDEES, maxAttendeesRange)
+    .optional()
+    .nullable(),
   registrationDeadline: z.string().optional().nullable(),
   customLocation: z.string().optional().refine(
     (val) => {
@@ -45,8 +54,9 @@ const formSchema = insertEventSchema.extend({
 // sides of the schema: on the way in those booleans are optional, on the way
 // out they are always present. FormInput is what the fields bind to and what
 // defaultValues must satisfy; FormData is what the resolver hands to onSubmit.
-type FormInput = z.input<typeof formSchema>;
-type FormData = z.output<typeof formSchema>;
+type FormSchema = ReturnType<typeof createFormSchema>;
+type FormInput = z.input<FormSchema>;
+type FormData = z.output<FormSchema>;
 
 function toDateTimeLocalInputValue(value?: string | null) {
   if (!value) return "";
@@ -184,6 +194,11 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
+
+  const formSchema = useMemo(
+    () => createFormSchema(t.modals.eventCreation.maxAttendeesRange.replace("{max}", String(MAX_EVENT_ATTENDEES))),
+    [t],
+  );
 
   const form = useForm<FormInput, unknown, FormData>({
     resolver: zodResolver(formSchema),

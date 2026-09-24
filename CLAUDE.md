@@ -30,7 +30,8 @@ Run the cheapest step that covers the change; escalate only as needed.
 
 1. `npm ci` once per session (`node_modules` is often absent on a fresh clone).
 2. `node --test tests/<suite>.test.mjs` while iterating on `api/_shared/` or
-   `shared/` logic.
+   `shared/` logic; add `--experimental-test-module-mocks` for a suite that
+   loads a handler through `importHandler()`.
 3. `npm run check` after any TypeScript or user-facing-string change — it also
    runs the i18n ratchet, which fails on new inline Norwegian/English branches.
 4. `npm test` before handing work back.
@@ -38,6 +39,8 @@ Run the cheapest step that covers the change; escalate only as needed.
 6. `npm run verify` for the offline CI gate; `npm run test:integration` is the
    separate isolated PostgreSQL gate described in `docs/database-testing.md`.
 
-Documentation-only changes need none of these. `api/` handlers cannot be run
-locally — verify them through the extracted logic in `api/_shared/` and the
-suites in `tests/`, and say so plainly rather than implying a live check.
+Documentation-only changes need none of these. `api/` handlers do not run as
+a server locally. The handler harness in `tests/helpers.mjs` runs them in-process
+against a scripted database, which checks request logic but not real SQL.
+`npm run test:integration` covers the SQL. Say which one you ran rather than
+implying a live check.

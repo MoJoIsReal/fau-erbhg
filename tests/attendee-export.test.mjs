@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { build } from 'esbuild';
 import readXlsxFile from 'read-excel-file/node';
 import { unzipSync, strFromU8 } from 'fflate';
+import { importBundle } from './helpers.mjs';
 
 // Bundle the real browser exporter and its dependencies; only the download DOM
 // boundary is substituted. Inspect both the XLSX XML and a parsed round trip.
-const bundled = await build({ entryPoints: ['client/src/lib/excel-export.ts'], bundle: true, platform: 'browser', format: 'esm', write: false });
-const { exportAttendeesToExcel } = await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`);
+const { exportAttendeesToExcel } = await importBundle({ entryPoints: ['client/src/lib/excel-export.ts'], platform: 'browser' });
 
 async function download(type, values) {
   let blob, filename;

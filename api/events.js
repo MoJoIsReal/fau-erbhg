@@ -5,9 +5,8 @@ import {
   requireRole,
   sanitizeText,
   sanitizeHtml,
-  sanitizeNumber
 } from './_shared/middleware.js';
-import { COUNCIL_ROLES, EVENT_TYPES } from '../shared/constants.js';
+import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 
@@ -147,6 +146,34 @@ function isValidEventTime(value) {
   return typeof value === 'string' && EVENT_TIME_RE.test(value.trim());
 }
 
+// events.date is `text NOT NULL`, and the client drops an event whose date it
+// cannot parse (normalizeEvent in shared/calendar-entries.js). The only check
+// used to be truthiness, so "neste fredag" or 2026-02-31 was stored and the
+// event vanished from the calendar without anyone being told. Only a real
+// calendar day in ISO form is accepted.
+const EVENT_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+function isValidEventDate(value) {
+  const match = typeof value === 'string' ? EVENT_DATE_RE.exec(value) : null;
+  if (!match) return false;
+  const [year, month, day] = match.slice(1).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
+}
+
+// max_attendees NULL means no cap. sanitizeNumber answers null for anything out
+// of range, so a capacity of 1500 (or -5) used to be saved as unlimited signups.
+// Absent or empty still means unlimited; any other value must be a whole
+// number in range, or the request is refused. Returns undefined when invalid.
+function normalizeMaxAttendees(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const number = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
+    ? Number(value)
+    : NaN;
+  if (!Number.isInteger(number) || number < 0 || number > MAX_EVENT_ATTENDEES) return undefined;
+  return number;
+}
+
 function normalizeRegistrationDeadline(value) {
   if (!value) return null;
   const deadline = new Date(String(value));
@@ -211,16 +238,28 @@ export default withApiHandler(async function handler(req, res) {
     const sanitizedDescription = sanitizeHtml(description, 5000);
     const sanitizedLocation = sanitizeText(location, 200);
     const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
-    const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
+    const sanitizedMaxAttendees = normalizeMaxAttendees(maxAttendees);
     const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(registrationDeadline);
 
     if (!sanitizedTitle || !date || !time) {
       return res.status(400).json({ error: 'Valid title, date, and time are required' });
     }
 
+    if (!isValidEventDate(date)) {
+      return res.status(400).json({
+        error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12',
+      });
+    }
+
     if (!isValidEventTime(time)) {
       return res.status(400).json({
         error: 'Time must be written as HH:MM (24-hour), for example 17:00',
+      });
+    }
+
+    if (sanitizedMaxAttendees === undefined) {
+      return res.status(400).json({
+        error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit`,
       });
     }
 
@@ -265,16 +304,28 @@ export default withApiHandler(async function handler(req, res) {
     const sanitizedDescription = sanitizeHtml(description, 5000);
     const sanitizedLocation = sanitizeText(location, 200);
     const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
-    const sanitizedMaxAttendees = maxAttendees ? sanitizeNumber(maxAttendees, 0, 1000) : null;
+    const sanitizedMaxAttendees = normalizeMaxAttendees(maxAttendees);
     const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(registrationDeadline);
 
     if (!sanitizedTitle || !date || !time) {
       return res.status(400).json({ error: 'Valid title, date, and time are required' });
     }
 
+    if (!isValidEventDate(date)) {
+      return res.status(400).json({
+        error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12',
+      });
+    }
+
     if (!isValidEventTime(time)) {
       return res.status(400).json({
         error: 'Time must be written as HH:MM (24-hour), for example 17:00',
+      });
+    }
+
+    if (sanitizedMaxAttendees === undefined) {
+      return res.status(400).json({
+        error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit`,
       });
     }
 

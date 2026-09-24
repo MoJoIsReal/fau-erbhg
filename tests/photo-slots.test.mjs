@@ -118,3 +118,15 @@ test('a registration with stored slots resolves to exactly those slots', () => {
 test('asking for no children returns no slots', () => {
   assert.deepEqual(assignPhotoSlots({ time: '17:00' }, [], 0), []);
 });
+
+test('several legacy registrations replay in id order, and one without children has no slots', () => {
+  const event = { time: '10:00' };
+  const first = registration(1, { children: '["A"]' });
+  const second = registration(2, { children: '["B","C"]', attendeeCount: 2 });
+  const noChildren = registration(3, { children: null });
+  const all = [first, second, noChildren];
+
+  assert.deepEqual(resolvePhotoSlotsForRegistration(event, first, all), ['10:00']);
+  assert.deepEqual(resolvePhotoSlotsForRegistration(event, second, all), ['10:10', '10:20']);
+  assert.deepEqual(resolvePhotoSlotsForRegistration(event, noChildren, all), []);
+});

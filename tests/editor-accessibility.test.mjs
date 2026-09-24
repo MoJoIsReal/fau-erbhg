@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { build } from 'esbuild';
+import { importBundle } from './helpers.mjs';
 
 globalThis.localStorage = { getItem: () => 'no' };
-const bundle = await build({
-  banner: { js: 'import { createRequire as testRequire } from "node:module"; const require = testRequire(' + JSON.stringify(import.meta.url) + ');' },
+const { options } = await importBundle({
   stdin: { resolveDir: process.cwd(), loader: 'tsx', contents: `
     import React from 'react';
     import { renderToStaticMarkup } from 'react-dom/server';
@@ -14,13 +13,12 @@ const bundle = await build({
       renderToStaticMarkup(<LanguageProvider><Editor content='<p>Keep this</p>' onChange={()=>{}} {...props}/></LanguageProvider>);
       return globalThis.editorOptions;
     }
-  ` }, bundle: true, platform: 'node', format: 'esm', write: false, jsx: 'automatic',
+  ` }, platform: 'node', jsx: 'automatic',
   plugins: [{ name: 'editor-boundary', setup(build) {
     build.onResolve({ filter: /^@tiptap\/react$/ }, () => ({ path: 'editor', namespace: 'fixture' }));
     build.onLoad({ filter: /.*/, namespace: 'fixture' }, () => ({ contents: 'export function useEditor(options) { globalThis.editorOptions = options; return null; } export const EditorContent = () => null;' }));
   } }],
 });
-const { options } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].text).toString('base64')}`);
 
 test('editable node receives the field name and validation associations', () => {
   const props = { id: 'description', 'aria-labelledby': 'description-label', 'aria-describedby': 'description-error', 'aria-invalid': true };

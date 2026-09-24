@@ -31,8 +31,14 @@ async function race(id, statements) {
   }
   assert.ok(locked, 'blocker has the event lock');
   const pending = Promise.allSettled(statements.map(statement => sql(statement)));
-  const [waiting] = await sql("SELECT count(*) AS count FROM pg_stat_activity WHERE usename='fau_test' AND wait_event_type='Lock';");
-  assert.ok(Number(waiting.count) >= 2, 'multiple real sessions wait concurrently');
+  // Each contender is a separate psql process, so poll until they have
+  // started and queued on the lock rather than sampling once.
+  let waiting = 0;
+  for (let attempt = 0; attempt < 100 && waiting < 2; attempt++) {
+    const [rows] = await sql("SELECT count(*) AS count FROM pg_stat_activity WHERE usename='fau_test' AND wait_event_type='Lock';");
+    waiting = Number(rows.count);
+  }
+  assert.ok(waiting >= 2, 'multiple real sessions wait concurrently');
   const outcomes = await pending;
   await blocker;
   return outcomes;

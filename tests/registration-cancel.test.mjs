@@ -10,19 +10,9 @@ import {
 } from '../api/_shared/registration-cancel.js';
 import { handleCancel } from '../api/registrations.js';
 import { registrationReminderEmail } from '../api/cron/event-reminders.js';
+import { mockResponse } from './helpers.mjs';
 
 const TOKEN = 'ab'.repeat(32);
-
-function response() {
-  return {
-    statusCode: 200,
-    body: undefined,
-    headers: {},
-    setHeader(name, value) { this.headers[name] = value; },
-    status(code) { this.statusCode = code; return this; },
-    json(body) { this.body = body; return this; },
-  };
-}
 
 function scriptedSql({ lookup = [], cancelled = [], rateCount = 1 } = {}) {
   const calls = [];
@@ -96,7 +86,7 @@ test('the registration reminder includes the cancel link', () => {
 
 test('cancel rejects a malformed token before touching the database', async () => {
   const { sql, calls } = scriptedSql();
-  const res = response();
+  const res = mockResponse();
   await handleCancel(post('not-a-token'), res, sql, 'cancel');
   assert.equal(res.statusCode, 400);
   assert.equal(calls.length, 0);
@@ -104,7 +94,7 @@ test('cancel rejects a malformed token before touching the database', async () =
 
 test('cancel only accepts POST, so a prefetched GET can never cancel', async () => {
   const { sql, calls } = scriptedSql();
-  const res = response();
+  const res = mockResponse();
   await handleCancel({ ...post(TOKEN), method: 'GET' }, res, sql, 'cancel');
   assert.equal(res.statusCode, 405);
   assert.equal(calls.length, 0);
@@ -112,7 +102,7 @@ test('cancel only accepts POST, so a prefetched GET can never cancel', async () 
 
 test('cancel is rate limited per IP', async () => {
   const { sql, calls } = scriptedSql({ rateCount: 31 });
-  const res = response();
+  const res = mockResponse();
   await handleCancel(post(TOKEN), res, sql, 'cancel');
   assert.equal(res.statusCode, 429);
   assert.equal(calls.length, 1);
@@ -125,7 +115,7 @@ test('lookup returns the event summary and whether it can still be cancelled', a
       eventTime: '17:00', location: 'Barnehagen', customLocation: null,
     }],
   });
-  const res = response();
+  const res = mockResponse();
   await handleCancel(post(TOKEN), res, sql, 'cancel-lookup');
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.eventTitle, 'Sommerfest');
@@ -135,14 +125,14 @@ test('lookup returns the event summary and whether it can still be cancelled', a
 
 test('lookup of an unknown token is a 404', async () => {
   const { sql } = scriptedSql({ lookup: [] });
-  const res = response();
+  const res = mockResponse();
   await handleCancel(post(TOKEN), res, sql, 'cancel-lookup');
   assert.equal(res.statusCode, 404);
 });
 
 test('cancel deletes by token, guards on the event date and releases the seats', async () => {
   const { sql, calls } = scriptedSql({ cancelled: [{ id: 7, eventUpdated: true }] });
-  const res = response();
+  const res = mockResponse();
   await handleCancel(post(TOKEN), res, sql, 'cancel');
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body, { success: true });
@@ -160,7 +150,7 @@ test('cancel deletes by token, guards on the event date and releases the seats',
 
 test('cancelling twice, or after the event, is a 404', async () => {
   const { sql } = scriptedSql({ cancelled: [] });
-  const res = response();
+  const res = mockResponse();
   await handleCancel(post(TOKEN), res, sql, 'cancel');
   assert.equal(res.statusCode, 404);
 });
