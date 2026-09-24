@@ -8,7 +8,7 @@ Where: `api/documents.js:58` (`uploaded_by as "uploadedBy"` in public `GET /api/
 Evidence: `GET /api/documents` has no auth and returns every row (LIMIT 500) with `uploadedBy`. No client reads it (`grep uploadedBy client/src` → only `shared/schema.ts:167`). Rich-text image uploads (`RichTextEditor.tsx:251`) also create rows, so any council member who ever inserted an image is listed.
 Cause → Impact: an author field is part of a public response → anyone can harvest the login identifier of every council member who uploaded something, which is the input AZ-2 needs to lock their accounts. It also conflicts with the repo's own PII posture (AGENTS.md "Never log emails").
 Fix: drop `uploaded_by` from the public SELECT (or return it only when `requireRole` passes). · Test: handler-harness test asserting the public list has no `uploadedBy`. · Regression risk: none (no reader).
-Scope: `api/yearly-calendar.js:65` returns `createdBy` (staff display name, `user.name || user.username`) on the public `GET ?schoolYear`; lower sensitivity, same pattern.
+Scope: `api/yearly-calendar.js:65` returns `createdBy` (staff display name, `user.name || user.username`) on the public `GET ?schoolYear`. Owner decision (2026-09-24): intended functionality, not a finding.
 Dependencies: AZ-2.
 Tests touching this: none.
 

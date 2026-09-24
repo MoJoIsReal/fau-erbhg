@@ -103,16 +103,16 @@ TEST-002
 ---
 
 ## [x] SEC-003 — Remove the uploader's login e-mail from the public documents list
-**Status:** Done — `uploaded_by` dropped from the public list (test in `document-deletion.test.mjs`). Decided to leave the yearly calendar's public `createdBy`: it holds a display name, not a login.
+**Status:** Done — `uploaded_by` dropped from the public list (test in `document-deletion.test.mjs`). The yearly calendar's public `createdBy` stays: the owner confirmed that showing who created an entry is intended.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Data exposure
 ### Files
-`api/documents.js`, `api/yearly-calendar.js` (`createdBy` in the public GET), `tests/document-deletion.test.mjs` or a new documents handler test
+`api/documents.js`, `tests/document-deletion.test.mjs` or a new documents handler test
 ### Problem
 `GET /api/documents` is public and returns `uploadedBy`, which is a council member's login e-mail. No client reads it.
 ### Evidence
 `api/documents.js:58`, `api/upload.js:296`, `api/secure-settings.js:607`.
 ### Required change
-Drop `uploaded_by` from the public SELECT. Decide whether the public yearly-calendar GET should also omit `createdBy`.
+Drop `uploaded_by` from the public SELECT.
 ### Acceptance criteria
 - [ ] The public list response has no `uploadedBy` key.
 - [ ] `/files` renders unchanged.
