@@ -101,6 +101,12 @@ Turnstile checks that event signups, contact messages and newsletter signups are
 sent by a person. It is independent of DNS: `erdal-bhg.no` does **not** need to
 be added to Cloudflare as a site, and nameservers stay where they are.
 
+The production widget exists (created 2026-09-24 through the Cloudflare API):
+**FAU Erdal Barnehage**, site key `0x4AAAAAAFCSHrMaMJJaJxAb`, Managed mode,
+hostnames `erdal-bhg.no` and `fau-erdalbhg.vercel.app`. Its secret key is shown
+only in the Cloudflare dashboard (Turnstile → FAU Erdal Barnehage). Step 1 below
+is how to recreate it.
+
 1. In the Cloudflare dashboard open **Turnstile → Add widget**. Hostnames, one
    per entry, without `https://` or a path: `erdal-bhg.no` (covers
    `www.erdal-bhg.no`) and `fau-erdalbhg.vercel.app`. Never add bare
