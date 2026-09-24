@@ -144,3 +144,40 @@ test('past the daily public-mail cap an inquiry is stored but no mail goes out',
   assert.equal(inserts(sql).length, 1);
   assert.deepEqual(sent, []);
 });
+
+// With TURNSTILE_SECRET_KEY set, the contact form and newsletter signup need a
+// token Cloudflare accepts. The e-mailed confirm/unsubscribe links carry their
+// own secret and must keep working without one.
+test('with Turnstile on, the two forms need a valid token and the e-mailed links do not', async (t) => {
+  process.env.TURNSTILE_SECRET_KEY = 'test-secret';
+  t.after(() => { delete process.env.TURNSTILE_SECRET_KEY; });
+  t.mock.method(globalThis, 'fetch', async (_url, init) => Response.json(
+    JSON.parse(init.body).response === 'good-token'
+      ? { success: true, 'error-codes': [] }
+      : { success: false, 'error-codes': ['timeout-or-duplicate'] },
+  ));
+
+  const forms = [
+    [{ subject: 'general', name: 'Kari', email: 'kari@example.test', message: 'Hei' }, {}, 201],
+    [{ email: 'kari@example.test' }, { action: 'newsletter-subscribe' }, 200],
+  ];
+  for (const [body, query, okStatus] of forms) {
+    const form = query.action ?? 'contact';
+    for (const turnstileToken of [undefined, 'stale-token']) {
+      const sql = useDatabase(scriptedSql({ respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }] }));
+      const res = await call(t, handler, submit({ ...body, turnstileToken }, query));
+      assert.equal(res.statusCode, 400, `${form} ${turnstileToken}`);
+      assert.equal(res.body.code, 'TURNSTILE_FAILED');
+      assert.deepEqual(sql.writes(), [], `${form} wrote nothing`);
+    }
+    useDatabase(scriptedSql({ respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }] }));
+    const accepted = await call(t, handler, submit({ ...body, turnstileToken: 'good-token' }, query));
+    assert.equal(accepted.statusCode, okStatus, form);
+  }
+
+  for (const action of ['newsletter-confirm', 'newsletter-unsubscribe']) {
+    useDatabase(scriptedSql({ respond: () => [{ id: 4 }] }));
+    const res = await call(t, handler, submit({ token: TOKEN }, { action }));
+    assert.equal(res.statusCode, 200, action);
+  }
+});

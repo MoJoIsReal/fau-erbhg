@@ -107,3 +107,32 @@ test('past the daily public-mail cap the signup is kept but no mail is sent', as
   assert.ok(signupStatement(sql), 'the registration is still stored');
   assert.equal(sent.length, 0);
 });
+
+// With TURNSTILE_SECRET_KEY set, a signup must carry a token Cloudflare
+// accepts; Cloudflare is stubbed at the network boundary.
+test('with Turnstile on, a signup without a valid token is refused before anything is written', async (t) => {
+  process.env.TURNSTILE_SECRET_KEY = 'test-secret';
+  t.after(() => { delete process.env.TURNSTILE_SECRET_KEY; });
+  const asked = [];
+  t.mock.method(globalThis, 'fetch', async (_url, init) => {
+    const { response } = JSON.parse(init.body);
+    asked.push(response);
+    return Response.json(response === 'good-token'
+      ? { success: true, 'error-codes': [] }
+      : { success: false, 'error-codes': ['invalid-input-response'] });
+  });
+
+  for (const turnstileToken of [undefined, 'bad-token']) {
+    const sql = signupDatabase();
+    const res = await call(t, handler, signup({ turnstileToken }));
+    assert.equal(res.statusCode, 400, String(turnstileToken));
+    assert.equal(res.body.code, 'TURNSTILE_FAILED');
+    assert.equal(signupStatement(sql), undefined);
+  }
+
+  const sql = signupDatabase();
+  const res = await call(t, handler, signup({ turnstileToken: 'good-token' }));
+  assert.equal(res.statusCode, 201);
+  assert.ok(signupStatement(sql));
+  assert.deepEqual(asked, ['bad-token', 'good-token'], 'a missing token never reaches Cloudflare');
+});

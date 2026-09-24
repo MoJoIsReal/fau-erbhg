@@ -78,3 +78,15 @@ test('a missing /assets/ file 404s instead of being rewritten to the SPA', () =>
   assert.ok(!pattern.test('/assets/messages-DejWTZW2.js'));
   assert.match(read('client/src/main.tsx'), /vite:preloadError/, 'The client should reload on a stale chunk');
 });
+
+// The Turnstile widget on the public forms loads its script from Cloudflare and
+// runs its challenge in a Cloudflare iframe. If the CSP blocks either, the
+// widget silently never appears and — once the secret is set — every public
+// form is refused for lack of a token.
+test('the CSP lets the Turnstile widget load its script and its frame', () => {
+  const widget = read('client/src/components/turnstile-widget.tsx');
+  const [, origin] = widget.match(/"(https:\/\/challenges\.cloudflare\.com)\/turnstile\/v0\/api\.js/) ?? [];
+  assert.equal(origin, 'https://challenges.cloudflare.com', 'the widget loads Turnstile from Cloudflare');
+  assert.ok(cspDirective('script-src').includes(origin), `script-src must allow ${origin}`);
+  assert.ok(cspDirective('frame-src').includes(origin), `frame-src must allow ${origin}`);
+});

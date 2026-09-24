@@ -13,6 +13,7 @@ import {
 import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
+import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 import Sentry from './_shared/sentry.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION } from '../shared/constants.js';
@@ -387,6 +388,12 @@ export default withApiHandler(async function handler(req, res) {
           ? 'Oppgi fornavn på hvert barn som skal fotograferes'
           : 'Please give the first name of each child to be photographed'
       });
+    }
+
+    // Last check before anything is written: by now the request is otherwise
+    // valid, so Cloudflare is only asked about signups that would go through.
+    if (!(await verifyTurnstile(req, req.body?.turnstileToken, 'registration'))) {
+      return res.status(400).json(turnstileFailure(sanitizedLanguage));
     }
 
     // Photo slots are first proposed from the current registration snapshot, then

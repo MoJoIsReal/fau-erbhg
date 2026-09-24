@@ -22,6 +22,7 @@ directly. There is no second backend, ORM query layer or generic repository tier
 | Cloudinary | Direct signed upload, owned URL verification, public delivery and provider-first document deletion. |
 | Gmail | Confirmation/contact mail and scheduled newsletter/reminder delivery. Provider acceptance and database recording are separate operations. Mail an anonymous request triggers is capped at `PUBLIC_MAIL_DAILY_LIMIT` per day across all callers (`sendPublicMail` in `api/_shared/rate-limit.js`), leaving the account's quota for scheduled mail; a signup confirmation never echoes the free-text comment. |
 | Sentry/Analytics | Redacted error/page telemetry; capability URLs are scrubbed and frontend replay is disabled. |
+| Cloudflare Turnstile | Widget on the three public forms; `api/_shared/turnstile.js` verifies its single-use token before a signup, contact message or newsletter signup is written. Off until `TURNSTILE_SECRET_KEY` is set; a bad token is refused, a Cloudflare outage lets the request through (reported). |
 
 ## Routing and roles
 

@@ -1,6 +1,6 @@
 # Review tasks
 
-**Progress (2026-09-24):** all P1 and P2 tasks are done (DB-001, TRACE-001, TEST-001, SEC-001–004, PERF-001), plus TEST-002. The only manual step left is applying `migrations/0017_delivery_failed_status.sql` on Neon. SEC-004's captcha is still open, pending a product decision. The P3 tasks are untouched.
+**Progress (2026-09-24):** all P1 and P2 tasks are done (DB-001, TRACE-001, TEST-001, SEC-001–004, PERF-001), plus TEST-002. Manual steps left: apply `migrations/0017_delivery_failed_status.sql` on Neon, and create the Turnstile widget and set its two keys in Vercel (`docs/DEPLOYMENT.md`). The P3 tasks are untouched.
 
 Each task comes from one finding in `REPO_REVIEW.md` (evidence in `.review/findings-*.md`). Priorities: P1 → P3. Effort: S (< ½ day), M (≤ 2 days), L (more).
 
@@ -150,7 +150,7 @@ SEC-003
 ---
 
 ## [x] SEC-004 — Limit what the public forms can make FAU's Gmail send
-**Status:** Done except the captcha, which needs a product decision. The confirmation no longer echoes the comment; signup, contact and newsletter mails share a 200/day cap (`sendPublicMail`), past which data is stored, mail is skipped and `mail.public_daily_cap_reached` is logged.
+**Status:** Done. Cloudflare Turnstile now guards the signup, contact and newsletter forms (`api/_shared/turnstile.js`, `client/src/components/turnstile-widget.tsx`; setup in `docs/DEPLOYMENT.md`); it is active once the two keys are set in Vercel. The confirmation no longer echoes the comment; signup, contact and newsletter mails share a 200/day cap (`sendPublicMail`), past which data is stored, mail is skipped and `mail.public_daily_cap_reached` is logged.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** M · **Area:** Security / Abuse
 ### Files
 `api/registrations.js`, `api/contact.js`, `api/_shared/email.js` (optional global cap), `tests/emails.test.mjs`

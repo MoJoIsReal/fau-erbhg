@@ -45,6 +45,8 @@ provider credentials for previews; do not copy production secrets into tests.
 | `PUBLIC_BASE_URL` | `api/_shared/newsletter.js`: origin of email links, including cancellation links. Defaults to `https://www.erdal-bhg.no`; set the correct HTTPS origin for isolated previews. |
 | `SENTRY_DSN` | Backend envelope sender, enabled in production. |
 | `VITE_SENTRY_DSN` | Frontend Sentry initialization, compiled at build time. |
+| `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile widget on the signup, contact and newsletter forms (`client/src/components/turnstile-widget.tsx`), compiled at build time. Unset = no widget. |
+| `TURNSTILE_SECRET_KEY` | `api/_shared/turnstile.js`: verifies the widget's token with Cloudflare. Unset = check off. Set = every public form must carry a valid token, so set it together with `VITE_TURNSTILE_SITE_KEY` in the same deployment. |
 | `NODE_ENV` | Runtime cookie security, CORS, error redaction and provider reporting. Vercel/build tools manage this; production must use `production`. |
 | `VERCEL_ENV`, `VERCEL_REGION` | Vercel-provided metadata read by backend telemetry; do not maintain manually. |
 
@@ -93,6 +95,40 @@ mail delivery is at least once, with possible duplicates after an ambiguous
 provider acceptance. See [subsystems.md](./subsystems.md) for retention windows,
 retry limits, source stamping and ownership invariants.
 
+## Cloudflare Turnstile (public forms)
+
+Turnstile checks that event signups, contact messages and newsletter signups are
+sent by a person. It is independent of DNS: `erdal-bhg.no` does **not** need to
+be added to Cloudflare as a site, and nameservers stay where they are.
+
+1. In the Cloudflare dashboard open **Turnstile → Add widget**. Hostnames, one
+   per entry, without `https://` or a path: `erdal-bhg.no` (covers
+   `www.erdal-bhg.no`) and `fau-erdalbhg.vercel.app`. Never add bare
+   `vercel.app`: that would admit every Vercel site. Mode: **Managed**.
+2. In Vercel set, for **Production**, `VITE_TURNSTILE_SITE_KEY` (site key) and
+   `TURNSTILE_SECRET_KEY` (secret key, marked sensitive). For **Preview** and
+   **Development** use Cloudflare's always-pass test keys, which work on any
+   hostname: site key `1x00000000000000000000AA`, secret
+   `1x0000000000000000000000000000000AA`.
+3. Redeploy. Vite compiles the site key into the build, and Vercel applies
+   changed variables only to new deployments. Both keys must arrive in the same
+   deployment: a secret without a site key refuses every public form.
+
+Failure policy (`api/_shared/turnstile.js`): a missing, invalid, expired or
+reused token is refused with 400 and code `TURNSTILE_FAILED`, and the form asks
+the visitor to wait for the check and send again. If Cloudflare is unreachable
+or rejects the secret itself, the request is let through and the fault is
+logged and reported to Sentry — the per-IP limits and the daily public-mail cap
+still apply.
+
+Troubleshooting from the widget's error code (shown in the widget and the
+browser console): `110200` domain not authorised — the page's hostname is
+missing from the widget's hostname list; `110100`/`400020` invalid site key —
+wrong or mistyped `VITE_TURNSTILE_SITE_KEY` (or the secret key pasted there);
+`200500` iframe load error — `challenges.cloudflare.com` is blocked, usually by
+the CSP in `vercel.json` or a browser extension. Server-side
+`invalid-input-secret` in the logs means `TURNSTILE_SECRET_KEY` is wrong.
+
 ## Post-deployment checks and monitoring
 
 Check public `GET /api/events` and `GET /api/documents`, page navigation, login,
@@ -134,6 +170,9 @@ on the release/PR. Remove completed items from this list.
   with test recipients, including a delivery retry.
 - [ ] Verify received Sentry/Analytics payloads in an isolated telemetry project
   contain no synthetic capability tokens and no replay data.
+- [ ] After setting the Turnstile keys, submit the contact form, the newsletter
+  form and an event signup on `https://www.erdal-bhg.no` and on
+  `https://fau-erdalbhg.vercel.app`; each must show the widget and succeed.
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.
