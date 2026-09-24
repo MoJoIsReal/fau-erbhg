@@ -98,3 +98,13 @@ test('legacy rows without a public ID recover it only from the owned delivery UR
   assert.equal(f.effects[0].target, 'fau-documents/example');
   assert.equal(f.row(), null);
 });
+
+// The list is public. `uploaded_by` holds the uploader's login e-mail, so it
+// must never be part of what an anonymous visitor can read.
+test('the public list does not publish who uploaded a document', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: () => [] }));
+  const res = await call(t, handler, { method: 'GET' });
+  assert.equal(res.statusCode, 200);
+  assert.equal(sql.calls.length, 1);
+  assert.doesNotMatch(sql.calls[0].statement, /uploaded_by/);
+});

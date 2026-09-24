@@ -3,7 +3,7 @@ import test from 'node:test';
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
-import { rateLimitKey } from '../api/_shared/rate-limit.js';
+import { identityRateLimitKey, rateLimitKey } from '../api/_shared/rate-limit.js';
 import { getJwtConfig } from '../api/_shared/jwt-config.js';
 
 const handler = await importHandler('api/auth.js');
@@ -45,20 +45,94 @@ test('login without the CSRF pair is refused before anything is looked up', asyn
   assert.deepEqual(sql.calls, []);
 });
 
+const ACCOUNT_FAILURES = identityRateLimitKey('login-account', USERNAME);
+
+// The account-wide failure counter is read, not bumped, before the password
+// check; `failures` is what every account's counter currently holds.
+function lockedAccounts(failures) {
+  return accounts((statement) => (
+    statement.startsWith('SELECT count, EXTRACT') ? [{ count: failures, retryAfter: 60 }] : []
+  ));
+}
+
 test('each of the three login limits refuses on its own, before the password is checked', async (t) => {
-  const limits = [
+  for (const exhausted of [
     rateLimitKey(CLIENT, 'login', USERNAME), // this IP, this account
     rateLimitKey(CLIENT, 'login-ip', ''), // this IP, any account
-    `login-account:${USERNAME}`, // this account, any IP
-  ];
-  for (const exhausted of limits) {
+  ]) {
     const sql = useDatabase(scriptedSql({ respond: accounts(), rateCount: (key) => (key === exhausted ? 99 : 1) }));
     const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
     assert.equal(res.statusCode, 429, exhausted);
     assert.equal(res.headers['retry-after'], '60');
     assert.ok(!sql.calls.some(({ statement }) => statement.includes('FROM users')), 'no account lookup');
   }
+
+  // This account, any IP: 20 recorded failures lock out an unknown browser.
+  const sql = useDatabase(scriptedSql({ respond: lockedAccounts(20) }));
+  const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
+  assert.equal(res.statusCode, 429);
+  assert.equal(res.headers['retry-after'], '60');
+  assert.ok(!sql.calls.some(({ statement }) => statement.includes('FROM users')), 'no account lookup');
 });
+
+const rateLimitWrites = (sql) => sql.calls
+  .filter(({ statement }) => statement.startsWith('INSERT INTO api_rate_limits'))
+  .map(({ values }) => values[0]);
+
+test('only a failed password counts against the account, and no key stores the address', async (t) => {
+  const failed = useDatabase(scriptedSql({ respond: accounts() }));
+  assert.equal((await call(t, handler, login({ username: USERNAME, password: 'wrong' }))).statusCode, 401);
+  assert.ok(rateLimitWrites(failed).includes(ACCOUNT_FAILURES), 'a failure is recorded');
+
+  const succeeded = useDatabase(scriptedSql({ respond: accounts() }));
+  assert.equal((await call(t, handler, login({ username: USERNAME, password: PASSWORD }))).statusCode, 200);
+  assert.ok(!rateLimitWrites(succeeded).includes(ACCOUNT_FAILURES), 'a success is not counted');
+
+  for (const sql of [failed, succeeded]) {
+    for (const { statement, values } of sql.calls) {
+      if (statement.includes('api_rate_limits')) assert.doesNotMatch(String(values[0]), /@/);
+    }
+  }
+});
+
+const deviceCookie = (res) => cookies(res).find((cookie) => cookie.startsWith('login-device='));
+const withDevice = (cookie) => ({
+  headers: { cookie: `csrf-token=test-csrf; ${cookie.slice(0, cookie.indexOf(';'))}` },
+});
+
+// Anyone who knows a username could keep sending wrong passwords and hold the
+// account locked. The member's own browser, which has signed in before, is
+// not locked out; a browser that has not is.
+test('an account locked by failures elsewhere still lets a known browser in', async (t) => {
+  useDatabase(scriptedSql({ respond: accounts() }));
+  const first = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
+  const cookie = deviceCookie(first);
+  assert.match(cookie, /^login-device=[^;]+; Path=\/api\/auth; Max-Age=15552000; SameSite=Strict; HttpOnly/);
+
+  const sql = useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }, withDevice(cookie)));
+  assert.equal(res.statusCode, 200);
+  assert.ok(rateLimitWrites(sql).includes(identityRateLimitKey('login-device', decodeJti(cookie))),
+    'the known browser is held to its own attempt limit');
+  assert.ok(!sql.calls.some(({ statement, values }) => statement.startsWith('DELETE') && values[0] === ACCOUNT_FAILURES),
+    'a known-browser success does not unlock the account for everyone else');
+
+  // The same cookie is no help for another account, and a session token is no
+  // device token.
+  useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  const other = await call(t, handler, login({ username: 'other@example.test', password: PASSWORD }, withDevice(cookie)));
+  assert.equal(other.statusCode, 429);
+  const session = cookies(first).find((value) => value.startsWith('jwt='));
+  useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  const forged = await call(t, handler, login({ username: USERNAME, password: PASSWORD },
+    withDevice(`login-device=${session.slice(4)}`)));
+  assert.equal(forged.statusCode, 429);
+});
+
+function decodeJti(cookie) {
+  const token = decodeURIComponent(cookie.slice('login-device='.length, cookie.indexOf(';')));
+  return jwt.decode(token).jti;
+}
 
 test('a successful login issues an HttpOnly session and a readable CSRF cookie', async (t) => {
   const sql = useDatabase(scriptedSql({ respond: accounts() }));
@@ -80,7 +154,7 @@ test('a successful login issues an HttpOnly session and a readable CSRF cookie',
   // otherwise one valid login would reset a password-spraying run.
   const cleared = sql.calls.filter(({ statement }) => statement.startsWith('DELETE FROM api_rate_limits'))
     .map(({ values }) => values[0]);
-  assert.deepEqual(cleared.sort(), [rateLimitKey(CLIENT, 'login', USERNAME), `login-account:${USERNAME}`].sort());
+  assert.deepEqual(cleared.sort(), [rateLimitKey(CLIENT, 'login', USERNAME), ACCOUNT_FAILURES].sort());
 });
 
 test('logout revokes every session of the user and expires both cookies', async (t) => {

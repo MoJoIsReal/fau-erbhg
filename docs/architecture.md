@@ -20,7 +20,7 @@ directly. There is no second backend, ORM query layer or generic repository tier
 | `shared/` | Runtime modules are JS with `.d.ts` siblings. `schema.ts` supplies frontend types/Zod/Drizzle declarations and is never imported by unbundled API code. |
 | PostgreSQL | Persists records, row locks, case-insensitive signup uniqueness, normalized photo reservations, foreign keys and durable delivery state. SQL migrations supplement the schema declaration. |
 | Cloudinary | Direct signed upload, owned URL verification, public delivery and provider-first document deletion. |
-| Gmail | Confirmation/contact mail and scheduled newsletter/reminder delivery. Provider acceptance and database recording are separate operations. |
+| Gmail | Confirmation/contact mail and scheduled newsletter/reminder delivery. Provider acceptance and database recording are separate operations. Mail an anonymous request triggers is capped at `PUBLIC_MAIL_DAILY_LIMIT` per day across all callers (`sendPublicMail` in `api/_shared/rate-limit.js`), leaving the account's quota for scheduled mail; a signup confirmation never echoes the free-text comment. |
 | Sentry/Analytics | Redacted error/page telemetry; capability URLs are scrubbed and frontend replay is disabled. |
 
 ## Routing and roles
@@ -38,6 +38,15 @@ manage events, registrations, documents, blog posts, calendar and contact
 messages. Staff may edit yearly-calendar entries only. JWTs use an HttpOnly
 cookie (Bearer fallback), token-version revocation and a password-change policy;
 non-GET session mutations also require a double-submit CSRF token.
+
+Login is limited per (IP, account), per IP, and per account across IPs. The
+account-wide limit counts only failed passwords and is checked without being
+bumped, so a guesser rotating IPs is stopped after 20 failures an hour. A
+browser that has signed in to the account before carries an HttpOnly
+`login-device` cookie (a signed token for `/api/auth`, 180 days, its own
+audience so it can never pass as a session) that gets it past that account
+lock, under its own attempt limit — so knowing a username is not enough to lock
+a council member out of their own devices.
 
 ## Persistence and background work
 

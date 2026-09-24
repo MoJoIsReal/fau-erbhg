@@ -2,6 +2,7 @@
 // write paths. Their protection is ordering: honeypot, size and rate limits
 // first, and nothing stored or revealed that the posture promises not to.
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
 import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
@@ -126,4 +127,20 @@ test('confirm activates only a pending subscription; unsubscribe never reveals a
     const res = await call(t, handler, submit({ token: TOKEN }, { action: 'newsletter-unsubscribe' }));
     assert.deepEqual([res.statusCode, res.body], [200, { success: true }]);
   }
+});
+
+// Every mail these forms trigger shares one daily Gmail quota with the
+// scheduled reminders; past the cap the inquiry is kept and mail is skipped.
+test('past the daily public-mail cap an inquiry is stored but no mail goes out', async (t) => {
+  sent.length = 0;
+  const cap = crypto.createHash('sha256').update('public-mail').digest('hex');
+  const sql = useDatabase(scriptedSql({
+    rateCount: (key) => (key === cap ? 999 : 1),
+    respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }],
+  }));
+  const res = await call(t, handler, submit({ subject: 'general', name: 'Kari', email: 'kari@example.test', message: 'Hei' }));
+  await new Promise(setImmediate);
+  assert.equal(res.statusCode, 201);
+  assert.equal(inserts(sql).length, 1);
+  assert.deepEqual(sent, []);
 });

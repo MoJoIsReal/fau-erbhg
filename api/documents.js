@@ -44,7 +44,9 @@ export default withApiHandler(async function handler(req, res) {
       return handleDownload(req, res, sql);
     }
 
-    // Public access - Get all documents
+    // Public access - Get all documents. `uploaded_by` is deliberately not
+    // selected: it is the uploader's login e-mail, and publishing it handed
+    // anyone the usernames of the council — no page needs it.
     const documents = await sql`
       SELECT
         id,
@@ -55,7 +57,6 @@ export default withApiHandler(async function handler(req, res) {
         mime_type as "mimeType",
         category,
         description,
-        uploaded_by as "uploadedBy",
         uploaded_at as "uploadedAt"
       FROM documents
       ORDER BY uploaded_at DESC

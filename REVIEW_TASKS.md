@@ -1,10 +1,13 @@
 # Review tasks
 
+**Progress (2026-09-24):** all P1 and P2 tasks are done (DB-001, TRACE-001, TEST-001, SEC-001–004, PERF-001), plus TEST-002. The only manual step left is applying `migrations/0017_delivery_failed_status.sql` on Neon. SEC-004's captcha is still open, pending a product decision. The P3 tasks are untouched.
+
 Each task comes from one finding in `REPO_REVIEW.md` (evidence in `.review/findings-*.md`). Priorities: P1 → P3. Effort: S (< ½ day), M (≤ 2 days), L (more).
 
 ---
 
-## [ ] DB-001 — Allow `'failed'` in the delivery outbox status constraint
+## [x] DB-001 — Allow `'failed'` in the delivery outbox status constraint
+**Status:** Done — `migrations/0017_delivery_failed_status.sql` + README entry; regression test in `tests/integration/database.test.mjs`. **Still to do by hand: apply 0017 in the Neon SQL editor.**
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed (PostgreSQL 16 repro) · **Effort:** S · **Area:** Database / Background jobs
 ### Files
 `migrations/0017_delivery_failed_status.sql` (new), `migrations/README.md`, `tests/integration/database.test.mjs`
@@ -27,7 +30,8 @@ TRACE-001, TEST-001, OBS-001
 
 ---
 
-## [ ] TRACE-001 — Stop newsletter retries for past, cancelled or removed items
+## [x] TRACE-001 — Stop newsletter retries for past, cancelled or removed items
+**Status:** Done — the claim returns `sourceEligible`; the worker skips ineligible rows and event/calendar rows dated before the target. Unit + integration tests; `docs/subsystems.md` updated.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed (DB) · **Effort:** S · **Area:** Traceability / Background jobs
 ### Files
 `api/cron/event-reminders.js`, `tests/newsletter-broadcast.test.mjs`, `tests/integration/database.test.mjs`
@@ -50,7 +54,8 @@ TRACE-002
 
 ---
 
-## [ ] TEST-001 — Build the integration schema the way production was built
+## [x] TEST-001 — Build the integration schema the way production was built
+**Status:** Done — the fixture leaves every table a migration creates to that migration. Verified: without 0017 the new integration test fails with 23514, with it all 7 pass.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** Testing / Database
 ### Files
 `tests/integration/postgres-fixture.mjs`, possibly `migrations/0000_baseline.sql` (test-only baseline) or a checked-in schema dump
@@ -73,7 +78,8 @@ DB-001
 
 ---
 
-## [ ] SEC-001 — Enforce attendee and photo-slot limits on the server
+## [x] SEC-001 — Enforce attendee and photo-slot limits on the server
+**Status:** Done — `MAX_ATTENDEES_PER_REGISTRATION = 10` shared by API and form; foto signups must name every child, and a day without enough slots answers 409. `tests/registrations-handler.test.mjs`.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed (unit) · **Effort:** S · **Area:** Security / Business logic
 ### Files
 `api/registrations.js`, `shared/photo-slots.js` (only if a helper is added), `tests/registrations-handler.test.mjs` (new)
@@ -96,7 +102,8 @@ TEST-002
 
 ---
 
-## [ ] SEC-003 — Remove the uploader's login e-mail from the public documents list
+## [x] SEC-003 — Remove the uploader's login e-mail from the public documents list
+**Status:** Done — `uploaded_by` dropped from the public list (test in `document-deletion.test.mjs`). Decided to leave the yearly calendar's public `createdBy`: it holds a display name, not a login.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Data exposure
 ### Files
 `api/documents.js`, `api/yearly-calendar.js` (`createdBy` in the public GET), `tests/document-deletion.test.mjs` or a new documents handler test
@@ -118,7 +125,8 @@ SEC-002
 
 ---
 
-## [ ] SEC-002 — Stop anonymous callers from locking council accounts out
+## [x] SEC-002 — Stop anonymous callers from locking council accounts out
+**Status:** Done, with a different design from the one written above. Verifying the password first and never blocking a correct one would have made the account limit useless against distributed guessing (a 200 still reveals the hit). Implemented instead: the account limit counts only failures and is read without being bumped, keys are hashed, and a browser that has signed in before gets an HttpOnly `login-device` cookie (signed, own audience, `/api/auth`, 180 days) that gets it past the account lock under its own 10-per-15-minutes limit. Unknown browsers stay locked. Tests in `auth-handler` and `rate-limit`; `docs/architecture.md` updated.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** M · **Area:** Security / Authentication
 ### Files
 `api/auth.js`, `api/_shared/rate-limit.js`, `tests/auth-handler.test.mjs`
@@ -141,7 +149,8 @@ SEC-003
 
 ---
 
-## [ ] SEC-004 — Limit what the public forms can make FAU's Gmail send
+## [x] SEC-004 — Limit what the public forms can make FAU's Gmail send
+**Status:** Done except the captcha, which needs a product decision. The confirmation no longer echoes the comment; signup, contact and newsletter mails share a 200/day cap (`sendPublicMail`), past which data is stored, mail is skipped and `mail.public_daily_cap_reached` is logged.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** M · **Area:** Security / Abuse
 ### Files
 `api/registrations.js`, `api/contact.js`, `api/_shared/email.js` (optional global cap), `tests/emails.test.mjs`
@@ -163,7 +172,8 @@ OBS-001
 
 ---
 
-## [ ] PERF-001 — Keep the rich-text editor out of the eager vendor chunk
+## [x] PERF-001 — Keep the rich-text editor out of the eager vendor chunk
+**Status:** Done — measured after the change: first-load JS 553 kB min / 172 kB gzip, `vendor-react` 205 kB with 0 ProseMirror references; browser smoke test passes on `/` and the editor on `/content`.
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed (measured) · **Effort:** S · **Area:** Performance / Frontend
 ### Files
 `vite.config.ts`, `tests/deploy-config.test.mjs` (optional guard)
@@ -425,7 +435,8 @@ TEST-001.
 
 ---
 
-## [ ] TEST-002 — Add a handler suite for public signup
+## [x] TEST-002 — Add a handler suite for public signup
+**Status:** Done together with SEC-001 (`tests/registrations-handler.test.mjs`, 5 cases; all fail on the old handler).
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Testing
 ### Files
 `tests/registrations-handler.test.mjs` (new)

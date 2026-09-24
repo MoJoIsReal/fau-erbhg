@@ -125,3 +125,31 @@ test('privacy and delivery retention enforce the six/twelve-month and ninety-day
   await sql(await productionStatement(cronFile, 'DELETE FROM newsletter_deliveries', { DELIVERY_RETENTION_DAYS: 90 }));
   assert.deepEqual(await sql('SELECT item_id FROM newsletter_deliveries ORDER BY item_id;'), [{ item_id: '2' }, { item_id: '3' }]);
 });
+
+test('a delivery that has used every attempt is retired as failed', async () => {
+  const [subscriber] = await sql("INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status) VALUES ('retire@example.test', 'retire-token', NOW()::text, 'active') RETURNING id;");
+  const [delivery] = await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date,status,attempts,claimed_at)
+    VALUES ('news', 1, ${subscriber.id}, 'Test', '2099-09-24', 'processing', 5, NOW()) RETURNING id;`);
+  await sql(await productionStatement(cronFile, "exhausted ? 'failed'", {
+    exhausted: true, retryAt: new Date().toISOString(), safeError: 'mailbox unavailable', delivery: { id: delivery.id },
+  }));
+  assert.deepEqual(await sql(`SELECT status, claimed_at FROM newsletter_deliveries WHERE id=${delivery.id};`), [{ status: 'failed', claimed_at: '' }]);
+  await sql(`DELETE FROM newsletter_subscribers WHERE id=${subscriber.id};`);
+});
+
+test('the delivery claim reports whether the queued item is still one to send', async () => {
+  const [subscriber] = await sql("INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status) VALUES ('eligible@example.test', 'eligible-token', NOW()::text, 'active') RETURNING id;");
+  const active = await event('event', 10, '2099-10-01');
+  const cancelled = await event('event', 10, '2099-10-01');
+  await sql(`UPDATE events SET notify_newsletter = true WHERE id IN (${active}, ${cancelled});
+    UPDATE events SET status = 'cancelled' WHERE id = ${cancelled};
+    INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date) VALUES
+      ('event', ${active}, ${subscriber.id}, 'Test', '2099-10-01'),
+      ('event', ${cancelled}, ${subscriber.id}, 'Test', '2099-10-01'),
+      ('news', 999999, ${subscriber.id}, 'Deleted post', '2099-10-01');`);
+  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10 });
+  const claimed = (await sql(claim)).filter(row => row.email === 'eligible@example.test');
+  const eligible = Object.fromEntries(claimed.map(row => [`${row.itemType}:${row.itemId}`, row.sourceEligible]));
+  assert.deepEqual(eligible, { [`event:${active}`]: 't', [`event:${cancelled}`]: 'f', 'news:999999': 'f' });
+  await sql(`DELETE FROM newsletter_subscribers WHERE id=${subscriber.id};`);
+});

@@ -74,17 +74,31 @@ export async function initialize(query) {
   await query('DROP SCHEMA public CASCADE; CREATE SCHEMA public;');
   // Loaded here rather than at the top: the offline guard test imports this
   // module for testConnection alone, and drizzle-kit takes a second to load.
-  const [{ build }, { generateDrizzleJson, generateMigration }] = await Promise.all([
-    import('esbuild'), import('drizzle-kit/api'),
+  const [{ build }, { generateDrizzleJson, generateMigration }, { is, getTableName }, { PgTable }] = await Promise.all([
+    import('esbuild'), import('drizzle-kit/api'), import('drizzle-orm'), import('drizzle-orm/pg-core'),
   ]);
   const directory = path.resolve('node_modules/.cache/fau-integration');
   await mkdir(directory, { recursive: true });
   const outfile = path.join(directory, 'schema.mjs');
   await build({ entryPoints: ['shared/schema.ts'], outfile, bundle: true, packages: 'external', platform: 'node', format: 'esm' });
   const schema = await import(pathToFileURL(outfile).href);
-  const statements = await generateMigration(generateDrizzleJson({}), generateDrizzleJson(schema));
-  await query(statements.join('\n'));
+  const migrations = [];
   for (const file of (await readdir('migrations')).filter(name => /^\d+.*\.sql$/.test(name)).sort()) {
-    await query(await readFile(path.join('migrations', file), 'utf8'));
+    migrations.push(await readFile(path.join('migrations', file), 'utf8'));
+  }
+  // Production got every table a migration creates from that migration, and
+  // the CHECK constraints live only there (schema.ts declares none). Creating
+  // them from Drizzle first turned each `CREATE TABLE IF NOT EXISTS` into a
+  // no-op, so CI ran against looser tables than Neon — which is how a status
+  // the 0008 check rejected passed this suite. Drizzle supplies only the base
+  // tables that predate the migrations.
+  const migrationTables = new Set(migrations.flatMap(text =>
+    [...text.matchAll(/CREATE TABLE IF NOT EXISTS\s+(\w+)/gi)].map(match => match[1])));
+  const baseSchema = Object.fromEntries(Object.entries(schema)
+    .filter(([, value]) => !(is(value, PgTable) && migrationTables.has(getTableName(value)))));
+  const statements = await generateMigration(generateDrizzleJson({}), generateDrizzleJson(baseSchema));
+  await query(statements.join('\n'));
+  for (const migration of migrations) {
+    await query(migration);
   }
 }

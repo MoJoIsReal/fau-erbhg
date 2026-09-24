@@ -2,6 +2,8 @@
 
 Reviewed 2026-09-24 at `c5cdecd` (branch `claude/zen-lovelace-2g1nmu`) using the repository's own `repo-review` skill (`.claude/skills/repo-review/`). This review changed no production code. Working notes are in `.review/`, and every tooling run is logged in `.review/04-verification.md`.
 
+> **Remediation status:** the P1 and P2 findings below were fixed after this review, on the same branch; `REVIEW_TASKS.md` records what changed. This document is the audit as found at `c5cdecd`.
+
 ## 1. Executive summary
 
 This is a small, deliberately simple system, and it is mostly trustworthy. It has one backend tier of 9 Vercel functions writing parameterized SQL, strong session security, two layers of HTML sanitization and a well-guarded upload path. Its failure handling is more thorough than usual for a site this size. All offline gates pass: typecheck, 370/370 unit tests, the build, 5/5 PostgreSQL integration tests and a clean `npm audit`.

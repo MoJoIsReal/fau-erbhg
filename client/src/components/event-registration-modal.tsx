@@ -10,13 +10,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { insertEventRegistrationSchema } from "@shared/schema";
-import { PHONE_PLACEHOLDER } from "@shared/constants";
+import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { z } from "zod";
 
 const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
-  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(10, "Maksimalt 10 deltakere"),
+  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(MAX_ATTENDEES_PER_REGISTRATION, `Maksimalt ${MAX_ATTENDEES_PER_REGISTRATION} deltakere`),
   childrenNames: z.string().optional().nullable(),
   // Email validation removed from frontend - handled by backend database blacklist
 });

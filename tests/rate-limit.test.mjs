@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { checkRateLimit, getClientIp, rateLimitKey } from '../api/_shared/rate-limit.js';
+import {
+  checkRateLimit, getClientIp, identityRateLimitKey, peekRateLimit, rateLimitKey,
+} from '../api/_shared/rate-limit.js';
 
 // Models what actually reaches a Vercel function: the platform sets x-real-ip
 // itself and overwrites any incoming copy, while everything to the left of the
@@ -64,4 +66,27 @@ test('retryAfter never reports zero, so a Retry-After header is always meaningfu
   assert.equal((await checkRateLimit(expiring.sql, { key: 'k', limit: 1, windowSeconds: 60 })).retryAfter, 60);
   const negative = stubSql({ count: 9, retryAfter: -3 });
   assert.equal((await checkRateLimit(negative.sql, { key: 'k', limit: 1, windowSeconds: 60 })).retryAfter, 1);
+});
+
+// A limit that counts only failures has to look before it counts. The look
+// must not write, and must refuse at the same boundary checkRateLimit does:
+// `limit` counted events are allowed, the next request is not.
+test('peeking reads the live window without counting, with the same boundary', async () => {
+  const empty = { sql: async () => [], calls: [] };
+  assert.deepEqual(await peekRateLimit(empty.sql, { key: 'k', limit: 20 }), { allowed: true, retryAfter: 0 });
+
+  const below = stubSql({ count: 19, retryAfter: 42 });
+  assert.deepEqual(await peekRateLimit(below.sql, { key: 'k', limit: 20 }), { allowed: true, retryAfter: 42 });
+  assert.doesNotMatch(below.calls[0].text, /INSERT|UPDATE|DELETE/);
+  assert.match(below.calls[0].text, /reset_at > NOW\(\)/, 'an expired window counts as empty');
+
+  const at = stubSql({ count: 20, retryAfter: 0 });
+  assert.deepEqual(await peekRateLimit(at.sql, { key: 'k', limit: 20 }), { allowed: false, retryAfter: 1 });
+});
+
+test('identity keys are hashed and case-insensitive, and never carry the address', () => {
+  const key = identityRateLimitKey('login-account', ' Member@Example.TEST ');
+  assert.equal(key, identityRateLimitKey('login-account', 'member@example.test'));
+  assert.match(key, /^[a-f0-9]{64}$/);
+  assert.notEqual(key, identityRateLimitKey('login-device', 'member@example.test'));
 });

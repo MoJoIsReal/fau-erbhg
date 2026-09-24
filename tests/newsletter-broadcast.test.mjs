@@ -22,6 +22,9 @@ test('a stalled newsletter send is bounded and its delivery stays retryable', as
 function delivery(overrides = {}) {
   return {
     id: 17,
+    itemType: 'event',
+    itemId: 5,
+    sourceEligible: true,
     title: 'Foreldremøte',
     description: '<p>Velkommen</p>',
     eventDate: '2026-09-10',
@@ -312,4 +315,47 @@ test('a delivery is released rather than sent when the budget expires during its
     true,
     'the row must be handed back as pending, not left claimed',
   );
+});
+
+// The claim takes everything due on or before tonight so a failed send is
+// retried, but a retry must not outlive the item it is about.
+function skippedIds(calls) {
+  return calls
+    .filter(({ statement }) => statement.includes("SET status = 'skipped'"))
+    .map(({ values }) => values[0]);
+}
+
+test('a reminder retried after its event date is skipped, not sent', async () => {
+  const { sql, calls } = scriptedSql([delivery({ eventDate: '2026-09-09' })]);
+  const sent = [];
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); });
+
+  assert.equal(sent.length, 0);
+  assert.equal(result.skipped, 1);
+  assert.deepEqual(skippedIds(calls), [17]);
+});
+
+test('a delivery whose item was cancelled, unpublished or deleted is skipped', async () => {
+  const { sql, calls } = scriptedSql([
+    delivery({ id: 21, sourceEligible: false }),
+    delivery({ id: 22, itemType: 'news', sourceEligible: false }),
+  ]);
+  const sent = [];
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); });
+
+  assert.equal(sent.length, 0);
+  assert.equal(result.skipped, 2);
+  assert.deepEqual(skippedIds(calls).sort(), [21, 22]);
+});
+
+test('a news delivery carried to a later night is still sent', async () => {
+  const { sql } = scriptedSql([delivery({ itemType: 'news', itemId: 3, eventDate: '2026-09-10' })]);
+  const sent = [];
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); });
+
+  assert.equal(result.sent, 1);
+  assert.match(sent[0].text, /nyheter\/3/);
 });
