@@ -174,6 +174,9 @@ export interface Translations {
     thisWeek: string;
     allWeek: string;
     filtersLabel: string;
+    withSignup: string;
+    noRegistrationsYet: string;
+    placesFilled: string;
     showEarlier: string;
     nothingMatches: string;
     noTypesSelected: string;
@@ -1066,6 +1069,9 @@ export const translations: Record<Language, Translations> = {
       thisWeek: "Denne uken",
       allWeek: "hele uken",
       filtersLabel: "Filtre",
+      withSignup: "Med påmelding",
+      noRegistrationsYet: "Ingen påmeldte ennå",
+      placesFilled: "{count} av {max} plasser fylt",
       showEarlier: "Vis tidligere uker",
       nothingMatches: "Ingen oppføringer igjen med disse filtrene.",
       noTypesSelected: "Ingen typer er valgt. Trykk «Vis alt» for å få kalenderen tilbake.",
@@ -1951,6 +1957,9 @@ export const translations: Record<Language, Translations> = {
       thisWeek: "This week",
       allWeek: "all week",
       filtersLabel: "Filters",
+      withSignup: "With signup",
+      noRegistrationsYet: "No registrations yet",
+      placesFilled: "{count} of {max} places filled",
       showEarlier: "Show earlier weeks",
       nothingMatches: "Nothing left with these filters.",
       noTypesSelected: "No types selected. Choose \u201cShow all\u201d to bring the calendar back.",

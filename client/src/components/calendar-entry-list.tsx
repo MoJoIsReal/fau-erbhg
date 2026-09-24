@@ -106,11 +106,13 @@ function DayRow({
 
         {signup?.mode === "registration" && !entry.cancelled && (
           <div className="mt-2.5 flex flex-wrap items-center gap-3 pl-4">
-            {signup.maxAttendees !== null && (
-              <span className="text-small tabular-nums text-subtle">
-                {signup.currentAttendees}/{signup.maxAttendees} {t.events.attendees}
-              </span>
-            )}
+            <span className="text-small tabular-nums text-subtle">
+              {signup.currentAttendees === 0
+                ? t.calendar.noRegistrationsYet
+                : signup.maxAttendees !== null
+                  ? t.calendar.placesFilled.replace("{count}", String(signup.currentAttendees)).replace("{max}", String(signup.maxAttendees))
+                  : `${signup.currentAttendees} ${t.events.attendees}`}
+            </span>
             {signup.isOpen ? (
               <Button
                 size="sm"

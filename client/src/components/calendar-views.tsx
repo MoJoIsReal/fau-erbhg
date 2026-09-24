@@ -39,7 +39,7 @@ const STORAGE_KEY = "fau-calendar-view-groups";
 // Which view and which filters someone last used is a convenience, not data:
 // it lives in this browser only, and a blocked or cleared store just means
 // everything is on and the list is showing.
-type StoredPreferences = { mode?: CalendarViewMode; off?: CalendarEntryKind[] };
+type StoredPreferences = { mode?: CalendarViewMode; off?: CalendarEntryKind[]; signupOnly?: boolean };
 
 function readPreferences(): StoredPreferences {
   try {
@@ -77,6 +77,7 @@ export default function CalendarViews() {
   const { language, t } = useLanguage();
   const [active, setActive] = useState<Record<CalendarEntryKind, boolean>>(initialActive);
   const [mode, setMode] = useState<CalendarViewMode>(initialMode);
+  const [signupOnly, setSignupOnly] = useState(() => readPreferences().signupOnly === true);
   const [showPast, setShowPast] = useState(false);
   const [selected, setSelected] = useState<CalendarEntry | null>(null);
   // Opening is its own state, set by a click and cleared by a view change, so
@@ -106,13 +107,15 @@ export default function CalendarViews() {
   useEffect(() => {
     try {
       const off = CALENDAR_ENTRY_KINDS.filter((kind) => !active[kind]);
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode, off }));
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode, off, signupOnly }));
     } catch {
       // A private window or blocked storage costs the convenience, nothing else.
     }
-  }, [active, mode]);
+  }, [active, mode, signupOnly]);
 
-  const visible = useMemo(() => entries.filter((entry) => active[entry.displayKind]), [entries, active]);
+  const visible = useMemo(() => entries.filter((entry) =>
+    active[entry.displayKind] && (!signupOnly || entry.signup?.mode === "registration" || entry.signup?.mode === "vigilo"),
+  ), [entries, active, signupOnly]);
   const activeCount = CALENDAR_FILTER_KINDS.filter((kind) => active[kind]).length;
   const allOn = activeCount === CALENDAR_FILTER_KINDS.length;
 
@@ -226,6 +229,7 @@ export default function CalendarViews() {
                 {activeCount}/{CALENDAR_FILTER_KINDS.length}
               </span>
             )}
+            {signupOnly && <span className="text-micro text-brand">{t.calendar.withSignup}</span>}
           </button>
 
           <div
@@ -249,7 +253,13 @@ export default function CalendarViews() {
                 />
               ))}
             </div>
-
+            <div className="flex flex-wrap items-center gap-2">
+              <FilterChip
+                label={t.calendar.withSignup}
+                pressed={signupOnly}
+                onClick={() => setSignupOnly((previous) => !previous)}
+              />
+            </div>
           </div>
         </div>
       </div>
