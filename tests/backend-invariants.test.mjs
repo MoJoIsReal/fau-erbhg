@@ -116,18 +116,12 @@ test('board members order by hand first, then by role', () => {
   );
 });
 
-test('the yearly calendar validates, reads back and preserves what the editor saves', () => {
-  const source = read('api/yearly-calendar.js');
-  assert.match(source, /YEARLY_CALENDAR_CATEGORIES\.includes\(body\.category\)/);
-  assert.match(source, /supportsYearlyCalendarNewsletter\(entryType\)/);
-
-  // Omitting category from the read made a saved selection revert to the type default.
-  const select = source.match(/async function getEntriesForSchoolYear[\s\S]*?SELECT ([\s\S]*?)FROM yearly_calendar_entries/);
+// A scripted database returns whatever columns it is given, so only the source
+// can show the read selects the column (yearly-calendar-handler covers the rest).
+// Omitting category made a saved selection revert to the type default.
+test('the yearly calendar reads the saved category back', () => {
+  const select = read('api/yearly-calendar.js')
+    .match(/async function getEntriesForSchoolYear[\s\S]*?SELECT ([\s\S]*?)FROM yearly_calendar_entries/);
   assert.ok(select, 'Locate the query used to reopen saved entries');
   assert.match(select[1], /\bcategory\b/);
-
-  // The import UPDATE must not clear fields the preview never diffed.
-  const start = source.indexOf("if (action === 'update')");
-  const updateBlock = source.slice(start, source.indexOf("if (action === 'create')", start));
-  assert.doesNotMatch(updateBlock, /weekday_start\s*=/);
 });

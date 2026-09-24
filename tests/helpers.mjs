@@ -108,6 +108,17 @@ export function scriptedSql({ respond = () => [], rateCount = 1, identities = {}
   return sql;
 }
 
+// Read a recorded INSERT or UPDATE back as { column: value }, so assertions
+// can name fields instead of counting positions. For an UPDATE the WHERE
+// columns come last and win over a SET column of the same name.
+export function fields({ statement, values }) {
+  const insert = statement.match(/^INSERT INTO \w+ \(([^)]*)\) VALUES/);
+  const columns = insert
+    ? insert[1].split(',').map((column) => column.trim())
+    : [...statement.matchAll(/(\w+) = \?/g)].map((match) => match[1]);
+  return Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+}
+
 function identity(role, overrides = {}) {
   return {
     username: USERS[role].username,

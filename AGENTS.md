@@ -244,9 +244,11 @@ another copy. `mockResponse()` is the response object. `importBundle()` bundles 
 client module with esbuild and imports it. The **handler harness** runs a real
 `api/*.js` handler, through the real middleware, against a scripted database:
 `importHandler()` loads it with only `database.js` mocked, `scriptedSql()`
-answers the identity lookup and rate limiter and records every statement, and
+answers the identity lookup and rate limiter and records every statement,
+`fields()` reads a recorded INSERT/UPDATE back as `{ column: value }`, and
 `call(t, handler, { method, query, body, as: 'member', csrf })` signs in as a
-role and sends the request. It relies on Node's module mocks, so `npm test`
+role and sends the request. A handler's request logic is tested in
+`<handler>-handler.test.mjs` (`events-handler`, `upload-handler`, …). It relies on Node's module mocks, so `npm test`
 passes `--experimental-test-module-mocks`, and a single handler suite needs it too.
 Stub a provider (Cloudinary, nodemailer) by mocking the method on its real
 client, not by rewriting source.

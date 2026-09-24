@@ -57,22 +57,11 @@ test('script-src carries exactly the hash of the inline theme script', () => {
   assert.deepEqual(hashes, [hash], 'Re-hash the theme script after editing it, and drop stale hashes');
 });
 
-// PERF-003. /kalender.ics is polled by every subscribed calendar client. Header
-// rules in vercel.json match the PRE-rewrite path, so `/api/(.*)` never sees
-// /kalender.ics — the cache header has to come from the handler.
-test('the calendar feed sets its own shared-cache lifetime; other API routes stay no-store', () => {
-  const eventsApi = read('api/events.js');
-  assert.match(
-    eventsApi,
-    /export const CALENDAR_FEED_CACHE_CONTROL\s*=\s*\n?\s*'public, max-age=\d+, s-maxage=\d+, stale-while-revalidate=\d+'/,
-  );
-  const feedStart = eventsApi.indexOf('async function respondWithCalendarFeed');
-  assert.ok(feedStart !== -1, 'The ICS feed should live in respondWithCalendarFeed');
-  assert.match(
-    eventsApi.slice(feedStart, eventsApi.indexOf('\n}', feedStart)),
-    /setHeader\('Cache-Control', CALENDAR_FEED_CACHE_CONTROL\)/,
-  );
-
+// PERF-003. /kalender.ics is polled by every subscribed calendar client, but
+// header rules in vercel.json match the PRE-rewrite path, so `/api/(.*)` never
+// sees it: the feed sets its own cache header (checked in events-handler).
+// Everything else under /api stays uncached.
+test('API routes default to no-store', () => {
   const apiRule = vercelConfig.headers.find((rule) => rule.source === '/api/(.*)');
   assert.ok(apiRule, 'The API routes should still be no-store by default');
   assert.match(apiRule.headers.find((header) => header.key === 'Cache-Control').value, /no-store/);
