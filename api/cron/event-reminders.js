@@ -19,6 +19,7 @@ import {
   deliveryMessageId,
   nextAttemptAt,
   runWithConcurrency,
+  sendWithDeadline,
 } from '../_shared/delivery.js';
 import { cancellationText } from '../_shared/registration-cancel.js';
 
@@ -43,12 +44,12 @@ const MAX_DELIVERY_ATTEMPTS = 5;
 // per subscriber and nothing else ever deleted from it.
 const DELIVERY_RETENTION_DAYS = 90;
 
-// vercel.json gives these functions maxDuration: 30. Stop sending at 25 s so
+// vercel.json gives these functions maxDuration: 30. Stop sending at 23 s so
 // the run exits under its own control — a kill at 30 s leaves rows claimed as
 // 'processing' with no send record. Previously the claim query flipped the
 // whole batch to 'processing' before a single message was sent, so a timeout
 // stranded every unsent row in it.
-const RUN_BUDGET_MS = 25_000;
+const RUN_BUDGET_MS = 23_000;
 
 function deadlineFrom(startedAt = Date.now()) {
   return startedAt + RUN_BUDGET_MS;
@@ -165,6 +166,10 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, abandoned: 0, remaining: 0, reason: 'email-not-configured' };
   }
 
+  if (Date.now() >= deadline) {
+    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, deferred: 0, abandoned: 0, remaining: null, reason: 'budget-exhausted' };
+  }
+
   const queued = await sql`
     WITH due_items AS (
       SELECT 'event'::text AS item_type, id AS item_id, title, date AS event_date
@@ -272,7 +277,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     if (Date.now() >= deadline) {
       await sql`
         UPDATE newsletter_deliveries
-        SET status = 'pending', claimed_at = NULL, updated_at = NOW()
+        SET status = 'pending', claimed_at = NULL, updated_at = NOW(), attempts = GREATEST(0, attempts - 1)
         WHERE id = ${delivery.id} AND status = 'processing'
       `;
       deferred += 1;
@@ -305,12 +310,12 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
           language: delivery.language,
           unsubscribeToken: delivery.unsubscribeToken,
         });
-      await send({
+      await sendWithDeadline(send, {
         to: delivery.email,
         subject,
         text,
         messageId: deliveryMessageId('newsletter', delivery.id),
-      });
+      }, deadline, closePooledTransporter);
       await sql`
         UPDATE newsletter_deliveries
         SET status = 'sent', sent_at = NOW(), claimed_at = NULL,
@@ -321,7 +326,8 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     } catch (emailError) {
       const retryAt = nextAttemptAt(delivery.attempts);
       const safeError = redactSensitiveText(emailError?.message || String(emailError)).substring(0, 500);
-      const exhausted = Number(delivery.attempts) >= MAX_DELIVERY_ATTEMPTS;
+      // A deadline can race acceptance: keep that uncertain outcome retryable.
+      const exhausted = emailError?.code !== 'EMAIL_DEADLINE' && Number(delivery.attempts) >= MAX_DELIVERY_ATTEMPTS;
       await sql`
         UPDATE newsletter_deliveries
         SET status = ${exhausted ? 'failed' : 'pending'},
@@ -518,6 +524,9 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
   let sent = 0;
   let failed = 0;
   let claimedTotal = 0;
+  let deferred = 0;
+
+  if (!isEmailConfigured()) throw new Error('Email configuration not available');
 
   for (;;) {
     if (Date.now() >= deadline) break;
@@ -564,28 +573,25 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
     if (claimed.length === 0) break;
     claimedTotal += claimed.length;
 
-    if (!isEmailConfigured()) {
-      throw new Error('Email configuration not available');
-    }
-
     await runWithConcurrency(claimed, DELIVERY_CONCURRENCY, async (registration) => {
       if (Date.now() >= deadline) {
-        // Release the claim rather than holding it for the full lease.
+        // No send was attempted: release without consuming an attempt.
+        deferred += 1;
         await sql`
           UPDATE event_registrations
-          SET reminder_claimed_at = NULL
+          SET reminder_claimed_at = NULL, reminder_attempts = GREATEST(0, reminder_attempts - 1)
           WHERE id = ${registration.id} AND reminder_sent_at IS NULL
         `;
         return;
       }
       try {
         const { subject, text } = registrationReminderEmail(registration);
-        await send({
+        await sendWithDeadline(send, {
           to: registration.email,
           subject,
           text,
           messageId: deliveryMessageId('registration-reminder', registration.id),
-        });
+        }, deadline, closePooledTransporter);
         await sql`
           UPDATE event_registrations
           SET reminder_sent_at = NOW()::text, reminder_claimed_at = NULL
@@ -607,28 +613,38 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
     if (claimed.length < MAX_REMINDERS_PER_RUN) break;
   }
 
-  return { claimed: claimedTotal, sent, failed };
+  return { claimed: claimedTotal, sent, failed, deferred };
 }
 
-// The 07:00 run: reminders first, then the housekeeping. Split out of the
-// handler so the whole sequence — including the irreversible GDPR delete — is
-// reachable from a test with an injected sql and sender (TEST-002).
+// Housekeeping runs first so mail cannot spend its budget or suppress it.
+// Independent stages still run after a failure; the invocation fails with the
+// original errors and logs its partial results instead of claiming success.
 export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
-  let reminders;
+  const summary = { reminders: null, retention: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null };
+  const errors = [];
+  const stage = async (name, work) => {
+    try {
+      summary[name] = await work();
+    } catch (error) {
+      errors.push(error);
+      logEvent('error', 'cron.stage_failed', { stage: name, message: redactSensitiveText(error?.message || String(error)) });
+    }
+  };
   try {
-    reminders = await sendEventReminders(sql, targetDate, send, deadline);
+    await stage('retention', () => cleanupPrivacyRetention(sql));
+    // Reconcile after retention, including a partially completed purge.
+    await stage('attendeeCountsRepaired', () => reconcileEventAttendeeCounts(sql));
+    await stage('expiredRateLimitsDeleted', () => cleanupExpiredRateLimits(sql));
+    await stage('deliveryHistoryDeleted', () => cleanupDeliveryHistory(sql));
+    await stage('reminders', () => sendEventReminders(sql, targetDate, send, deadline));
   } finally {
     closePooledTransporter();
   }
-
-  const retention = await cleanupPrivacyRetention(sql);
-  // After the retention delete, not before: the purge is the one writer that
-  // reliably leaves the counter above the rows that remain.
-  const attendeeCountsRepaired = await reconcileEventAttendeeCounts(sql);
-  const expiredRateLimitsDeleted = await cleanupExpiredRateLimits(sql);
-  const deliveryHistoryDeleted = await cleanupDeliveryHistory(sql);
-
-  return { reminders, retention, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted };
+  if (errors.length) {
+    logEvent('error', 'cron.morning_partial', summary);
+    throw new AggregateError(errors, `${errors.length} morning stage(s) failed`);
+  }
+  return summary;
 }
 
 export default withApiHandler(async function handler(req, res) {
@@ -677,6 +693,7 @@ export default withApiHandler(async function handler(req, res) {
     targetDate,
     sent: reminders.sent,
     failed: reminders.failed,
+    deferred: reminders.deferred,
     retention,
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,

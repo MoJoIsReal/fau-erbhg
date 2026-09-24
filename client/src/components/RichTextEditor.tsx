@@ -30,12 +30,15 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useImperativeHandle, useRef, useState, type AriaAttributes, type Ref } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useLanguage } from '@/contexts/LanguageContext';
 
-interface RichTextEditorProps {
+interface RichTextEditorProps extends Pick<AriaAttributes, 'aria-label' | 'aria-labelledby' | 'aria-describedby' | 'aria-invalid'> {
+  id?: string;
+  ref?: Ref<{ focus: () => void }>;
+  onBlur?: () => void;
   content: string;
   onChange: (content: string) => void;
   placeholder?: string;
@@ -65,7 +68,7 @@ function isSafeLink(url: string) {
   return SAFE_LINK_PROTOCOLS.test(url.trim());
 }
 
-export default function RichTextEditor({ content, onChange, placeholder }: RichTextEditorProps) {
+export default function RichTextEditor({ content, onChange, placeholder, id, ref, onBlur, ...aria }: RichTextEditorProps) {
   const { toast } = useToast();
   const { language, t } = useLanguage();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,15 +133,23 @@ export default function RichTextEditor({ content, onChange, placeholder }: RichT
       }),
     ],
     content,
+    onBlur: () => onBlur?.(),
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
     editorProps: {
       attributes: {
-        class: 'prose prose-sm prose-neutral dark:prose-invert max-w-none focus:outline-none min-h-[150px] max-h-[200px] sm:max-h-none sm:min-h-[250px] overflow-y-auto p-4',
+        ...(id ? { id } : {}),
+        ...Object.fromEntries(Object.entries(aria).filter(([key, value]) => key.startsWith('aria-') && value != null).map(([key, value]) => [key, String(value)])),
+        'aria-multiline': 'true',
+        role: 'textbox',
+        class: 'prose prose-sm prose-neutral dark:prose-invert max-w-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring min-h-[150px] max-h-[200px] sm:max-h-none sm:min-h-[250px] overflow-y-auto p-4',
       },
     },
   });
+
+  // React Hook Form focuses this handle when validation selects the field.
+  useImperativeHandle(ref, () => ({ focus: () => { editor?.commands.focus(); } }), [editor]);
 
   const setLink = useCallback(() => {
     if (!editor) return;

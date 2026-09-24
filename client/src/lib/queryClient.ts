@@ -51,18 +51,16 @@ export function getApiErrorMessage(error: unknown, fallback = "An unexpected err
 // signed in and each list query turned its 401 into `data = []`, rendering the
 // EMPTY state: the inbox and the whole blog looked deleted. Clearing the auth
 // key the first time any request 401s is what turns that into a re-login.
-let onUnauthorized: (() => void) | null = null;
-
-export function setUnauthorizedHandler(handler: (() => void) | null) {
-  onUnauthorized = handler;
-}
-
 function notifyUnauthorized() {
-  onUnauthorized?.();
+  // The shared API client owns session recovery for its entire lifetime.
+  // Mounting/unmounting pages or guards must not replace or clear a listener.
+  if (queryClient.getQueryData(['/api/auth']) != null) {
+    queryClient.setQueryData(['/api/auth'], null);
+  }
 }
 
-async function throwIfResNotOk(res: Response) {
-  if (res.status === 401) {
+async function throwIfResNotOk(res: Response, recoverSession = true) {
+  if (res.status === 401 && recoverSession) {
     notifyUnauthorized();
   }
 
@@ -123,7 +121,9 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  await throwIfResNotOk(res);
+  const endpoint = new URL(url, 'http://localhost');
+  const isLogin = endpoint.pathname === '/api/auth' && endpoint.searchParams.get('action') === 'login';
+  await throwIfResNotOk(res, !isLogin);
   return res;
 }
 
@@ -146,9 +146,9 @@ export const getQueryFn: <T>(options: {
       credentials: "include",
     });
 
-    if (res.status === 401) {
+    if (res.status === 401 && unauthorizedBehavior === "returnNull") {
       notifyUnauthorized();
-      if (unauthorizedBehavior === "returnNull") return null;
+      return null;
     }
 
     await throwIfResNotOk(res);

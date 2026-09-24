@@ -1,67 +1,73 @@
-# Architecture Review
+# Architecture
 
-## System context
+Current implementation reference. Operational and release checks are maintained
+in [DEPLOYMENT.md](./DEPLOYMENT.md); database verification is described in
+[database-testing.md](./database-testing.md).
 
-FAU Erdal Barnehage is a bilingual React single-page application deployed with
-Vercel serverless functions. It has no separate application-service or
-repository tier: route handlers authenticate, validate, execute Neon tagged
-SQL, map results, and initiate Cloudinary/Gmail work directly.
+The bilingual React 19 SPA uses Wouter, TanStack Query and React Hook Form/Zod.
+It calls eight top-level Vercel handlers plus one scheduled handler. Handlers
+perform authentication, validation, parameterized Neon SQL and response mapping
+directly. There is no second backend, ORM query layer or generic repository tier.
 
-```text
-Browser
-  React 19 + Wouter + TanStack Query + React Hook Form/Zod
-      | HTTPS/JSON, JWT cookie, double-submit CSRF header
-      v
-Vercel edge/routing and eight api/*.js handlers
-      | requireRole / sanitizers / direct tagged SQL
-      +------------------------+-----------------------+
-      v                        v                       v
-Neon PostgreSQL          Cloudinary upload       Gmail SMTP
-      ^                        ^                       ^
-      |                        |                       |
-daily Vercel cron -------------+-----------------------+
-```
+## Boundaries
 
-## Boundaries and responsibilities
+| Boundary | Contract |
+|---|---|
+| Browser | UI validation and route guards are convenience only; all input is untrusted. TanStack Query owns server state. Failed reads expose retry and distinguish stale data from a successful empty result. |
+| `client/src/lib/queryClient.ts` | Sends credentials/CSRF, handles API errors, and clears the shared auth cache on unauthorized responses. The first query-key item is the requested URL. |
+| `api/*.js` | `withApiHandler` supplies security headers/CORS/error handling. Handlers enforce roles and CSRF for session-authorized mutations. Capability actions use their own scoped token checks. |
+| `api/_shared/` | Backend-only authentication, sanitization, database/provider adapters, delivery, rate limits and redacted telemetry. |
+| `shared/` | Runtime modules are JS with `.d.ts` siblings. `schema.ts` supplies frontend types/Zod/Drizzle declarations and is never imported by unbundled API code. |
+| PostgreSQL | Persists records, row locks, case-insensitive signup uniqueness, normalized photo reservations, foreign keys and durable delivery state. SQL migrations supplement the schema declaration. |
+| Cloudinary | Direct signed upload, owned URL verification, public delivery and provider-first document deletion. |
+| Gmail | Confirmation/contact mail and scheduled newsletter/reminder delivery. Provider acceptance and database recording are separate operations. |
+| Sentry/Analytics | Redacted error/page telemetry; capability URLs are scrubbed and frontend replay is disabled. |
 
-| Boundary | Responsibility | Trust considerations |
-|---|---|---|
-| Browser | Rendering, navigation, form schemas, optimistic state, direct signed Cloudinary upload | All browser values remain untrusted. UI route guards are convenience only. |
-| `client/src/lib/queryClient.ts` | Credentialed HTTP, CSRF header, structured client errors | Query keys are executable URL contracts; only the first key item is fetched. |
-| `api/*.js` | HTTP dispatch, role checks, validation, business workflow, response mapping | Primary authorization and validation boundary. Large handlers currently mix too many concerns. |
-| `api/_shared` | JWT/CSRF/RBAC, sanitization, DB/mail/storage adapters, rate limiting and telemetry | Security-sensitive shared kernel; should receive the strongest unit/contract coverage. |
-| Neon | Persistence, uniqueness, atomic CTEs and rate-limit state | Several invariants remain application-only; production constraints and privileges were unavailable. |
-| Cloudinary/Gmail/Sentry | Public assets, outbound mail and error telemetry | External availability, metadata and retention are outside this repository. |
+## Routing and roles
 
-## Domain map
+Several resources share a function to stay within the deployment's function
+budget. `auth?action=…` handles login/session/password operations;
+`documents?action=download` handles downloads; `registrations?action=cancel…`
+handles cancellation; `contact?action=newsletter-…` handles subscriptions.
+`secure-settings?resource=…` multiplexes content, contact messages and settings.
+`staff-users` is an alias in its user-management branch, not a staff self-service
+endpoint. Authorization remains enforced by the handler.
 
-* **Identity:** `users`, JWT cookie, token-version revocation and password-age policy.
-* **Events:** `events`, `event_registrations`, public signup, capacity and photo slots.
-* **Content:** blog posts, board members and kindergarten information, multiplexed by `secure-settings`.
-* **Communications:** contact messages/replies, newsletter subscribers and scheduled reminders.
-* **Documents:** signed direct upload, provider verification, metadata and public downloads.
-* **Yearly calendar:** entries, Excel import/export, drag/drop, PDF generation and newsletter flags.
+Admins manage users, settings, board information and subscribers. Members also
+manage events, registrations, documents, blog posts, calendar and contact
+messages. Staff may edit yearly-calendar entries only. JWTs use an HttpOnly
+cookie (Bearer fallback), token-version revocation and a password-change policy;
+non-GET session mutations also require a double-submit CSRF token.
 
-## Dependency assessment
+## Persistence and background work
 
-The frontend-to-API boundary and shared schema/constants are clear, SQL uses the
-Neon tagged-template API, and deployment has one backend implementation. There
-are no message queues or caches beyond TanStack Query/browser/CDN caching.
-However, `secure-settings.js`, `registrations.js`, and the yearly-calendar page
-combine dispatch, policy, persistence, external side effects and presentation.
-Extract domain handlers and injected adapters only after contract/integration
-tests exist. A generic repository layer would add ceremony without solving the
-observed atomicity and delivery problems; a small **transaction script + durable
-outbox** pattern is a better fit.
+The database's snake_case rows are mapped to camelCase API contracts by a single
+resource mapper. Signup uses an atomic locking CTE; a normalized unique photo
+slot table rejects racing reservations and the handler retries allocation.
+Cancellation deletes, records history and releases capacity in one statement.
 
-## Recommended target evolution
+`newsletter_deliveries` is the existing durable per-item/per-subscriber outbox.
+Workers claim rows with `FOR UPDATE SKIP LOCKED`, recover expired leases and
+record success only after the provider accepts mail. Registration reminders keep
+claim/attempt/sent fields on the registration row. These are PostgreSQL-backed
+workers, not an external queue. Delivery remains at least once across the SMTP/
+database boundary. There is no Cloudinary deletion outbox: the handler retains
+the document row if provider deletion fails.
 
-1. Retain serverless route files as thin HTTP adapters.
-2. Extract typed domain commands (`registerForEvent`, `deliverNewsletter`,
-   `deleteDocument`) with explicit transaction boundaries.
-3. Add a durable outbox/delivery ledger for mail and Cloudinary cleanup.
-4. Add database constraints for relationships and domain ranges after a data
-   audit, with handlers translating constraint errors to stable HTTP errors.
-5. Generate or share explicit request/response schemas; do not rely on Drizzle
-   select types to describe raw `RETURNING *` results.
+Morning housekeeping runs independently of mail configuration/failure. See
+[subsystems.md](./subsystems.md) for deadlines, retries, retention and calendar
+feed UID/source-stamping invariants. CI's isolated PostgreSQL suite executes
+production statements to test database concurrency and cascades; it does not
+establish production schema state or external provider availability.
 
+Keep changes within the matching handler/helper. Any future extraction should
+solve a measured problem with contract coverage, rather than introduce another
+backend or duplicate SQL implementation.
+
+## Rich-text form boundary
+
+`RichTextEditor` applies field IDs, accessible names and validation attributes
+to the editable textbox, and exposes a focus handle to React Hook Form. Visible
+labels use `aria-labelledby`. Its token-based 3px focus ring is inset so the
+editor's clipped container cannot hide it; this is a deliberate exception to
+the style guide's usual outside focus-ring placement.

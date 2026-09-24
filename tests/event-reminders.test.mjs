@@ -102,7 +102,7 @@ test('nothing due is a clean no-op', async () => {
   const result = await sendEventReminders(sql, '2026-09-10', async () => {
     assert.fail('should not send when nothing is due');
   });
-  assert.deepEqual(result, { claimed: 0, sent: 0, failed: 0 });
+  assert.deepEqual(result, { claimed: 0, sent: 0, failed: 0, deferred: 0 });
 });
 
 // Being killed at maxDuration leaves rows claimed with no send record; the run
@@ -113,7 +113,7 @@ test('the run stops claiming once the budget is spent', async () => {
     assert.fail('should not send after the deadline');
   }, Date.now() - 1);
 
-  assert.deepEqual(result, { claimed: 0, sent: 0, failed: 0 });
+  assert.deepEqual(result, { claimed: 0, sent: 0, failed: 0, deferred: 0 });
   assert.equal(calls.length, 0, 'an expired budget should not even claim a batch');
 });
 
@@ -176,7 +176,7 @@ test('the morning run still runs retention after a provider failure', async () =
     if (message.to === 'parent1@example.test') throw new Error('SMTP temporarily unavailable');
   });
 
-  assert.deepEqual(result.reminders, { claimed: 2, sent: 1, failed: 1 });
+  assert.deepEqual(result.reminders, { claimed: 2, sent: 1, failed: 1, deferred: 0 });
   assert.deepEqual(result.retention, {
     contactMessagesDeleted: 0,
     eventRegistrationsDeleted: 0,
@@ -184,15 +184,15 @@ test('the morning run still runs retention after a provider failure', async () =
   });
 
   const order = [
-    'WITH due AS',
     'DELETE FROM contact_messages',
     'DELETE FROM event_registrations',
     'UPDATE events e SET current_attendees',
     'DELETE FROM api_rate_limits',
     'DELETE FROM newsletter_deliveries',
+    'WITH due AS',
   ].map((needle) => calls.findIndex(({ statement }) => statement.includes(needle)));
   assert.ok(order.every((index) => index >= 0), 'every morning task should run');
-  assert.deepEqual([...order].sort((a, b) => a - b), order, 'reminders, then retention, then reconcile and cleanup');
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'retention and housekeeping before reminders');
 });
 
 // SEC-004. Without CRON_SECRET this used to authorize anyone whenever NODE_ENV
@@ -245,4 +245,43 @@ test('cron authorization accepts only the configured secret', async (t) => {
   assert.equal(isAuthorizedCron({ headers: { authorization: 'Bearer wrong' } }), false);
   assert.equal(isAuthorizedCron({ headers: {} }), false);
   assert.equal(isAuthorizedCron({}), false);
+});
+
+test('missing email configuration cannot suppress retention and reconciliation', async (t) => {
+  const old = process.env.GMAIL_APP_PASSWORD;
+  delete process.env.GMAIL_APP_PASSWORD;
+  t.after(() => { process.env.GMAIL_APP_PASSWORD = old; });
+  const { sql, calls } = scriptedSql([[registration(1)]]);
+  await assert.rejects(runMorningTasks(sql, '2026-09-10'));
+  assert.ok(calls.some(({ statement }) => statement.startsWith('DELETE FROM contact_messages')));
+  assert.ok(calls.some(({ statement }) => statement.includes('UPDATE events e SET current_attendees')));
+  assert.equal(calls.some(({ statement }) => statement.includes('WITH due AS')), false, 'do not claim unsendable mail');
+});
+
+test('a housekeeping failure is reported without preventing other stages', async () => {
+  const calls = [];
+  const sql = async (strings) => {
+    const statement = strings.join('?').replace(/\s+/g, ' ').trim(); calls.push(statement);
+    if (statement.startsWith('DELETE FROM contact_messages')) throw new Error('retention unavailable');
+    return [];
+  };
+  await assert.rejects(runMorningTasks(sql, '2026-09-10', async () => {}), AggregateError);
+  assert.ok(calls.some(statement => statement.startsWith('DELETE FROM api_rate_limits')));
+  assert.ok(calls.some(statement => statement.includes('WITH due AS')));
+});
+
+test('a stalled reminder is aborted at the deadline and never stamped as sent', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const { sql, calls } = scriptedSql([[registration(1)]]);
+  let aborted = false;
+  const started = Date.now();
+  const result = await sendEventReminders(sql, '2026-09-10', (_message, options) => new Promise(resolve => {
+    const timer = setTimeout(resolve, 1000);
+    options?.signal?.addEventListener('abort', () => { clearTimeout(timer); aborted = true; resolve(); }, { once: true });
+  }), started + 30);
+  assert.ok(Date.now() - started < 700, 'must finish before the stalled sender');
+  assert.equal(aborted, true);
+  assert.equal(result.sent, 0);
+  assert.equal(result.failed, 1);
+  assert.equal(calls.some(({ statement }) => statement.includes('SET reminder_sent_at = NOW()')), false);
 });

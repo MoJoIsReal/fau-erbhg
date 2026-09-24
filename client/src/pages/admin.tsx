@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { QueryNotice } from "@/components/site/query-notice";
 import { Link } from "wouter";
 import {
   Calendar,
@@ -47,28 +48,31 @@ export default function Admin() {
   });
 
   // Messages are a council surface server-side; staff would only get a 403.
-  const { data: messages = [] } = useQuery<ContactMessage[]>({
+  const messagesQuery = useQuery<ContactMessage[]>({
     queryKey: ["/api/secure-settings?resource=contact-messages"],
     enabled: isCouncil,
   });
+  const { data: messages = [] } = messagesQuery;
   const newMessages = messages.filter((m) => m.status === "new");
 
-  const { data: posts = [] } = useQuery<BlogPost[]>({
+  const postsQuery = useQuery<BlogPost[]>({
     queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"],
   });
+  const { data: posts = [] } = postsQuery;
   const publishedPosts = posts.filter((p) => p.status === "published");
   const postsOnHomepage = publishedPosts.filter((p) => p.showOnHomepage !== false);
 
-  const { data: documents = [] } = useQuery<Document[]>({
+  const documentsQuery = useQuery<Document[]>({
     queryKey: ["/api/documents"],
   });
+  const { data: documents = [] } = documentsQuery;
   const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const recentDocuments = documents.filter(
     (d) => new Date(d.uploadedAt).getTime() >= thirtyDaysAgo
   );
 
   const upcoming = useUpcomingItems();
-  const nextEvent = upcoming.find((item) => item.kind === "event");
+  const nextEvent = upcoming.items.find((item) => item.kind === "event");
 
   const cards = [
     ...(isCouncil
@@ -77,14 +81,14 @@ export default function Admin() {
             href: "/messages",
             icon: MessageSquare,
             title: t.adminPage.messages,
-            value: String(newMessages.length),
+            value: messagesQuery.data ? String(newMessages.length) : '—',
             valueLabel:
               newMessages.length === 1
                 ? t.adminPage.newInquiry
                 : t.adminPage.newInquiries,
             attention: newMessages.length > 0,
             detail:
-              newMessages.length > 0
+              messagesQuery.isError ? t.dataState.unavailable : messagesQuery.isPending ? t.dataState.loading : newMessages.length > 0
                 ? language === "no"
                   ? `eldste fra ${formatDate(
                       [...newMessages].sort(
@@ -106,14 +110,14 @@ export default function Admin() {
       href: "/content",
       icon: Newspaper,
       title: t.adminPage.content,
-      value: String(publishedPosts.length),
+      value: postsQuery.data ? String(publishedPosts.length) : '—',
       valueLabel:
         publishedPosts.length === 1
           ? t.adminPage.publishedPost
           : t.adminPage.publishedPosts,
       attention: false,
       detail:
-        language === "no"
+        postsQuery.isError ? t.dataState.unavailable : postsQuery.isPending ? t.dataState.loading : language === "no"
           ? `${postsOnHomepage.length} vises på forsiden`
           : `${postsOnHomepage.length} shown on the homepage`,
     },
@@ -121,12 +125,12 @@ export default function Admin() {
       href: "/files",
       icon: FileText,
       title: t.adminPage.documents,
-      value: String(recentDocuments.length),
+      value: documentsQuery.data ? String(recentDocuments.length) : '—',
       valueLabel:
         t.adminPage.uploadedLast30Days,
       attention: false,
       detail:
-        language === "no"
+        documentsQuery.isError ? t.dataState.unavailable : documentsQuery.isPending ? t.dataState.loading : language === "no"
           ? `${documents.length} totalt i arkivet`
           : `${documents.length} total in the archive`,
     },
@@ -158,7 +162,8 @@ export default function Admin() {
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <QueryNotice queries={[...(isCouncil ? [messagesQuery] : []), postsQuery, documentsQuery, upcoming]} />
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
@@ -218,7 +223,7 @@ export default function Admin() {
               <p className="font-medium text-ink">
                 {nextEvent
                   ? nextEvent.event.title
-                  : t.adminPage.noUpcomingEvents}
+                  : upcoming.isError ? t.dataState.unavailable : upcoming.isPending ? t.dataState.loading : t.adminPage.noUpcomingEvents}
               </p>
               <p className="text-sm text-subtle">
                 {nextEvent
@@ -229,7 +234,7 @@ export default function Admin() {
                             t.adminPage.registered
                           }`
                     }`
-                  : language === "no"
+                  : upcoming.isError || upcoming.isPending ? '' : language === "no"
                   ? "Opprett et arrangement fra arrangementsiden."
                   : "Create one from the events page."}
               </p>

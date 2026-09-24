@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import * as Sentry from "@sentry/react";
 import { reloadForStaleChunk } from "@/lib/stale-chunk";
+import { privateTelemetryTransport, scrubTelemetry } from "@/lib/telemetry-privacy";
 
 // Initialize Sentry for error tracking in production
 if (import.meta.env.VITE_SENTRY_DSN) {
@@ -18,14 +19,10 @@ if (import.meta.env.VITE_SENTRY_DSN) {
     environment: import.meta.env.MODE,
     integrations: [
       Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration({
-        maskAllText: true,
-        blockAllMedia: true,
-      }),
     ],
+    transport: options => privateTelemetryTransport(Sentry.makeFetchTransport(options)),
     tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0,
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
+    // Replay stays disabled: DOM masking does not protect URL metadata.
   });
 }
 
@@ -46,7 +43,7 @@ createRoot(document.getElementById("root")!).render(
         <LanguageProvider>
           <App />
           <Toaster />
-          <Analytics />
+          <Analytics beforeSend={scrubTelemetry} debug={false} />
         </LanguageProvider>
       </QueryClientProvider>
     </ThemeProvider>

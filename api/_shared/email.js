@@ -1,7 +1,10 @@
 import nodemailer from 'nodemailer';
+import net from 'node:net';
 
 let cachedTransporter = null;
 let cachedPooledTransporter = null;
+const pooledSockets = new Set();
+const SMTP_TIMEOUTS = { connectionTimeout: 5000, greetingTimeout: 5000, socketTimeout: 5000 };
 
 function gmailAuth() {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_APP_PASSWORD) {
@@ -24,6 +27,7 @@ export function createTransporter() {
   cachedTransporter = nodemailer.createTransport({
     service: 'gmail',
     auth: gmailAuth(),
+    ...SMTP_TIMEOUTS,
   });
 
   return cachedTransporter;
@@ -43,7 +47,7 @@ export function createTransporter() {
  * Call closePooledTransporter() when the batch is done so the sockets are not
  * left open into a frozen instance.
  */
-export function createPooledTransporter() {
+export function createPooledTransporter(deadline = Date.now() + 23_000) {
   if (cachedPooledTransporter) return cachedPooledTransporter;
 
   cachedPooledTransporter = nodemailer.createTransport({
@@ -52,14 +56,43 @@ export function createPooledTransporter() {
     maxConnections: 5,
     maxMessages: 100,
     auth: gmailAuth(),
+    ...SMTP_TIMEOUTS,
+    // Public Nodemailer socket hook: retain ownership of the TCP connection
+    // so the absolute deadline can abort even an active TLS/SMTP send. Pool
+    // close() alone waits for busy resources. secured:false preserves the
+    // Gmail transport's mandatory TLS upgrade and certificate verification.
+    getSocket(options, callback) {
+      if (Date.now() >= deadline) return callback(new Error('SMTP deadline exceeded'));
+      const socket = net.connect({ host: options.host, port: Number(options.port) });
+      pooledSockets.add(socket);
+      let handedOff = false;
+      const finish = (error, value) => {
+        if (handedOff) return;
+        handedOff = true;
+        callback(error, value);
+      };
+      const deadlineTimer = setTimeout(() => socket.destroy(), Math.max(1, deadline - Date.now()));
+      const connectTimer = setTimeout(() => socket.destroy(), SMTP_TIMEOUTS.connectionTimeout);
+      socket.once('connect', () => {
+        clearTimeout(connectTimer);
+        finish(null, { connection: socket, secured: false });
+      });
+      socket.on('error', error => finish(error));
+      socket.once('close', () => {
+        clearTimeout(deadlineTimer);
+        clearTimeout(connectTimer);
+        pooledSockets.delete(socket);
+        finish(new Error('SMTP connection closed before ready'));
+      });
+    },
   });
 
   return cachedPooledTransporter;
 }
 
 /** Send through the pooled transporter. Same message shape as sendEmail(). */
-export async function sendPooledEmail({ to, subject, text, from, messageId }) {
-  const transporter = createPooledTransporter();
+export async function sendPooledEmail({ to, subject, text, from, messageId }, { deadline = Date.now() + 23_000 } = {}) {
+  const transporter = createPooledTransporter(deadline);
   await transporter.sendMail({
     from: from || process.env.GMAIL_USER,
     to,
@@ -73,6 +106,8 @@ export async function sendPooledEmail({ to, subject, text, from, messageId }) {
 export function closePooledTransporter() {
   if (!cachedPooledTransporter) return;
   cachedPooledTransporter.close();
+  for (const socket of pooledSockets) socket.destroy();
+  pooledSockets.clear();
   cachedPooledTransporter = null;
 }
 

@@ -1,6 +1,7 @@
 export type Language = 'no' | 'en';
 
 export interface Translations {
+  dataState: { unavailable: string; staleHint: string; retry: string; loading: string };
   calendarWorkspace: {
     editHint: string;
     allEntries: string;
@@ -221,6 +222,7 @@ export interface Translations {
     cancellationListDesc: string;
     cancelledAt: string;
     downloadExcel: string;
+    exportFailed: string;
     people: string;
     deleteRegistration: string;
     deleteRegistration2: string;
@@ -883,6 +885,12 @@ export interface Translations {
 
 export const translations: Record<Language, Translations> = {
   no: {
+    dataState: {
+      unavailable: "Opplysningene er ikke tilgjengelige akkurat nå",
+      staleHint: "Prøv igjen. Opplysninger som fortsatt vises, kan være ufullstendige eller utdaterte.",
+      retry: "Prøv igjen",
+      loading: "Laster opplysninger …",
+    },
     calendarWorkspace: {
       editHint: "Velg en dato eller uke i måneden for å legge til. Endre dato eller uke i skjemaet for å flytte en oppføring.",
       allEntries: "Månedens oppføringer",
@@ -1108,6 +1116,7 @@ export const translations: Record<Language, Translations> = {
       cancellationListDesc: "Meldte seg av med lenken i e-posten. Plassene er frigitt.",
       cancelledAt: "Avmeldt",
       downloadExcel: "Last ned Excel",
+      exportFailed: "Kunne ikke laste ned deltakerlisten. Prøv igjen.",
       people: "personer",
       deleteRegistration: "Slett påmelding",
       deleteRegistration2: "Slett påmelding?",
@@ -1761,6 +1770,12 @@ export const translations: Record<Language, Translations> = {
     }
   },
   en: {
+    dataState: {
+      unavailable: "Information is currently unavailable",
+      staleHint: "Please try again. Any information still shown may be incomplete or out of date.",
+      retry: "Try again",
+      loading: "Loading information …",
+    },
     calendarWorkspace: {
       editHint: "Select a date or week in the month to add an entry. Change its date or week in the form to move it.",
       allEntries: "Entries this month",
@@ -1986,6 +2001,7 @@ export const translations: Record<Language, Translations> = {
       cancellationListDesc: "Cancelled with the link in their email. The places have been released.",
       cancelledAt: "Cancelled",
       downloadExcel: "Download Excel",
+      exportFailed: "Could not download the attendee list. Please try again.",
       people: "people",
       deleteRegistration: "Delete registration",
       deleteRegistration2: "Delete registration?",

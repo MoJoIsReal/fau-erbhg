@@ -2,10 +2,10 @@ import type { Event, EventRegistration } from '@shared/schema';
 import { formatDate } from './i18n';
 import { resolvePhotoSlotsForRegistration } from '@shared/photo-slots';
 
-export function exportAttendeesToExcel(event: Event, registrations: EventRegistration[], language: 'no' | 'en') {
+export async function exportAttendeesToExcel(event: Event, registrations: EventRegistration[], language: 'no' | 'en') {
   const isFotoEvent = event.type === 'foto';
 
-  let csvContent: string[][];
+  let sheetRows: string[][];
 
   if (isFotoEvent) {
     // Foto event: list sorted by time slot with parent, child, and contact info
@@ -49,7 +49,7 @@ export function exportAttendeesToExcel(event: Event, registrations: EventRegistr
     const rows = unsortedRows.sort((a, b) => a.slot.localeCompare(b.slot)).map((r) => r.row);
     const totalChildrenBefore = totalChildren;
 
-    csvContent = [
+    sheetRows = [
       [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
       [language === 'no' ? 'Dato:' : 'Date:', formatDate(event.date, language)],
       [language === 'no' ? 'Starttid:' : 'Start time:', event.time],
@@ -70,7 +70,7 @@ export function exportAttendeesToExcel(event: Event, registrations: EventRegistr
       ? ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']
       : ['Name', 'Email', 'Phone', 'Attendee Count', 'Comments'];
 
-    csvContent = [
+    sheetRows = [
       [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
       [language === 'no' ? 'Dato:' : 'Date:', formatDate(event.date, language)],
       [language === 'no' ? 'Tid:' : 'Time:', event.time],
@@ -93,27 +93,19 @@ export function exportAttendeesToExcel(event: Event, registrations: EventRegistr
     ];
   }
 
-  // Convert to CSV format (use semicolon separator for Nordic/European Excel)
-  const csv = csvContent
-    .map(row => row.map(cell => {
-      const cellStr = cell?.toString() || '';
-      return '"' + cellStr.replace(/"/g, '""') + '"';
-    }).join(';'))
-    .join('\n');
-
-  // Add BOM for proper UTF-8 encoding in Excel
-  const bom = '\uFEFF';
-  const csvWithBom = bom + csv;
-
-  // Create and download file
-  const blob = new Blob([csvWithBom], { type: 'text/csv;charset=utf-8;' });
+  // Explicit XLSX string cells preserve phone numbers, Unicode and leading
+  // controls without letting spreadsheet software interpret input as formulas.
+  const { default: writeXlsxFile } = await import('write-excel-file/browser');
+  const blob = await writeXlsxFile(sheetRows.map(row =>
+    row.map(value => ({ type: String, value: value ?? '' })),
+  )).toBlob();
   const link = document.createElement('a');
   
   if (link.download !== undefined) {
     const url = URL.createObjectURL(blob);
     link.setAttribute('href', url);
     
-    const filename = event.title.replace(/[^a-zA-Z0-9æøåÆØÅ]/g, '_') + '_' + event.date + '.csv';
+    const filename = event.title.replace(/[^a-zA-Z0-9æøåÆØÅ]/g, '_') + '_' + event.date + '.xlsx';
     link.setAttribute('download', filename);
     link.style.visibility = 'hidden';
     

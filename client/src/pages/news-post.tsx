@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { QueryNotice } from "@/components/site/query-notice";
 import { Link, useRoute } from "wouter";
 import { ArrowLeft, Calendar, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,10 +33,11 @@ export default function NewsPost() {
   // up to 500 posts with their full bodies — to render one article, which is
   // paid by exactly the traffic a permalink exists for: someone opening a link
   // shared to the parents' group.
-  const { data: posts = [], isLoading } = useQuery<BlogPost[]>({
+  const postsQuery = useQuery<BlogPost[]>({
     queryKey: [`/api/secure-settings?resource=blog-posts&id=${postId}`],
     enabled: Number.isFinite(postId),
   });
+  const { data: posts = [], isLoading } = postsQuery;
 
   const post = posts.find((p) => p.id === postId);
 
@@ -56,6 +58,8 @@ export default function NewsPost() {
       </div>
     );
   }
+
+  if (!post && postsQuery.isError) return <QueryNotice queries={[postsQuery]} />;
 
   if (!post) {
     return (
@@ -90,6 +94,7 @@ export default function NewsPost() {
         {post.category === "tips" ? t.newsPage.allTips : t.newsPage.allNews}
       </Link>
 
+      <QueryNotice queries={[postsQuery]} />
       <article>
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill>

@@ -25,20 +25,25 @@ function dayKey(date: string): string {
  * queries (TanStack Query dedupes on the identical keys) instead of each
  * maintaining its own copy of the filtering rules.
  */
-export function useUpcomingItems(): UpcomingItem[] {
-  const { data: events = [] } = useQuery<Event[]>({
+export function useUpcomingItems() {
+  const eventsQuery = useQuery<Event[]>({
     queryKey: ["/api/events"],
   });
 
   // Fetch the current and next school year so the list stays correct around
   // the August transition — the kindergarten year starts in August.
   const currentSchoolYear = getKindergartenSchoolYear(new Date());
-  const { data: currentYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
+  const currentYearQuery = useQuery<YearlyCalendarEntry[]>({
     queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear}`],
   });
-  const { data: nextYearEntries = [] } = useQuery<YearlyCalendarEntry[]>({
+  const nextYearQuery = useQuery<YearlyCalendarEntry[]>({
     queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`],
   });
+
+  const { data: events = [] } = eventsQuery;
+  const { data: currentYearEntries = [] } = currentYearQuery;
+  const { data: nextYearEntries = [] } = nextYearQuery;
+  const queries = [eventsQuery, currentYearQuery, nextYearQuery];
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -74,7 +79,14 @@ export function useUpcomingItems(): UpcomingItem[] {
     })
     .map((entry) => ({ kind: "yearly" as const, date: entry.date as string, entry }));
 
-  return [...eventItems, ...yearlyItems].sort(
+  const items: UpcomingItem[] = [...eventItems, ...yearlyItems].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
   );
+  return {
+    items,
+    isError: queries.some(query => query.isError),
+    isPending: queries.some(query => query.isPending),
+    isFetching: queries.some(query => query.isFetching),
+    refetch: () => Promise.all(queries.map(query => query.refetch())),
+  };
 }

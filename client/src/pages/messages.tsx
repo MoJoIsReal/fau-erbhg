@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QueryNotice } from "@/components/site/query-notice";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,9 +57,10 @@ export default function Messages() {
   const [replyText, setReplyText] = useState("");
 
   // Fetch contact messages
-  const { data: messages = [], isLoading } = useQuery<ContactMessage[]>({
+  const messagesQuery = useQuery<ContactMessage[]>({
     queryKey: ["/api/secure-settings?resource=contact-messages"],
   });
+  const { data: messages = [], isLoading } = messagesQuery;
 
   // Update message status mutation
   const updateStatusMutation = useMutation({
@@ -191,6 +193,8 @@ export default function Messages() {
     );
   }
 
+  if (messagesQuery.isError && !messagesQuery.data) return <QueryNotice queries={[messagesQuery]} />;
+
   const newMessages = messages.filter(m => m.status === 'new');
   const respondedMessages = messages.filter(m => m.status === 'responded');
   const archivedMessages = messages.filter(m => m.status === 'archived');
@@ -245,6 +249,7 @@ export default function Messages() {
 
   return (
     <div className="mx-auto max-w-6xl">
+      <QueryNotice queries={[messagesQuery]} />
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-ink">
           {t.messagesPage.messages}

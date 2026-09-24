@@ -353,8 +353,10 @@ export default function Content() {
                     </div>
 
                     <div>
-                      <Label htmlFor={`post-content-${index}`}>{t.contentPage.content}</Label>
+                      <Label id={`post-content-${index}-label`}>{t.contentPage.content}</Label>
                       <RichTextEditor
+                        id={`post-content-${index}`}
+                        aria-labelledby={`post-content-${index}-label`}
                         content={editablePost.content || ""}
                         onChange={(content) => updatePost(index, "content", content)}
                         placeholder={t.contentPage.writeYourPostHere}

@@ -4,7 +4,16 @@ import {
   deliveryMessageId,
   nextAttemptAt,
   runWithConcurrency,
+  sendWithDeadline,
 } from '../api/_shared/delivery.js';
+
+test('successful sends clear their deadline timer; expired sends never start', async () => {
+  let aborted = false;
+  await sendWithDeadline(async () => {}, {}, Date.now() + 20, () => { aborted = true; });
+  await new Promise(resolve => setTimeout(resolve, 35));
+  assert.equal(aborted, false);
+  await assert.rejects(sendWithDeadline(() => assert.fail('expired send must not start'), {}, Date.now() - 1, () => {}), { code: 'EMAIL_DEADLINE' });
+});
 
 test('delivery message IDs are deterministic and scoped by delivery kind', () => {
   const first = deliveryMessageId('newsletter', 42);

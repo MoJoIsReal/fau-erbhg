@@ -9,7 +9,7 @@ A comprehensive digital platform for FAU Erdal Barnehage that enhances parent-sc
 - [`docs/design/style-guide.md`](docs/design/style-guide.md) — the UI Design &
   Style Guide 1.1; read it before any visual change.
 - [`docs/`](docs/README.md) — deployment guide, architecture reference,
-  subsystem rules and the review backlog.
+  subsystem rules, database testing and outstanding release checks.
 
 ## Features
 

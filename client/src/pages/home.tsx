@@ -1,6 +1,7 @@
 import { CalendarCategory } from "@/components/site/calendar-category";
 import { calendarDisplayKind, calendarDisplayKindForEntry, calendarKindForEventType } from "@shared/calendar-entries";
 import { useQuery } from "@tanstack/react-query";
+import { QueryNotice } from "@/components/site/query-notice";
 import { Link } from "wouter";
 import { ArrowRight, CalendarDays, Clock, Heart, MapPin, Sparkles, Users } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -91,17 +92,19 @@ export default function Home() {
 
   // Merged upcoming events + yearly-calendar entries, shared with the footer.
   const upcoming = useUpcomingItems();
-  const [next, ...rest] = upcoming;
+  const [next, ...rest] = upcoming.items;
   const soon = rest.slice(0, 4);
 
-  const { data: allBlogPosts = [] } = useQuery<BlogPost[]>({
+  const postsQuery = useQuery<BlogPost[]>({
     queryKey: ["/api/secure-settings?resource=blog-posts"],
   });
+  const { data: allBlogPosts = [] } = postsQuery;
   const blogPosts = allBlogPosts.filter((post) => post.showOnHomepage !== false).slice(0, 3);
 
-  const { data: kindergartenInfo } = useQuery<KindergartenInfo>({
+  const infoQuery = useQuery<KindergartenInfo>({
     queryKey: ["/api/secure-settings?resource=kindergarten-info"],
   });
+  const { data: kindergartenInfo } = infoQuery;
 
 
   return (
@@ -171,7 +174,8 @@ export default function Home() {
           }
         />
 
-        {!next ? (
+        <QueryNotice queries={[upcoming]} />
+        {!next ? (upcoming.isError || upcoming.isPending ? null :
           <EmptyState
             icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
             title={t.home.noEvents}
@@ -244,7 +248,7 @@ export default function Home() {
             <Surface className="p-6">
               <h3 className="text-h4 font-bold text-ink">{t.home.comingDates}</h3>
               {soon.length === 0 ? (
-                <p className="mt-3 text-small text-subtle">{t.calendar.noEventsThisWeek}</p>
+                <p className="mt-3 text-small text-subtle">{upcoming.isError ? t.dataState.unavailable : upcoming.isPending ? t.dataState.loading : t.calendar.noEventsThisWeek}</p>
               ) : (
                 <ul className="mt-4 divide-y divide-hairline">
                   {soon.map((item) => {
@@ -282,7 +286,7 @@ export default function Home() {
         )}
       </section>
 
-      {blogPosts.length > 0 && (
+      {(blogPosts.length > 0 || postsQuery.isError || postsQuery.isPending) && (
         <section aria-labelledby="home-updates">
           <SectionHeader
             id="home-updates"
@@ -297,6 +301,7 @@ export default function Home() {
               </Link>
             }
           />
+          <QueryNotice queries={[postsQuery]} />
           <div className="grid gap-6 md:grid-cols-3">
             {blogPosts.map((post) => (
               <Surface key={post.id} as="article" className="flex flex-col p-5">
@@ -351,6 +356,7 @@ export default function Home() {
             </Link>
           }
         />
+        <QueryNotice queries={[infoQuery]} />
         {kindergartenInfo ? (
           // min-w-0 on each cell: a grid track is floored at its items'
           // min-content width, and the unbroken contact address is wider than
@@ -398,7 +404,7 @@ export default function Home() {
             </div>
           </dl>
         ) : (
-          <p className="text-copy italic">{t.home.loadingInformation}</p>
+          null
         )}
       </section>
 

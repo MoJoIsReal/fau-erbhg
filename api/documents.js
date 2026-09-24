@@ -1,5 +1,6 @@
 import { getDb } from './_shared/database.js';
 import { configureCloudinary } from './_shared/cloudinary.js';
+import { parseCloudinaryDeliveryUrl } from './_shared/cloudinary-url.js';
 import {
   withApiHandler,
   requireCsrf,
@@ -73,31 +74,49 @@ export default withApiHandler(async function handler(req, res) {
     const documentId = requireIntId(req, res);
     if (!documentId) return;
 
-    const deletedDoc = await sql`
-      DELETE FROM documents
+    const documents = await sql`
+      SELECT id, cloudinary_url, cloudinary_public_id, filename, mime_type
+      FROM documents
       WHERE id = ${documentId}
-      RETURNING id, cloudinary_url, cloudinary_public_id, filename, mime_type
     `;
 
-    if (deletedDoc.length === 0) {
+    if (documents.length === 0) {
       return res.status(404).json({ error: 'Document not found' });
     }
 
-    const publicId = deletedDoc[0].cloudinary_public_id;
-    if (publicId) {
-      try {
-        const cloudinary = configureCloudinary();
-        const resourceType = deletedDoc[0].mime_type?.startsWith('image/') ? 'image' : 'raw';
-        await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
-      } catch (cloudinaryError) {
-        console.error('Cloudinary cleanup failed:', cloudinaryError.message);
-      }
+    const document = documents[0];
+    // The verified delivery URL carries the provider type (PDFs can be image
+    // resources). Never guess from MIME, or delete an unrelated stored ID.
+    const url = new URL(document.cloudinary_url);
+    const delivery = parseCloudinaryDeliveryUrl(url);
+    if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com'
+        || delivery.cloudName !== process.env.CLOUDINARY_CLOUD_NAME
+        || !['image', 'raw'].includes(delivery.resourceType)
+        || delivery.deliveryType !== 'upload'
+        || !delivery.publicId.startsWith('fau-documents/')
+        || delivery.publicId.split('/').some(part => !part || part === '.' || part === '..')
+        || (document.cloudinary_public_id && document.cloudinary_public_id !== delivery.publicId)) {
+      throw new Error('Invalid stored document delivery identity');
     }
+
+    const cloudinary = configureCloudinary();
+    const cleanup = await cloudinary.uploader.destroy(delivery.publicId, {
+      resource_type: delivery.resourceType,
+      invalidate: true,
+    });
+    if (!['ok', 'not found'].includes(cleanup?.result)) {
+      throw new Error('Document provider cleanup did not complete');
+    }
+
+    // Keep the durable reference until cleanup succeeds. Provider failure
+    // leaves the document available to retry; a DB failure after cleanup is
+    // also retryable because a correctly addressed absent asset is success.
+    await sql`DELETE FROM documents WHERE id = ${documentId}`;
 
     return res.status(200).json({
       success: true,
       message: 'Document deleted successfully',
-      deletedDocument: deletedDoc[0]
+      deletedDocument: document
     });
   }
 

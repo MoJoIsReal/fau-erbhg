@@ -2,7 +2,7 @@ import { EditorDialog, EditorSection } from "@/components/site/editor-dialog";
 import { CalendarCategory } from "@/components/site/calendar-category";
 import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarKindForEventType } from "@shared/calendar-entries";
 import { useForm, useWatch } from "react-hook-form";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog } from "@/components/ui/dialog";
@@ -180,6 +180,7 @@ interface EventCreationModalProps {
 }
 
 export default function EventCreationModal({ isOpen, onClose, event }: EventCreationModalProps) {
+  const descriptionLabelId = useId();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t, language } = useLanguage();
@@ -331,9 +332,12 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t.modals.eventCreation.descriptionLabel}</FormLabel>
+                    <FormLabel id={descriptionLabelId}>{t.modals.eventCreation.descriptionLabel}</FormLabel>
                     <FormControl>
                       <RichTextEditor
+                        aria-labelledby={descriptionLabelId}
+                        ref={field.ref}
+                        onBlur={field.onBlur}
                         content={field.value || ""}
                         onChange={field.onChange}
                         placeholder={t.modals.eventCreation.descriptionPlaceholder}

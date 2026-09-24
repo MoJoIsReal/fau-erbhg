@@ -5,6 +5,20 @@ import { broadcastNewsletter } from '../api/cron/event-reminders.js';
 process.env.GMAIL_USER = 'sender@example.test';
 process.env.GMAIL_APP_PASSWORD = 'test-only-password';
 
+test('a stalled newsletter send is bounded and its delivery stays retryable', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const { sql, calls } = scriptedSql([delivery({ attempts: 5 })], 1);
+  const started = Date.now();
+  const result = await broadcastNewsletter(sql, '2026-09-10', (_message, options) => new Promise(resolve => {
+    const timer = setTimeout(resolve, 1000);
+    options?.signal?.addEventListener('abort', () => { clearTimeout(timer); resolve(); }, { once: true });
+  }), started + 30);
+  assert.ok(Date.now() - started < 700);
+  assert.equal(result.sent, 0);
+  assert.equal(result.failed, 1);
+  assert.equal(releasedStatus(calls), 'pending');
+});
+
 function delivery(overrides = {}) {
   return {
     id: 17,
@@ -271,16 +285,22 @@ test('source items are stamped from their deliveries, not from the run date', as
 
 // A run killed at maxDuration leaves every claimed-but-unsent row stuck in
 // 'processing'. The budget makes the run hand rows back itself instead.
-test('a delivery is released rather than sent once the run budget is spent', async () => {
+test('a delivery is released rather than sent when the budget expires during its claim', async (t) => {
   const { sql, calls } = scriptedSql([delivery()], 1);
   let sendCount = 0;
 
-  const expiredDeadline = Date.now() - 1;
+  let now = 1000;
+  t.mock.method(Date, 'now', () => now);
+  const delayedSql = async (strings, ...values) => {
+    const rows = await sql(strings, ...values);
+    if (strings.join('').includes('WITH candidates AS')) now = 2000;
+    return rows;
+  };
   const result = await broadcastNewsletter(
-    sql,
+    delayedSql,
     '2026-09-10',
     async () => { sendCount += 1; },
-    expiredDeadline,
+    1500,
   );
 
   assert.equal(sendCount, 0, 'no message should be sent after the deadline');

@@ -3,6 +3,29 @@ import crypto from 'crypto';
 export const DELIVERY_CONCURRENCY = 5;
 export const DELIVERY_LEASE_MINUTES = 10;
 
+// The abort callback must stop the underlying provider work, not just abandon
+// its promise. Cron supplies closePooledTransporter, which destroys its sockets.
+export async function sendWithDeadline(send, message, deadline, abort) {
+  const controller = new AbortController();
+  let timer;
+  const expired = () => Object.assign(new Error('Email send deadline exceeded; delivery may be uncertain'), { code: 'EMAIL_DEADLINE' });
+  if (Date.now() >= deadline) throw expired();
+  try {
+    await Promise.race([
+      new Promise((_, reject) => {
+        timer = setTimeout(() => {
+          reject(expired());
+          controller.abort();
+          abort();
+        }, Math.max(1, deadline - Date.now()));
+      }),
+      Promise.resolve().then(() => send(message, { deadline, signal: controller.signal })),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export function deliveryMessageId(kind, id) {
   const digest = crypto.createHash('sha256').update(`${kind}:${id}`).digest('hex');
   return `<${digest}@erdal-bhg.no>`;

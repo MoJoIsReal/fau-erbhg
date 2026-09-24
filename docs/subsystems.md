@@ -73,8 +73,10 @@ see it. `api/events.js` rejects anything else on create and update, and logs a
 warning if a stored row still has one. Watch for the Norwegian decimal form
 ("17.00") — it is the natural thing to type and it is not valid here.
 
-The client-side `AddToCalendar` export (`client/src/lib/calendar.ts`) is the
-separate one-event-at-a-time path and is unrelated to the feed.
+The subscription UI is `client/src/components/calendar-subscribe.tsx`; the
+feed serializer is `shared/calendar-feed.js`, served by `api/events.js` through
+the `/kalender.ics` rewrite. Printable and spreadsheet exports are separate:
+`client/src/lib/yearly-calendar-pdf.tsx` and `yearly-calendar-excel.ts`.
 
 ## Newsletter
 
@@ -94,6 +96,28 @@ run of the same handler does registration reminders and GDPR retention cleanup.
 Both schedules live in `vercel.json`, are fixed UTC, and do **not** follow
 Norwegian DST. `/api/cron/*` requires the `CRON_SECRET` bearer token in
 production.
+
+The morning run performs retention and counter reconciliation **before** mail.
+Independent housekeeping stages and reminders are all attempted; stage failures
+are logged with partial results and make the invocation fail instead of silently
+skipping cleanup or reporting success. Retention windows are unchanged.
+
+Cron sending stops at an absolute 23-second deadline, leaving seven seconds of
+the configured 30-second function limit for stamps/releases and response work.
+SMTP also has explicit 5-second connection, greeting and inactivity timeouts.
+The pool supplies owned TCP sockets through Nodemailer's public `getSocket` hook;
+Gmail's secure transport still upgrades them to TLS and validates certificates.
+Deadline/close destroys those sockets, including busy ones: Nodemailer's ordinary
+pool `close()` alone waits for active messages and is not an abort mechanism.
+Unattempted claims are released without consuming a delivery attempt.
+
+Delivery remains **at least once**, not exactly once. SMTP may accept a message
+before a timeout or before a failed database stamp. Deadline-uncertain newsletter
+deliveries remain retryable, even at the normal rejection-attempt limit; a retry
+can duplicate an accepted message. Stable Message-ID helps correlation, but is
+not a provider deduplication guarantee. Database calls themselves are not bounded
+by the SMTP deadline; production latency/overlap assurance still needs isolated
+PostgreSQL and provider validation.
 
 ## Rich text and video embeds
 

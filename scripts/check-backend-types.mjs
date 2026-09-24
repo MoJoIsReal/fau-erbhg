@@ -21,26 +21,31 @@
 //     never rise — same contract as scripts/check-i18n.mjs.
 
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 
 // TS2304 "Cannot find name 'X'" / TS2552 "Cannot find name 'X'. Did you mean…"
 const FATAL_CODES = new Set(['TS2304', 'TS2552']);
 
 // Pre-existing signature/JSDoc diagnostics at the time this check was added.
 // Lower this whenever you clear some. Do not raise it.
-const OTHER_BUDGET = 54;
+const OTHER_BUDGET = 52;
 
 const DIAGNOSTIC = /^(\S.*?)\((\d+),(\d+)\): error (TS\d+): (.*)$/;
 
 let output = '';
+let failed = false;
 try {
-  execFileSync('npx', ['tsc', '-p', 'tsconfig.api.json', '--noEmit'], {
+  const require = createRequire(import.meta.url);
+  const compiler = require.resolve('typescript/package.json').replace(/package\.json$/, 'bin/tsc');
+  output = execFileSync(process.execPath, [compiler, '-p', 'tsconfig.api.json', '--noEmit', '--pretty', 'false'], {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   });
 } catch (error) {
+  failed = true;
   // tsc exits non-zero when it reports diagnostics; that is the normal path here.
   output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
-  if (!output.trim()) {
+  if (!output.trim() || error.signal || !Number.isInteger(error.status)) {
     console.error('backend types: tsc failed without producing diagnostics.\n');
     console.error(error.message);
     process.exit(1);
@@ -49,13 +54,25 @@ try {
 
 const fatal = [];
 let other = 0;
+const unexpected = [];
 
 for (const line of output.split('\n')) {
   const match = DIAGNOSTIC.exec(line);
-  if (!match) continue;
+  if (!match) {
+    // tsc's multiline diagnostic details are indented. Global errors and
+    // unexplained output must never be mistaken for a successful zero count.
+    if (line.trim() && (!/^\s/.test(line) || /^\s*error TS\d+:/.test(line))) unexpected.push(line);
+    continue;
+  }
   const [, file, lineNo, col, code, message] = match;
   if (FATAL_CODES.has(code)) fatal.push(`  ${file}:${lineNo}:${col}  ${code}: ${message}`);
   else other += 1;
+}
+
+if (unexpected.length || (failed && fatal.length + other === 0)) {
+  console.error('backend types: unrecognized compiler failure or global diagnostic.');
+  console.error(output.trim());
+  process.exit(1);
 }
 
 if (fatal.length > 0) {
@@ -69,8 +86,7 @@ if (fatal.length > 0) {
 if (other > OTHER_BUDGET) {
   console.error(`\nbackend types: ${other} other diagnostics, budget is ${OTHER_BUDGET}.\n`);
   console.error(output.trim());
-  console.error('\nFix the new diagnostic, or raise OTHER_BUDGET in');
-  console.error('scripts/check-backend-types.mjs and say why in the commit message.\n');
+  console.error('\nFix the new diagnostic. Do not raise OTHER_BUDGET.\n');
   process.exit(1);
 }
 

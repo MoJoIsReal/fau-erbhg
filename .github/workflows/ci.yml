@@ -34,3 +34,31 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fau_test
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: fau_integration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fau_test -d fau_integration_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+      - name: Execute production SQL against isolated PostgreSQL
+        run: npm run test:integration
+        env:
+          TEST_DATABASE_URL: postgres://fau_test:test-only-password@127.0.0.1:5432/fau_integration_test

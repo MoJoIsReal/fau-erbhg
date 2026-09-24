@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { QueryNotice } from "@/components/site/query-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -31,15 +32,17 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: registrations = [], isLoading } = useQuery<EventRegistration[]>({
+  const registrationsQuery = useQuery<EventRegistration[]>({
     queryKey: [`/api/registrations?eventId=${event.id}`],
   });
+  const { data: registrations = [], isLoading } = registrationsQuery;
 
   // Parents who cancelled through the link in their email. Their seats are
   // already released, so they are not part of the counts above.
-  const { data: cancellations = [] } = useQuery<EventRegistrationCancellation[]>({
+  const cancellationsQuery = useQuery<EventRegistrationCancellation[]>({
     queryKey: [`/api/registrations?eventId=${event.id}&cancelled=1`],
   });
+  const { data: cancellations = [] } = cancellationsQuery;
 
   const deleteRegistrationMutation = useMutation({
     mutationFn: (registrationId: number) =>
@@ -109,8 +112,12 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     },
   });
 
-  const handleExportExcel = () => {
-    exportAttendeesToExcel(event, registrations, language);
+  const handleExportExcel = async () => {
+    try {
+      await exportAttendeesToExcel(event, registrations, language);
+    } catch {
+      toast({ title: t.events.exportFailed, variant: "destructive" });
+    }
   };
 
   if (isLoading) {
@@ -124,6 +131,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
       </Card>
     );
   }
+
+  if (registrationsQuery.isError && !registrationsQuery.data) return <QueryNotice queries={[registrationsQuery]} />;
 
   const totalAttendees = registrations.reduce((sum, reg) => sum + (reg.attendeeCount || 1), 0);
   const totalCancelled = cancellations.reduce((sum, c) => sum + (c.attendeeCount || 1), 0);
@@ -152,6 +161,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
 
   return (
     <div className="space-y-6">
+      <QueryNotice queries={[registrationsQuery, cancellationsQuery]} />
       {/* Event Summary */}
       <Card>
         <CardHeader>

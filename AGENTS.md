@@ -19,7 +19,8 @@ npm run dev        # Vite dev server on http://localhost:5000 (frontend only)
 npm run check      # tsc --noEmit + the i18n ratchet (scripts/check-i18n.mjs)
 npm test           # test:unit then test:smoke
 npm run build      # production frontend build (Vite → dist/public)
-npm run verify     # check + test + build, i.e. exactly what CI runs
+npm run verify     # check + offline tests + build (CI's verify job)
+npm run test:integration # isolated PostgreSQL gate; see docs/database-testing.md
 npm run db:push    # push shared/schema.ts to the DB (needs DATABASE_URL)
 ```
 
@@ -48,7 +49,7 @@ attached_assets/    Uploaded source material, never served — including
                     the `-dark` night version of each
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
 tests/*.test.mjs    node:test suites; scripts/smoke-tests.mjs is the second tier
-docs/               Architecture, subsystem rules, deployment, review backlog
+docs/               Architecture, subsystem rules, deployment and database testing
 docs/design/        The UI Design & Style Guide (PDF + text transcription)
 ```
 
@@ -254,6 +255,8 @@ Before calling a change done:
    (`docs/design/style-guide.md`) — both themes, 375–1440px widths.
 
 `npm run verify` covers all three when you'd otherwise run them individually.
+CI also runs a separate disposable PostgreSQL job; setup and the strictly local
+test-connection guard are documented in [`docs/database-testing.md`](docs/database-testing.md).
 Add a test whenever you touch `api/_shared/` or `shared/` — that is the layer
 the suites can actually reach. Never point automated tests at the production
 Neon database.
@@ -285,7 +288,8 @@ Make the smallest coherent change. Look at a sibling handler/page/test before
 introducing a pattern; this codebase is small and internally consistent, so
 reuse beats invention. Don't refactor code the task didn't ask about, and don't
 "fix" audit findings opportunistically — each one is a scoped task with its own
-acceptance criteria. The live plan is [`REVIEW_TASKS.md`](REVIEW_TASKS.md) at the
-repository root (the 2026-09-18 audit); [`docs/review-backlog.md`](docs/review-backlog.md)
-is the superseded 2026-09-09 backlog, whose checkbox state is stale and whose task
-IDs mean different things despite reusing the same prefixes.
+acceptance criteria. Keep current operating guidance in [`docs/`](docs/README.md)
+and outstanding release checks in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+When review work is completed, fold lasting rules into the relevant operating
+document and remove its completed plan/report. Do not maintain duplicate review
+archives in the checkout; committed history belongs in Git.

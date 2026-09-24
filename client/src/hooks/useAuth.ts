@@ -1,6 +1,5 @@
-import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest, setUnauthorizedHandler } from '@/lib/queryClient';
+import { apiRequest } from '@/lib/queryClient';
 
 interface AuthUser {
   userId: number;
@@ -22,17 +21,6 @@ export function useAuth() {
     refetchOnWindowFocus: true,
     refetchInterval: 15 * 60 * 1000,
   });
-
-  // Any 401 from anywhere clears the cached identity, which flips
-  // isAuthenticated to false and sends the route guards to the login prompt.
-  useEffect(() => {
-    setUnauthorizedHandler(() => {
-      if (queryClient.getQueryData(['/api/auth']) != null) {
-        queryClient.setQueryData(['/api/auth'], null);
-      }
-    });
-    return () => setUnauthorizedHandler(null);
-  }, [queryClient]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
