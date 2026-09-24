@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import { call, fields, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
 
 const handler = await importHandler('api/events.js');
 
@@ -55,10 +55,19 @@ test('an invalid event is refused with a reason and nothing is written', async (
   for (const [change, error] of [
     [{ title: '   ' }, /title, date, and time are required/],
     [{ date: '' }, /title, date, and time are required/],
+    [{ date: 'neste fredag' }, /YYYY-MM-DD/],
+    [{ date: '2026-02-31' }, /real calendar date/],
+    [{ date: '2026-6-12' }, /YYYY-MM-DD/],
+    [{ date: '12.06.2026' }, /YYYY-MM-DD/],
     [{ time: '17.00' }, /HH:MM/],
     [{ time: '24:00' }, /HH:MM/],
     [{ registrationDeadline: 'next friday' }, /registration deadline/],
     [{ type: 'party' }, /Invalid event type/],
+    // Out of range used to be saved as "no limit" rather than refused.
+    [{ maxAttendees: 1500 }, /whole number from 0 to 1000/],
+    [{ maxAttendees: -5 }, /whole number from 0 to 1000/],
+    [{ maxAttendees: 2.5 }, /whole number from 0 to 1000/],
+    [{ maxAttendees: 'mange' }, /whole number from 0 to 1000/],
   ]) {
     for (const [method, query] of [['POST', {}], ['PUT', { id: '7' }]]) {
       const sql = useDatabase(scriptedSql());
@@ -91,6 +100,24 @@ test('a new event is stored sanitized, with strict flags and a normalized deadli
   assert.equal(maxAttendees, 40);
   assert.equal(deadline, '2026-06-10T10:00:00.000Z');
   assert.deepEqual([vigilo, noSignup, notify], [false, false, false], 'only a real true opts in to the newsletter');
+});
+
+test('an empty capacity still means no limit; boundary values and a leap day are kept', async (t) => {
+  for (const [change, expected] of [
+    [{}, { max_attendees: null }],
+    [{ maxAttendees: null }, { max_attendees: null }],
+    [{ maxAttendees: '' }, { max_attendees: null }],
+    [{ maxAttendees: 0 }, { max_attendees: 0 }],
+    [{ maxAttendees: '40' }, { max_attendees: 40 }],
+    [{ maxAttendees: 1000 }, { max_attendees: 1000 }],
+    [{ date: '2028-02-29' }, { date: '2028-02-29' }],
+  ]) {
+    const sql = useDatabase(scriptedSql({ respond: () => [row()] }));
+    const res = await call(t, handler, write('POST', { ...VALID, ...change }));
+    assert.equal(res.statusCode, 201, JSON.stringify(change));
+    const stored = fields(sql.writes()[0]);
+    for (const [column, value] of Object.entries(expected)) assert.equal(stored[column], value, JSON.stringify(change));
+  }
 });
 
 test('an update needs a numeric id and an existing event', async (t) => {

@@ -27,3 +27,5 @@ export const EVENT_TYPES: readonly [
   'other',
 ];
 export type EventType = typeof EVENT_TYPES[number];
+
+export const MAX_EVENT_ATTENDEES: number;

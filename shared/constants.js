@@ -37,3 +37,8 @@ export const EVENT_TYPES = [
   'annet',
   'other',
 ];
+
+// Largest capacity an event can be given. The events API refuses anything
+// above it rather than saving it as unlimited, and the event form checks the
+// same limit so the council sees the reason before submitting.
+export const MAX_EVENT_ATTENDEES = 1000;

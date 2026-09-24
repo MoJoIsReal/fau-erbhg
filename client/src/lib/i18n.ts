@@ -452,6 +452,7 @@ export interface Translations {
       locationPlaceholder: string;
       maxAttendeesLabel: string;
       maxAttendeesPlaceholder: string;
+      maxAttendeesRange: string;
       registrationDeadlineLabel: string;
       registrationDeadlineHint: string;
       customLocationLabel: string;
@@ -1344,6 +1345,7 @@ export const translations: Record<Language, Translations> = {
         locationPlaceholder: "Velg sted",
         maxAttendeesLabel: "Maks deltakere",
         maxAttendeesPlaceholder: "La stå tom for ubegrenset",
+        maxAttendeesRange: "Skriv et helt tall fra 1 til {max}, eller la feltet stå tomt for ubegrenset.",
         registrationDeadlineLabel: "Påmeldingsfrist",
         registrationDeadlineHint: "La stå tomt hvis påmelding skal være åpen fram til arrangementet.",
         customLocationLabel: "Egen adresse",
@@ -2232,6 +2234,7 @@ export const translations: Record<Language, Translations> = {
         locationPlaceholder: "Select location",
         maxAttendeesLabel: "Max attendees",
         maxAttendeesPlaceholder: "Leave empty for unlimited",
+        maxAttendeesRange: "Enter a whole number from 1 to {max}, or leave it empty for unlimited.",
         registrationDeadlineLabel: "Registration deadline",
         registrationDeadlineHint: "Leave empty if registration should stay open until the event.",
         customLocationLabel: "Custom address",

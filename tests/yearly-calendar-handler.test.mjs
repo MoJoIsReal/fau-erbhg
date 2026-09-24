@@ -26,12 +26,22 @@ test('reading a school year needs a numeric year and returns mapped entries', as
   assert.deepEqual(sql.calls[0].values, [SCHOOL_YEAR]);
 });
 
-test('an entry without its type, title or placement is refused and nothing is written', async (t) => {
-  for (const change of [{ entryType: 'party' }, { title: '  ' }, { schoolYear: 1999 }, { year: undefined }, { month: 13 }]) {
-    const sql = useDatabase(scriptedSql());
-    const res = await call(t, handler, write('POST', { ...DAY_EVENT, ...change }));
-    assert.equal(res.statusCode, 400, JSON.stringify(change));
-    assert.deepEqual(sql.writes(), []);
+// school_year, year and month are NOT NULL. An update used to check only the
+// type and title, so a PUT without its placement reached the database and
+// answered 500 instead of saying what was missing.
+test('an entry without its type, title or placement is refused on create and update alike', async (t) => {
+  for (const change of [
+    { entryType: 'party' }, { title: '  ' },
+    { schoolYear: undefined }, { schoolYear: 1999 }, { year: undefined }, { month: undefined }, { month: 13 },
+  ]) {
+    for (const [method, query] of [['POST', {}], ['PUT', { id: '5' }]]) {
+      const sql = useDatabase(scriptedSql());
+      const res = await call(t, handler, write(method, { ...DAY_EVENT, ...change }, query));
+      const [[field, value]] = Object.entries(change);
+      assert.equal(res.statusCode, 400, `${method} with ${field}=${value}`);
+      assert.match(res.body.error, /entryType, title, schoolYear, year and month are required/);
+      assert.deepEqual(sql.writes(), []);
+    }
   }
 });
 
