@@ -1,3 +1,5 @@
+import type { SignupErrorCode } from "@shared/constants";
+
 export type Language = 'no' | 'en';
 
 export interface Translations {
@@ -353,6 +355,10 @@ export interface Translations {
       noSubscribers: string;
       delete: string;
       deleteConfirm: string;
+      deliveryPending: string;
+      deliveryFailedTitle: string;
+      deliveryFailedBody: string;
+      deliveryFailedTag: string;
     };
   };
   // Self-service cancellation of an event registration (/avmelding)
@@ -483,6 +489,8 @@ export interface Translations {
       successDesc: string;
       error: string;
       errorDesc: string;
+      /** One message per `code` the signup API refuses with. {max} and {email} are filled in. */
+      errors: Record<SignupErrorCode, string>;
     };
   };
   // Footer
@@ -1253,7 +1261,11 @@ export const translations: Record<Language, Translations> = {
         activeCount: "aktive abonnenter",
         noSubscribers: "Ingen abonnenter ennå.",
         delete: "Slett abonnent",
-        deleteConfirm: "Dette fjerner abonnenten permanent."
+        deleteConfirm: "Dette fjerner abonnenten permanent.",
+        deliveryPending: "Venter på nytt forsøk",
+        deliveryFailedTitle: "Noen nyhetsbrev kom ikke fram",
+        deliveryFailedBody: "Abonnentene som er merket under fikk ikke e-posten etter fem forsøk – sjekk adressen eller slett abonnenten.",
+        deliveryFailedTag: "Levering feilet"
       }
     },
     registrationCancel: {
@@ -1380,7 +1392,22 @@ export const translations: Record<Language, Translations> = {
         success: "Påmelding vellykket!",
         successDesc: "Du er nå påmeldt arrangementet. Bekreftelsen på e-post har en lenke du kan bruke hvis du må melde deg av.",
         error: "Feil ved påmelding",
-        errorDesc: "Kunne ikke melde deg på. Prøv igjen senere."
+        errorDesc: "Kunne ikke melde deg på. Prøv igjen senere.",
+        errors: {
+          INVALID_SIGNUP: "Fyll inn navn og en gyldig e-postadresse.",
+          ATTENDEES_OUT_OF_RANGE: "Antall deltakere må være fra 1 til {max}.",
+          EMAIL_REJECTED: "Ugyldig e-postadresse. Bruk en e-postadresse du faktisk leser.",
+          EMAIL_TYPO: "Mente du {email}?",
+          RATE_LIMITED: "For mange påmeldinger fra denne enheten. Prøv igjen senere.",
+          EVENT_INACTIVE: "Arrangementet er avlyst eller finnes ikke lenger.",
+          SIGNUP_CLOSED: "Påmelding er ikke tilgjengelig for dette arrangementet.",
+          DEADLINE_PASSED: "Påmeldingsfristen har gått ut.",
+          CHILD_NAMES_REQUIRED: "Oppgi fornavn på hvert barn som skal fotograferes.",
+          PHOTO_SLOTS_FULL: "Det er ikke nok ledige fototider igjen for denne påmeldingen.",
+          PHOTO_SLOT_TAKEN: "Fototiden ble nettopp tatt. Prøv på nytt.",
+          EVENT_FULL: "Arrangementet er fullt.",
+          ALREADY_REGISTERED: "Denne e-postadressen er allerede registrert for dette arrangementet."
+        }
       }
     },
     footer: {
@@ -2147,7 +2174,11 @@ export const translations: Record<Language, Translations> = {
         activeCount: "active subscribers",
         noSubscribers: "No subscribers yet.",
         delete: "Delete subscriber",
-        deleteConfirm: "This permanently removes the subscriber."
+        deleteConfirm: "This permanently removes the subscriber.",
+        deliveryPending: "Waiting to be retried",
+        deliveryFailedTitle: "Some newsletters didn't arrive",
+        deliveryFailedBody: "The subscribers marked below didn't get the email after five attempts – check the address or delete the subscriber.",
+        deliveryFailedTag: "Delivery failed"
       }
     },
     registrationCancel: {
@@ -2274,7 +2305,22 @@ export const translations: Record<Language, Translations> = {
         success: "Registration successful!",
         successDesc: "You are now registered for the event. The confirmation email has a link you can use if you need to cancel.",
         error: "Registration error",
-        errorDesc: "Could not register you. Please try again later."
+        errorDesc: "Could not register you. Please try again later.",
+        errors: {
+          INVALID_SIGNUP: "Fill in your name and a valid email address.",
+          ATTENDEES_OUT_OF_RANGE: "The number of attendees must be from 1 to {max}.",
+          EMAIL_REJECTED: "Invalid email address. Please use one you actually read.",
+          EMAIL_TYPO: "Did you mean {email}?",
+          RATE_LIMITED: "Too many registrations from this device. Try again later.",
+          EVENT_INACTIVE: "This event has been cancelled or no longer exists.",
+          SIGNUP_CLOSED: "Registration is not available for this event.",
+          DEADLINE_PASSED: "The registration deadline has passed.",
+          CHILD_NAMES_REQUIRED: "Please give the first name of each child to be photographed.",
+          PHOTO_SLOTS_FULL: "There are not enough photo slots left for this registration.",
+          PHOTO_SLOT_TAKEN: "The photo slot was just taken. Please try again.",
+          EVENT_FULL: "This event is full.",
+          ALREADY_REGISTERED: "This email address is already registered for this event."
+        }
       }
     },
     footer: {

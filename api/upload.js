@@ -188,7 +188,7 @@ export default withApiHandler(async function handler(req, res) {
         ${sanitizedCategory},
         ${sanitizedDescription},
         ${sanitizedUploadedBy},
-        NOW()
+        ${new Date().toISOString()}
       )
       RETURNING *
     `;

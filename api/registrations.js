@@ -8,7 +8,9 @@ import {
   sanitizeText,
   sanitizeEmail,
   sanitizePhone,
-  findOversizedField
+  sanitizeInteger,
+  findOversizedField,
+  MAX_INT_ID,
 } from './_shared/middleware.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
@@ -38,10 +40,14 @@ const CANCEL_MAX_ATTEMPTS = 30;
 // Returns null when invalid.
 function normalizeAttendeeCount(value) {
   if (value === undefined || value === null || value === '') return 1;
-  const count = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
-    ? Number(value)
-    : NaN;
-  return Number.isInteger(count) && count >= 1 && count <= MAX_ATTENDEES_PER_REGISTRATION ? count : null;
+  return sanitizeInteger(value, 1, MAX_ATTENDEES_PER_REGISTRATION);
+}
+
+// A refused signup. `code` is what the signup form translates (one of
+// SIGNUP_ERROR_CODES); `error` stays a readable fallback in the requester's
+// language for any other caller.
+function refuseSignup(res, status, code, error, extra = {}) {
+  return res.status(status).json({ code, error, ...extra });
 }
 
 export function isPhotoSlotConflict(error) {
@@ -163,13 +169,11 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   if (req.method === 'GET') {
-    const { eventId } = req.query;
-
-    if (!eventId || isNaN(parseInt(eventId))) {
+    // parseInt read '1.5' and '12abc' as a real event id.
+    const eventIdNum = sanitizeInteger(req.query.eventId, 1, MAX_INT_ID);
+    if (eventIdNum === null) {
       return res.status(400).json({ error: 'Valid event ID required' });
     }
-
-    const eventIdNum = parseInt(eventId);
 
     // Council members (with a valid session, no pending password change) get
     // full registration details. Everyone else — anonymous visitors, or an
@@ -243,14 +247,12 @@ export default withApiHandler(async function handler(req, res) {
     });
     if (!registrationIpRateLimit.allowed) {
       res.setHeader('Retry-After', String(registrationIpRateLimit.retryAfter));
-      return res.status(429).json({
-        // `language` is still raw here — sanitization happens below, after the
-        // limiter. Only an exact 'en' switches language; anything else falls
-        // back to Norwegian, same as sanitizedLanguage would.
-        error: language === 'en'
-          ? 'Too many registrations from this device. Try again later.'
-          : 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
-      });
+      // `language` is still raw here — sanitization happens below, after the
+      // limiter. Only an exact 'en' switches language; anything else falls
+      // back to Norwegian, same as sanitizedLanguage would.
+      return refuseSignup(res, 429, 'RATE_LIMITED', language === 'en'
+        ? 'Too many registrations from this device. Try again later.'
+        : 'For mange påmeldinger fra denne enheten. Prøv igjen senere.');
     }
 
     // Sanitize inputs
@@ -262,15 +264,13 @@ export default withApiHandler(async function handler(req, res) {
     const sanitizedLanguage = ['no', 'en'].includes(language) ? language : 'no';
 
     if (!eventId || !sanitizedName || !sanitizedEmail) {
-      return res.status(400).json({ error: 'Event ID, valid name and email are required' });
+      return refuseSignup(res, 400, 'INVALID_SIGNUP', 'Event ID, valid name and email are required');
     }
 
     if (sanitizedAttendeeCount === null) {
-      return res.status(400).json({
-        error: sanitizedLanguage === 'no'
-          ? `Antall deltakere må være fra 1 til ${MAX_ATTENDEES_PER_REGISTRATION}`
-          : `Number of attendees must be from 1 to ${MAX_ATTENDEES_PER_REGISTRATION}`
-      });
+      return refuseSignup(res, 400, 'ATTENDEES_OUT_OF_RANGE', sanitizedLanguage === 'no'
+        ? `Antall deltakere må være fra 1 til ${MAX_ATTENDEES_PER_REGISTRATION}`
+        : `Number of attendees must be from 1 to ${MAX_ATTENDEES_PER_REGISTRATION}`);
     }
 
     // Check email domain against database blacklist
@@ -292,19 +292,15 @@ export default withApiHandler(async function handler(req, res) {
             const errorMessage = sanitizedLanguage === 'no'
               ? 'Ugyldig e-postadresse. Bruk en ekte e-post.'
               : 'Invalid email address. Please use a real email.';
-            return res.status(400).json({
-              error: errorMessage,
-              category: entry.category
-            });
+            return refuseSignup(res, 400, 'EMAIL_REJECTED', errorMessage, { category: entry.category });
           } else if (entry.action === 'suggest' && entry.suggested_fix) {
             // Suggest correction for category F (typos)
             const errorMessage = sanitizedLanguage === 'no'
               ? `Mente du "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`
               : `Did you mean "${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}"?`;
-            return res.status(400).json({
-              error: errorMessage,
+            return refuseSignup(res, 400, 'EMAIL_TYPO', errorMessage, {
               suggestion: `${sanitizedEmail.split('@')[0]}@${entry.suggested_fix}`,
-              category: entry.category
+              category: entry.category,
             });
           }
         }
@@ -318,10 +314,10 @@ export default withApiHandler(async function handler(req, res) {
       }
     }
 
-    const eventIdNum = parseInt(eventId);
+    const eventIdNum = sanitizeInteger(eventId, 1, MAX_INT_ID);
 
-    if (isNaN(eventIdNum)) {
-      return res.status(400).json({ error: 'Valid event ID required' });
+    if (eventIdNum === null) {
+      return refuseSignup(res, 400, 'INVALID_SIGNUP', 'Valid event ID required');
     }
 
     // Per-(IP, event, email) limit: needs the sanitized address, so it runs
@@ -336,11 +332,9 @@ export default withApiHandler(async function handler(req, res) {
 
     if (!registrationRateLimit.allowed) {
       res.setHeader('Retry-After', String(registrationRateLimit.retryAfter));
-      return res.status(429).json({
-        error: sanitizedLanguage === 'no'
-          ? 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
-          : 'Too many registrations from this device. Try again later.'
-      });
+      return refuseSignup(res, 429, 'RATE_LIMITED', sanitizedLanguage === 'no'
+        ? 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
+        : 'Too many registrations from this device. Try again later.');
     }
 
     // Check if event exists and is active
@@ -353,24 +347,20 @@ export default withApiHandler(async function handler(req, res) {
     `;
 
     if (events.length === 0) {
-      return res.status(404).json({ error: 'Event not found or not active' });
+      return refuseSignup(res, 404, 'EVENT_INACTIVE', 'Event not found or not active');
     }
 
     const event = events[0];
     if (event.no_signup || event.vigilo_signup) {
-      return res.status(400).json({
-        error: sanitizedLanguage === 'no'
-          ? 'Påmelding er ikke tillatt for dette arrangementet'
-          : 'Registration is not available for this event'
-      });
+      return refuseSignup(res, 400, 'SIGNUP_CLOSED', sanitizedLanguage === 'no'
+        ? 'Påmelding er ikke tillatt for dette arrangementet'
+        : 'Registration is not available for this event');
     }
 
     if (event.registration_deadline && event.registration_deadline < nowIso) {
-      return res.status(400).json({
-        error: sanitizedLanguage === 'no'
-          ? 'Påmeldingsfristen har gått ut'
-          : 'The registration deadline has passed'
-      });
+      return refuseSignup(res, 400, 'DEADLINE_PASSED', sanitizedLanguage === 'no'
+        ? 'Påmeldingsfristen har gått ut'
+        : 'The registration deadline has passed');
     }
 
     const requestedAttendees = sanitizedAttendeeCount;
@@ -383,11 +373,9 @@ export default withApiHandler(async function handler(req, res) {
     // already requires.
     if (event.type === 'foto'
         && (!sanitizedChildrenNames || JSON.parse(sanitizedChildrenNames).length !== requestedAttendees)) {
-      return res.status(400).json({
-        error: sanitizedLanguage === 'no'
-          ? 'Oppgi fornavn på hvert barn som skal fotograferes'
-          : 'Please give the first name of each child to be photographed'
-      });
+      return refuseSignup(res, 400, 'CHILD_NAMES_REQUIRED', sanitizedLanguage === 'no'
+        ? 'Oppgi fornavn på hvert barn som skal fotograferes'
+        : 'Please give the first name of each child to be photographed');
     }
 
     // Last check before anything is written: by now the request is otherwise
@@ -420,11 +408,9 @@ export default withApiHandler(async function handler(req, res) {
         // full day comes back short — refuse rather than book a child with
         // no time.
         if (photoSlots.length < requestedAttendees) {
-          return res.status(409).json({
-            error: sanitizedLanguage === 'no'
-              ? 'Det er ikke nok ledige fototider igjen for denne påmeldingen'
-              : 'There are not enough photo slots left for this registration'
-          });
+          return refuseSignup(res, 409, 'PHOTO_SLOTS_FULL', sanitizedLanguage === 'no'
+            ? 'Det er ikke nok ledige fototider igjen for denne påmeldingen'
+            : 'There are not enough photo slots left for this registration');
         }
         photoSlotsJson = JSON.stringify(photoSlots);
       }
@@ -507,31 +493,26 @@ export default withApiHandler(async function handler(req, res) {
       } catch (error) {
         if (!isPhotoSlotConflict(error)) throw error;
         if (allocationAttempt === PHOTO_SLOT_ALLOCATION_ATTEMPTS) {
-          return res.status(409).json({
-            error: sanitizedLanguage === 'no'
-              ? 'Fototiden ble nettopp tatt. Prøv på nytt.'
-              : 'The photo slot was just taken. Please try again.'
-          });
+          return refuseSignup(res, 409, 'PHOTO_SLOT_TAKEN', sanitizedLanguage === 'no'
+            ? 'Fototiden ble nettopp tatt. Prøv på nytt.'
+            : 'The photo slot was just taken. Please try again.');
         }
       }
     }
 
     const registrationState = registrationResult[0];
     if (!registrationState?.eventExists) {
-      return res.status(404).json({ error: 'Event not found or not active' });
+      return refuseSignup(res, 404, 'EVENT_INACTIVE', 'Event not found or not active');
     }
 
     if (!registrationState.capacityAvailable) {
-      return res.status(400).json({
-        error: 'Event is at capacity',
-        available: registrationState.available || 0
+      return refuseSignup(res, 400, 'EVENT_FULL', 'Event is at capacity', {
+        available: registrationState.available || 0,
       });
     }
 
     if (!registrationState.registration) {
-      return res.status(400).json({
-        error: 'This email is already registered for this event'
-      });
+      return refuseSignup(res, 400, 'ALREADY_REGISTERED', 'This email is already registered for this event');
     }
 
     const newRegistration = [registrationState.registration];
@@ -565,16 +546,16 @@ export default withApiHandler(async function handler(req, res) {
     // CSRF protection for state-changing requests
     if (!requireCsrf(req, res)) return;
 
-    const { id } = req.query;
+    const id = sanitizeInteger(req.query.id, 1, MAX_INT_ID);
 
-    if (!id || isNaN(parseInt(id))) {
+    if (id === null) {
       return res.status(400).json({ error: 'Valid registration ID required' });
     }
 
     const deletedReg = await sql`
       WITH deleted AS (
         DELETE FROM event_registrations
-        WHERE id = ${parseInt(id)}
+        WHERE id = ${id}
         RETURNING id, event_id, attendee_count
       ), updated_event AS (
         UPDATE events e

@@ -95,11 +95,13 @@ export default function Home() {
   const [next, ...rest] = upcoming.items;
   const soon = rest.slice(0, 4);
 
+  // Only the three posts shown here; the server applies showOnHomepage. The
+  // key still starts with the blog-posts URL, so content.tsx's invalidation
+  // (a prefix match) refreshes it after an edit.
   const postsQuery = useQuery<BlogPost[]>({
-    queryKey: ["/api/secure-settings?resource=blog-posts"],
+    queryKey: ["/api/secure-settings?resource=blog-posts&homepage=true&limit=3"],
   });
-  const { data: allBlogPosts = [] } = postsQuery;
-  const blogPosts = allBlogPosts.filter((post) => post.showOnHomepage !== false).slice(0, 3);
+  const { data: blogPosts = [] } = postsQuery;
 
   const infoQuery = useQuery<KindergartenInfo>({
     queryKey: ["/api/secure-settings?resource=kindergarten-info"],

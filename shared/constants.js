@@ -47,3 +47,24 @@ export const MAX_EVENT_ATTENDEES = 1000;
 // the API enforces this so a scripted request cannot take a whole event (or a
 // whole photo day) in one go.
 export const MAX_ATTENDEES_PER_REGISTRATION = 10;
+
+// Why a public event signup was refused. api/registrations.js answers with one
+// of these as `code` and the signup form shows its translation; the `error`
+// text beside it is only a fallback for other callers. The form used to match
+// substrings of the English messages, and showed anything it did not
+// recognise untranslated.
+export const SIGNUP_ERROR_CODES = Object.freeze([
+  'INVALID_SIGNUP',
+  'ATTENDEES_OUT_OF_RANGE',
+  'EMAIL_REJECTED',
+  'EMAIL_TYPO',
+  'RATE_LIMITED',
+  'EVENT_INACTIVE',
+  'SIGNUP_CLOSED',
+  'DEADLINE_PASSED',
+  'CHILD_NAMES_REQUIRED',
+  'PHOTO_SLOTS_FULL',
+  'PHOTO_SLOT_TAKEN',
+  'EVENT_FULL',
+  'ALREADY_REGISTERED',
+]);

@@ -38,6 +38,23 @@ test('an unknown account and a wrong password get the same answer and no session
   }
 });
 
+// SEC-005. An object or array password reached bcrypt and came back as a 500.
+test('a login whose fields are not strings is a 400 before anything is looked up', async (t) => {
+  for (const body of [
+    { username: USERNAME, password: { $ne: '' } },
+    { username: USERNAME, password: ['x'] },
+    { username: ['a', 'b'], password: PASSWORD },
+    { username: USERNAME, password: 12345678 },
+    undefined,
+  ]) {
+    const sql = useDatabase(scriptedSql({ respond: accounts() }));
+    const res = await call(t, handler, login(body));
+    assert.equal(res.statusCode, 400, JSON.stringify(body));
+    assert.deepEqual(res.body, { error: 'Username and password required' });
+    assert.deepEqual(sql.calls, [], JSON.stringify(body));
+  }
+});
+
 test('login without the CSRF pair is refused before anything is looked up', async (t) => {
   const sql = useDatabase(scriptedSql({ respond: accounts() }));
   const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }, { csrf: false }));

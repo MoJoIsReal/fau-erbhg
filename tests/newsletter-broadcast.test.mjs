@@ -270,9 +270,10 @@ test('source items are stamped from their deliveries, not from the run date', as
   for (const table of ['events', 'yearly_calendar_entries']) {
     const stamp = calls.find(
       ({ statement }) =>
-        statement.includes(`UPDATE ${table}`) && statement.includes('newsletter_sent_at = NOW()'),
+        statement.includes(`UPDATE ${table}`) && statement.includes('newsletter_sent_at = ?'),
     );
     assert.ok(stamp, `${table} should be stamped`);
+    assert.match(stamp.values[0], /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/, `${table} is stamped with ISO text`);
     assert.match(
       stamp.statement,
       /newsletter_sent_at IS NULL/,

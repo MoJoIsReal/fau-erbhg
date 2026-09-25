@@ -213,7 +213,11 @@ export default function CalendarEntryList({
                   isNow ? "bg-brand text-primary-foreground" : "bg-green-50 text-brand"
                 }`}
               >
-                <div className="text-micro font-semibold uppercase tracking-[0.1em] opacity-80">
+                {/* Full strength: at 80% opacity this 12px label fell to 3.85:1
+                    on the light week tile (guide §22: small metadata is not
+                    traded for a subtler look). Size and weight already set it
+                    below the number. */}
+                <div className="text-micro font-semibold uppercase tracking-[0.1em]">
                   {t.calendar.week}
                 </div>
                 <div className="text-h3 font-bold leading-none tabular-nums">{group.week}</div>

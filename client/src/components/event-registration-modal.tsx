@@ -11,7 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { insertEventRegistrationSchema } from "@shared/schema";
-import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER } from "@shared/constants";
+import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
@@ -100,61 +100,42 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       // Refresh events to show updated attendee count
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      const body = getApiErrorBody(error);
+      const code = typeof body?.code === "string" ? body.code : null;
       // Without a widget on the page (no site key in this build) there is
       // nothing to show the message in, so the refusal falls through to the toast.
-      if (turnstileEnabled && getApiErrorBody(error)?.code === TURNSTILE_FAILED) {
+      if (turnstileEnabled && code === TURNSTILE_FAILED) {
         setTurnstileNotReady(true);
         return;
       }
-      // Parse error message - remove JSON parts if present
-      let rawMessage = error.message || t.modals.eventRegistration.errorDesc;
-
-      // Extract clean error message (remove category JSON if present)
-      const errorMessage = rawMessage.split('","category"')[0].replace(/^400:\s*{"error":"?/, '').replace(/"$/, '');
-
-      // Check if it's an email validation error
-      const isEmailError = errorMessage.includes('e-postadresse') ||
-                          errorMessage.includes('email address') ||
-                          errorMessage.includes('Mente du') ||
-                          errorMessage.includes('Did you mean');
-
-      if (isEmailError) {
-        // Show inline error on email field
-        form.setError('email', {
-          type: 'manual',
-          message: errorMessage
-        });
-        return; // Don't show toast
-      }
-
-      // Handle other specific errors with toast
-      let toastMessage = errorMessage;
-
-      if (errorMessage.includes("already registered")) {
-        toastMessage = language === 'no'
-          ? "Denne e-postadressen er allerede registrert for dette arrangementet"
-          : "This email is already registered for this event";
-        // Also set inline error for email
-        form.setError('email', {
-          type: 'manual',
-          message: toastMessage
+      // The API names each refusal with a code, translated here. This used to
+      // match substrings of the English messages, and showed anything it did
+      // not recognise untranslated.
+      const messages = t.modals.eventRegistration.errors;
+      const isSignupError = (value: string | null): value is SignupErrorCode =>
+        value !== null && Object.prototype.hasOwnProperty.call(messages, value);
+      if (!isSignupError(code)) {
+        toast({
+          title: t.modals.eventRegistration.error,
+          description: t.modals.eventRegistration.errorDesc,
+          variant: "destructive",
         });
         return;
-      } else if (errorMessage.includes("cancelled")) {
-        toastMessage = language === 'no'
-          ? "Du kan ikke melde deg på et avlyst arrangement"
-          : "Cannot register for cancelled event";
-      } else if (errorMessage.includes("full") || errorMessage.includes("capacity")) {
-        toastMessage = language === 'no'
-          ? "Arrangementet er fullt"
-          : "Event is full";
       }
-
+      const suggestion = typeof body?.suggestion === "string" ? body.suggestion : "";
+      const message = messages[code]
+        .replace("{max}", String(MAX_ATTENDEES_PER_REGISTRATION))
+        .replace("{email}", suggestion);
+      // A problem with the address belongs under the address field.
+      if (code === "EMAIL_REJECTED" || code === "ALREADY_REGISTERED" || (code === "EMAIL_TYPO" && suggestion)) {
+        form.setError("email", { type: "manual", message });
+        return;
+      }
       toast({
         title: t.modals.eventRegistration.error,
-        description: toastMessage,
-        variant: "destructive"
+        description: message,
+        variant: "destructive",
       });
     }
   });
@@ -173,9 +154,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       if (missingNames.length > 0) {
         toast({
           title: t.events.missingNames,
-          description: language === 'no'
-            ? `Vennligst oppgi fornavn på alle barn`
-            : `Please provide first names for all children`,
+          description: t.modals.eventRegistration.errors.CHILD_NAMES_REQUIRED,
           variant: "destructive"
         });
         return;

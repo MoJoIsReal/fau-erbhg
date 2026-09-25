@@ -174,6 +174,10 @@ export const documents = pgTable("documents", {
   categoryIdx: index("documents_category_idx").on(table.category),
 }));
 
+// Reserved: nothing reads or writes this table. It stays declared because the
+// production database has it, and a table removed from this file is one
+// `npm run db:push` offers to drop. It has no insert schema or types on
+// purpose; give it both when something starts to use it.
 export const siteSettings = pgTable("site_settings", {
   id: serial("id").primaryKey(),
   key: text("key").notNull().unique(), // e.g., "contact_info", "about_text"
@@ -299,7 +303,6 @@ export const insertContactMessageSchema = createInsertSchema(contactMessages).om
 export const insertNewsletterSubscriberSchema = createInsertSchema(newsletterSubscribers).omit({ id: true, createdAt: true, confirmedAt: true, unsubscribedAt: true, confirmToken: true, unsubscribeToken: true, status: true });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true, uploadedAt: true });
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
-export const insertSiteSettingSchema = createInsertSchema(siteSettings).omit({ id: true, updatedAt: true });
 export const insertBlogPostSchema = createInsertSchema(blogPosts).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertKindergartenInfoSchema = createInsertSchema(kindergartenInfo).omit({ id: true, updatedAt: true });
 export const insertFauBoardMemberSchema = createInsertSchema(fauBoardMembers).omit({ id: true, createdAt: true, updatedAt: true });
@@ -312,7 +315,6 @@ export type InsertContactMessage = z.infer<typeof insertContactMessageSchema>;
 export type InsertNewsletterSubscriber = z.infer<typeof insertNewsletterSubscriberSchema>;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type InsertUser = z.infer<typeof insertUserSchema>;
-export type InsertSiteSetting = z.infer<typeof insertSiteSettingSchema>;
 export type InsertBlogPost = z.infer<typeof insertBlogPostSchema>;
 export type InsertKindergartenInfo = z.infer<typeof insertKindergartenInfoSchema>;
 export type InsertFauBoardMember = z.infer<typeof insertFauBoardMemberSchema>;
@@ -330,7 +332,6 @@ export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 export type NewsletterDelivery = typeof newsletterDeliveries.$inferSelect;
 export type Document = typeof documents.$inferSelect;
 export type User = typeof users.$inferSelect;
-export type SiteSetting = typeof siteSettings.$inferSelect;
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type KindergartenInfo = typeof kindergartenInfo.$inferSelect;
 export type FauBoardMember = typeof fauBoardMembers.$inferSelect;

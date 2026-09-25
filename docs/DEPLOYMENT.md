@@ -47,7 +47,7 @@ provider credentials for previews; do not copy production secrets into tests.
 | `VITE_SENTRY_DSN` | Frontend Sentry initialization, compiled at build time. |
 | `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile widget on the signup, contact and newsletter forms (`client/src/components/turnstile-widget.tsx`), compiled at build time. Unset = no widget. |
 | `TURNSTILE_SECRET_KEY` | `api/_shared/turnstile.js`: verifies the widget's token with Cloudflare. Unset = check off. Set = every public form must carry a valid token, so set it together with `VITE_TURNSTILE_SITE_KEY` in the same deployment. |
-| `NODE_ENV` | Runtime cookie security, CORS, error redaction and provider reporting. Vercel/build tools manage this; production must use `production`. |
+| `NODE_ENV` | Vercel sets `production`. Only `development` relaxes anything — raw error messages, cookies without `Secure`, the localhost CORS list — so set it only for a local `vercel dev`; unset or any other value gets the deployed behaviour. Provider/Sentry reporting runs only when it is `production`. |
 | `VERCEL_ENV`, `VERCEL_REGION` | Vercel-provided metadata read by backend telemetry; do not maintain manually. |
 
 There is no application `DEBUG` switch or `PORT` environment consumer. The dev
@@ -142,6 +142,18 @@ password change, authorized editing, upload/download and a controlled test email
 in a preview first. Uptime monitors can use `GET /api/events`, expecting status
 200 and a JSON array. There is no `/api/health` endpoint.
 
+**Mail that did not go out.** Each cron run writes one `cron.run` line; when
+mail was left unsent (failed, given up on, still queued, or email not configured)
+it is written at `warn` with `"mailProblems":true`, and backend Sentry gets one
+event per such run titled `Mail delivery problems in the newsletter run` (or
+`… reminders run`). Alert on it: in Sentry, create an issue alert that matches
+events whose message contains `Mail delivery problems` and emails the admin, with
+a one-day action interval so a single bad address does not mail every run.
+Without Sentry, search the Vercel logs for `mailProblems`. The admin's settings
+page (Innstillinger → Nyhetsbrev) shows which subscribers' mail failed and how
+much is waiting for another try; deleting a failing subscriber removes the
+banner.
+
 Use Vercel build/function logs and request IDs to investigate failures. Backend
 Sentry redacts sensitive text. Frontend Sentry scrubs capability-bearing data at
 the transport boundary and disables Session Replay; unsupported/binary envelopes
@@ -176,9 +188,6 @@ on the release/PR. Remove completed items from this list.
   with test recipients, including a delivery retry.
 - [ ] Verify received Sentry/Analytics payloads in an isolated telemetry project
   contain no synthetic capability tokens and no replay data.
-- [ ] After setting the Turnstile keys, submit the contact form, the newsletter
-  form and an event signup on `https://www.erdal-bhg.no` and on
-  `https://fau-erdalbhg.vercel.app`; each must show the widget and succeed.
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.

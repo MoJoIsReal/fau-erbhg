@@ -5,6 +5,7 @@ import {
   applySecurityHeaders,
   findOversizedField,
   generateCsrfToken,
+  handleError,
   parseAuthToken,
   requireCsrf,
   requireIntId,
@@ -87,7 +88,41 @@ test('security headers allow only configured origins and vary by Origin', () => 
     assert.equal(rejected.getHeader('Access-Control-Allow-Credentials'), undefined);
     assert.equal(rejected.getHeader('Vary'), 'Origin');
   } finally {
-    process.env.NODE_ENV = previousNodeEnv;
+    // Assigning undefined would store the string "undefined".
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  }
+});
+
+// SEC-007. Everything that was not 'production' used to count as development:
+// a deployment without NODE_ENV answered with raw error text, set cookies
+// without Secure and allowed only localhost origins.
+test('only an explicit NODE_ENV=development relaxes redaction, cookie security and CORS', async (t) => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  t.after(() => {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  });
+  t.mock.method(console, 'error', () => {});
+  for (const nodeEnv of [undefined, '', 'production', 'preview', 'Production', 'development']) {
+    if (nodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = nodeEnv;
+    const local = nodeEnv === 'development';
+    const label = `NODE_ENV=${nodeEnv}`;
+
+    const failed = mockResponse();
+    await handleError(failed, new Error('relation "users" does not exist'));
+    assert.equal(failed.statusCode, 500, label);
+    assert.equal(failed.body.error, local ? 'relation "users" does not exist' : 'Internal server error', label);
+    assert.equal('stack' in failed.body, local, label);
+
+    const cookie = mockResponse();
+    setCookie(cookie, 'jwt', 'x', { httpOnly: true });
+    assert.equal(cookie.getHeader('Set-Cookie')[0].endsWith('; Secure'), !local, label);
+
+    const cors = mockResponse();
+    applySecurityHeaders(cors, 'https://www.erdal-bhg.no');
+    assert.equal(cors.getHeader('Access-Control-Allow-Origin'), local ? undefined : 'https://www.erdal-bhg.no', label);
   }
 });
 
@@ -177,6 +212,8 @@ test('requireIntId accepts positive integers and rejects everything else', () =>
   for (const query of [
     { id: 'abc' }, { id: '' }, {}, { id: '0' }, { id: '-3' }, { id: '1.5' },
     { id: '1; DROP TABLE users' }, { id: ['1', '2'] }, { id: 'NaN' },
+    // Past PostgreSQL's integer: the query would fail with "out of range".
+    { id: '2147483648' }, { id: ['7'] }, { id: '  ' },
   ]) {
     const { id, res } = call(query);
     assert.equal(id, null, `${JSON.stringify(query)} should be rejected`);

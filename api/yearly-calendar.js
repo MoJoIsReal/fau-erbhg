@@ -4,7 +4,9 @@ import {
   requireCsrf,
   requireRole,
   sanitizeText,
-  sanitizeNumber,
+  sanitizeInteger,
+  requireIntId,
+  MAX_INT_ID,
 } from './_shared/middleware.js';
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 import { YEARLY_CALENDAR_CATEGORIES } from '../shared/calendar-entries.js';
@@ -77,17 +79,17 @@ function sanitizeEntryPayload(body) {
   const title = sanitizeText(body.title, 200);
   const description = body.description ? sanitizeText(body.description, 1000) : null;
   const color = sanitizeColor(body.color);
-  const schoolYear = sanitizeNumber(body.schoolYear, 2020, 2100);
-  const year = sanitizeNumber(body.year, 2020, 2100);
-  const month = sanitizeNumber(body.month, 1, 12);
-  const weekNumber = body.weekNumber != null ? sanitizeNumber(body.weekNumber, 1, 53) : null;
-  const weekNumberEndRaw = body.weekNumberEnd != null ? sanitizeNumber(body.weekNumberEnd, 1, 53) : null;
+  const schoolYear = sanitizeInteger(body.schoolYear, 2020, 2100);
+  const year = sanitizeInteger(body.year, 2020, 2100);
+  const month = sanitizeInteger(body.month, 1, 12);
+  const weekNumber = body.weekNumber != null ? sanitizeInteger(body.weekNumber, 1, 53) : null;
+  const weekNumberEndRaw = body.weekNumberEnd != null ? sanitizeInteger(body.weekNumberEnd, 1, 53) : null;
   // Only keep end if greater than start (otherwise it's a single-week entry)
   const weekNumberEnd = weekNumberEndRaw != null && weekNumber != null && weekNumberEndRaw > weekNumber
     ? weekNumberEndRaw
     : null;
-  const weekdayStart = body.weekdayStart != null ? sanitizeNumber(body.weekdayStart, 1, 7) : null;
-  const weekdayEnd = body.weekdayEnd != null ? sanitizeNumber(body.weekdayEnd, 1, 7) : null;
+  const weekdayStart = body.weekdayStart != null ? sanitizeInteger(body.weekdayStart, 1, 7) : null;
+  const weekdayEnd = body.weekdayEnd != null ? sanitizeInteger(body.weekdayEnd, 1, 7) : null;
   const date = body.date && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : null;
   // Only a day_event carries a clock time; every other type is a whole day or
   // a whole week. An end that isn't after the start is dropped rather than
@@ -134,11 +136,6 @@ function hasRequiredEntryFields(payload) {
   return Boolean(payload.entryType && payload.title && payload.schoolYear && payload.year && payload.month);
 }
 
-function sanitizeInteger(value, min, max) {
-  const num = sanitizeNumber(value, min, max);
-  return Number.isInteger(num) ? num : null;
-}
-
 function sanitizeImportTextValue(value, maxLength) {
   if (value === null || value === undefined || value === '') return value;
   return sanitizeText(String(value), maxLength);
@@ -166,6 +163,8 @@ function normalizeImportRows(rows) {
   });
 }
 
+const EXISTING_NOT_FOUND = 'Existing entry was not found for the selected school year.';
+
 function pushImportFailure(summary, rowNumber, message) {
   summary.errors.push({ rowNumber, errors: [message] });
 }
@@ -187,8 +186,8 @@ export default withApiHandler(async function handler(req, res) {
   const sql = getDb();
 
   if (req.method === 'GET') {
-    const schoolYear = parseInt(req.query.schoolYear);
-    if (!schoolYear || isNaN(schoolYear)) {
+    const schoolYear = sanitizeInteger(req.query.schoolYear, 1, MAX_INT_ID);
+    if (!schoolYear) {
       return res.status(400).json({ error: 'Valid schoolYear query parameter required' });
     }
 
@@ -244,13 +243,18 @@ export default withApiHandler(async function handler(req, res) {
       const now = new Date().toISOString();
       const createdBy = user.name || user.username || 'ukjent';
       const summary = { created: [], updated: [], ignored: [], errors: [] };
+      // Every decision is checked first and every write then goes in one
+      // statement. This used to be one UPDATE or INSERT per row — up to 500
+      // round trips inside a 30-second function, each committed on its own,
+      // so a timeout or a failing row left half a school year imported.
+      const writes = [];
 
       for (const [index, decision] of decisions.entries()) {
         const rowNumber = sanitizeInteger(decision?.rowNumber, 1, 100000) ?? index + 2;
         const status = sanitizeText(decision?.status, 20);
         const action = sanitizeText(decision?.action, 20);
         const existingId = decision?.existingId != null
-          ? sanitizeInteger(decision.existingId, 1, 2147483647)
+          ? sanitizeInteger(decision.existingId, 1, MAX_INT_ID)
           : null;
         const decisionValidation = validateImportDecision({ status, action });
         if (!decisionValidation.ok) {
@@ -288,69 +292,107 @@ export default withApiHandler(async function handler(req, res) {
           continue;
         }
 
-        const payload = validation.payload;
-
         if (action === 'update') {
           const matchedExistingId = previewRow?.status === 'changed' ? previewRow.existing?.id : null;
-
           if (!existingId || !existingById.has(existingId) || existingId !== matchedExistingId) {
-            pushImportFailure(summary, rowNumber, 'Existing entry was not found for the selected school year.');
+            pushImportFailure(summary, rowNumber, EXISTING_NOT_FOUND);
             continue;
           }
-
-          try {
-            const updated = await sql`
-              UPDATE yearly_calendar_entries
-              SET school_year = ${payload.schoolYear},
-                  year = ${payload.year},
-                  month = ${payload.month},
-                  entry_type = ${payload.entryType},
-                  week_number = ${payload.weekNumber},
-                  week_number_end = ${payload.weekNumberEnd},
-                  date = ${payload.date},
-                  title = ${payload.title},
-                  description = ${payload.description},
-                  color = ${payload.color},
-                  show_on_homepage = ${payload.showOnHomepage},
-                  show_for_parents = ${payload.showForParents},
-                  updated_at = ${now}
-              WHERE id = ${existingId}
-                AND school_year = ${schoolYear}
-              RETURNING *
-            `;
-
-            if (updated.length === 0) {
-              pushImportFailure(summary, rowNumber, 'Existing entry was not found for the selected school year.');
-            } else {
-              summary.updated.push(mapEntry(updated[0]));
-            }
-          } catch (error) {
-            pushImportFailure(summary, rowNumber, 'Failed to update row.');
-          }
-          continue;
         }
 
-        if (action === 'create') {
-          try {
-            const created = await sql`
-              INSERT INTO yearly_calendar_entries (
-                school_year, year, month, entry_type, week_number, week_number_end,
-                weekday_start, weekday_end, date, title, description, color,
-                show_on_homepage, show_for_parents, notify_newsletter, created_by, created_at, updated_at
-              ) VALUES (
-                ${payload.schoolYear}, ${payload.year}, ${payload.month}, ${payload.entryType}, ${payload.weekNumber}, ${payload.weekNumberEnd},
-                ${null}, ${null}, ${payload.date}, ${payload.title}, ${payload.description}, ${payload.color},
-                ${payload.showOnHomepage}, ${payload.showForParents}, ${false}, ${createdBy}, ${now}, ${now}
-              )
-              RETURNING *
-            `;
-            summary.created.push(mapEntry(created[0]));
-          } catch (error) {
-            pushImportFailure(summary, rowNumber, 'Failed to create row.');
+        if (action === 'update' || action === 'create') {
+          const payload = validation.payload;
+          writes.push({
+            row_number: rowNumber,
+            action,
+            id: action === 'update' ? existingId : null,
+            school_year: payload.schoolYear,
+            year: payload.year,
+            month: payload.month,
+            entry_type: payload.entryType,
+            week_number: payload.weekNumber,
+            week_number_end: payload.weekNumberEnd,
+            date: payload.date,
+            title: payload.title,
+            description: payload.description,
+            color: payload.color,
+            show_on_homepage: payload.showOnHomepage,
+            show_for_parents: payload.showForParents,
+          });
+        }
+      }
+
+      if (writes.length > 0) {
+        // One statement is one transaction: a failure writes nothing, and the
+        // handler answers with an error the import dialog shows. The preview
+        // only diffs the columns set here, so an update leaves the rest alone,
+        // and an imported entry never opts in to the newsletter.
+        const results = await sql`
+          WITH input AS (
+            SELECT *
+            FROM jsonb_to_recordset(${JSON.stringify(writes)}::jsonb) AS i(
+              row_number int, action text, id int, school_year int, year int, month int,
+              entry_type text, week_number int, week_number_end int, date text, title text,
+              description text, color text, show_on_homepage boolean, show_for_parents boolean
+            )
+          ), updated AS (
+            UPDATE yearly_calendar_entries e
+            SET school_year = u.school_year,
+                year = u.year,
+                month = u.month,
+                entry_type = u.entry_type,
+                week_number = u.week_number,
+                week_number_end = u.week_number_end,
+                date = u.date,
+                title = u.title,
+                description = u.description,
+                color = u.color,
+                show_on_homepage = u.show_on_homepage,
+                show_for_parents = u.show_for_parents,
+                updated_at = ${now}
+            -- Two sheet rows aimed at one entry: the later row wins, as it did
+            -- when each row was its own UPDATE.
+            FROM (
+              SELECT DISTINCT ON (id) *
+              FROM input
+              WHERE action = 'update'
+              ORDER BY id, row_number DESC
+            ) u
+            WHERE e.id = u.id
+              AND e.school_year = ${schoolYear}
+            RETURNING e.*
+          ), created AS (
+            INSERT INTO yearly_calendar_entries (
+              school_year, year, month, entry_type, week_number, week_number_end,
+              weekday_start, weekday_end, date, title, description, color,
+              show_on_homepage, show_for_parents, notify_newsletter, created_by, created_at, updated_at
+            )
+            SELECT school_year, year, month, entry_type, week_number, week_number_end,
+                   NULL, NULL, date, title, description, color,
+                   show_on_homepage, show_for_parents, false, ${createdBy}, ${now}, ${now}
+            FROM input
+            WHERE action = 'create'
+            ORDER BY row_number
+            RETURNING *
+          )
+          SELECT 'updated' AS outcome, to_jsonb(updated) AS entry FROM updated
+          UNION ALL
+          SELECT 'created' AS outcome, to_jsonb(created) AS entry FROM created
+        `;
+
+        for (const { outcome, entry } of results) {
+          summary[outcome === 'updated' ? 'updated' : 'created'].push(mapEntry(entry));
+        }
+        // An entry deleted since the preview matches nothing to update.
+        const updatedIds = new Set(summary.updated.map((entry) => entry.id));
+        for (const write of writes) {
+          if (write.action === 'update' && !updatedIds.has(write.id)) {
+            pushImportFailure(summary, write.row_number, EXISTING_NOT_FOUND);
           }
         }
       }
 
+      summary.errors.sort((a, b) => a.rowNumber - b.rowNumber);
       return res.status(200).json(summary);
     }
 
@@ -375,10 +417,8 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const id = parseInt(req.query.id);
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Valid id query parameter required' });
-    }
+    const id = requireIntId(req, res);
+    if (!id) return;
     const payload = sanitizeEntryPayload(req.body || {});
     if (!hasRequiredEntryFields(payload)) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR });
@@ -415,10 +455,8 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    const id = parseInt(req.query.id);
-    if (!id || isNaN(id)) {
-      return res.status(400).json({ error: 'Valid id query parameter required' });
-    }
+    const id = requireIntId(req, res);
+    if (!id) return;
     const deleted = await sql`
       DELETE FROM yearly_calendar_entries WHERE id = ${id} RETURNING id
     `;

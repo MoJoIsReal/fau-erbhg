@@ -41,7 +41,6 @@ const ROUTES = [
   settings('users', 'GET', ADMIN),
   settings('users', 'POST', ADMIN),
   settings('users', 'DELETE', ADMIN, { id: '5' }),
-  settings('staff-users', 'GET', ADMIN),
   settings('newsletter-subscribers', 'GET', ADMIN),
   settings('newsletter-subscribers', 'DELETE', ADMIN, { id: '1' }),
 ];

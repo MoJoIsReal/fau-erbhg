@@ -28,7 +28,7 @@ const FATAL_CODES = new Set(['TS2304', 'TS2552']);
 
 // Pre-existing signature/JSDoc diagnostics at the time this check was added.
 // Lower this whenever you clear some. Do not raise it.
-const OTHER_BUDGET = 52;
+const OTHER_BUDGET = 50;
 
 const DIAGNOSTIC = /^(\S.*?)\((\d+),(\d+)\): error (TS\d+): (.*)$/;
 

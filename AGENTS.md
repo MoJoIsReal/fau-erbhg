@@ -70,7 +70,7 @@ functions and 9 are used, so several handlers multiplex resources:
 `api/documents.js?action=download`,
 `api/registrations.js?action=cancel-lookup|cancel`,
 `api/contact.js?action=newsletter-subscribe|newsletter-confirm|newsletter-unsubscribe`,
-`api/secure-settings.js?resource=users|staff-users|board-members|kindergarten-info|blog-posts|contact-messages|newsletter-subscribers`.
+`api/secure-settings.js?resource=users|board-members|kindergarten-info|blog-posts|contact-messages|newsletter-subscribers`.
 Prefer extending an existing handler over adding a file. (This is also why there
 is no `/api/health` — uptime monitors hit `GET /api/events`.)
 
@@ -211,10 +211,14 @@ legitimate inline cases.
 from `shared/schema.ts` where one exists.
 
 **Dates.** Most date columns are `text` holding ISO strings, deliberately, to
-avoid timezone drift; `api_rate_limits` is the exception (`timestamptz`).
+avoid timezone drift; `api_rate_limits` is the exception (`timestamptz`). Write
+them as `new Date().toISOString()`, never `NOW()`: into a `text` column that
+stores PostgreSQL's own format, which the browser then has to parse.
 
 **Errors.** Server: throw with a status, let `handleError` respond and redact.
-Client: `useToast()` — never `alert()`.
+Client: `useToast()` — never `alert()`. A form that reacts to a particular
+refusal keys off the body's `code` (`SIGNUP_ERROR_CODES` in `shared/constants.js`,
+`TURNSTILE_FAILED`) and shows its translation; it never matches the `error` text.
 
 **Auth model.** JWT in an HttpOnly `jwt` cookie (`Authorization: Bearer` still
 accepted as a fallback), plus a double-submit `csrf-token` cookie. Guard with
@@ -226,7 +230,11 @@ messages), `staff` (yearly calendar entries only). UI route guards are
 convenience only — authorization is the handler's job.
 
 **Security non-negotiables.** Parameterized SQL only. Sanitize input through
-the `sanitizeText/Html/Email/Phone/Number` helpers in `middleware.js`. Uploads
+the `sanitizeText/Html/Email/Phone/Number/Integer` helpers in `middleware.js`;
+ids, limits, offsets and counts go through `sanitizeInteger` or `requireIntId`,
+so a fraction is a 400 rather than a database error. Only an explicit
+`NODE_ENV=development` relaxes error redaction, cookie `Secure` and the CORS
+allowlist (`isLocalDevelopment()`); anything else is treated as deployed. Uploads
 must pass MIME + extension + `MAX_UPLOAD_SIZE_BYTES` validation and the returned
 Cloudinary URL must belong to our `cloud_name` under `fau-documents/`. Never
 widen CORS to `*`. Never log emails, phone numbers or tokens — use

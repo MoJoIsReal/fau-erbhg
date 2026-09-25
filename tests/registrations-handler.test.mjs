@@ -4,9 +4,11 @@
 // what the confirmation mail is allowed to repeat back.
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
 import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import { SIGNUP_ERROR_CODES } from '../shared/constants.js';
 
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
 const sent = [];
@@ -82,6 +84,7 @@ test('a photo day with too few free slots refuses instead of booking a child wit
   const sql = signupDatabase({ event: eventRow({ type: 'foto', time: '23:50' }) });
   const res = await call(t, handler, signup({ attendeeCount: 3, childrenNames: JSON.stringify(['A', 'B', 'C']) }));
   assert.equal(res.statusCode, 409);
+  assert.equal(res.body.code, 'PHOTO_SLOTS_FULL');
   assert.equal(signupStatement(sql), undefined);
 });
 
@@ -135,4 +138,62 @@ test('with Turnstile on, a signup without a valid token is refused before anythi
   assert.equal(res.statusCode, 201);
   assert.ok(signupStatement(sql));
   assert.deepEqual(asked, ['bad-token', 'good-token'], 'a missing token never reaches Cloudflare');
+});
+
+// SEC-005. parseInt read an eventId of 1.5 or '7abc' as a real event.
+test('an event id that is not a whole number is refused', async (t) => {
+  for (const eventId of [1.5, '7abc', '', true, [7]]) {
+    const sql = signupDatabase();
+    const res = await call(t, handler, signup({ eventId }));
+    assert.equal(res.statusCode, 400, JSON.stringify(eventId));
+    assert.equal(signupStatement(sql), undefined, JSON.stringify(eventId));
+  }
+  for (const eventId of ['1.5', '7abc']) {
+    useDatabase(scriptedSql());
+    const res = await call(t, handler, { query: { eventId } });
+    assert.equal(res.statusCode, 400, `GET ?eventId=${eventId}`);
+  }
+  const sql = useDatabase(scriptedSql());
+  const res = await call(t, handler, { method: 'DELETE', query: { id: '1.5' }, as: 'member' });
+  assert.equal(res.statusCode, 400);
+  assert.deepEqual(sql.writes(), []);
+});
+
+// TRACE-004. The form used to pick its message by matching substrings of the
+// English error text, and showed anything it did not recognise untranslated.
+test('every refusal names its reason with a code the signup form translates', async (t) => {
+  const refused = (state) => ({ eventExists: 1, capacityAvailable: true, available: 0, reservedSlotCount: 0, registration: null, ...state });
+  const cases = [
+    ['INVALID_SIGNUP', {}, { name: '' }],
+    ['ATTENDEES_OUT_OF_RANGE', {}, { attendeeCount: 11 }],
+    ['EVENT_INACTIVE', { event: null }, {}],
+    ['SIGNUP_CLOSED', { event: eventRow({ no_signup: true }) }, {}],
+    ['DEADLINE_PASSED', { event: eventRow({ registration_deadline: '2000-01-01T00:00:00.000Z' }) }, {}],
+    ['CHILD_NAMES_REQUIRED', { event: eventRow({ type: 'foto' }) }, {}],
+    ['EVENT_FULL', { state: refused({ capacityAvailable: false }) }, {}],
+    ['ALREADY_REGISTERED', { state: refused({}) }, {}],
+    ['RATE_LIMITED', { rateCount: 999 }, {}],
+  ];
+  for (const [code, { event = eventRow(), state, rateCount = 1 }, body] of cases) {
+    useDatabase(scriptedSql({
+      rateCount,
+      respond(statement) {
+        if (statement.startsWith('SELECT id, title, date, time')) return event ? [event] : [];
+        if (statement.startsWith('WITH target_event AS')) return [state];
+        return [];
+      },
+    }));
+    const res = await call(t, handler, signup(body));
+    assert.ok(res.statusCode >= 400, code);
+    assert.equal(res.body.code, code);
+    assert.equal(typeof res.body.error, 'string', `${code} keeps a readable fallback`);
+  }
+});
+
+// The form's translations are typed Record<SignupErrorCode, string>, so a code
+// missing from the list would reach parents as the generic message.
+test('the codes the API refuses a signup with are exactly the ones the form translates', () => {
+  const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
+  const used = new Set([...source.matchAll(/refuseSignup\(res, \d{3}, '([A-Z_]+)'/g)].map((match) => match[1]));
+  assert.deepEqual([...used].sort(), [...SIGNUP_ERROR_CODES].sort());
 });

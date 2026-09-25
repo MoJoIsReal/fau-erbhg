@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   cleanupPrivacyRetention,
   isAuthorizedCron,
+  logCronRun,
   runMorningTasks,
   sendEventReminders,
 } from '../api/cron/event-reminders.js';
@@ -55,9 +56,13 @@ test('every claimed reminder is sent and stamped', async () => {
   assert.equal(sent.length, 2);
   assert.match(sent[0].messageId, /^<[a-f0-9]{64}@erdal-bhg\.no>$/);
   assert.equal(
-    calls.filter(({ statement }) => statement.includes('SET reminder_sent_at = NOW()')).length,
+    calls.filter(({ statement }) => statement.includes('SET reminder_sent_at = ?')).length,
     2,
   );
+  // TRACE-003: ISO text, like every other date column, not NOW()'s own format.
+  for (const { values } of calls.filter(({ statement }) => statement.includes('SET reminder_sent_at = ?'))) {
+    assert.match(values[0], /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  }
 });
 
 // A single pass with LIMIT 25 meant an event with more registrations than that
@@ -92,7 +97,7 @@ test('a provider failure releases the claim, counts, and does not stop the run',
     1,
   );
   assert.equal(
-    calls.filter(({ statement }) => statement.includes('SET reminder_sent_at = NOW()')).length,
+    calls.filter(({ statement }) => statement.includes('SET reminder_sent_at = ?')).length,
     2,
   );
 });
@@ -245,6 +250,12 @@ test('cron authorization accepts only the configured secret', async (t) => {
   assert.equal(isAuthorizedCron({ headers: { authorization: 'Bearer wrong' } }), false);
   assert.equal(isAuthorizedCron({ headers: {} }), false);
   assert.equal(isAuthorizedCron({}), false);
+  // Same length, last character wrong: the case a timing attack works through.
+  assert.equal(isAuthorizedCron({ headers: { authorization: 'Bearer a-test-only-cron-secreT' } }), false);
+  // Same number of characters but not of bytes: must be refused, not throw
+  // from timingSafeEqual.
+  assert.equal(isAuthorizedCron({ headers: { authorization: 'Bearer a-test-only-cron-secreæ' } }), false);
+  assert.equal(isAuthorizedCron({ headers: { authorization: ['Bearer a-test-only-cron-secret'] } }), false);
 });
 
 test('missing email configuration cannot suppress retention and reconciliation', async (t) => {
@@ -258,7 +269,8 @@ test('missing email configuration cannot suppress retention and reconciliation',
   assert.equal(calls.some(({ statement }) => statement.includes('WITH due AS')), false, 'do not claim unsendable mail');
 });
 
-test('a housekeeping failure is reported without preventing other stages', async () => {
+test('a housekeeping failure is reported without preventing other stages', async (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
   const calls = [];
   const sql = async (strings) => {
     const statement = strings.join('?').replace(/\s+/g, ' ').trim(); calls.push(statement);
@@ -268,6 +280,14 @@ test('a housekeeping failure is reported without preventing other stages', async
   await assert.rejects(runMorningTasks(sql, '2026-09-10', async () => {}), AggregateError);
   assert.ok(calls.some(statement => statement.startsWith('DELETE FROM api_rate_limits')));
   assert.ok(calls.some(statement => statement.includes('WITH due AS')));
+  // The one line a failing run leaves carries the counts of the stages that
+  // ran, not "[object Object]".
+  const partial = errors.mock.calls.map(({ arguments: [line] }) => String(line)).find((line) => line.includes('cron.morning_partial'));
+  assert.deepEqual(JSON.parse(partial), {
+    level: 'error', event: 'cron.morning_partial',
+    attendeeCountsRepaired: 0, expiredRateLimitsDeleted: 0, deliveryHistoryDeleted: 0,
+    claimed: 0, sent: 0, failed: 0, deferred: 0,
+  });
 });
 
 test('a stalled reminder is aborted at the deadline and never stamped as sent', async (t) => {
@@ -283,5 +303,35 @@ test('a stalled reminder is aborted at the deadline and never stamped as sent', 
   assert.equal(aborted, true);
   assert.equal(result.sent, 0);
   assert.equal(result.failed, 1);
-  assert.equal(calls.some(({ statement }) => statement.includes('SET reminder_sent_at = NOW()')), false);
+  assert.equal(calls.some(({ statement }) => statement.includes('SET reminder_sent_at = ?')), false);
+});
+
+// OBS-001. The run line used to be written at info level whatever it held, so
+// nothing could alert on it; failures were only single error-tracker events.
+test('a run that left mail unsent logs its counts at warn and raises one report', (t) => {
+  const errors = t.mock.method(console, 'error', () => {});
+  const logs = t.mock.method(console, 'log', () => {});
+
+  const troubled = logCronRun('newsletter', '2026-09-10', {
+    queued: 40, processed: 40, sent: 36, failed: 3, skipped: 1, deferred: 0, abandoned: 1, remaining: 2,
+  });
+  assert.deepEqual(troubled, {
+    level: 'warn', event: 'cron.run', task: 'newsletter', targetDate: '2026-09-10',
+    queued: 40, processed: 40, sent: 36, failed: 3, skipped: 1, deferred: 0, abandoned: 1, remaining: 2,
+    mailProblems: true,
+  });
+  const reports = errors.mock.calls.map(({ arguments: [first] }) => String(first));
+  assert.equal(reports.filter((line) => line.startsWith('Mail delivery problems in the newsletter run')).length, 1);
+
+  errors.mock.resetCalls();
+  const quiet = logCronRun('reminders', '2026-09-10', { claimed: 12, sent: 12, failed: 0, deferred: 0 });
+  assert.equal(quiet.level, 'info');
+  assert.equal(quiet.mailProblems, false);
+  assert.equal(errors.mock.callCount(), 0);
+  assert.equal(logs.mock.callCount(), 1);
+
+  // A reminder that fails or is deferred is lost: the next run is another day.
+  assert.equal(logCronRun('reminders', '2026-09-10', { claimed: 3, sent: 2, failed: 0, deferred: 1 }).level, 'warn');
+  // A newsletter run that could not send at all is a problem too.
+  assert.equal(logCronRun('newsletter', '2026-09-10', { queued: 0, reason: 'email-not-configured' }).level, 'warn');
 });

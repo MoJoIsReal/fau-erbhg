@@ -68,9 +68,11 @@ test('a named inquiry needs a valid address and is stored sanitized', async (t) 
     subject: 'concern', name: 'Kari', email: ' Kari@Example.TEST ', message: 'Hei<script>alert(1)</script> der',
   }));
   assert.equal(res.statusCode, 201);
-  const [{ values: [name, email, , subject, message] }] = inserts(sql);
+  const [{ values: [name, email, , subject, message, createdAt] }] = inserts(sql);
   assert.deepEqual([name, email, subject], ['Kari', 'kari@example.test', 'concern']);
   assert.doesNotMatch(message, /<script/i);
+  // TRACE-003: ISO text, not NOW()'s '2026-09-24 11:56:00.123456+00'.
+  assert.match(createdAt, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 });
 
 // Mail goes out after the response (waitUntil), so let it settle first.
@@ -87,24 +89,27 @@ test('the council hears about every inquiry; only a named sender gets a receipt'
 
 // Double opt-in must not become a way to learn who is subscribed.
 test('subscribing answers the same for a new, pending or already active address', async (t) => {
+  const publicMail = crypto.createHash('sha256').update('public-mail').digest('hex');
   const answers = [];
-  for (const existing of [[], [{ id: 4, status: 'pending' }], [{ id: 4, status: 'active' }]]) {
+  for (const existing of [null, 'pending', 'unsubscribed', 'active']) {
     const sql = useDatabase(scriptedSql({
-      respond: (statement) => (statement.startsWith('SELECT id, status FROM newsletter_subscribers') ? existing : []),
+      // PostgreSQL's answer to the upsert: the row when it inserted or re-armed
+      // one, nothing when the address was already active.
+      respond: (statement) => (statement.startsWith('INSERT INTO newsletter_subscribers') && existing !== 'active'
+        ? [{ id: 4 }]
+        : []),
     }));
     const res = await call(t, handler, submit({ email: 'kari@example.test' }, { action: 'newsletter-subscribe' }));
     answers.push([res.statusCode, res.body]);
 
-    const writes = sql.writes();
-    if (existing[0]?.status === 'active') {
-      assert.deepEqual(writes, [], 'an active subscription is left alone and gets no new mail');
-    } else {
-      assert.equal(writes.length, 1);
-      assert.match(writes[0].statement, existing.length ? /SET status = 'pending'/ : /'pending'/);
-      assert.ok(writes[0].values.some((value) => /^[a-f0-9]{64}$/.test(value)), 'a fresh confirm token');
-    }
+    const [upsert, ...others] = sql.writes();
+    assert.deepEqual(others, [], 'one statement, so there is no lookup for a second request to slip past');
+    assert.match(upsert.statement, /ON CONFLICT \(email\) DO UPDATE SET status = 'pending'.* WHERE newsletter_subscribers\.status <> 'active' RETURNING id$/);
+    assert.ok(upsert.values.some((value) => /^[a-f0-9]{64}$/.test(value)), 'a fresh confirm token');
+    const mailed = sql.calls.some(({ statement, values }) => statement.startsWith('INSERT INTO api_rate_limits') && values[0] === publicMail);
+    assert.equal(mailed, existing !== 'active', `${existing ?? 'new'}: an active subscription gets no new mail`);
   }
-  assert.deepEqual(answers, Array(3).fill([200, { success: true }]));
+  assert.deepEqual(answers, Array(4).fill([200, { success: true }]));
 });
 
 test('confirm and unsubscribe reject a malformed token before any lookup', async (t) => {

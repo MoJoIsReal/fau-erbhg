@@ -5,6 +5,8 @@ import {
   requireRole,
   sanitizeText,
   sanitizeHtml,
+  sanitizeInteger,
+  MAX_INT_ID,
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
@@ -167,11 +169,7 @@ function isValidEventDate(value) {
 // number in range, or the request is refused. Returns undefined when invalid.
 function normalizeMaxAttendees(value) {
   if (value === undefined || value === null || value === '') return null;
-  const number = typeof value === 'number' || (typeof value === 'string' && value.trim() !== '')
-    ? Number(value)
-    : NaN;
-  if (!Number.isInteger(number) || number < 0 || number > MAX_EVENT_ATTENDEES) return undefined;
-  return number;
+  return sanitizeInteger(value, 0, MAX_EVENT_ATTENDEES) ?? undefined;
 }
 
 function normalizeRegistrationDeadline(value) {
@@ -181,6 +179,68 @@ function normalizeRegistrationDeadline(value) {
     return undefined;
   }
   return deadline.toISOString();
+}
+
+// POST and PUT take the same event, and these checks used to be written out
+// twice, fifty lines each. Returns { values } ready for the columns, or
+// { error }: the body of the 400 to send.
+function validateEventBody(body = {}) {
+  const {
+    title,
+    description,
+    date,
+    time,
+    location,
+    customLocation,
+    maxAttendees,
+    registrationDeadline,
+    type,
+    vigiloSignup,
+    noSignup,
+    notifyNewsletter,
+  } = body;
+
+  const values = {
+    title: sanitizeText(title, 200),
+    description: sanitizeHtml(description, 5000),
+    date,
+    time,
+    location: sanitizeText(location, 200),
+    customLocation: customLocation ? sanitizeText(customLocation, 200) : null,
+    maxAttendees: normalizeMaxAttendees(maxAttendees),
+    registrationDeadline: normalizeRegistrationDeadline(registrationDeadline),
+    type,
+    vigiloSignup: vigiloSignup || false,
+    noSignup: noSignup || false,
+    notifyNewsletter: notifyNewsletter === true,
+  };
+
+  if (!values.title || !date || !time) {
+    return { error: { error: 'Valid title, date, and time are required' } };
+  }
+  if (!isValidEventDate(date)) {
+    return { error: { error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12' } };
+  }
+  if (!isValidEventTime(time)) {
+    return { error: { error: 'Time must be written as HH:MM (24-hour), for example 17:00' } };
+  }
+  if (values.maxAttendees === undefined) {
+    return {
+      error: { error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit` },
+    };
+  }
+  if (values.registrationDeadline === undefined) {
+    return { error: { error: 'Valid registration deadline is required' } };
+  }
+  if (!EVENT_TYPES.includes(type)) {
+    return { error: { error: `Invalid event type: ${type}`, allowed: EVENT_TYPES } };
+  }
+  return { values };
+}
+
+// The id in ?id=. parseInt read '1.5' and '12abc' as event 1 and 12.
+function eventIdFrom(req) {
+  return sanitizeInteger(req.query.id, 1, MAX_INT_ID);
 }
 
 export function isRegistrationForeignKeyConflict(error) {
@@ -219,61 +279,12 @@ export default withApiHandler(async function handler(req, res) {
   if (!requireCsrf(req, res)) return;
 
   if (req.method === 'POST') {
-    const {
-      title,
-      description,
-      date,
-      time,
-      location,
-      customLocation,
-      maxAttendees,
-      registrationDeadline,
-      type,
-      vigiloSignup,
-      noSignup,
-      notifyNewsletter,
-    } = req.body;
-
-    const sanitizedTitle = sanitizeText(title, 200);
-    const sanitizedDescription = sanitizeHtml(description, 5000);
-    const sanitizedLocation = sanitizeText(location, 200);
-    const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
-    const sanitizedMaxAttendees = normalizeMaxAttendees(maxAttendees);
-    const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(registrationDeadline);
-
-    if (!sanitizedTitle || !date || !time) {
-      return res.status(400).json({ error: 'Valid title, date, and time are required' });
-    }
-
-    if (!isValidEventDate(date)) {
-      return res.status(400).json({
-        error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12',
-      });
-    }
-
-    if (!isValidEventTime(time)) {
-      return res.status(400).json({
-        error: 'Time must be written as HH:MM (24-hour), for example 17:00',
-      });
-    }
-
-    if (sanitizedMaxAttendees === undefined) {
-      return res.status(400).json({
-        error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit`,
-      });
-    }
-
-    if (sanitizedRegistrationDeadline === undefined) {
-      return res.status(400).json({ error: 'Valid registration deadline is required' });
-    }
-
-    if (!EVENT_TYPES.includes(type)) {
-      return res.status(400).json({ error: `Invalid event type: ${type}`, allowed: EVENT_TYPES });
-    }
+    const { error, values } = validateEventBody(req.body);
+    if (error) return res.status(400).json(error);
 
     const inserted = await sql`
       INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup, notify_newsletter)
-      VALUES (${sanitizedTitle}, ${sanitizedDescription}, ${date}, ${time}, ${sanitizedLocation}, ${sanitizedCustomLocation}, ${sanitizedMaxAttendees}, ${sanitizedRegistrationDeadline}, ${type}, ${vigiloSignup || false}, ${noSignup || false}, ${notifyNewsletter === true})
+      VALUES (${values.title}, ${values.description}, ${values.date}, ${values.time}, ${values.location}, ${values.customLocation}, ${values.maxAttendees}, ${values.registrationDeadline}, ${values.type}, ${values.vigiloSignup}, ${values.noSignup}, ${values.notifyNewsletter})
       RETURNING *
     `;
 
@@ -281,76 +292,27 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   if (req.method === 'PUT') {
-    const eventId = parseInt(req.query.id, 10);
-    if (!eventId || Number.isNaN(eventId)) {
+    const eventId = eventIdFrom(req);
+    if (!eventId) {
       return res.status(400).json({ error: 'Valid event ID required' });
     }
-    const {
-      title,
-      description,
-      date,
-      time,
-      location,
-      customLocation,
-      maxAttendees,
-      registrationDeadline,
-      type,
-      vigiloSignup,
-      noSignup,
-      notifyNewsletter,
-    } = req.body;
-
-    const sanitizedTitle = sanitizeText(title, 200);
-    const sanitizedDescription = sanitizeHtml(description, 5000);
-    const sanitizedLocation = sanitizeText(location, 200);
-    const sanitizedCustomLocation = customLocation ? sanitizeText(customLocation, 200) : null;
-    const sanitizedMaxAttendees = normalizeMaxAttendees(maxAttendees);
-    const sanitizedRegistrationDeadline = normalizeRegistrationDeadline(registrationDeadline);
-
-    if (!sanitizedTitle || !date || !time) {
-      return res.status(400).json({ error: 'Valid title, date, and time are required' });
-    }
-
-    if (!isValidEventDate(date)) {
-      return res.status(400).json({
-        error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12',
-      });
-    }
-
-    if (!isValidEventTime(time)) {
-      return res.status(400).json({
-        error: 'Time must be written as HH:MM (24-hour), for example 17:00',
-      });
-    }
-
-    if (sanitizedMaxAttendees === undefined) {
-      return res.status(400).json({
-        error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit`,
-      });
-    }
-
-    if (sanitizedRegistrationDeadline === undefined) {
-      return res.status(400).json({ error: 'Valid registration deadline is required' });
-    }
-
-    if (!EVENT_TYPES.includes(type)) {
-      return res.status(400).json({ error: `Invalid event type: ${type}`, allowed: EVENT_TYPES });
-    }
+    const { error, values } = validateEventBody(req.body);
+    if (error) return res.status(400).json(error);
 
     const updated = await sql`
       UPDATE events
-      SET title = ${sanitizedTitle},
-          description = ${sanitizedDescription},
-          date = ${date},
-          time = ${time},
-          location = ${sanitizedLocation},
-          custom_location = ${sanitizedCustomLocation},
-          max_attendees = ${sanitizedMaxAttendees},
-          registration_deadline = ${sanitizedRegistrationDeadline},
-          type = ${type},
-          vigilo_signup = ${vigiloSignup || false},
-          no_signup = ${noSignup || false},
-          notify_newsletter = ${notifyNewsletter === true}
+      SET title = ${values.title},
+          description = ${values.description},
+          date = ${values.date},
+          time = ${values.time},
+          location = ${values.location},
+          custom_location = ${values.customLocation},
+          max_attendees = ${values.maxAttendees},
+          registration_deadline = ${values.registrationDeadline},
+          type = ${values.type},
+          vigilo_signup = ${values.vigiloSignup},
+          no_signup = ${values.noSignup},
+          notify_newsletter = ${values.notifyNewsletter}
       WHERE id = ${eventId}
       RETURNING *, (
         SELECT COALESCE(SUM(r.attendee_count), 0)::int
@@ -368,8 +330,8 @@ export default withApiHandler(async function handler(req, res) {
 
   if (req.method === 'PATCH') {
     const { action } = req.query;
-    const eventId = parseInt(req.query.id, 10);
-    if (!eventId || Number.isNaN(eventId)) {
+    const eventId = eventIdFrom(req);
+    if (!eventId) {
       return res.status(400).json({ error: 'Valid event ID required' });
     }
 
@@ -396,8 +358,8 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    const eventId = parseInt(req.query.id, 10);
-    if (!eventId || Number.isNaN(eventId)) {
+    const eventId = eventIdFrom(req);
+    if (!eventId) {
       return res.status(400).json({ error: 'Valid event ID required' });
     }
 
