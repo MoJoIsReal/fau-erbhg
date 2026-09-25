@@ -81,7 +81,6 @@ function setDeviceCookie(res, username, jwtConfig) {
   });
   setCookie(res, DEVICE_COOKIE, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
     sameSite: 'Strict',
     maxAge: DEVICE_MAX_AGE_SECONDS,
     path: '/api/auth',
@@ -91,14 +90,12 @@ function setDeviceCookie(res, username, jwtConfig) {
 function setAuthCookies(res, token, csrfToken) {
   setCookie(res, 'jwt', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
     sameSite: 'Strict',
     maxAge: 7200 // 2 hours in seconds
   });
 
   setCookie(res, 'csrf-token', csrfToken, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
     sameSite: 'Strict',
     maxAge: 7200 // 2 hours in seconds
   });
@@ -109,7 +106,6 @@ async function handleCsrf(req, res) {
   const csrfToken = generateCsrfToken();
   setCookie(res, 'csrf-token', csrfToken, {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
     sameSite: 'Strict',
     maxAge: 7200
   });
@@ -120,9 +116,11 @@ async function handleCsrf(req, res) {
 async function handleLogin(req, res, sql) {
   if (!requireCsrf(req, res)) return;
 
-  const { username, password } = req.body;
+  const { username, password } = req.body || {};
 
-  if (!username || !password) {
+  // Strings only: an object or array password used to reach bcrypt and come
+  // back as a 500, and a non-string username the rate-limit keys.
+  if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
     return res.status(400).json({ error: 'Username and password required' });
   }
 
@@ -239,7 +237,6 @@ async function handleLogout(req, res, sql) {
   // Clear JWT cookie (HttpOnly)
   setCookie(res, 'jwt', '', {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
     sameSite: 'Strict',
     maxAge: 0, // Expire immediately
     path: '/'
@@ -248,7 +245,6 @@ async function handleLogout(req, res, sql) {
   // Clear CSRF token cookie
   setCookie(res, 'csrf-token', '', {
     httpOnly: false,
-    secure: process.env.NODE_ENV === 'production',
     sameSite: 'Strict',
     maxAge: 0, // Expire immediately
     path: '/'

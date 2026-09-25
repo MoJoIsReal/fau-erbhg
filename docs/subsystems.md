@@ -35,6 +35,9 @@ derives the school year from that placement, including moves across July/August.
 Month notes without a week are shown above the grid. The editor's complete month
 list also exposes yearly entries hidden by filters or deduplicated against events.
 Staff can edit yearly entries; only council roles can edit signup events.
+The public read includes each entry's `createdBy`, the editor's display name, on
+purpose: the council wants the calendar to show who added an entry. It is a
+display name, never a login address.
 
 PDF downloads (selected month or full August–July school year) are public in the
 month view, including on phones. They use the light design tokens and bundled
@@ -46,7 +49,11 @@ additional entries continue in a detail section instead of being lost. Week span
 are matched by their dates across month boundaries. Downloads stay disabled if a
 required source failed to load. Signup events and cancelled events are included.
 Excel import/export remains in the editor toolbar, scoped to the displayed month’s
-school year (or the current school year in List view).
+school year (or the current school year in List view). A commit checks every row
+first and then writes all of them in one statement, so it is all or nothing: a
+row the server refuses is reported by its line number, but a database failure
+imports nothing and the dialog shows the error. Two sheet rows aimed at the same
+saved entry apply the later row.
 
 ## Calendar feed
 
@@ -89,7 +96,10 @@ Three item types feed the evening broadcast, all through the
 `notify_newsletter` (any published post that has not been broadcast yet — news
 is not tied to a date, so it goes out on the first run after it is flagged).
 Each item is stamped `newsletter_sent_at` once no delivery for it is still
-pending, which is what stops a second send.
+pending, which is what stops a second send. A flagged news post is also stamped
+when there was nobody to send it to (no active subscriber), so it is not saved
+up for whoever subscribes months later. Stamps are ISO text, like every other
+date column.
 
 A delivery row ends `sent`, `skipped` or `failed` (five unsuccessful sends).
 Those states are enforced by `newsletter_deliveries_status_check`, which lives
@@ -102,13 +112,27 @@ so a reminder never goes out after the day it is about.
 The broadcast runs from Vercel Cron at 19:00 UTC (≈21:00 Oslo); the 07:00 UTC
 run of the same handler does registration reminders and GDPR retention cleanup.
 Both schedules live in `vercel.json`, are fixed UTC, and do **not** follow
-Norwegian DST. `/api/cron/*` requires the `CRON_SECRET` bearer token in
-production.
+Norwegian DST. `/api/cron/*` requires the `CRON_SECRET` bearer token in every
+environment, compared in constant time; without the secret it refuses everyone.
 
 The morning run performs retention and counter reconciliation **before** mail.
 Independent housekeeping stages and reminders are all attempted; stage failures
 are logged with partial results and make the invocation fail instead of silently
 skipping cleanup or reporting success. Retention windows are unchanged.
+
+A registration reminder is only due on the morning before its event, so one
+that fails or is deferred past the run's deadline is not tried again on a later
+day. Within a run, `reminder_attempts` caps it at three sends: a failed send is
+released and, when the batch was full, would otherwise be claimed by every
+following batch until the budget ran out.
+
+Each run writes one `cron.run` line with its counts. When mail did not go out —
+newsletter `failed`, `abandoned` or `remaining`, reminder `failed` or `deferred`,
+or a newsletter run that could not send at all — the line is written at `warn`
+with `mailProblems: true`, and one error-tracker event is raised under the fixed
+title "Mail delivery problems in the … run" for the alert in
+[DEPLOYMENT.md](./DEPLOYMENT.md). The admin's settings page (Nyhetsbrev) shows
+each subscriber's waiting and failed deliveries.
 
 Cron sending stops at an absolute 23-second deadline, leaving seven seconds of
 the configured 30-second function limit for stamps/releases and response work.

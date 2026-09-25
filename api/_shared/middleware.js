@@ -37,14 +37,26 @@ function safeErrorForLog(error) {
 }
 
 /**
+ * Local development is the one place the API relaxes anything: raw error
+ * messages, cookies without Secure, the localhost CORS list. It has to be
+ * asked for with NODE_ENV=development. It used to be whatever was not
+ * 'production', so a deployment where NODE_ENV was unset, misspelt or
+ * 'preview' answered with raw error text and set cookies without Secure.
+ * @returns {boolean}
+ */
+export function isLocalDevelopment() {
+  return process.env.NODE_ENV === 'development';
+}
+
+/**
  * Apply security headers to API responses
  * @param {Object} res - Response object
  * @param {string} origin - Request origin header
  */
 export function applySecurityHeaders(res, origin) {
-  const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? ['https://fau-erdalbhg.vercel.app', 'https://www.erdal-bhg.no', 'https://erdal-bhg.no']
-    : ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000'];
+  const allowedOrigins = isLocalDevelopment()
+    ? ['http://localhost:5000', 'http://localhost:3000', 'http://127.0.0.1:5000']
+    : ['https://fau-erdalbhg.vercel.app', 'https://www.erdal-bhg.no', 'https://erdal-bhg.no'];
 
   // CORS handling - only allow specific origins, even in development
   if (origin && allowedOrigins.includes(origin)) {
@@ -156,14 +168,14 @@ export async function handleError(res, error, statusCode = 500, req = null, star
     await Sentry.captureException(error);
   }
 
-  // Don't expose internal error details in production
-  const message = process.env.NODE_ENV === 'production'
-    ? 'Internal server error'
-    : error.message;
+  // Internal error details only ever reach a local developer.
+  const message = isLocalDevelopment()
+    ? error.message
+    : 'Internal server error';
 
   res.status(statusCode).json({
     error: message,
-    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    ...(isLocalDevelopment() && { stack: error.stack })
   });
 }
 
@@ -206,7 +218,7 @@ export function parseCookies(req) {
 export function setCookie(res, name, value, options = {}) {
   const {
     httpOnly = false,
-    secure = process.env.NODE_ENV === 'production',
+    secure = !isLocalDevelopment(),
     sameSite = 'Strict',
     maxAge = 7200, // 2 hours in seconds
     path = '/'
@@ -433,20 +445,23 @@ function removeUntilStable(value, pattern) {
  *
  * Several handlers passed `req.query.id` straight into `WHERE id = ${id}`
  * against an integer column, so `?id=abc` produced a PostgreSQL 22P02 and a
- * blanket 500 "Internal server error" instead of a 400 naming the problem.
+ * blanket 500 "Internal server error" instead of a 400 naming the problem. An
+ * id past the integer column's range fails the same way, so it is refused too.
  * @param {Object} req
  * @param {Object} res
  * @returns {number|null} the id, or null once a 400 has been sent
  */
 export function requireIntId(req, res, paramName = 'id') {
-  const raw = req.query?.[paramName];
-  const id = Number(raw);
-  if (raw === undefined || raw === null || raw === '' || !Number.isInteger(id) || id < 1) {
+  const id = sanitizeInteger(req.query?.[paramName], 1, MAX_INT_ID);
+  if (id === null) {
     res.status(400).json({ error: `Valid ${paramName} query parameter required` });
     return null;
   }
   return id;
 }
+
+// PostgreSQL's `integer`: every id column in this schema is a serial.
+export const MAX_INT_ID = 2147483647;
 
 // Upper bound on any single raw request field, applied before sanitization.
 // Comfortably above every real field (the largest plain-text field is a 5 000
@@ -610,4 +625,21 @@ export function sanitizeNumber(value, min = 0, max = Number.MAX_SAFE_INTEGER) {
   const num = Number(value);
   if (isNaN(num) || num < min || num > max) return null;
   return num;
+}
+
+/**
+ * An integer in [min, max], or null. For ids, limits, offsets, counts and
+ * anything else bound to an integer column: sanitizeNumber lets 1.5 through,
+ * and a fraction that reaches `LIMIT`, an `::int` cast or an integer column is
+ * a database error — a 500 — instead of the 400 it should be. Only numbers and
+ * numeric strings count; `Number()` would also turn '', true or [5] into one.
+ * @param {any} value
+ * @param {number} [min]
+ * @param {number} [max]
+ * @returns {number|null}
+ */
+export function sanitizeInteger(value, min = 0, max = Number.MAX_SAFE_INTEGER) {
+  if (typeof value !== 'number' && (typeof value !== 'string' || value.trim() === '')) return null;
+  const num = Number(value);
+  return Number.isInteger(num) && num >= min && num <= max ? num : null;
 }

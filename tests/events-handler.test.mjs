@@ -168,3 +168,15 @@ test('deleting reports missing, registered, raced and conflicting events distinc
     for (const [key, value] of Object.entries(body)) assert.equal(res.body[key], value, `${status} ${key}`);
   }
 });
+
+// SEC-005. parseInt read these as events 1 and 12 and acted on them.
+test('an id that is not a whole number in range is refused before anything is written', async (t) => {
+  for (const id of ['1.5', '12abc', '0', '2147483648']) {
+    for (const [method, extra] of [['PUT', {}], ['PATCH', { action: 'cancel' }], ['DELETE', {}]]) {
+      const sql = useDatabase(scriptedSql({ respond: () => [row()] }));
+      const res = await call(t, handler, write(method, VALID, { id, ...extra }));
+      assert.equal(res.statusCode, 400, `${method} ?id=${id}`);
+      assert.deepEqual(sql.writes(), [], `${method} ?id=${id}`);
+    }
+  }
+});

@@ -59,6 +59,11 @@ export default withApiHandler(async function handler(req, res) {
         description,
         uploaded_at as "uploadedAt"
       FROM documents
+      -- Images uploaded from the rich-text editor are stored here too, but
+      -- they are not archive documents and no page lists them. Filtered here
+      -- rather than in the browser, where they still took up the LIMIT and
+      -- could push real documents off the end of the list.
+      WHERE category <> 'editor-image'
       ORDER BY uploaded_at DESC
       LIMIT 500
     `;

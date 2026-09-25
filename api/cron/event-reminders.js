@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { getDb } from '../_shared/database.js';
 import { withApiHandler } from '../_shared/middleware.js';
 import {
@@ -28,6 +29,13 @@ import { cancellationText } from '../_shared/registration-cancel.js';
 // which stops the loop while there is still time to finish cleanly.
 const MAX_REMINDERS_PER_RUN = 100;
 const MAX_NEWSLETTER_EMAILS_PER_RUN = 300;
+
+// A reminder whose send fails is released and, when the batch was full,
+// claimed again by the next batch of the same run. Without a bound one
+// address that can never be delivered to was retried batch after batch until
+// the run's budget ran out. reminder_attempts counts sends tried (a deferred
+// claim gives its attempt back), and a registration stops being claimed here.
+const MAX_REMINDER_ATTEMPTS = 3;
 
 // After this many failed sends a delivery is given up on and marked 'failed',
 // which is terminal. Without a bound, one address that can never be delivered
@@ -61,10 +69,18 @@ function deadlineFrom(startedAt = Date.now()) {
 // caller-supplied ?date=. A preview deployment, or a production deployment that
 // simply never had NODE_ENV set, was wide open. `.env.example` documents
 // CRON_SECRET; local runs set it there.
+//
+// Compared in constant time, the way validateCsrfToken compares its pair: `===`
+// returns at the first differing character, so response timing could reveal
+// the secret one character at a time. Byte lengths are checked first because
+// timingSafeEqual throws on buffers of different lengths.
 export function isAuthorizedCron(req) {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  return req.headers?.authorization === `Bearer ${secret}`;
+  const header = req.headers?.authorization;
+  if (!secret || typeof header !== 'string') return false;
+  const expected = Buffer.from(`Bearer ${secret}`);
+  const given = Buffer.from(header);
+  return given.length === expected.length && crypto.timingSafeEqual(given, expected);
 }
 
 function formatOsloDate(date) {
@@ -367,10 +383,12 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
 
   // Stamped off the delivery rows rather than the date. Scoping this to
   // targetDate meant an item whose deliveries finished on a later run was never
-  // stamped at all, so it stayed queued forever.
+  // stamped at all, so it stayed queued forever. The stamp is ISO text, like
+  // every other date column; NOW()::text wrote PostgreSQL's own format.
+  const stampedAt = new Date().toISOString();
   await sql`
     UPDATE events e
-    SET newsletter_sent_at = NOW()::text
+    SET newsletter_sent_at = ${stampedAt}
     WHERE e.newsletter_sent_at IS NULL
       AND EXISTS (
         SELECT 1 FROM newsletter_deliveries d
@@ -385,7 +403,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
 
   await sql`
     UPDATE yearly_calendar_entries e
-    SET newsletter_sent_at = NOW()::text
+    SET newsletter_sent_at = ${stampedAt}
     WHERE e.newsletter_sent_at IS NULL
       AND EXISTS (
         SELECT 1 FROM newsletter_deliveries d
@@ -398,13 +416,25 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
       )
   `;
 
+  // A flagged post is also stamped when there was nobody to send it to. The
+  // fan-out queues nothing without an active subscriber, so the delivery-row
+  // test alone never stamped such a post, and it went out to whoever
+  // subscribed months later. Events and calendar entries don't need this: they
+  // are only due on their own date.
   await sql`
     UPDATE blog_posts p
-    SET newsletter_sent_at = NOW()::text
+    SET newsletter_sent_at = ${stampedAt}
     WHERE p.newsletter_sent_at IS NULL
-      AND EXISTS (
-        SELECT 1 FROM newsletter_deliveries d
-        WHERE d.item_type = 'news' AND d.item_id = p.id
+      AND (
+        EXISTS (
+          SELECT 1 FROM newsletter_deliveries d
+          WHERE d.item_type = 'news' AND d.item_id = p.id
+        )
+        OR (
+          p.status = 'published'
+          AND p.notify_newsletter = true
+          AND NOT EXISTS (SELECT 1 FROM newsletter_subscribers s WHERE s.status = 'active')
+        )
       )
       AND NOT EXISTS (
         SELECT 1 FROM newsletter_deliveries d
@@ -565,6 +595,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
         WHERE e.status = 'active'
           AND e.date = ${targetDate}
           AND r.reminder_sent_at IS NULL
+          AND r.reminder_attempts < ${MAX_REMINDER_ATTEMPTS}
           AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
         ORDER BY e.time ASC, r.id ASC
         FOR UPDATE OF r SKIP LOCKED
@@ -608,7 +639,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
         }, deadline, closePooledTransporter);
         await sql`
           UPDATE event_registrations
-          SET reminder_sent_at = NOW()::text, reminder_claimed_at = NULL
+          SET reminder_sent_at = ${new Date().toISOString()}, reminder_claimed_at = NULL
           WHERE id = ${registration.id} AND reminder_sent_at IS NULL
         `;
         sent += 1;
@@ -655,10 +686,54 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     closePooledTransporter();
   }
   if (errors.length) {
-    logEvent('error', 'cron.morning_partial', summary);
+    // Flattened: logEvent writes a nested object as "[object Object]", which
+    // lost the reminder and retention counts from the one line a failing run
+    // leaves behind. A stage that failed has null here and adds nothing.
+    const { reminders, retention, ...counts } = summary;
+    logEvent('error', 'cron.morning_partial', { ...counts, ...retention, ...reminders });
     throw new AggregateError(errors, `${errors.length} morning stage(s) failed`);
   }
   return summary;
+}
+
+// The counts in a run's summary that mean mail did not go out, when above
+// zero. Each failed send is also reported on its own, but that says neither
+// how many there were nor whether mail is piling up. A newsletter run
+// leaves failures to retry (`remaining`) and retires some for good
+// (`abandoned`); a reminder that fails or is deferred is never retried, since
+// the next morning looks at a different day.
+export function mailProblems(task, summary) {
+  const keys = task === 'newsletter' ? ['failed', 'abandoned', 'remaining'] : ['failed', 'deferred'];
+  const problems = {};
+  for (const key of keys) {
+    const count = Number(summary?.[key]) || 0;
+    if (count > 0) problems[key] = count;
+  }
+  if (summary?.reason) problems.reason = summary.reason;
+  return problems;
+}
+
+// Vercel Cron discards the response body, so the only durable record that a
+// run happened is what gets logged. One line per run, so a cron that has been
+// failing for a fortnight is visible instead of silent. A run that left mail
+// unsent logs at warn and raises one error-tracker event under a fixed title,
+// which is what the alert in docs/DEPLOYMENT.md listens for.
+export function logCronRun(task, targetDate, summary) {
+  const problems = mailProblems(task, summary);
+  const troubled = Object.keys(problems).length > 0;
+  // Written directly rather than through logEvent, whose redaction reads the
+  // run's date as a phone number; every field here is a count, the task or
+  // that date. Warn goes to stderr, as logEvent does it.
+  const line = { level: troubled ? 'warn' : 'info', event: 'cron.run', task, targetDate, ...summary, mailProblems: troubled };
+  (troubled ? console.error : console.log)(JSON.stringify(line));
+  if (troubled) {
+    const detail = Object.entries(problems).map(([key, value]) => `${key}=${value}`).join(', ');
+    reportProviderError(
+      `Mail delivery problems in the ${task} run`,
+      Object.assign(new Error(detail), { code: 'MAIL_DELIVERY_PROBLEMS' }),
+    );
+  }
+  return line;
 }
 
 export default withApiHandler(async function handler(req, res) {
@@ -674,11 +749,7 @@ export default withApiHandler(async function handler(req, res) {
   const targetDate = req.query.date || tomorrowInOslo();
   const deadline = deadlineFrom();
 
-  // Vercel Cron discards the response body, so the only durable record that a
-  // run happened is what gets logged. One line per run, so a cron that has been
-  // failing for a fortnight is visible instead of silent.
-  const logRun = (task, summary) =>
-    console.log(JSON.stringify({ event: 'cron.run', task, targetDate, ...summary }));
+  const logRun = (task, summary) => logCronRun(task, targetDate, summary);
 
   // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
   // for the next day's flagged events. Registration reminders + GDPR cleanup

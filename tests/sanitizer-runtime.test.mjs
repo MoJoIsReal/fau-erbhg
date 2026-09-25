@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import {
   sanitizeEmail,
   sanitizeHtml,
+  sanitizeInteger,
   sanitizeNumber,
   sanitizePhone,
   sanitizeText,
@@ -203,4 +204,16 @@ test('sanitizeNumber returns null outside the bounds or for non-numbers', () => 
   assert.equal(sanitizeNumber('0', 1, 10), null);
   assert.equal(sanitizeNumber('11', 1, 10), null);
   assert.equal(sanitizeNumber('abc'), null);
+});
+
+// SEC-005. A fraction that reaches LIMIT, an ::int cast or an integer column is
+// a database error — a 500 — rather than the 400 it should be.
+test('sanitizeInteger takes whole numbers in range from numbers and numeric strings only', () => {
+  assert.equal(sanitizeInteger('3', 1, 10), 3);
+  assert.equal(sanitizeInteger(3, 1, 10), 3);
+  assert.equal(sanitizeInteger(' 7 ', 1, 10), 7);
+  assert.equal(sanitizeInteger('0', 0, 10), 0);
+  for (const value of ['1.5', 2.5, '0', '11', 'abc', '', '  ', null, undefined, true, [5], {}, NaN, Infinity]) {
+    assert.equal(sanitizeInteger(value, 1, 10), null, JSON.stringify(value));
+  }
 });

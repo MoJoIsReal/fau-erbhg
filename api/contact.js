@@ -117,10 +117,12 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json(turnstileFailure(language));
     }
 
-    // Create contact message in database
+    // Create contact message in database. created_at is text holding ISO
+    // 8601, like every other date column here; NOW() stored PostgreSQL's own
+    // text form, which the inbox then had to parse.
     const contactMessages = await sql`
       INSERT INTO contact_messages (name, email, phone, subject, message, created_at)
-      VALUES (${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone}, ${subject}, ${sanitizedMessage}, NOW())
+      VALUES (${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone}, ${subject}, ${sanitizedMessage}, ${new Date().toISOString()})
       RETURNING *
     `;
 
@@ -267,32 +269,29 @@ async function handleNewsletterSubscribe(req, res) {
     }
 
     const now = new Date().toISOString();
-    const existing = await sql`
-      SELECT id, status FROM newsletter_subscribers WHERE email = ${sanitizedEmail} LIMIT 1
+    const confirmToken = newsletterToken();
+    // One statement: a new address is inserted, a pending or unsubscribed one
+    // is re-armed with a fresh token, and an active one is left alone (no row
+    // comes back, so nothing is resent). This used to be a lookup followed by
+    // an INSERT, and two sign-ups for the same new address at once both
+    // missed in the lookup — the second INSERT was a unique violation and a
+    // 500.
+    const armed = await sql`
+      INSERT INTO newsletter_subscribers (email, name, language, status, confirm_token, unsubscribe_token, created_at)
+      VALUES (${sanitizedEmail}, ${sanitizedName}, ${lang}, 'pending', ${confirmToken}, ${newsletterToken()}, ${now})
+      ON CONFLICT (email) DO UPDATE
+        SET status = 'pending',
+            confirm_token = EXCLUDED.confirm_token,
+            language = EXCLUDED.language,
+            name = EXCLUDED.name,
+            unsubscribed_at = NULL
+        WHERE newsletter_subscribers.status <> 'active'
+      RETURNING id
     `;
 
-    // Already confirmed — nothing to do, and we don't resend anything.
-    if (existing.length > 0 && existing[0].status === 'active') {
+    // Already confirmed: the same answer as any other address, and no mail.
+    if (armed.length === 0) {
       return res.status(200).json({ success: true });
-    }
-
-    const confirmToken = newsletterToken();
-    if (existing.length > 0) {
-      // Re-arm a pending or previously unsubscribed address with a fresh token.
-      await sql`
-        UPDATE newsletter_subscribers
-        SET status = 'pending',
-            confirm_token = ${confirmToken},
-            language = ${lang},
-            name = ${sanitizedName},
-            unsubscribed_at = NULL
-        WHERE id = ${existing[0].id}
-      `;
-    } else {
-      await sql`
-        INSERT INTO newsletter_subscribers (email, name, language, status, confirm_token, unsubscribe_token, created_at)
-        VALUES (${sanitizedEmail}, ${sanitizedName}, ${lang}, 'pending', ${confirmToken}, ${newsletterToken()}, ${now})
-      `;
     }
 
     if (isEmailConfigured()) {

@@ -108,4 +108,6 @@ test('a registered document stores the provider size and type, and who uploaded 
   assert.equal(row.category, 'annet');
   assert.equal(row.uploaded_by, 'member@example.test');
   assert.doesNotMatch(row.title, /[<>]/);
+  // TRACE-003: ISO text, not NOW()'s '2026-09-24 11:56:00.123456+00'.
+  assert.match(row.uploaded_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
 });

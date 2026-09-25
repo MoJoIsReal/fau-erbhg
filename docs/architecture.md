@@ -15,7 +15,7 @@ directly. There is no second backend, ORM query layer or generic repository tier
 |---|---|
 | Browser | UI validation and route guards are convenience only; all input is untrusted. TanStack Query owns server state. Failed reads expose retry and distinguish stale data from a successful empty result. |
 | `client/src/lib/queryClient.ts` | Sends credentials/CSRF, handles API errors, and clears the shared auth cache on unauthorized responses. The first query-key item is the requested URL. |
-| `api/*.js` | `withApiHandler` supplies security headers/CORS/error handling. Handlers enforce roles and CSRF for session-authorized mutations. Capability actions use their own scoped token checks. |
+| `api/*.js` | `withApiHandler` supplies security headers/CORS/error handling. Handlers enforce roles and CSRF for session-authorized mutations. Capability actions use their own scoped token checks. Only `NODE_ENV=development` relaxes error redaction, `Secure` cookies and the CORS allowlist; an unset or unexpected value gets the deployed behaviour. |
 | `api/_shared/` | Backend-only authentication, sanitization, database/provider adapters, delivery, rate limits and redacted telemetry. |
 | `shared/` | Runtime modules are JS with `.d.ts` siblings. `schema.ts` supplies frontend types/Zod/Drizzle declarations and is never imported by unbundled API code. |
 | PostgreSQL | Persists records, row locks, case-insensitive signup uniqueness, normalized photo reservations, foreign keys and durable delivery state. SQL migrations supplement the schema declaration. |
@@ -31,8 +31,7 @@ budget. `auth?action=…` handles login/session/password operations;
 `documents?action=download` handles downloads; `registrations?action=cancel…`
 handles cancellation; `contact?action=newsletter-…` handles subscriptions.
 `secure-settings?resource=…` multiplexes content, contact messages and settings.
-`staff-users` is an alias in its user-management branch, not a staff self-service
-endpoint. Authorization remains enforced by the handler.
+Authorization remains enforced by the handler.
 
 Admins manage users, settings, board information and subscribers. Members also
 manage events, registrations, documents, blog posts, calendar and contact

@@ -22,6 +22,7 @@ contents of each migration file. The current migrations are:
 15. `0015_registration_cancel_token.sql`
 16. `0016_registration_cancellations.sql`
 17. `0017_delivery_failed_status.sql`
+18. `0018_iso_text_timestamps.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -115,3 +116,19 @@ WHERE conname = 'newsletter_deliveries_status_check';  -- lists 'failed'
 
 Rows already stuck by the old constraint recover on their own: the next run
 reclaims them after the lease and can now retire them.
+
+## ISO text timestamps
+
+Date columns here are `text` holding ISO 8601 (`2026-09-24T11:56:00.123Z`),
+which the browser parses with `new Date()`. Six writers used `NOW()`, which
+stores PostgreSQL's own text form (`2026-09-24 11:56:00.123456+00`):
+`contact_messages.created_at`, `documents.uploaded_at`, the three
+`newsletter_sent_at` stamps and `event_registrations.reminder_sent_at`. The code
+now writes ISO; `0018_iso_text_timestamps.sql` rewrites the rows written before
+it. It touches only values in exactly `NOW()`'s form, so it is safe to rerun and
+to apply before or after the deploy. Verify with:
+
+```sql
+SELECT count(*) FROM contact_messages WHERE created_at !~ '^\d{4}-\d{2}-\d{2}T';  -- 0
+SELECT count(*) FROM documents WHERE uploaded_at !~ '^\d{4}-\d{2}-\d{2}T';      -- 0
+```

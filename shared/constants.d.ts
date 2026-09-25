@@ -30,3 +30,20 @@ export type EventType = typeof EVENT_TYPES[number];
 
 export const MAX_EVENT_ATTENDEES: number;
 export const MAX_ATTENDEES_PER_REGISTRATION: number;
+
+export const SIGNUP_ERROR_CODES: readonly [
+  'INVALID_SIGNUP',
+  'ATTENDEES_OUT_OF_RANGE',
+  'EMAIL_REJECTED',
+  'EMAIL_TYPO',
+  'RATE_LIMITED',
+  'EVENT_INACTIVE',
+  'SIGNUP_CLOSED',
+  'DEADLINE_PASSED',
+  'CHILD_NAMES_REQUIRED',
+  'PHOTO_SLOTS_FULL',
+  'PHOTO_SLOT_TAKEN',
+  'EVENT_FULL',
+  'ALREADY_REGISTERED',
+];
+export type SignupErrorCode = typeof SIGNUP_ERROR_CODES[number];

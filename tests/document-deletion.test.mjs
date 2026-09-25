@@ -107,4 +107,6 @@ test('the public list does not publish who uploaded a document', async (t) => {
   assert.equal(res.statusCode, 200);
   assert.equal(sql.calls.length, 1);
   assert.doesNotMatch(sql.calls[0].statement, /uploaded_by/);
+  // TRACE-005: editor images are filtered before the LIMIT, not after it.
+  assert.match(sql.calls[0].statement, /WHERE category <> 'editor-image' ORDER BY uploaded_at DESC LIMIT 500$/);
 });

@@ -117,15 +117,26 @@ function sheet(title, date, extra = {}) {
   return { entry_type: 'closed', tittel: title, dato: date, 'år': year, 'måned': month, ...extra };
 }
 
-function importDatabase({ failOn } = {}) {
+// Answers the saved school year, and the import's one write the way
+// PostgreSQL would: each update aimed at a saved entry comes back updated
+// (`missing` ids have been deleted since), each create comes back created.
+function importDatabase({ fail = false, missing = [] } = {}) {
   return useDatabase(scriptedSql({
     respond(statement, values) {
       if (statement.startsWith('SELECT')) return EXISTING;
-      if (failOn && values.includes(failOn)) throw new Error('database unavailable');
-      return [stored({ id: statement.startsWith('UPDATE') ? values.at(-2) : 20, title: values.find((v) => typeof v === 'string') })];
+      if (!statement.startsWith('WITH input AS')) return [];
+      if (fail) throw new Error('database unavailable');
+      return JSON.parse(values[0])
+        .filter((write) => !missing.includes(write.id))
+        .map((write, index) => ({
+          outcome: write.action === 'update' ? 'updated' : 'created',
+          entry: stored({ ...write, id: write.action === 'update' ? write.id : 20 + index }),
+        }));
     },
   }));
 }
+
+const importWrites = (sql) => sql.writes().filter(({ statement }) => statement.startsWith('WITH input AS'));
 
 test('the import endpoints refuse a malformed batch before reading anything', async (t) => {
   for (const [action, body] of [
@@ -157,7 +168,7 @@ test('the preview compares sanitized sheet rows with the saved school year', asy
 });
 
 test('a commit applies each decision the server re-derives, and reports the rest per row', async (t) => {
-  const sql = importDatabase({ failOn: 'Feiler' });
+  const sql = importDatabase();
   const res = await call(t, handler, write('POST', {
     schoolYear: SCHOOL_YEAR,
     decisions: [
@@ -170,7 +181,6 @@ test('a commit applies each decision the server re-derives, and reports the rest
       { rowNumber: 6, status: 'changed', action: 'update', existingId: 11, row: sheet('Julaften', '2026-12-23') },
       { rowNumber: 7, status: 'new', action: 'create', row: sheet('Neste år', '2030-01-02') },
       { rowNumber: 8, status: 'toString', action: 'create', row: sheet('Rar', '2027-01-05') },
-      { rowNumber: 9, status: 'new', action: 'create', row: sheet('Feiler', '2027-01-06') },
       // Claimed new, but already saved unchanged: creating it would duplicate it.
       { rowNumber: 10, status: 'new', action: 'create', row: sheet('Julaften', '2026-12-24') },
     ],
@@ -180,20 +190,53 @@ test('a commit applies each decision the server re-derives, and reports the rest
   assert.deepEqual(res.body.updated.map(({ id }) => id), [10]);
   assert.equal(res.body.created.length, 1);
   assert.deepEqual(res.body.ignored, [{ rowNumber: 4 }]);
-  assert.deepEqual(res.body.errors.map(({ rowNumber }) => rowNumber), [5, 6, 7, 8, 9, 10]);
-  assert.match(res.body.errors[4].errors[0], /Failed to create row/);
-  assert.match(res.body.errors[5].errors[0], /not allowed for status "unchanged"/);
+  assert.deepEqual(res.body.errors.map(({ rowNumber }) => rowNumber), [5, 6, 7, 8, 10]);
+  assert.match(res.body.errors[4].errors[0], /not allowed for status "unchanged"/);
 
-  const [updateCall] = sql.writes();
-  assert.match(updateCall.statement, /WHERE id = \? AND school_year = \? RETURNING \*$/);
-  assert.deepEqual(updateCall.values.slice(-2), [10, SCHOOL_YEAR], 'scoped to the school year it was previewed in');
-  const [update, create] = sql.writes().map(fields);
-  assert.equal(update.date, '2026-12-23');
+  const [statement] = importWrites(sql);
+  assert.equal(sql.writes().length, 1, 'every write goes in one statement');
+  assert.match(statement.statement, /WHERE e\.id = u\.id AND e\.school_year = \?/);
+  assert.ok(statement.values.includes(SCHOOL_YEAR), 'updates are scoped to the school year they were previewed in');
+  assert.ok(statement.values.includes('Staff'), 'created entries record their author');
+  assert.match(statement.statement, /show_on_homepage, show_for_parents, false, \?/, 'an imported entry never opts in to the newsletter');
+  const [update, create] = JSON.parse(statement.values[0]);
+  assert.deepEqual([update.action, update.id, update.row_number, update.date], ['update', 10, 2, '2026-12-23']);
   // The preview only diffs these fields, so the import must not touch others.
   for (const column of ['category', 'weekday_start', 'weekday_end', 'start_time', 'end_time', 'notify_newsletter']) {
-    assert.equal(column in update, false, `the import UPDATE must leave ${column} alone`);
+    assert.equal(column in update, false, `the import must leave ${column} alone`);
+    assert.doesNotMatch(statement.statement.split('), created AS')[0], new RegExp(`\\b${column} =`), `the UPDATE must not set ${column}`);
   }
-  assert.equal(create.title, 'Planleggingsdag');
-  assert.equal(create.notify_newsletter, false, 'an imported entry never opts in to the newsletter');
-  assert.equal(create.created_by, 'Staff');
+  assert.deepEqual([create.action, create.title], ['create', 'Planleggingsdag']);
+});
+
+// PERF-003. One UPDATE or INSERT per row meant up to 500 round trips inside a
+// 30-second function, each committed on its own: a timeout or a failing row
+// left part of the school year imported.
+test('a full import is one read and one write, and a failed write fails the whole import', async (t) => {
+  const decisions = Array.from({ length: 500 }, (_, index) => {
+    const day = String((index % 28) + 1).padStart(2, '0');
+    const month = String((Math.floor(index / 28) % 7) + 1).padStart(2, '0');
+    return { rowNumber: index + 2, status: 'new', action: 'create', row: sheet(`Rad ${index}`, `2027-${month}-${day}`) };
+  });
+  const sql = importDatabase();
+  const res = await call(t, handler, write('POST', { schoolYear: SCHOOL_YEAR, decisions }, { action: 'commit-import' }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.created.length, 500);
+  assert.ok(sql.calls.length <= 3, `${sql.calls.length} statements: identity lookup, school year, one write`);
+
+  const failing = importDatabase({ fail: true });
+  const failed = await call(t, handler, write('POST', { schoolYear: SCHOOL_YEAR, decisions }, { action: 'commit-import' }));
+  assert.equal(failed.statusCode, 500);
+  assert.equal(importWrites(failing).length, 1, 'the one statement either writes every row or none');
+});
+
+test('an entry deleted since the preview is reported for its row', async (t) => {
+  importDatabase({ missing: [10] });
+  const res = await call(t, handler, write('POST', {
+    schoolYear: SCHOOL_YEAR,
+    decisions: [{ rowNumber: 2, status: 'changed', action: 'update', existingId: 10, row: sheet('Julaften', '2026-12-23') }],
+  }, { action: 'commit-import' }));
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.updated, []);
+  assert.deepEqual(res.body.errors, [{ rowNumber: 2, errors: ['Existing entry was not found for the selected school year.'] }]);
 });
