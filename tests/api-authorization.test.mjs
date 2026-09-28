@@ -43,6 +43,16 @@ const ROUTES = [
   settings('users', 'DELETE', ADMIN, { id: '5' }),
   settings('newsletter-subscribers', 'GET', ADMIN),
   settings('newsletter-subscribers', 'DELETE', ADMIN, { id: '1' }),
+  { handler: 'media', method: 'GET', query: { action: 'list' }, allowed: ADMIN },
+  { handler: 'media', method: 'GET', query: { action: 'link', id: '1' }, allowed: ADMIN },
+  { handler: 'media', method: 'POST', query: { action: 'create' }, allowed: ADMIN },
+  { handler: 'media', method: 'POST', query: { action: 'upload-init' }, allowed: ADMIN },
+  { handler: 'media', method: 'POST', query: { action: 'upload-parts' }, allowed: ADMIN },
+  { handler: 'media', method: 'POST', query: { action: 'upload-complete' }, allowed: ADMIN },
+  { handler: 'media', method: 'POST', query: { action: 'upload-abort' }, allowed: ADMIN },
+  { handler: 'media', method: 'POST', query: { action: 'publish' }, allowed: ADMIN },
+  { handler: 'media', method: 'POST', query: { action: 'extend' }, allowed: ADMIN },
+  { handler: 'media', method: 'DELETE', query: { id: '1' }, allowed: ADMIN },
 ];
 
 const handlers = {};
