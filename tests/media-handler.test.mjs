@@ -13,7 +13,7 @@ process.env.R2_SECRET_ACCESS_KEY = 'test-secret-key';
 process.env.R2_BUCKET = 'fau-media-test';
 
 const handler = await importHandler('api/media.js');
-const { getR2 } = await import('../api/_shared/r2.js');
+const { getR2, r2Endpoint, resetR2ForTests } = await import('../api/_shared/r2.js');
 const { generateShareToken, hashShareToken, sealShareToken, createViewGrant, purgeExpiredShares } =
   await import('../api/_shared/media-share.js');
 
@@ -569,4 +569,20 @@ test('one share failing to purge does not stop the rest', async (t) => {
   assert.deepEqual(summary, { sharesDeleted: 1, filesDeleted: 1, failed: 1 });
   assert.equal(errors.length, 1);
   assert.ok(!errors[0].includes('media/1/a'), 'the failure log carries no object key');
+});
+
+test('an EU-jurisdiction bucket is reached on its own endpoint, and nothing else is accepted', async (t) => {
+  const base = { R2_ACCOUNT_ID: '0123456789abcdef0123456789abcdef' };
+  assert.equal(r2Endpoint(base), 'https://0123456789abcdef0123456789abcdef.r2.cloudflarestorage.com');
+  assert.equal(r2Endpoint({ ...base, R2_JURISDICTION: 'EU' }), 'https://0123456789abcdef0123456789abcdef.eu.r2.cloudflarestorage.com');
+  assert.throws(() => r2Endpoint({ ...base, R2_JURISDICTION: 'evil.example' }), /R2_JURISDICTION/);
+  assert.throws(() => r2Endpoint({ R2_ACCOUNT_ID: 'attacker.example/x' }), /account id/);
+
+  process.env.R2_JURISDICTION = 'eu';
+  resetR2ForTests();
+  t.after(() => { delete process.env.R2_JURISDICTION; resetR2ForTests(); });
+  const { token, row } = publishedShare();
+  useDatabase(mediaDb({ shares: [row], files: FILES }));
+  const res = await view(t, { token });
+  assert.equal(new URL(res.body.files[0].url).host, '0123456789abcdef0123456789abcdef.eu.r2.cloudflarestorage.com');
 });

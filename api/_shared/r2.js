@@ -29,6 +29,25 @@ export const UPLOAD_URL_SECONDS = 30 * 60;
 // S3's DeleteObjects takes at most 1 000 keys per request.
 const DELETE_BATCH = 1000;
 
+// A bucket created in a Cloudflare jurisdiction ("eu" keeps the data stored
+// and processed in the EU) is only reachable on that jurisdiction's endpoint.
+const JURISDICTIONS = new Set(['eu', 'us']);
+
+/** The S3 endpoint for this account and, if set, its R2_JURISDICTION. */
+export function r2Endpoint(env = process.env) {
+  const accountId = String(env.R2_ACCOUNT_ID ?? '').trim();
+  // The account id becomes part of the endpoint host. Anything but the
+  // 32-hex id Cloudflare issues would send signed requests somewhere else.
+  if (!/^[0-9a-f]{32}$/i.test(accountId)) {
+    throw r2Error('R2_ACCOUNT_ID is not a Cloudflare account id', 'R2_NOT_CONFIGURED');
+  }
+  const jurisdiction = String(env.R2_JURISDICTION ?? '').trim().toLowerCase();
+  if (jurisdiction && !JURISDICTIONS.has(jurisdiction)) {
+    throw r2Error('R2_JURISDICTION must be "eu", "us" or unset', 'R2_NOT_CONFIGURED');
+  }
+  return `https://${accountId}${jurisdiction ? `.${jurisdiction}` : ''}.r2.cloudflarestorage.com`;
+}
+
 export function isR2Configured(env = process.env) {
   return REQUIRED_ENV.every((name) => typeof env[name] === 'string' && env[name].trim().length > 0);
 }
@@ -50,16 +69,10 @@ export function getR2() {
   if (!isR2Configured()) {
     throw r2Error('R2 storage is not configured', 'R2_NOT_CONFIGURED');
   }
-  const accountId = process.env.R2_ACCOUNT_ID.trim();
-  // The account id becomes part of the endpoint host. Anything but the
-  // 32-hex id Cloudflare issues would send signed requests somewhere else.
-  if (!/^[0-9a-f]{32}$/i.test(accountId)) {
-    throw r2Error('R2_ACCOUNT_ID is not a Cloudflare account id', 'R2_NOT_CONFIGURED');
-  }
   cached = {
     client: new S3Client({
       region: 'auto',
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+      endpoint: r2Endpoint(),
       // Path-style keeps every URL on the one account host the CSP allows,
       // rather than a per-bucket subdomain.
       forcePathStyle: true,
