@@ -13,6 +13,7 @@ export type Role = typeof ROLES[keyof typeof ROLES];
 export const COUNCIL_ROLES: Role[];
 export const YEARLY_CALENDAR_EDITORS: Role[];
 export const ADMIN_ONLY: Role[];
+export const MEDIA_SHARE_ROLES: Role[];
 
 export const EVENT_TYPES: readonly [
   'meeting',
