@@ -352,3 +352,91 @@ test('a flagged news post with nobody to send to is stamped, not kept for later 
   assert.equal(await sentAt(flaggedLate), '');
   assert.equal((await sql(fanOut)).length, 1);
 });
+
+// ---------------------------------------------------------------------------
+// Private media shares (migration 0019, api/media.js, api/_shared/media-share.js)
+
+const mediaFile = 'api/media.js';
+const mediaShareFile = 'api/_shared/media-share.js';
+const iso = (ms) => new Date(ms).toISOString();
+const DAY = 24 * 60 * 60 * 1000;
+
+async function mediaShare({ status = 'published', expiresAt = iso(Date.now() + 30 * DAY), createdAt = iso(Date.now()), hash } = {}) {
+  const tokenHash = hash ?? `hash-${Math.random().toString(16).slice(2)}`;
+  const [row] = await sql(`INSERT INTO media_shares (token_hash, token_sealed, title, status, lifetime_days, created_at, published_at, expires_at)
+    VALUES (${literal(tokenHash)}, 'v1.x.y.z', 'Test', ${literal(status)}, 90, ${literal(createdAt)},
+      ${status === 'published' ? literal(createdAt) : 'NULL'}, ${status === 'published' ? literal(expiresAt) : 'NULL'}) RETURNING id;`);
+  return Number(row.id);
+}
+async function mediaObject(shareId, size, status = 'ready') {
+  await sql(`INSERT INTO media_files (share_id, object_key, kind, mime_type, size_bytes, status, created_at)
+    VALUES (${shareId}, ${literal(`media/${shareId}/${Math.random().toString(16).slice(2)}`)}, 'video', 'video/mp4', ${size}, ${literal(status)}, ${literal(iso(Date.now()))});`);
+}
+
+test('0019 enforces share and file states, and a share takes its files with it', async () => {
+  await assert.rejects(sql(`INSERT INTO media_shares (token_hash, token_sealed, title, status, lifetime_days, created_at)
+    VALUES ('x-bad-status', 's', 't', 'public', 90, 'now');`), /media_shares_status_check/);
+  await assert.rejects(sql(`INSERT INTO media_shares (token_hash, token_sealed, title, lifetime_days, created_at)
+    VALUES ('x-long-life', 's', 't', 400, 'now');`), /media_shares_lifetime_days_check/);
+  const id = await mediaShare();
+  await assert.rejects(sql(`INSERT INTO media_files (share_id, object_key, kind, mime_type, size_bytes, created_at)
+    VALUES (${id}, 'media/x/html', 'document', 'text/html', 10, 'now');`), /media_files_kind_check/);
+  await mediaObject(id, 10);
+  await sql(`DELETE FROM media_shares WHERE id = ${id};`);
+  const [left] = await sql(`SELECT count(*) AS count FROM media_files WHERE share_id = ${id};`);
+  assert.equal(left.count, '0');
+});
+
+test('a link opens only a published share before its expiry', async () => {
+  const lookup = (hash, nowMs = Date.now()) => productionStatement(mediaFile, 'WHERE token_hash =', {
+    token: hash, hashShareToken: (value) => value, iso, nowMs,
+  }).then((statement) => sql(statement));
+  await mediaShare({ hash: 'open-share' });
+  await mediaShare({ hash: 'expired-share', expiresAt: iso(Date.now() - 1000) });
+  await mediaShare({ hash: 'draft-share', status: 'draft' });
+
+  assert.equal((await lookup('open-share')).length, 1);
+  assert.equal((await lookup('expired-share')).length, 0, 'expired');
+  assert.equal((await lookup('draft-share')).length, 0, 'still a draft');
+  assert.equal((await lookup('never-existed')).length, 0);
+  assert.equal((await lookup('open-share', Date.now() + 31 * DAY)).length, 0, 'and not once its time has passed');
+});
+
+test('the storage quota is checked inside the insert, including files still uploading', async () => {
+  await sql('DELETE FROM media_shares;');
+  const id = await mediaShare({ status: 'draft' });
+  await mediaObject(id, 600);
+  await mediaObject(id, 300, 'uploading');
+  const insert = async (size) => sql(await productionStatement(mediaFile, 'INSERT INTO media_files', {
+    shareId: id, objectKey: `media/${id}/${size}`, kind: 'image', mimeType: 'image/jpeg', size,
+    width: null, height: null, position: 0, quotaBytes: 1000,
+  }));
+  assert.equal((await insert(101)).length, 0, '900 + 101 is over 1000');
+  assert.equal((await insert(100)).length, 1, '900 + 100 fits exactly');
+  assert.equal((await insert(1)).length, 0, 'and now it is full');
+});
+
+test('a share summary counts only finished files and sums sizes past 2 GB', async () => {
+  const id = await mediaShare();
+  await mediaObject(id, 3 * 1024 ** 3);
+  await mediaObject(id, 1024 ** 3);
+  await mediaObject(id, 500, 'uploading');
+  const [row] = await sql(await productionStatement(mediaFile, 'WHERE s.id = ${id}', { id }));
+  assert.equal(row.file_count, '2');
+  assert.equal(row.total_bytes, String(4 * 1024 ** 3));
+  assert.equal(row.has_pin, 'f');
+});
+
+test('the cron purges expired shares and day-old drafts, and nothing else', async () => {
+  await sql('DELETE FROM media_shares;');
+  const now = Date.now();
+  const expired = await mediaShare({ expiresAt: iso(now - 1000) });
+  const active = await mediaShare({ expiresAt: iso(now + DAY) });
+  const staleDraft = await mediaShare({ status: 'draft', createdAt: iso(now - 2 * DAY) });
+  await mediaShare({ status: 'draft', createdAt: iso(now - 60 * 1000) });
+  const due = await sql(await productionStatement(mediaShareFile, "status = 'draft' AND created_at <=", {
+    nowIso: iso(now), draftCutoff: iso(now - DAY), PURGE_BATCH: 200,
+  }));
+  assert.deepEqual(due.map((row) => Number(row.id)).sort((a, b) => a - b), [expired, staleDraft].sort((a, b) => a - b));
+  assert.ok(!due.some((row) => Number(row.id) === active));
+});
