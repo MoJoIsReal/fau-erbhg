@@ -23,6 +23,8 @@ import {
   sendWithDeadline,
 } from '../_shared/delivery.js';
 import { cancellationText } from '../_shared/registration-cancel.js';
+import { purgeExpiredShares } from '../_shared/media-share.js';
+import { isR2Configured } from '../_shared/r2.js';
 
 // Per-batch claim sizes. These are upper bounds on what one claim query takes;
 // the real protection against being killed mid-batch is RUN_BUDGET_MS below,
@@ -664,8 +666,17 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
 // Housekeeping runs first so mail cannot spend its budget or suppress it.
 // Independent stages still run after a failure; the invocation fails with the
 // original errors and logs its partial results instead of claiming success.
+// Expired private media shares (docs/mediedeling.md): their files in R2 and
+// their rows. Skipped, not failed, where R2 is not configured — there is then
+// nothing in R2 to delete, and the share API refuses to create any.
+export async function purgeMediaShares(sql) {
+  if (!isR2Configured()) return null;
+  const { sharesDeleted, filesDeleted, failed } = await purgeExpiredShares(sql);
+  return { mediaSharesDeleted: sharesDeleted, mediaFilesDeleted: filesDeleted, mediaPurgeFailed: failed };
+}
+
 export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
-  const summary = { reminders: null, retention: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null };
+  const summary = { reminders: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null };
   const errors = [];
   const stage = async (name, work) => {
     try {
@@ -677,6 +688,7 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
   };
   try {
     await stage('retention', () => cleanupPrivacyRetention(sql));
+    await stage('media', () => purgeMediaShares(sql));
     // Reconcile after retention, including a partially completed purge.
     await stage('attendeeCountsRepaired', () => reconcileEventAttendeeCounts(sql));
     await stage('expiredRateLimitsDeleted', () => cleanupExpiredRateLimits(sql));
@@ -689,8 +701,8 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     // Flattened: logEvent writes a nested object as "[object Object]", which
     // lost the reminder and retention counts from the one line a failing run
     // leaves behind. A stage that failed has null here and adds nothing.
-    const { reminders, retention, ...counts } = summary;
-    logEvent('error', 'cron.morning_partial', { ...counts, ...retention, ...reminders });
+    const { reminders, retention, media, ...counts } = summary;
+    logEvent('error', 'cron.morning_partial', { ...counts, ...retention, ...media, ...reminders });
     throw new AggregateError(errors, `${errors.length} morning stage(s) failed`);
   }
   return summary;
@@ -764,11 +776,12 @@ export default withApiHandler(async function handler(req, res) {
     }
   }
 
-  const { reminders, retention, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted } =
+  const { reminders, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted } =
     await runMorningTasks(sql, targetDate, sendPooledEmail, deadline);
   logRun('reminders', {
     ...reminders,
     ...retention,
+    ...media,
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,
@@ -780,6 +793,7 @@ export default withApiHandler(async function handler(req, res) {
     failed: reminders.failed,
     deferred: reminders.deferred,
     retention,
+    media,
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,
