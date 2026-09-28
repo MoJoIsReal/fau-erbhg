@@ -39,10 +39,11 @@ client/src/         React SPA. pages/ = routes, components/ = features,
                     components/ui/ = shadcn primitives (do not hand-edit),
                     assets/illustrations/ = the shipped page artwork,
                     lib/ = i18n, queryClient, exports; contexts/, hooks/
-api/*.js            The entire backend: 8 Vercel serverless route handlers
+api/*.js            The entire backend: 9 Vercel serverless route handlers
 api/cron/           Scheduled handler (Vercel Cron)
 api/_shared/        Backend-only helpers: middleware, database, email,
-                    cloudinary, rate-limit, newsletter, delivery, sentry, log
+                    cloudinary, r2, media-share, rate-limit, newsletter,
+                    delivery, sentry, log
 shared/             Code used by BOTH tiers (see "The shared/ boundary")
 attached_assets/    Uploaded source material, never served — including
                     illustrations/, the six commissioned page originals and
@@ -65,11 +66,12 @@ preflight and funnels throws into `handleError`. Throw structured errors; don't
 write your own try/catch envelope.
 
 **Query-param routing.** The Vercel Hobby plan caps this project at 12
-functions and 9 are used, so several handlers multiplex resources:
+functions and 10 are used, so several handlers multiplex resources:
 `api/auth.js?action=csrf|login|logout|me|change-password`,
 `api/documents.js?action=download`,
 `api/registrations.js?action=cancel-lookup|cancel`,
 `api/contact.js?action=newsletter-subscribe|newsletter-confirm|newsletter-unsubscribe`,
+`api/media.js?action=view|list|link|create|upload-init|upload-parts|upload-complete|upload-abort|publish|extend`,
 `api/secure-settings.js?resource=users|board-members|kindergarten-info|blog-posts|contact-messages|newsletter-subscribers`.
 Prefer extending an existing handler over adding a file. (This is also why there
 is no `/api/health` — uptime monitors hit `GET /api/events`.)
@@ -87,7 +89,8 @@ return raw rows and map through it. Add fields there, not ad hoc per endpoint.
 
 **The `shared/` boundary.** `api/` runs unbundled, so shared runtime code is
 plain `.js` with a hand-written `.d.ts` sibling for the typed client
-(`constants`, `photo-slots`, `yearly-calendar-*`, `calendar-feed`, `html-text`).
+(`constants`, `photo-slots`, `yearly-calendar-*`, `calendar-feed`, `html-text`,
+`media`).
 `shared/schema.ts` is the one TypeScript file — it is types/schema only and is
 **never imported by `api/`**. If you add shared runtime code, write `.js` + a
 `.d.ts`; if you add types, they belong in `schema.ts`.
@@ -122,6 +125,7 @@ calendar, calendar feed, newsletter invariants),
 | A colour, radius, shadow, spacing or type step | `client/src/index.css` tokens, exposed as utilities by `tailwind.config.ts` |
 | Hero, section, card, chip, banner, empty state | `client/src/components/site/` |
 | Calendar category colours | `client/src/lib/calendar-kind-style.ts` → the `--cat-*` tokens |
+| Private media sharing (R2, `/admin/media`, `/del`) | `api/media.js`, `api/_shared/{r2,media-share}.js`, `client/src/share/`; read [`docs/mediedeling.md`](docs/mediedeling.md) first |
 
 ## The design system
 
@@ -312,6 +316,10 @@ request logic. Never point automated tests at the production Neon database.
   explains them.
 - `vercel.json` — routing, CSP and cron schedules. A change here can take the
   site down; keep it deliberate and mention it in the PR description.
+- Private media sharing — the share page (`client/del.html`, `client/src/share/`)
+  must never import Sentry, analytics or anything from a third-party origin,
+  and nothing may log a share token, PIN, object key or file name. See
+  [`docs/mediedeling.md`](docs/mediedeling.md); `deploy-config` guards the page.
 - Calendar-feed `UID`s and the outbox stamping logic — see
   [`docs/subsystems.md`](docs/subsystems.md) before touching either.
 

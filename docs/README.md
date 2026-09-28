@@ -11,6 +11,7 @@ references it links to; read one only when a task needs it.
 | [subsystems.md](./subsystems.md) | You are touching the yearly calendar, the `/kalender.ics` feed, or the newsletter broadcast. These have invariants the code alone does not reveal. |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deploying or operating on Vercel: environment variables, database setup, verification, monitoring, rollback. |
 | [database-testing.md](./database-testing.md) | Running disposable PostgreSQL concurrency and integrity tests locally or in CI. |
+| [mediedeling.md](./mediedeling.md) | You are touching private media sharing (`/admin/media`, `/del`, `api/media.js`, R2), or setting it up. In Norwegian; includes the council's user guide. |
 
 Keep this directory focused on current guidance. Completed review reports and
 task lists are removed after lasting decisions and remaining checks have been
