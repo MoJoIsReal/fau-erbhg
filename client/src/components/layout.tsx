@@ -4,6 +4,7 @@ import {
   CalendarDays,
   ChevronDown,
   ExternalLink,
+  Film,
   Folder,
   Home,
   LayoutDashboard,
@@ -113,6 +114,8 @@ export default function Layout({ children }: LayoutProps) {
     isCouncil && { href: "/admin", icon: LayoutDashboard, label: t.header.overview },
     isCouncil && { href: "/content", icon: Newspaper, label: t.header.content },
     isCouncil && { href: "/messages", icon: MessageSquare, label: t.header.messages },
+    // Private media shares (docs/mediedeling.md): admin only, like the handler.
+    isAdmin && { href: "/admin/media", icon: Film, label: t.header.mediaShares },
     isAdmin && { href: "/settings", icon: SettingsIcon, label: t.header.settings },
   ].filter(Boolean) as { href: string; icon: LucideIcon; label: string }[];
 
