@@ -4,6 +4,7 @@ import { Link } from "wouter";
 import {
   Calendar,
   FileText,
+  Film,
   MessageSquare,
   Newspaper,
   Settings as SettingsIcon,
@@ -136,6 +137,15 @@ export default function Admin() {
     },
     ...(isAdmin
       ? [
+          {
+            href: "/admin/media",
+            icon: Film,
+            title: t.adminPage.mediaShares,
+            value: "",
+            valueLabel: t.adminPage.mediaSharesLabel,
+            attention: false,
+            detail: t.adminPage.mediaSharesDetail,
+          },
           {
             href: "/settings",
             icon: SettingsIcon,
