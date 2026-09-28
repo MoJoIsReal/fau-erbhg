@@ -23,6 +23,7 @@ contents of each migration file. The current migrations are:
 16. `0016_registration_cancellations.sql`
 17. `0017_delivery_failed_status.sql`
 18. `0018_iso_text_timestamps.sql`
+19. `0019_media_shares.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -132,3 +133,17 @@ to apply before or after the deploy. Verify with:
 SELECT count(*) FROM contact_messages WHERE created_at !~ '^\d{4}-\d{2}-\d{2}T';  -- 0
 SELECT count(*) FROM documents WHERE uploaded_at !~ '^\d{4}-\d{2}-\d{2}T';      -- 0
 ```
+
+## Private media shares
+
+`0019_media_shares.sql` adds `media_shares` and `media_files` for the private
+media sharing described in `docs/mediedeling.md`. It only creates new tables,
+so it is safe to apply before the code. Apply it **before** deploying: the
+morning cron deletes expired shares from these tables on every run, and logs an
+error each morning until they exist. Verify with:
+
+```sql
+SELECT to_regclass('public.media_shares'), to_regclass('public.media_files');
+```
+
+Both must be non-null.
