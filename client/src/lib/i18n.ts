@@ -574,6 +574,115 @@ export interface Translations {
     noUpcomingEvents: string;
     registered: string;
     goEvents: string;
+    mediaShares: string;
+    mediaSharesLabel: string;
+    mediaSharesDetail: string;
+  };
+  mediaShare: {
+    loading: string;
+    errorTitle: string;
+    errorBody: string;
+    reloadHint: string;
+    retry: string;
+    unavailableTitle: string;
+    unavailableBody: string;
+    busyTitle: string;
+    busyBody: string;
+    pinTitle: string;
+    pinBody: string;
+    pinLabel: string;
+    pinSubmit: string;
+    opening: string;
+    pinWrong: string;
+    pinLocked: string;
+    photo: string;
+    photos: string;
+    video: string;
+    videos: string;
+    audio: string;
+    audios: string;
+    videoOne: string;
+    audioOne: string;
+    availableUntil: string;
+    photosHeading: string;
+    videosHeading: string;
+    audioHeading: string;
+    openPhoto: string;
+    privacyTitle: string;
+    privacyBody: string;
+    lightboxHint: string;
+    close: string;
+    previous: string;
+    next: string;
+  };
+  mediaAdmin: {
+    title: string;
+    intro: string;
+    notConfiguredTitle: string;
+    notConfiguredBody: string;
+    storageUsed: string;
+    newShare: string;
+    titleLabel: string;
+    descriptionLabel: string;
+    lifetimeLabel: string;
+    days: string;
+    pinLabel: string;
+    pinHelp: string;
+    pinInvalid: string;
+    filesLabel: string;
+    filesHelp: string;
+    chooseFiles: string;
+    noFilesChosen: string;
+    removeFile: string;
+    unsupported: string;
+    tooLarge: string;
+    unreadable: string;
+    metadataRemoved: string;
+    submit: string;
+    preparing: string;
+    uploading: string;
+    done: string;
+    failed: string;
+    waiting: string;
+    publishedTitle: string;
+    publishedBody: string;
+    copyLink: string;
+    linkCopied: string;
+    copyFailed: string;
+    openShare: string;
+    newAnother: string;
+    sharesHeading: string;
+    noShares: string;
+    noSharesBody: string;
+    statusActive: string;
+    statusExpired: string;
+    statusDraft: string;
+    fileOne: string;
+    fileMany: string;
+    expiresOn: string;
+    expiredOn: string;
+    hasPin: string;
+    extend: string;
+    extendTitle: string;
+    extendBody: string;
+    extendBy: string;
+    extendConfirm: string;
+    extended: string;
+    extendedCapped: string;
+    atMaxLifetime: string;
+    revoke: string;
+    revokeTitle: string;
+    revokeBody: string;
+    revokeConfirm: string;
+    revoked: string;
+    errorGeneric: string;
+    quotaReached: string;
+    partialTitle: string;
+    partialBody: string;
+    publishAnyway: string;
+    discardDraft: string;
+    allFailed: string;
+    leaveWarning: string;
   };
   messagesPage: {
     updated: string;
@@ -1487,6 +1596,115 @@ export const translations: Record<Language, Translations> = {
       noUpcomingEvents: "Ingen kommende arrangementer",
       registered: "påmeldte",
       goEvents: "Til arrangementer",
+      mediaShares: "Mediedeling",
+      mediaSharesLabel: "Del bilder og video via privat lenke",
+      mediaSharesDetail: "Kun for administratorer"
+    },
+    mediaShare: {
+      loading: "Henter delingen …",
+      errorTitle: "Kunne ikke hente delingen",
+      errorBody: "Sjekk nettforbindelsen og prøv igjen.",
+      reloadHint: "Last siden på nytt for å prøve igjen.",
+      retry: "Prøv igjen",
+      unavailableTitle: "Denne lenken er ikke lenger tilgjengelig",
+      unavailableBody: "Delingen kan ha utløpt eller blitt fjernet. Ta kontakt med FAU hvis du trenger innholdet.",
+      busyTitle: "For mange forespørsler",
+      busyBody: "Vent litt, og prøv igjen om noen minutter.",
+      pinTitle: "Skriv inn PIN-kode",
+      pinBody: "Denne delingen er beskyttet med en PIN-kode du har fått fra FAU.",
+      pinLabel: "PIN-kode",
+      pinSubmit: "Åpne",
+      opening: "Åpner …",
+      pinWrong: "Feil PIN-kode. Prøv igjen.",
+      pinLocked: "For mange forsøk. Prøv igjen senere.",
+      photo: "bilde",
+      photos: "bilder",
+      video: "Video",
+      videos: "videoer",
+      audio: "Lydklipp",
+      audios: "lydklipp",
+      videoOne: "video",
+      audioOne: "lydklipp",
+      availableUntil: "Tilgjengelig til {date}",
+      photosHeading: "Bilder",
+      videosHeading: "Video",
+      audioHeading: "Lyd",
+      openPhoto: "Åpne bilde {n} av {total}",
+      privacyTitle: "Kun for foreldrene i barnehagen",
+      privacyBody: "Bildene, videoene og lydklippene her er kun for foreldre i Erdal barnehage. Ikke last dem ned, ikke del dem videre, og ikke legg dem ut i sosiale medier – heller ikke i lukkede grupper. Delingen slettes automatisk {date}.",
+      lightboxHint: "Bruk piltastene eller sveip for å bla mellom bildene.",
+      close: "Lukk",
+      previous: "Forrige bilde",
+      next: "Neste bilde",
+    },
+    mediaAdmin: {
+      title: "Mediedeling",
+      intro: "Del bilder, video og lyd med foreldrene via en privat lenke. Filene ligger i en privat lagringsbøtte, er aldri offentlige og slettes automatisk når delingen utløper.",
+      notConfiguredTitle: "Lagringen er ikke satt opp ennå",
+      notConfiguredBody: "R2-nøklene mangler i Vercel. Følg docs/mediedeling.md. Til da kan ingenting lastes opp.",
+      storageUsed: "{used} av {quota} brukt",
+      newShare: "Ny deling",
+      titleLabel: "Tittel",
+      descriptionLabel: "Beskrivelse (valgfritt)",
+      lifetimeLabel: "Tilgjengelig i",
+      days: "{n} dager",
+      pinLabel: "PIN-kode (valgfritt)",
+      pinHelp: "4–8 sifre. Send PIN-koden i en annen kanal enn lenken.",
+      pinInvalid: "PIN-koden må være 4–8 sifre.",
+      filesLabel: "Filer",
+      filesHelp: "Bilder (JPEG, PNG, WebP), video (MP4, MOV) og lyd (MP3, M4A, WAV), inntil {max} per fil. Posisjon og kameradata fjernes i nettleseren før opplasting.",
+      chooseFiles: "Velg filer",
+      noFilesChosen: "Ingen filer valgt",
+      removeFile: "Fjern {name}",
+      unsupported: "Filtypen støttes ikke",
+      tooLarge: "Filen er for stor",
+      unreadable: "Filen kunne ikke leses og ble ikke lastet opp",
+      metadataRemoved: "Posisjon og kameradata fjernet",
+      submit: "Last opp og publiser",
+      preparing: "Klargjør",
+      uploading: "Laster opp",
+      done: "Ferdig",
+      failed: "Feilet",
+      waiting: "Venter",
+      publishedTitle: "Delingen er klar",
+      publishedBody: "Kopier lenken og send den til foreldrene. Den virker til {date}.",
+      copyLink: "Kopier lenke",
+      linkCopied: "Lenken er kopiert",
+      copyFailed: "Kunne ikke kopiere. Marker lenken og kopier den manuelt.",
+      openShare: "Åpne delingen",
+      newAnother: "Lag en ny deling",
+      sharesHeading: "Delinger",
+      noShares: "Ingen delinger ennå",
+      noSharesBody: "Når du publiserer en deling, vises den her.",
+      statusActive: "Aktiv",
+      statusExpired: "Utløpt – slettes i natt",
+      statusDraft: "Ufullstendig – slettes i natt",
+      fileOne: "1 fil",
+      fileMany: "{n} filer",
+      expiresOn: "Utløper {date}",
+      expiredOn: "Utløpt {date}",
+      hasPin: "PIN",
+      extend: "Forleng",
+      extendTitle: "Forleng delingen",
+      extendBody: "Velg hvor mye lenger delingen skal være tilgjengelig. Den kan ikke vare lenger enn til {date}, 365 dager etter publisering.",
+      extendBy: "Forleng med",
+      extendConfirm: "Forleng",
+      extended: "Delingen er forlenget til {date}",
+      extendedCapped: "Forlenget til maksimal levetid: {date}",
+      atMaxLifetime: "Delingen har allerede maksimal levetid",
+      revoke: "Tilbakekall",
+      revokeTitle: "Tilbakekalle «{title}»?",
+      revokeBody: "Alle filene slettes nå, og lenken slutter å virke med en gang. Dette kan ikke angres.",
+      revokeConfirm: "Slett og tilbakekall",
+      revoked: "Delingen er tilbakekalt og filene slettet",
+      errorGeneric: "Noe gikk galt. Prøv igjen.",
+      quotaReached: "Lagringsplassen er full. Tilbakekall gamle delinger først.",
+      partialTitle: "Noen filer ble ikke lastet opp",
+      partialBody: "{failed} av {total} filer feilet. Du kan publisere uten dem, eller forkaste delingen og prøve igjen.",
+      publishAnyway: "Publiser uten disse",
+      discardDraft: "Forkast delingen",
+      allFailed: "Ingen av filene ble lastet opp, så delingen ble forkastet.",
+      leaveWarning: "Opplastingen pågår. Hvis du forlater siden, stopper den.",
     },
     messagesPage: {
       updated: "Oppdatert!",
@@ -2400,6 +2618,115 @@ export const translations: Record<Language, Translations> = {
       noUpcomingEvents: "No upcoming events",
       registered: "registered",
       goEvents: "Go to events",
+      mediaShares: "Media sharing",
+      mediaSharesLabel: "Share photos and video by private link",
+      mediaSharesDetail: "Administrators only"
+    },
+    mediaShare: {
+      loading: "Loading the share …",
+      errorTitle: "Could not load the share",
+      errorBody: "Check your connection and try again.",
+      reloadHint: "Reload the page to try again.",
+      retry: "Try again",
+      unavailableTitle: "This link is no longer available",
+      unavailableBody: "The share may have expired or been removed. Contact FAU if you need the content.",
+      busyTitle: "Too many requests",
+      busyBody: "Please wait a little and try again in a few minutes.",
+      pinTitle: "Enter PIN code",
+      pinBody: "This share is protected by a PIN code you received from FAU.",
+      pinLabel: "PIN code",
+      pinSubmit: "Open",
+      opening: "Opening …",
+      pinWrong: "Wrong PIN code. Try again.",
+      pinLocked: "Too many attempts. Try again later.",
+      photo: "photo",
+      photos: "photos",
+      video: "Video",
+      videos: "videos",
+      audio: "Audio clip",
+      audios: "audio clips",
+      videoOne: "video",
+      audioOne: "audio clip",
+      availableUntil: "Available until {date}",
+      photosHeading: "Photos",
+      videosHeading: "Video",
+      audioHeading: "Audio",
+      openPhoto: "Open photo {n} of {total}",
+      privacyTitle: "For the kindergarten's parents only",
+      privacyBody: "The photos, videos and audio clips here are for parents at Erdal kindergarten only. Please do not download them, pass them on or post them on social media – not in closed groups either. The share is deleted automatically on {date}.",
+      lightboxHint: "Use the arrow keys or swipe to move between photos.",
+      close: "Close",
+      previous: "Previous photo",
+      next: "Next photo",
+    },
+    mediaAdmin: {
+      title: "Media sharing",
+      intro: "Share photos, video and audio with parents through a private link. The files are kept in a private storage bucket, are never public and are deleted automatically when the share expires.",
+      notConfiguredTitle: "Storage is not set up yet",
+      notConfiguredBody: "The R2 keys are missing in Vercel. Follow docs/mediedeling.md. Until then nothing can be uploaded.",
+      storageUsed: "{used} of {quota} used",
+      newShare: "New share",
+      titleLabel: "Title",
+      descriptionLabel: "Description (optional)",
+      lifetimeLabel: "Available for",
+      days: "{n} days",
+      pinLabel: "PIN code (optional)",
+      pinHelp: "4–8 digits. Send the PIN through a different channel than the link.",
+      pinInvalid: "The PIN must be 4–8 digits.",
+      filesLabel: "Files",
+      filesHelp: "Photos (JPEG, PNG, WebP), video (MP4, MOV) and audio (MP3, M4A, WAV), up to {max} per file. Location and camera data is removed in the browser before upload.",
+      chooseFiles: "Choose files",
+      noFilesChosen: "No files chosen",
+      removeFile: "Remove {name}",
+      unsupported: "This file type is not supported",
+      tooLarge: "The file is too large",
+      unreadable: "The file could not be read and was not uploaded",
+      metadataRemoved: "Location and camera data removed",
+      submit: "Upload and publish",
+      preparing: "Preparing",
+      uploading: "Uploading",
+      done: "Done",
+      failed: "Failed",
+      waiting: "Waiting",
+      publishedTitle: "The share is ready",
+      publishedBody: "Copy the link and send it to the parents. It works until {date}.",
+      copyLink: "Copy link",
+      linkCopied: "The link has been copied",
+      copyFailed: "Could not copy. Select the link and copy it by hand.",
+      openShare: "Open the share",
+      newAnother: "Create another share",
+      sharesHeading: "Shares",
+      noShares: "No shares yet",
+      noSharesBody: "Shares you publish are listed here.",
+      statusActive: "Active",
+      statusExpired: "Expired – deleted tonight",
+      statusDraft: "Incomplete – deleted tonight",
+      fileOne: "1 file",
+      fileMany: "{n} files",
+      expiresOn: "Expires {date}",
+      expiredOn: "Expired {date}",
+      hasPin: "PIN",
+      extend: "Extend",
+      extendTitle: "Extend the share",
+      extendBody: "Choose how much longer the share stays available. It cannot last beyond {date}, 365 days after it was published.",
+      extendBy: "Extend by",
+      extendConfirm: "Extend",
+      extended: "The share now lasts until {date}",
+      extendedCapped: "Extended to its maximum lifetime: {date}",
+      atMaxLifetime: "The share is already at its maximum lifetime",
+      revoke: "Revoke",
+      revokeTitle: "Revoke “{title}”?",
+      revokeBody: "All files are deleted now and the link stops working at once. This cannot be undone.",
+      revokeConfirm: "Delete and revoke",
+      revoked: "The share was revoked and its files deleted",
+      errorGeneric: "Something went wrong. Try again.",
+      quotaReached: "Storage is full. Revoke old shares first.",
+      partialTitle: "Some files were not uploaded",
+      partialBody: "{failed} of {total} files failed. You can publish without them, or discard the share and try again.",
+      publishAnyway: "Publish without them",
+      discardDraft: "Discard the share",
+      allFailed: "None of the files were uploaded, so the share was discarded.",
+      leaveWarning: "The upload is still running. Leaving the page stops it.",
     },
     messagesPage: {
       updated: "Updated!",

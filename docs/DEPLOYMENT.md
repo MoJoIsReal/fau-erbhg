@@ -42,7 +42,9 @@ provider credentials for previews; do not copy production secrets into tests.
 | `CRON_SECRET` | Cron handler: requires an exact `Authorization: Bearer …` match in every environment; missing secret fails closed. |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD` | `api/_shared/email.js`: Gmail SMTP and sender account; contact mail is sent to `GMAIL_USER`. Use a Gmail app password. No SendGrid adapter exists. |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Upload signatures, ownership checks, downloads and deletion in the Cloudinary helpers/handlers. |
-| `PUBLIC_BASE_URL` | `api/_shared/newsletter.js`: origin of email links, including cancellation links. Defaults to `https://www.erdal-bhg.no`; set the correct HTTPS origin for isolated previews. |
+| `PUBLIC_BASE_URL` | `api/_shared/newsletter.js`: origin of email links, including cancellation links, and of media share links. Defaults to `https://www.erdal-bhg.no`; set the correct HTTPS origin for isolated previews. |
+| `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`, `R2_JURISDICTION` | `api/_shared/r2.js`: the private Cloudflare R2 bucket behind media sharing. Use an *Object Read & Write* token scoped to that one bucket; mark both keys sensitive. `R2_JURISDICTION=eu` for an EU-jurisdiction bucket. Unset = media sharing off (the API answers 503 `NOT_CONFIGURED`). Never give a preview the production bucket. Setup: [mediedeling.md](./mediedeling.md). |
+| `MEDIA_MAX_FILE_BYTES`, `MEDIA_STORAGE_QUOTA_BYTES` | Optional media limits: 1 GiB per file (at most 5 GiB) and 9 GiB in total, which keeps R2 inside its 10 GB free tier. |
 | `SENTRY_DSN` | Backend envelope sender, enabled in production. |
 | `VITE_SENTRY_DSN` | Frontend Sentry initialization, compiled at build time. |
 | `VITE_TURNSTILE_SITE_KEY` | Cloudflare Turnstile widget on the signup, contact and newsletter forms (`client/src/components/turnstile-widget.tsx`), compiled at build time. Unset = no widget. |
@@ -188,6 +190,11 @@ on the release/PR. Remove completed items from this list.
   with test recipients, including a delivery retry.
 - [ ] Verify received Sentry/Analytics payloads in an isolated telemetry project
   contain no synthetic capability tokens and no replay data.
+- [ ] Media sharing: create the R2 bucket, CORS and lifecycle rules and scoped
+  token, apply `0019_media_shares.sql`, then run `scripts/media-smoke.mjs`
+  against the real bucket and the iPhone checklist in
+  [mediedeling.md](./mediedeling.md) §4.4 (large video upload and playback in
+  iOS Safari, resume after a playback URL expires).
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.

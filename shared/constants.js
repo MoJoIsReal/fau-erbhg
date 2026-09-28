@@ -22,6 +22,9 @@ export const ROLES = {
 export const COUNCIL_ROLES = [ROLES.admin, ROLES.member];
 export const YEARLY_CALENDAR_EDITORS = [ROLES.admin, ROLES.member, ROLES.staff];
 export const ADMIN_ONLY = [ROLES.admin];
+// Who may create, extend and revoke private media shares (docs/mediedeling.md).
+// The shares show children, so this is deliberately narrower than the council.
+export const MEDIA_SHARE_ROLES = [ROLES.admin];
 
 // Event types accepted by the events API. Keep in sync with the values
 // validated in api/events.js and the icon/color switch in events.tsx.

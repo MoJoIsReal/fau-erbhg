@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { MEDIA_SHARE_ROLES } from "@shared/constants";
 
 // Lazy load route components for code splitting
 const Home = lazy(() => import("@/pages/home"));
@@ -23,6 +24,9 @@ const Messages = lazy(() => import("@/pages/messages"));
 const Privacy = lazy(() => import("@/pages/privacy"));
 const Newsletter = lazy(() => import("@/pages/newsletter"));
 const RegistrationCancel = lazy(() => import("@/pages/registration-cancel"));
+// Private media shares (docs/mediedeling.md). The page parents open, /del,
+// is not a route here: it is its own entry point, client/del.html.
+const MediaShares = lazy(() => import("@/pages/media-shares"));
 
 // Loading fallback component
 function PageLoader() {
@@ -130,6 +134,11 @@ function Router() {
           <Route path="/files" component={Files} />
           <Route path="/personvern" component={Privacy} />
           <Route path="/privacy" component={Privacy} />
+          <Route path="/admin/media">
+            <RequireAuth roles={MEDIA_SHARE_ROLES}>
+              <MediaShares />
+            </RequireAuth>
+          </Route>
           <Route path="/admin">
             <RequireAuth roles={["admin", "member"]}>
               <Admin />

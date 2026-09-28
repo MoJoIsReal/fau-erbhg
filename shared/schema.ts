@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, serial, integer, boolean, index, uniqueIndex, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, index, uniqueIndex, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -297,6 +297,47 @@ export const yearlyCalendarEntries = pgTable("yearly_calendar_entries", {
   yearMonthIdx: index("yearly_calendar_year_month_idx").on(table.year, table.month),
 }));
 
+// Private media shares (migration 0019, docs/mediedeling.md). The files live
+// in a private Cloudflare R2 bucket; these rows are how the API finds, shows,
+// extends and deletes them. No file names are stored: object keys are random.
+export const mediaShares = pgTable("media_shares", {
+  id: serial("id").primaryKey(),
+  // SHA-256 of the link token — what a viewer's request is looked up by.
+  tokenHash: text("token_hash").notNull().unique(),
+  // The token sealed with a key derived from SESSION_SECRET, so the admin
+  // page can copy the link again.
+  tokenSealed: text("token_sealed").notNull(),
+  title: text("title").notNull(),
+  description: text("description"),
+  pinHash: text("pin_hash"),
+  status: text("status").notNull().default("draft"), // "draft" | "published"
+  lifetimeDays: integer("lifetime_days").notNull(),
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: text("created_at").notNull(),
+  publishedAt: text("published_at"),
+  expiresAt: text("expires_at"),
+}, (table) => ({
+  statusExpiresIdx: index("media_shares_status_expires_idx").on(table.status, table.expiresAt),
+}));
+
+export const mediaFiles = pgTable("media_files", {
+  id: serial("id").primaryKey(),
+  shareId: integer("share_id").notNull().references(() => mediaShares.id, { onDelete: "cascade" }),
+  objectKey: text("object_key").notNull().unique(),
+  kind: text("kind").notNull(), // "image" | "video" | "audio"
+  mimeType: text("mime_type").notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  width: integer("width"),
+  height: integer("height"),
+  position: integer("position").notNull().default(0),
+  // The R2 multipart upload id while a large file is still uploading.
+  uploadId: text("upload_id"),
+  status: text("status").notNull().default("uploading"), // "uploading" | "ready"
+  createdAt: text("created_at").notNull(),
+}, (table) => ({
+  shareIdx: index("media_files_share_id_idx").on(table.shareId, table.position),
+}));
+
 export const insertEventSchema = createInsertSchema(events).omit({ id: true, currentAttendees: true });
 export const insertEventRegistrationSchema = createInsertSchema(eventRegistrations).omit({ id: true });
 export const insertContactMessageSchema = createInsertSchema(contactMessages).omit({ id: true, createdAt: true });
@@ -337,3 +378,40 @@ export type KindergartenInfo = typeof kindergartenInfo.$inferSelect;
 export type FauBoardMember = typeof fauBoardMembers.$inferSelect;
 export type EmailDomainBlacklist = typeof emailDomainBlacklist.$inferSelect;
 export type YearlyCalendarEntry = typeof yearlyCalendarEntries.$inferSelect;
+
+// Wire shape of GET /api/media?action=list (admin only) — mapShare in api/media.js.
+export type MediaShareSummary = {
+  id: number;
+  title: string;
+  description: string | null;
+  status: "draft" | "published";
+  hasPin: boolean;
+  lifetimeDays: number;
+  createdAt: string;
+  publishedAt: string | null;
+  expiresAt: string | null;
+  maxExpiresAt: string | null;
+  expired: boolean;
+  fileCount: number;
+  totalBytes: number;
+};
+
+// Wire shape of one file on the share page — mapSharedFile in api/media.js.
+export type SharedMediaFile = {
+  id: number;
+  kind: "image" | "video" | "audio";
+  mimeType: string;
+  url: string;
+  width: number | null;
+  height: number | null;
+};
+
+// Wire shape of POST /api/media?action=view.
+export type SharedMedia = {
+  title: string;
+  description: string | null;
+  expiresAt: string;
+  urlsExpireAt: string;
+  grant?: string;
+  files: SharedMediaFile[];
+};

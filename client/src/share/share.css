@@ -1,0 +1,36 @@
+/* The share page's own additions to the site's stylesheet.
+   Manrope comes from our own origin here: the main site loads it from Google
+   Fonts, but the share page makes no third-party request at all
+   (docs/mediedeling.md). These are the same files the calendar PDF uses. */
+
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope-semibold.ttf") format("truetype");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope-bold.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* A threshold, not a lock: no long-press "Save image" menu on iOS and no
+   accidental text-selection drag. Anyone determined can still screenshot. */
+.share-media {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
