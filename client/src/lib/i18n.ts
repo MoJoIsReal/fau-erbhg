@@ -82,6 +82,7 @@ export interface Translations {
     overview: string;
     content: string;
     messages: string;
+    mediaShares: string;
     settings: string;
     switchLightMode: string;
     switchDarkMode: string;
@@ -1097,6 +1098,7 @@ export const translations: Record<Language, Translations> = {
       overview: "Oversikt",
       content: "Innhold",
       messages: "Meldinger",
+      mediaShares: "Mediedeling",
       settings: "Innstillinger",
       switchLightMode: "Bytt til lyst modus",
       switchDarkMode: "Bytt til mørkt modus",
@@ -2119,6 +2121,7 @@ export const translations: Record<Language, Translations> = {
       overview: "Overview",
       content: "Content",
       messages: "Messages",
+      mediaShares: "Media sharing",
       settings: "Settings",
       switchLightMode: "Switch to light mode",
       switchDarkMode: "Switch to dark mode",
