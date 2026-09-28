@@ -18,6 +18,12 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
     rollupOptions: {
+      // Two pages: the site, and the private media share page (/del), which
+      // is kept apart so it loads none of the site's third-party scripts.
+      input: {
+        main: path.resolve(import.meta.dirname, "client", "index.html"),
+        del: path.resolve(import.meta.dirname, "client", "del.html"),
+      },
       output: {
         // Split out the largest, most stable vendor code so it lands in its
         // own long-lived chunk: browsers cache it across deploys where only

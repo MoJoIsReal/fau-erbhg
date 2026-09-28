@@ -90,3 +90,109 @@ test('the CSP lets the Turnstile widget load its script and its frame', () => {
   assert.ok(cspDirective('script-src').includes(origin), `script-src must allow ${origin}`);
   assert.ok(cspDirective('frame-src').includes(origin), `frame-src must allow ${origin}`);
 });
+
+// ---------------------------------------------------------------------------
+// Private media shares (docs/mediedeling.md). The share page shows children,
+// so every one of these failing would leak something without an error.
+
+const NOINDEX = 'noindex, nofollow, noarchive';
+const R2_ORIGIN = 'https://*.r2.cloudflarestorage.com';
+const headerRule = (source) => vercelConfig.headers.find((rule) => rule.source === source);
+const headerValue = (rule, key) => rule?.headers.find((header) => header.key === key)?.value;
+const matches = (source, path) => new RegExp(`^${source}$`).test(path);
+const shareRule = headerRule('/(del|del\\.html)');
+
+test('/del is served by its own page, not the main app', () => {
+  const index = vercelConfig.rewrites.findIndex((rule) => rule.source === '/del');
+  const spa = vercelConfig.rewrites.findIndex((rule) => rule.destination === '/index.html');
+  assert.ok(index >= 0 && vercelConfig.rewrites[index].destination === '/del.html', '/del must rewrite to /del.html');
+  assert.ok(index < spa, 'the /del rewrite must come before the SPA fallback');
+  assert.match(read('vite.config.ts'), /del: path\.resolve\(import\.meta\.dirname, "client", "del\.html"\)/,
+    'del.html must be a Vite build input');
+});
+
+test('the share page gets its own headers and none of the site-wide set', () => {
+  const global = vercelConfig.headers[0];
+  for (const path of ['/del', '/del.html']) {
+    assert.ok(!matches(global.source, path), `the site-wide headers must not apply to ${path}`);
+    assert.ok(matches(shareRule.source, path), `the share headers must apply to ${path}`);
+  }
+  for (const path of ['/', '/kalender', '/admin', '/delta', '/del/x']) {
+    assert.ok(matches(global.source, path), `the site-wide headers must still cover ${path}`);
+  }
+  assert.equal(headerValue(shareRule, 'Referrer-Policy'), 'no-referrer');
+  assert.equal(headerValue(shareRule, 'X-Robots-Tag'), NOINDEX);
+  assert.equal(headerValue(shareRule, 'X-Frame-Options'), 'DENY');
+  assert.equal(headerValue(shareRule, 'X-Content-Type-Options'), 'nosniff');
+  assert.match(headerValue(shareRule, 'Strict-Transport-Security'), /max-age=\d+/);
+});
+
+test('the share page CSP allows our origin and R2, and no third party at all', () => {
+  const csp = headerValue(shareRule, 'Content-Security-Policy');
+  const directives = Object.fromEntries(csp.split(';').map((part) => part.trim()).filter(Boolean)
+    .map((part) => { const [name, ...sources] = part.split(/\s+/); return [name, sources]; }));
+  const allowed = new Set(["'self'", "'none'", "'unsafe-inline'", 'data:', 'blob:', R2_ORIGIN]);
+  for (const [name, sources] of Object.entries(directives)) {
+    for (const source of sources) {
+      assert.ok(allowed.has(source) || /^'sha256-[A-Za-z0-9+/=]+'$/.test(source), `${name} must not allow ${source}`);
+    }
+  }
+  assert.deepEqual(directives['default-src'], ["'none'"]);
+  assert.deepEqual(directives['connect-src'], ["'self'"], 'the page talks to our API only');
+  assert.ok(directives['media-src'].includes(R2_ORIGIN), 'video and audio play from R2');
+  assert.ok(directives['img-src'].includes(R2_ORIGIN), 'photos load from R2');
+  assert.deepEqual(directives['frame-ancestors'], ["'none'"]);
+
+  // The inline theme script is the same as index.html's, so one hash covers both.
+  const html = read('client/del.html');
+  const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)];
+  assert.equal(inline.length, 1, 'del.html should carry exactly one inline script');
+  const hash = `'sha256-${createHash('sha256').update(inline[0][1], 'utf8').digest('base64')}'`;
+  assert.deepEqual(directives['script-src'], ["'self'", hash]);
+});
+
+test('del.html says noindex and no-referrer itself and loads nothing from elsewhere', () => {
+  const html = read('client/del.html');
+  assert.match(html, /<meta name="robots" content="noindex, nofollow, noarchive" \/>/);
+  assert.match(html, /<meta name="referrer" content="no-referrer" \/>/);
+  const urls = [...html.matchAll(/\b(?:src|href)="([^"]+)"/g)].map(([, url]) => url);
+  assert.deepEqual(urls.filter((url) => !url.startsWith('/')), [], 'only same-origin resources');
+  assert.ok(urls.includes('/src/share/main.tsx'));
+});
+
+test('the share page bundle pulls in no analytics, no Sentry and no Google Fonts', async () => {
+  const { build } = await import('esbuild');
+  const result = await build({
+    entryPoints: ['client/src/share/main.tsx'],
+    bundle: true,
+    write: false,
+    metafile: true,
+    format: 'esm',
+    platform: 'browser',
+    logLevel: 'silent',
+    external: ['*.css'],
+  });
+  const inputs = Object.keys(result.metafile.inputs);
+  assert.ok(inputs.some((input) => input.includes('client/src/share/share-page.tsx')), 'the bundle was actually built');
+  for (const banned of ['@sentry', '@vercel/analytics', 'components/ErrorBoundary', 'telemetry-privacy']) {
+    assert.deepEqual(inputs.filter((input) => input.includes(banned)), [], `${banned} must not reach the share page`);
+  }
+  const css = read('client/src/share/share.css');
+  assert.ok(!/https?:\/\//.test(css.replace(/\/\*[\s\S]*?\*\//g, '')), 'fonts come from our own origin');
+});
+
+test('admin pages and API answers carry noindex, and robots.txt keeps crawlers out', () => {
+  assert.equal(headerValue(headerRule('/api/(.*)'), 'X-Robots-Tag'), NOINDEX);
+  const admin = headerRule('/admin(.*)');
+  assert.equal(headerValue(admin, 'X-Robots-Tag'), NOINDEX);
+  assert.ok(matches(admin.source, '/admin') && matches(admin.source, '/admin/media'));
+
+  const robots = read('client/public/robots.txt');
+  assert.match(robots, /^Disallow: \/del$/m);
+  assert.match(robots, /^Disallow: \/admin$/m);
+  assert.ok(!read('client/public/sitemap.xml').includes('/del'), 'the sitemap never lists a share');
+});
+
+test('the admin page may upload straight to R2', () => {
+  assert.ok(cspDirective('connect-src').includes(R2_ORIGIN), 'connect-src must allow presigned R2 uploads');
+});

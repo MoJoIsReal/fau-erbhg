@@ -1,6 +1,11 @@
 # robots.txt for FAU Erdal Barnehage
 User-agent: *
 Allow: /
+# Private media shares and the council's admin pages. The share link's secret
+# is in the URL fragment, which crawlers never see; this keeps even the bare
+# page out of every index. Both also answer with X-Robots-Tag: noindex.
+Disallow: /del
+Disallow: /admin
 
 # Sitemap location
 Sitemap: https://www.erdal-bhg.no/sitemap.xml

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="nb">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- A private media share (docs/mediedeling.md). This page is its own
+         entry point, not a route of the main app, so it carries none of the
+         main app's third parties: no analytics, no Sentry, no Google Fonts.
+         vercel.json sends /del here with its own strict CSP,
+         Referrer-Policy: no-referrer and X-Robots-Tag; the metas below say
+         the same for anything that reads the document instead. -->
+    <meta name="robots" content="noindex, nofollow, noarchive" />
+    <meta name="referrer" content="no-referrer" />
+    <title>FAU Erdal Barnehage</title>
+    <meta name="theme-color" content="#F9F6F1" />
+
+    <!-- The same pre-paint theme switch as index.html, byte for byte, so the
+         one script hash in the CSP covers both pages. -->
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem("theme");
+          var dark =
+            stored === "dark" ||
+            ((!stored || stored === "system") &&
+              window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var root = document.documentElement;
+          root.classList.toggle("dark", dark);
+          root.style.colorScheme = dark ? "dark" : "light";
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute("content", dark ? "#091A15" : "#F9F6F1");
+        } catch (e) {
+          /* Private mode or blocked storage: the light default still renders. */
+        }
+      })();
+    </script>
+
+    <link rel="icon" type="image/png" href="/favicon.png" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/share/main.tsx"></script>
+  </body>
+</html>
