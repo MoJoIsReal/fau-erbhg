@@ -16,7 +16,7 @@ import {
 import SafeHtml from "@/components/safe-html";
 import { StatusPill } from "@/components/site/controls";
 import { EditorSurface } from "@/components/site/cards";
-import { Input } from "@/components/ui/input";
+import { MonthPicker } from "@/components/site/month-picker";
 import type { EntryDraft } from "@/components/yearly-calendar-entry-modal";
 import { Surface } from "@/components/site/section";
 
@@ -250,19 +250,15 @@ export default function CalendarView({
           </Button>
         </div>
 
-        <label className="flex flex-wrap items-center gap-3 px-4 py-3 text-small font-semibold text-copy">
-          {t.calendarWorkspace.jumpMonth}
-          <Input type="month" className="w-auto max-w-full" min="2020-08" max="2100-07"
-            value={`${month.year}-${String(month.month).padStart(2, "0")}`}
-            onChange={(event) => {
-              const [year, value] = event.target.value.split("-").map(Number);
-              if (year >= 2020 && year <= 2100 && value >= 1 && value <= 12) {
-                setSelected(null);
-                setExpanded(new Set());
-                onMonthChange({ year, month: value });
-              }
+        <div className="px-4 py-3">
+          <MonthPicker label={t.calendarWorkspace.jumpMonth} value={month}
+            min={{ year: 2020, month: 8 }} max={{ year: 2100, month: 7 }}
+            onChange={(next) => {
+              setSelected(null);
+              setExpanded(new Set());
+              onMonthChange(next);
             }} />
-        </label>
+        </div>
         <div className="border-t border-hairline">
           {/* Week number in its own narrow rail from tablet up: the whole
               kindergarten year is spoken about in week numbers, so the grid

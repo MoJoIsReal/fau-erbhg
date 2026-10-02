@@ -13,6 +13,8 @@ export interface Translations {
     addWeek: string;
     addNote: string;
     jumpMonth: string;
+    previousYear: string;
+    nextYear: string;
     downloadHint: string;
     weekdayStart: string;
     weekdayEnd: string;
@@ -1028,6 +1030,8 @@ export const translations: Record<Language, Translations> = {
       addWeek: "Legg til i uken",
       addNote: "Legg til månedsnotat",
       jumpMonth: "Gå til måned",
+      previousYear: "Forrige år",
+      nextYear: "Neste år",
       downloadHint: "PDF inkluderer alle oppføringer, uavhengig av filtrene. Barnehageåret går fra august til juli.",
       weekdayStart: "Fra ukedag",
       weekdayEnd: "Til ukedag",
@@ -2051,6 +2055,8 @@ export const translations: Record<Language, Translations> = {
       addWeek: "Add in this week",
       addNote: "Add month note",
       jumpMonth: "Go to month",
+      previousYear: "Previous year",
+      nextYear: "Next year",
       downloadHint: "PDF includes all entries, regardless of filters. The kindergarten year runs from August to July.",
       weekdayStart: "From weekday",
       weekdayEnd: "To weekday",
