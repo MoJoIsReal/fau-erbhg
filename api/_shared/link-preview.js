@@ -20,12 +20,13 @@ import {
 } from '../../shared/calendar-entries.js';
 
 const SITE_NAME = 'FAU Erdal Barnehage';
-// The same picture, size and description client/index.html declares for the
-// site's own preview card.
-const IMAGE_PATH = '/og-image.jpg';
-const IMAGE_WIDTH = 1280;
-const IMAGE_HEIGHT = 853;
-const IMAGE_ALT = 'Barn som leker på lekeplass i Erdal barnehage';
+// The calendar page's own artwork, cut to the 1.91:1 card every chat app
+// draws (docs/subsystems.md, "Share images"), so a shared
+// entry looks like the page it opens rather than the homepage.
+const IMAGE_PATH = '/og-calendar.jpg';
+const IMAGE_WIDTH = 1200;
+const IMAGE_HEIGHT = 630;
+const IMAGE_ALT = 'To barn sitter på en stokk og ser utover fjorden';
 const DESCRIPTION_LIMIT = 200;
 
 // Five minutes, so an edited title reaches new previews soon. Vercel's edge

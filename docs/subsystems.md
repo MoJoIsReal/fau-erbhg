@@ -116,13 +116,27 @@ iMessage, WhatsApp and Signal, Slack, Telegram, Discord, Teams, LinkedIn, …);
 everyone else, search engines included, gets the app as before. The handler
 renders a bare HTML page of Open Graph tags (`api/_shared/link-preview.js`):
 the entry's title, then when, where and the start of its description, with the
-site's `og-image.jpg`. It reads the same public rows the site shows anyone, and
+calendar artwork cut as `og-calendar.jpg`. It reads the same public rows the site shows anyone, and
 an unknown id previews as the calendar. Vercel's edge does cache the preview
 for five minutes, but keyed on the rewritten path: routing picks the
 destination before the cache is consulted, so a person on the same URL is
 always served `index.html`, never a crawler's page. A crawler missing from the list just gets the site's generic card;
 `deploy-config` checks the list against real crawler and browser user agents —
 add to both when a new app needs it.
+
+**Share images.** The two cards are cut from the commissioned illustrations
+in `attached_assets/illustrations/`, at the 1.91:1 (1200×630) every chat app
+draws, full width with only a strip of sky and grass trimmed:
+
+| File (`client/public/`) | Used by | Source | Rectangle (left, top, width, height) |
+|---|---|---|---|
+| `og-home.jpg` | `client/index.html`, every page | `home-welcome-values.png` | 0, 30, 1672, 878 |
+| `og-calendar.jpg` | shared calendar links | `calendar-children-fjord.png` | 0, 40, 1672, 878 |
+
+They follow the crop rules in that folder's README: the signpost reads all
+three words, and no edge cuts lettering. Crawlers cache an image by its URL, so
+a redrawn card gets a **new file name**, not new bytes under the old one.
+`deploy-config` checks that both files exist at the size the tags declare.
 
 ## Newsletter
 
