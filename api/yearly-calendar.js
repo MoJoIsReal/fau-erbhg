@@ -4,12 +4,14 @@ import {
   requireCsrf,
   requireRole,
   sanitizeText,
+  sanitizeHtml,
   sanitizeInteger,
   requireIntId,
   MAX_INT_ID,
 } from './_shared/middleware.js';
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 import { YEARLY_CALENDAR_CATEGORIES } from '../shared/calendar-entries.js';
+import { htmlToPlainText } from '../shared/html-text.js';
 import {
   buildImportPreview,
   supportsYearlyCalendarNewsletter,
@@ -70,6 +72,15 @@ function mapEntry(row) {
   };
 }
 
+// The entry editor writes the same rich text as an event description, so a
+// description is stored as sanitized HTML and rendered through SafeHtml. An
+// editor the author emptied still sends "<p></p>"; store that as no description.
+function sanitizeEntryDescription(value) {
+  const html = sanitizeHtml(value, 5000);
+  if (!htmlToPlainText(html) && !/<(img|iframe)\b/i.test(html)) return null;
+  return html;
+}
+
 function sanitizeEntryPayload(body) {
   const entryType = VALID_ENTRY_TYPES.includes(body.entryType) ? body.entryType : null;
   // An unknown category falls back to null rather than being rejected: null
@@ -77,7 +88,7 @@ function sanitizeEntryPayload(body) {
   // before the column existed.
   const category = YEARLY_CALENDAR_CATEGORIES.includes(body.category) ? body.category : null;
   const title = sanitizeText(body.title, 200);
-  const description = body.description ? sanitizeText(body.description, 1000) : null;
+  const description = sanitizeEntryDescription(body.description);
   const color = sanitizeColor(body.color);
   const schoolYear = sanitizeInteger(body.schoolYear, 2020, 2100);
   const year = sanitizeInteger(body.year, 2020, 2100);

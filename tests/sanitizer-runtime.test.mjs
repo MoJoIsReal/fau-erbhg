@@ -12,7 +12,7 @@ import {
   sanitizePhone,
   sanitizeText,
 } from '../api/_shared/middleware.js';
-import { htmlToPlainText } from '../shared/html-text.js';
+import { htmlToPlainText, plainTextToHtml } from '../shared/html-text.js';
 
 const require = createRequire(import.meta.url);
 
@@ -136,6 +136,16 @@ test('htmlToPlainText decodes each entity exactly once', () => {
   assert.equal(htmlToPlainText('&amp;lt;script&amp;gt;'), '&lt;script&gt;');
   assert.equal(htmlToPlainText('<p>Hei &amp; ha det</p><p>Neste</p>'), 'Hei & ha det\n\nNeste');
   assert.equal(htmlToPlainText('Tekst med &lt;tag&gt;'), 'Tekst med <tag>');
+});
+
+// A yearly calendar description written in the old plain textarea opens in
+// the rich text editor with its line breaks, and escaped rather than parsed.
+test('plainTextToHtml keeps line breaks of plain text and leaves markup alone', () => {
+  assert.equal(plainTextToHtml('Ta med matpakke\nog drikke\n\nVelkommen & ha det'),
+    '<p>Ta med matpakke<br>og drikke</p><p>Velkommen &amp; ha det</p>');
+  assert.equal(plainTextToHtml('2 > 1'), '<p>2 &gt; 1</p>');
+  assert.equal(plainTextToHtml('<p><strong>Fet</strong></p>'), '<p><strong>Fet</strong></p>');
+  assert.equal(plainTextToHtml(null), '');
 });
 
 test('htmlToPlainText strips nested tag remnants instead of splicing a new tag', () => {

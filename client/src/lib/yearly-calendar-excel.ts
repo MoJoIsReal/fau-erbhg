@@ -5,6 +5,7 @@ import {
   YEARLY_CALENDAR_HEX_COLOR_PATTERN,
   type YearlyCalendarRawImportRow,
 } from "@shared/yearly-calendar-utils";
+import { htmlToPlainText } from "@shared/html-text";
 import type { SheetData as ReadSheetData } from "read-excel-file/browser";
 import type { Cell, Feature, SheetData as WriteSheetData } from "write-excel-file/browser";
 
@@ -39,7 +40,8 @@ function entryToRow(entry: YearlyCalendarEntry): Record<EntryHeader, Spreadsheet
     måned: entry.month,
     uke_fra: entry.weekNumber ?? "",
     uke_til: entry.weekNumberEnd ?? "",
-    beskrivelse: entry.description ?? "",
+    // The sheet holds plain text; the formatting stays on the site.
+    beskrivelse: htmlToPlainText(entry.description),
     farge: entry.color ?? "",
     vis_på_forside: entry.showOnHomepage === true,
     for_foreldre: entry.showForParents === true,

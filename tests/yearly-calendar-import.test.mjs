@@ -476,6 +476,20 @@ test('the diff lists exactly the fields that changed, with their sheet labels', 
   ]);
 });
 
+// The export writes a rich text description out as plain text, so the same
+// text coming back from the sheet is not an edit that would flatten it.
+test('the diff compares a formatted description by its text', () => {
+  const existing = {
+    schoolYear: 2027, year: 2028, month: 6, entryType: 'day_event', weekNumber: null, weekNumberEnd: null,
+    date: '2028-06-02', title: 'Sommerfest', description: '<p><strong>Ta med</strong> matpakke</p>',
+    color: null, showOnHomepage: false, showForParents: false,
+  };
+  assert.deepEqual(diffYearlyCalendarEntry(existing, { ...existing, description: 'Ta med matpakke' }), []);
+  assert.deepEqual(diffYearlyCalendarEntry(existing, { ...existing, description: 'Ta med niste' }), [
+    { field: 'description', label: 'beskrivelse', oldValue: 'Ta med matpakke', newValue: 'Ta med niste' },
+  ]);
+});
+
 test('the preview classifies new, unchanged, changed, invalid and ambiguous rows', () => {
   const existingEntries = [
     {
