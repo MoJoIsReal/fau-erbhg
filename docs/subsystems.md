@@ -91,7 +91,9 @@ Files: the link helpers at the top of `shared/calendar-entries.js`
 (`calendarEntryPath`, `eventEntryId`, `yearlyEntryId`),
 `client/src/components/calendar-entry-share.tsx` (+ the lazily loaded
 `calendar-entry-qr.tsx`), the `?vis=` handling in
-`client/src/components/calendar-views.tsx`, and the feed's `URL`s.
+`client/src/components/calendar-views.tsx`, the feed's `URL`s, and the
+crawler preview in `api/_shared/link-preview.js` + the `/kalender` rewrite in
+`vercel.json`.
 
 `/kalender?vis=<entry id>` opens the calendar with that entry's detail panel
 showing; the "Del" button in the panel (and in the month view's day panel)
@@ -104,8 +106,22 @@ subscriber's calendar (the feed's `URL`, and the link at the end of an event's
 are not the feed's `UID`s, which keep their own `yearly-<id>@` form. A link to an entry that has
 since been deleted shows a toast and the whole calendar.
 Opening and closing an entry keeps `?vis=` in step with the URL (replaced, not
-pushed). Link previews in chat apps still show the calendar page's own title,
-since the SPA's meta tags are set in the browser.
+pushed).
+
+**Link previews.** Chat apps build their preview card without running
+JavaScript, so the SPA's `usePageMeta` tags never reach them. A rewrite in
+`vercel.json` sends `/kalender?vis=<id>` to `api/events.js?format=preview`
+**only** when the user agent is a known preview crawler (Facebook/Messenger,
+iMessage, WhatsApp and Signal, Slack, Telegram, Discord, Teams, LinkedIn, …);
+everyone else, search engines included, gets the app as before. The handler
+renders a bare HTML page of Open Graph tags (`api/_shared/link-preview.js`):
+the entry's title, then when, where and the start of its description, with the
+site's `og-image.jpg`. It reads the same public rows the site shows anyone, and
+an unknown id previews as the calendar. The response is never edge-cached
+(`max-age` only, no `s-maxage`), so a crawler's page cannot be served to a
+person. A crawler missing from the list just gets the site's generic card;
+`deploy-config` checks the list against real crawler and browser user agents —
+add to both when a new app needs it.
 
 ## Newsletter
 

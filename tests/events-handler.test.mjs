@@ -201,3 +201,52 @@ test('an id that is not a whole number in range is refused before anything is wr
     }
   }
 });
+
+test('a shared-link preview is cacheable HTML built from the public row', async (t) => {
+  const sql = useDatabase(scriptedSql({
+    respond: () => [row({ id: 12, title: 'Foreldrefest <i Grendahuset>', date: '2026-11-07', time: '18:00' })],
+  }));
+  // A rewrite may pass the parameter on twice; the first value is the one read.
+  const res = await call(t, handler, { query: { format: 'preview', vis: ['event-12', 'event-12'] } });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.headers['content-type'], 'text/html; charset=utf-8');
+  // Never an edge cache: a crawler's page must not be served to a person.
+  assert.doesNotMatch(res.headers['cache-control'], /s-maxage/);
+  assert.match(res.body, /<meta property="og:title" content="Foreldrefest &lt;i Grendahuset&gt;">/);
+  assert.match(res.body, /<meta property="og:url" content="[^"]*\/kalender\?vis=event-12">/);
+  assert.match(res.body, /Uteområdet/, 'the custom location, as on the site');
+
+  assert.equal(sql.calls.length, 1);
+  assert.match(sql.calls[0].statement, /FROM events\s+WHERE id = \? AND status IN \('active', 'cancelled'\)/);
+  assert.deepEqual(sql.calls[0].values, [12]);
+});
+
+test('a preview of a week-long yearly entry reads the yearly table', async (t) => {
+  const sql = useDatabase(scriptedSql({
+    respond: () => [{
+      id: 5, title: 'Brannvernuke', description: null, entry_type: 'week_event', category: null,
+      year: 2026, month: 9, week_number: 39, week_number_end: 41, date: null, start_time: null, end_time: null,
+    }],
+  }));
+  const res = await call(t, handler, { query: { format: 'preview', vis: 'entry-5' } });
+
+  assert.match(res.body, /<meta property="og:title" content="Brannvernuke">/);
+  assert.match(res.body, /Uke 39–41/);
+  assert.match(sql.calls[0].statement, /FROM yearly_calendar_entries\s+WHERE id = \?/);
+  assert.deepEqual(sql.calls[0].values, [5]);
+});
+
+test('an unknown or malformed shared id previews as the calendar, without guessing', async (t) => {
+  const missing = useDatabase(scriptedSql({ respond: () => [] }));
+  const gone = await call(t, handler, { query: { format: 'preview', vis: 'event-99' } });
+  assert.equal(gone.statusCode, 200);
+  assert.match(gone.body, /<meta property="og:title" content="Kalender">/);
+  assert.equal(missing.calls.length, 1);
+
+  const sql = useDatabase(scriptedSql());
+  const res = await call(t, handler, { query: { format: 'preview', vis: "event-1' OR '1'='1" } });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.body, /<meta property="og:url" content="[^"]*\/kalender">/);
+  assert.equal(sql.calls.length, 0, 'nothing is looked up for an id the site never hands out');
+});

@@ -79,6 +79,51 @@ test('a missing /assets/ file 404s instead of being rewritten to the SPA', () =>
   assert.match(read('client/src/main.tsx'), /vite:preloadError/, 'The client should reload on a stale chunk');
 });
 
+// A shared /kalender?vis=<id> link is previewed by chat apps that never run the
+// SPA, so their crawlers are rewritten to a server-rendered preview. The rule
+// fails silently both ways: miss a crawler and the preview is the generic card
+// again; catch a browser and a parent gets a bare HTML page instead of the app.
+test('only link-preview crawlers on a shared calendar link get the server-rendered preview', () => {
+  const index = vercelConfig.rewrites.findIndex((rule) => rule.source === '/kalender' && rule.has);
+  const spa = vercelConfig.rewrites.findIndex((rule) => rule.destination === '/index.html');
+  assert.ok(index >= 0, 'vercel.json should rewrite shared calendar links for preview crawlers');
+  assert.ok(index < spa, 'the preview rewrite must come before the SPA fallback');
+
+  const rule = vercelConfig.rewrites[index];
+  assert.equal(rule.destination, '/api/events?format=preview&vis=:vis');
+  assert.match(read('api/events.js'), /req\.query\.format === 'preview'/, 'api/events.js must answer format=preview');
+
+  const query = rule.has.find((condition) => condition.type === 'query');
+  assert.equal(query.key, 'vis', 'the parameter calendarEntryPath writes');
+  assert.match(read('shared/calendar-entries.js'), /SHARED_ENTRY_PARAM = 'vis'/);
+  const id = new RegExp(`^${query.value}$`);
+  for (const value of ['event-12', 'entry-5']) assert.ok(id.test(value), `${value} is an id the site hands out`);
+  for (const value of ['event-0', 'yearly-5', 'event-12abc']) assert.ok(!id.test(value), `${value} is not`);
+
+  const agent = new RegExp(`^${rule.has.find((condition) => condition.type === 'header' && condition.key === 'user-agent').value}$`);
+  const crawlers = [
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)', // Messenger, Facebook
+    'facebookexternalhit/1.1 Facebot Twitterbot/1.0', // iMessage
+    'WhatsApp/2.23.20.0 A', // WhatsApp, and Signal borrows it
+    'Slackbot-LinkExpanding 1.0 (+https://api.slack.com/robots)',
+    'TelegramBot (like TwitterBot)',
+    'Mozilla/5.0 (compatible; Discordbot/2.0; +https://discordapp.com)',
+    'Mozilla/5.0 (Windows NT 6.1; WOW64) SkypeUriPreview Preview/0.5', // Teams
+    'LinkedInBot/1.0 (compatible; Mozilla/5.0; Apache-HttpClient +http://www.linkedin.com)',
+  ];
+  for (const ua of crawlers) assert.ok(agent.test(ua), `${ua} should get the preview`);
+  const people = [
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+    // The in-app browsers people open the link in from those same apps.
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/MessengerForiOS;FBAV/480.0]',
+    'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36 [FB_IAB/FB4A;FBAV/480.0;]',
+    // Search engines render the app themselves and are not shown a different page.
+    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+  ];
+  for (const ua of people) assert.ok(!agent.test(ua), `${ua} should get the app`);
+});
+
 // The Turnstile widget on the public forms loads its script from Cloudflare and
 // runs its challenge in a Cloudflare iframe. If the CSP blocks either, the
 // widget silently never appears and — once the secret is set — every public
