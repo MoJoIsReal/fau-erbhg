@@ -15,6 +15,7 @@ import { insertEventRegistrationSchema } from "@shared/schema";
 import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
+import PotluckContributions from "@/components/potluck-contributions";
 import {
   TURNSTILE_FAILED,
   TurnstileWidget,
@@ -109,6 +110,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       onClose();
       // Refresh events to show updated attendee count
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+      if (event) queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}&food=1`] });
     },
     onError: (error: unknown) => {
       const body = getApiErrorBody(error);
@@ -391,6 +393,12 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                   <p role="alert" className="text-sm font-medium text-destructive">{namesError}</p>
                 )}
               </fieldset>
+            )}
+
+            {asksFood && (
+              <div className="rounded-lg border border-hairline bg-sand p-3">
+                <PotluckContributions eventId={event.id} />
+              </div>
             )}
 
             {asksFood && (

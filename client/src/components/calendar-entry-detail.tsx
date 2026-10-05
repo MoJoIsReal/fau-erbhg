@@ -11,6 +11,7 @@ import LocationMapLink from "@/components/location-map-link";
 import SafeHtml from "@/components/safe-html";
 import CalendarSeatMeter from "@/components/calendar-seat-meter";
 import CalendarEntryShare from "@/components/calendar-entry-share";
+import PotluckContributions from "@/components/potluck-contributions";
 
 interface CalendarEntryDetailProps {
   entry: CalendarEntry | null;
@@ -159,6 +160,10 @@ export default function CalendarEntryDetail({
             />
           </div>
         </div>
+      )}
+
+      {entry.event?.potluck && signup?.mode === "registration" && (
+        <PotluckContributions eventId={entry.event.id} />
       )}
 
       <div className="flex flex-wrap items-center gap-2">

@@ -255,6 +255,8 @@ export interface Translations {
     foodContributionLabel: string;
     foodContributionPlaceholder: string;
     foodContributionHint: string;
+    potluckHeading: string;
+    potluckNoneYet: string;
     otherAttendees: string;
     otherAttendeeNames: string;
     otherAttendeeNamesHint: string;
@@ -1302,7 +1304,9 @@ export const translations: Record<Language, Translations> = {
       foodContribution: "Tar med",
       foodContributionLabel: "Hva tar du med av mat? *",
       foodContributionPlaceholder: "F.eks. pastasalat, kake eller et fruktfat",
-      foodContributionHint: "Dette er en kurvfest: alle tar med litt mat til et felles bord.",
+      foodContributionHint: "Dette er en kurvfest: alle tar med litt mat til et felles bord. Det du skriver her, vises for andre som melder seg på, men ikke navnet ditt.",
+      potluckHeading: "Dette tar andre med",
+      potluckNoneYet: "Ingen har ført opp noe ennå.",
       otherAttendees: "Andre deltakere",
       otherAttendeeNames: "Navn på de andre deltakerne *",
       otherAttendeeNamesHint: "Du er deltaker 1. Skriv navnet på hver av de andre du melder på.",
@@ -2354,7 +2358,9 @@ export const translations: Record<Language, Translations> = {
       foodContribution: "Bringing",
       foodContributionLabel: "What food will you bring? *",
       foodContributionPlaceholder: "E.g. pasta salad, a cake or a fruit platter",
-      foodContributionHint: "This is a potluck: everyone brings some food to share.",
+      foodContributionHint: "This is a potluck: everyone brings some food to share. What you write here is shown to others who sign up, but not your name.",
+      potluckHeading: "What others are bringing",
+      potluckNoneYet: "Nobody has added anything yet.",
       otherAttendees: "Other attendees",
       otherAttendeeNames: "Names of the other attendees *",
       otherAttendeeNamesHint: "You are attendee 1. Enter the name of each other person you are signing up.",
