@@ -49,7 +49,9 @@ export const eventRegistrations = pgTable("event_registrations", {
   attendeeCount: integer("attendee_count").default(1),
   comments: text("comments"),
   language: text("language").default("no"),
-  childrenNames: text("children_names"), // JSON array of child names for "foto" events
+  // JSON array of names: each child booked on a "foto" event, or, on any
+  // other event, everyone the registrant signs up besides themselves.
+  childrenNames: text("children_names"),
   photoSlots: text("photo_slots"), // JSON array of assigned "HH:MM" slots for "foto" events
   foodContribution: text("food_contribution"), // What the attendee brings, when the event is a potluck
   reminderSentAt: text("reminder_sent_at"),

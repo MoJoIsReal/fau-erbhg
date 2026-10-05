@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -84,7 +85,13 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
     while (names.length <= index) names.push("");
     names[index] = value;
     form.setValue("childrenNames", JSON.stringify(names));
+    form.clearErrors("childrenNames");
   };
+
+  // Outside a photo day the registrant is attendee 1, so everyone after them
+  // is named here, in the same list a photo booking uses for its children.
+  const otherAttendeeCount = isFotoEvent ? 0 : Math.max(0, (attendeeCount || 1) - 1);
+  const namesError = form.formState.errors.childrenNames?.message;
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
@@ -134,6 +141,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         form.setError("foodContribution", { type: "manual", message });
         return;
       }
+      if (code === "ATTENDEE_NAMES_REQUIRED") {
+        form.setError("childrenNames", { type: "manual", message });
+        return;
+      }
       // A problem with the address belongs under the address field.
       if (code === "EMAIL_REJECTED" || code === "ALREADY_REGISTERED" || (code === "EMAIL_TYPO" && suggestion)) {
         form.setError("email", { type: "manual", message });
@@ -169,6 +180,19 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       // Trim the array to only the needed children
       const trimmedNames = names.slice(0, count).map(n => n.trim());
       data.childrenNames = JSON.stringify(trimmedNames);
+    } else if ((data.attendeeCount || 1) > 1) {
+      const others = (data.attendeeCount || 1) - 1;
+      const names = getChildrenNamesArray().slice(0, others).map((n) => (n ?? "").trim());
+      if (names.length < others || names.some((n) => !n)) {
+        form.setError("childrenNames", {
+          type: "manual",
+          message: t.modals.eventRegistration.errors.ATTENDEE_NAMES_REQUIRED,
+        });
+        return;
+      }
+      data.childrenNames = JSON.stringify(names);
+    } else {
+      data.childrenNames = null;
     }
     if (asksFood) {
       const food = data.foodContribution?.trim() ?? "";
@@ -335,6 +359,38 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                   </div>
                 ))}
               </div>
+            )}
+
+            {/* Everyone else on a multi-person signup, by name */}
+            {otherAttendeeCount > 0 && (
+              <fieldset className="space-y-3" aria-describedby="other-attendees-hint">
+                <legend className={`text-sm font-medium ${namesError ? "text-destructive" : ""}`}>
+                  {t.events.otherAttendeeNames}
+                </legend>
+                <p id="other-attendees-hint" className="text-sm text-subtle">{t.events.otherAttendeeNamesHint}</p>
+                {Array.from({ length: otherAttendeeCount }, (_, i) => {
+                  const value = getChildrenNamesArray()[i] || "";
+                  return (
+                    <div key={i} className="space-y-2">
+                      <Label htmlFor={`other-attendee-${i}`}>
+                        {t.events.attendeeNumber.replace("{n}", String(i + 2))}
+                      </Label>
+                      <Input
+                        id={`other-attendee-${i}`}
+                        autoComplete="off"
+                        maxLength={100}
+                        placeholder={t.events.attendeeNamePlaceholder}
+                        value={value}
+                        aria-invalid={Boolean(namesError) && !value.trim()}
+                        onChange={(e) => setChildName(i, e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+                {namesError && (
+                  <p role="alert" className="text-sm font-medium text-destructive">{namesError}</p>
+                )}
+              </fieldset>
             )}
 
             {asksFood && (

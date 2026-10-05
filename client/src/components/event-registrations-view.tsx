@@ -331,6 +331,15 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                           </a>
                         </div>
                       )}
+                      {!isFotoEvent && childrenNames.length > 0 && (
+                        <div className="flex items-start space-x-2 text-sm">
+                          <Users className="h-4 w-4 shrink-0 text-subtle mt-0.5" aria-hidden="true" />
+                          <div className="min-w-0">
+                            <p className="text-subtle text-xs mb-1">{t.events.otherAttendees}</p>
+                            <p className="text-ink break-words">{childrenNames.join(", ")}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {(registration.foodContribution || registration.comments) && (

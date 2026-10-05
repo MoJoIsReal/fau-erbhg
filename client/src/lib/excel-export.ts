@@ -65,12 +65,23 @@ export async function exportAttendeesToExcel(event: Event, registrations: EventR
        registrations.length.toString()],
     ];
   } else {
-    // Standard event export. A potluck adds what each signup brings.
+    // Standard event export. A potluck adds what each signup brings, and a
+    // signup for more than one person adds who else is coming.
     const asksFood = event.potluck === true;
+    const otherNames = (reg: EventRegistration): string[] => {
+      try {
+        const names = reg.childrenNames ? JSON.parse(reg.childrenNames) : [];
+        return Array.isArray(names) ? names.map(String) : [];
+      } catch {
+        return [];
+      }
+    };
+    const namesOthers = registrations.some((reg) => otherNames(reg).length > 0);
     const headers = language === 'no'
       ? ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']
       : ['Name', 'Email', 'Phone', 'Attendee Count', 'Comments'];
     if (asksFood) headers.splice(4, 0, translations[language].events.foodContribution);
+    if (namesOthers) headers.splice(4, 0, translations[language].events.otherAttendees);
 
     sheetRows = [
       [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
@@ -85,6 +96,7 @@ export async function exportAttendeesToExcel(event: Event, registrations: EventR
         reg.email,
         reg.phone || '',
         reg.attendeeCount?.toString() || '1',
+        ...(namesOthers ? [otherNames(reg).join(', ')] : []),
         ...(asksFood ? [reg.foodContribution || ''] : []),
         reg.comments || ''
       ]),

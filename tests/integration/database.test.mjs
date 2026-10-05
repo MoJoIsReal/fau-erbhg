@@ -17,7 +17,7 @@ async function signup(eventIdNum, email, slots = null) {
     eventIdNum, nowIso: new Date().toISOString(), requestedAttendees: 1,
     sanitizedName: 'Test', sanitizedEmail: email, sanitizedPhone: null,
     sanitizedComments: null, sanitizedLanguage: 'no', childrenNamesParam: slots ? '["Test child"]' : null,
-    photoSlotsParam: slots ? JSON.stringify(slots) : null,
+    photoSlotsParam: slots ? JSON.stringify(slots) : null, sanitizedFoodContribution: null,
   });
 }
 // Hold the event row until every contender is waiting on its lock. Each psql
