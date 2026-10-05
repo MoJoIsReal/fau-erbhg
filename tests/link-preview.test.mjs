@@ -96,7 +96,7 @@ test('the page carries Open Graph tags and escapes every value it was given', ()
   assert.match(html, /<meta property="og:title" content="&quot;&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;">/);
   assert.match(html, /<meta property="og:description" content="Ole&#39;s &amp; Dole&#39;s">/);
   assert.match(html, /<meta property="og:url" content="https:\/\/www\.erdal-bhg\.no\/kalender\?vis=event-12">/);
-  assert.match(html, /<meta property="og:image" content="https:\/\/www\.erdal-bhg\.no\/og-image\.jpg">/);
+  assert.match(html, /<meta property="og:image" content="https:\/\/www\.erdal-bhg\.no\/og-calendar\.jpg">/);
   assert.match(html, /<meta name="twitter:card" content="summary_large_image">/);
   assert.equal(escapeHtml(`<&>"'`), '&lt;&amp;&gt;&quot;&#39;');
 });

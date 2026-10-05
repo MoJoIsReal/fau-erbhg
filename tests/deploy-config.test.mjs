@@ -124,6 +124,48 @@ test('only link-preview crawlers on a shared calendar link get the server-render
   for (const ua of people) assert.ok(!agent.test(ua), `${ua} should get the app`);
 });
 
+// The width and height of a baseline or progressive JPEG, from its SOF marker.
+function jpegSize(buffer) {
+  let offset = 2;
+  while (offset < buffer.length) {
+    const marker = buffer[offset + 1];
+    const length = buffer.readUInt16BE(offset + 2);
+    if (marker >= 0xc0 && marker <= 0xc2) {
+      return { height: buffer.readUInt16BE(offset + 5), width: buffer.readUInt16BE(offset + 7) };
+    }
+    offset += 2 + length;
+  }
+  throw new Error('no SOF marker');
+}
+
+// A share card pointing at a missing file, or declaring a size it is not,
+// still previews — just without the picture, or cropped wrong — and nothing
+// reports it.
+test('every share image a preview names exists at the size it declares', () => {
+  const html = read('client/index.html');
+  const preview = read('api/_shared/link-preview.js');
+  const cards = [
+    {
+      from: 'client/index.html',
+      path: html.match(/property="og:image" content="https:\/\/www\.erdal-bhg\.no(\/[^"]+)"/)?.[1],
+      width: Number(html.match(/property="og:image:width" content="(\d+)"/)?.[1]),
+      height: Number(html.match(/property="og:image:height" content="(\d+)"/)?.[1]),
+    },
+    {
+      from: 'api/_shared/link-preview.js',
+      path: preview.match(/const IMAGE_PATH = '([^']+)'/)?.[1],
+      width: Number(preview.match(/const IMAGE_WIDTH = (\d+)/)?.[1]),
+      height: Number(preview.match(/const IMAGE_HEIGHT = (\d+)/)?.[1]),
+    },
+  ];
+  assert.match(html, /name="twitter:image" content="https:\/\/www\.erdal-bhg\.no\/og-home\.jpg"/);
+  for (const card of cards) {
+    assert.ok(card.path, `${card.from} should name a share image`);
+    const file = readFileSync(new URL(`../client/public${card.path}`, import.meta.url));
+    assert.deepEqual(jpegSize(file), { width: card.width, height: card.height }, `${card.path} as ${card.from} declares it`);
+  }
+});
+
 // The Turnstile widget on the public forms loads its script from Cloudflare and
 // runs its challenge in a Cloudflare iframe. If the CSP blocks either, the
 // widget silently never appears and — once the secret is set — every public
