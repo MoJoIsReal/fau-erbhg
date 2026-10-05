@@ -28,10 +28,12 @@ const IMAGE_HEIGHT = 853;
 const IMAGE_ALT = 'Barn som leker på lekeplass i Erdal barnehage';
 const DESCRIPTION_LIMIT = 200;
 
-// A preview is fetched a handful of times per share, so it is not worth an
-// edge cache — and leaving s-maxage out keeps the CDN from ever holding a
-// crawler's page where a person could be served it. The crawlers keep their
-// own copy for five minutes.
+// Five minutes, so an edited title reaches new previews soon. Vercel's edge
+// does cache this page (production answers `x-vercel-cache: HIT` even without
+// s-maxage), and that is safe: its cache is keyed on the path after rewriting.
+// The crawler rule in vercel.json picks the destination before the cache is
+// consulted, so a person asking for the same /kalender?vis= URL is routed to
+// index.html and never reaches this entry — checked against production.
 export const LINK_PREVIEW_CACHE_CONTROL = 'public, max-age=300';
 
 const CALENDAR_FALLBACK = {
