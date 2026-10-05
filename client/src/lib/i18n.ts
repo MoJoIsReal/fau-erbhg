@@ -154,6 +154,19 @@ export interface Translations {
     detailDeadline: string;
     detailSignup: string;
     noDescription: string;
+    share: string;
+    shareTitle: string;
+    shareDescription: string;
+    shareLinkLabel: string;
+    shareCopy: string;
+    shareCopied: string;
+    shareCopyFailed: string;
+    shareNative: string;
+    shareQrLabel: string;
+    shareQrHint: string;
+    shareQrDownload: string;
+    sharedNotFound: string;
+    sharedNotFoundHint: string;
     allTypes: string;
     allDay: string;
     listHeading: string;
@@ -1183,6 +1196,19 @@ export const translations: Record<Language, Translations> = {
       detailDeadline: "Påmeldingsfrist",
       detailSignup: "Påmelding",
       noDescription: "Ingen beskrivelse lagt inn.",
+      share: "Del",
+      shareTitle: "Del denne oppføringen",
+      shareDescription: "Lenken og QR-koden åpner akkurat denne oppføringen i kalenderen, ikke bare kalenderen.",
+      shareLinkLabel: "Lenke",
+      shareCopy: "Kopier lenke",
+      shareCopied: "Lenken er kopiert",
+      shareCopyFailed: "Kunne ikke kopiere lenken. Marker den og kopier den manuelt.",
+      shareNative: "Del via …",
+      shareQrLabel: "QR-kode som åpner {title}",
+      shareQrHint: "Skann med mobilkameraet, eller last den ned til en plakat eller et innlegg.",
+      shareQrDownload: "Last ned QR-kode",
+      sharedNotFound: "Fant ikke det du fikk lenke til",
+      sharedNotFoundHint: "Det kan være flyttet eller slettet. Her er hele kalenderen.",
       allTypes: "Alle",
       allDay: "Hele dagen",
       listHeading: "Alt som skjer i Erdal Barnehage",
@@ -2222,6 +2248,19 @@ export const translations: Record<Language, Translations> = {
       detailDeadline: "Registration deadline",
       detailSignup: "Registration",
       noDescription: "No description added.",
+      share: "Share",
+      shareTitle: "Share this entry",
+      shareDescription: "The link and the QR code open exactly this entry in the calendar, not just the calendar.",
+      shareLinkLabel: "Link",
+      shareCopy: "Copy link",
+      shareCopied: "The link has been copied",
+      shareCopyFailed: "Could not copy the link. Select it and copy it yourself.",
+      shareNative: "Share via …",
+      shareQrLabel: "QR code that opens {title}",
+      shareQrHint: "Scan it with a phone camera, or download it for a poster or a post.",
+      shareQrDownload: "Download QR code",
+      sharedNotFound: "Couldn't find what you were linked to",
+      sharedNotFoundHint: "It may have been moved or removed. Here is the whole calendar.",
       allTypes: "All",
       allDay: "All day",
       listHeading: "Everything happening at Erdal Kindergarten",

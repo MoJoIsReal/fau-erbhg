@@ -8,6 +8,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
+import { calendarEntryPath } from "@/lib/calendar-share";
 import { useUpcomingItems, type UpcomingItem } from "@/hooks/useUpcomingItems";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Button } from "@/components/ui/button";
@@ -240,7 +241,13 @@ export default function Home() {
 
                   <div className="mt-auto pt-2">
                     <Button asChild variant="outline" size="sm">
-                      <Link href="/kalender">{t.home.moreInfo}</Link>
+                      <Link
+                        href={calendarEntryPath(
+                          next.kind === "event" ? `event-${next.event.id}` : `entry-${next.entry.id}`,
+                        )}
+                      >
+                        {t.home.moreInfo}
+                      </Link>
                     </Button>
                   </div>
                 </Surface>

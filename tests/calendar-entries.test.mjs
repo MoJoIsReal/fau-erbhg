@@ -273,6 +273,14 @@ test('a week-spanning entry keeps its start and end week', () => {
   assert.equal(normalized.weekEnd, 41);
 });
 
+test('entry ids stay stable, because shared calendar links carry them', () => {
+  // /kalender?vis=<id> is printed as QR codes and pasted into group chats;
+  // changing this shape breaks every link already handed out.
+  assert.equal(normalizeEvent(event({ id: 12 })).id, 'event-12');
+  assert.equal(normalizeYearlyEntry(entry({ id: 5 })).id, 'entry-5');
+  assert.equal(normalizeYearlyEntry(entry({ id: 6, date: '2026-10-02', weekNumber: null })).id, 'entry-6');
+});
+
 test('a bad end week falls back to a single week rather than an inverted span', () => {
   assert.equal(normalizeYearlyEntry(entry({ weekNumber: 39, weekNumberEnd: 35 })).weekEnd, 39);
   assert.equal(normalizeYearlyEntry(entry({ weekNumber: 39, weekNumberEnd: 99 })).weekEnd, 39);

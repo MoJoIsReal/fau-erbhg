@@ -10,6 +10,7 @@ import { isoWeekRange, parseCalendarDate } from "@shared/calendar-entries";
 import LocationMapLink from "@/components/location-map-link";
 import SafeHtml from "@/components/safe-html";
 import CalendarSeatMeter from "@/components/calendar-seat-meter";
+import CalendarEntryShare from "@/components/calendar-entry-share";
 
 interface CalendarEntryDetailProps {
   entry: CalendarEntry | null;
@@ -183,6 +184,7 @@ export default function CalendarEntryDetail({
             customLocation={entry.event.customLocation ?? undefined}
           />
         )}
+        <CalendarEntryShare entry={entry} />
       </div>
 
       {actions}
