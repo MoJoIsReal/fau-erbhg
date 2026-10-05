@@ -117,9 +117,10 @@ everyone else, search engines included, gets the app as before. The handler
 renders a bare HTML page of Open Graph tags (`api/_shared/link-preview.js`):
 the entry's title, then when, where and the start of its description, with the
 site's `og-image.jpg`. It reads the same public rows the site shows anyone, and
-an unknown id previews as the calendar. The response is never edge-cached
-(`max-age` only, no `s-maxage`), so a crawler's page cannot be served to a
-person. A crawler missing from the list just gets the site's generic card;
+an unknown id previews as the calendar. Vercel's edge does cache the preview
+for five minutes, but keyed on the rewritten path: routing picks the
+destination before the cache is consulted, so a person on the same URL is
+always served `index.html`, never a crawler's page. A crawler missing from the list just gets the site's generic card;
 `deploy-config` checks the list against real crawler and browser user agents —
 add to both when a new app needs it.
 

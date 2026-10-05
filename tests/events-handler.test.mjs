@@ -211,8 +211,8 @@ test('a shared-link preview is cacheable HTML built from the public row', async 
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.headers['content-type'], 'text/html; charset=utf-8');
-  // Never an edge cache: a crawler's page must not be served to a person.
-  assert.doesNotMatch(res.headers['cache-control'], /s-maxage/);
+  // Short, so an edited entry reaches new previews within minutes.
+  assert.equal(res.headers['cache-control'], 'public, max-age=300');
   assert.match(res.body, /<meta property="og:title" content="Foreldrefest &lt;i Grendahuset&gt;">/);
   assert.match(res.body, /<meta property="og:url" content="[^"]*\/kalender\?vis=event-12">/);
   assert.match(res.body, /Uteområdet/, 'the custom location, as on the site');
