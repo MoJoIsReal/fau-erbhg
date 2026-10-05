@@ -36,8 +36,9 @@ export function isCancellationOpen(eventDate, now = new Date()) {
 
 // The paragraph the registration emails end with. Rows written before
 // migration 0015 have no token, so they keep the old "reply to this email"
-// instruction instead of a broken link.
-export function cancellationText({ language, cancelToken }) {
+// instruction instead of a broken link. For a potluck the same link is also
+// where the food answer is changed, so the paragraph says so.
+export function cancellationText({ language, cancelToken, potluck = false }) {
   const isNorwegian = language !== 'en';
   if (!isCancelToken(cancelToken)) {
     return isNorwegian
@@ -45,6 +46,11 @@ export function cancellationText({ language, cancelToken }) {
       : 'Can no longer attend? Let FAU know by replying to this email.';
   }
   const link = registrationCancelUrl(cancelToken);
+  if (potluck === true) {
+    return isNorwegian
+      ? `Vil du endre hva du tar med, eller kan du likevel ikke komme? Gå til påmeldingen din: ${link}`
+      : `Want to change what you bring, or can no longer attend? Go to your registration: ${link}`;
+  }
   return isNorwegian
     ? `Kan du likevel ikke komme? Meld deg av her: ${link}`
     : `Can no longer attend? Cancel your registration here: ${link}`;

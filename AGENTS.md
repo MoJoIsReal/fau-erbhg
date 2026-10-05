@@ -69,7 +69,7 @@ write your own try/catch envelope.
 functions and 10 are used, so several handlers multiplex resources:
 `api/auth.js?action=csrf|login|logout|me|change-password`,
 `api/documents.js?action=download`,
-`api/registrations.js?action=cancel-lookup|cancel`,
+`api/registrations.js?action=cancel-lookup|cancel|update-food`,
 `api/contact.js?action=newsletter-subscribe|newsletter-confirm|newsletter-unsubscribe`,
 `api/media.js?action=view|list|link|create|upload-init|upload-parts|upload-complete|upload-abort|publish|extend`,
 `api/secure-settings.js?resource=users|board-members|kindergarten-info|blog-posts|contact-messages|newsletter-subscribers`.

@@ -411,6 +411,10 @@ export interface Translations {
     errorTitle: string;
     errorDesc: string;
     missingTokenDesc: string;
+    foodSave: string;
+    foodSaving: string;
+    foodSaved: string;
+    foodError: string;
   };
   // Documents page
   documents: {
@@ -1438,9 +1442,9 @@ export const translations: Record<Language, Translations> = {
       }
     },
     registrationCancel: {
-      navTitle: "Avmelding",
-      title: "Meld deg av arrangement",
-      subtitle: "Kan du likevel ikke komme? Her kan du melde deg av, så plassen går til andre.",
+      navTitle: "Din påmelding",
+      title: "Din påmelding",
+      subtitle: "Her ser du påmeldingen din. Til en kurvfest kan du endre hva du tar med, og kan du likevel ikke komme, melder du deg av så plassen går til andre.",
       loading: "Henter påmeldingen...",
       registeredAs: "Påmeldt som",
       attendees: "Antall deltakere",
@@ -1449,13 +1453,17 @@ export const translations: Record<Language, Translations> = {
       cancelling: "Melder deg av...",
       successTitle: "Du er nå avmeldt",
       successDesc: "Påmeldingen er slettet. Du kan melde deg på igjen fra kalenderen dersom det er ledige plasser.",
-      closedTitle: "Avmelding er stengt",
+      closedTitle: "Påmeldingen kan ikke lenger endres",
       closedDesc: "Arrangementet har allerede funnet sted, så påmeldingen kan ikke lenger endres.",
       notFoundTitle: "Fant ikke påmeldingen",
       notFoundDesc: "Lenken er ugyldig, eller så er påmeldingen allerede slettet.",
       errorTitle: "Noe gikk galt",
       errorDesc: "Kunne ikke melde deg av. Prøv igjen senere, eller kontakt FAU.",
-      missingTokenDesc: "Bruk lenken i bekreftelses- eller påminnelses-e-posten for å melde deg av."
+      missingTokenDesc: "Bruk lenken i bekreftelses- eller påminnelses-e-posten for å se påmeldingen din.",
+      foodSave: "Lagre",
+      foodSaving: "Lagrer...",
+      foodSaved: "Lagret. Listen over hva andre tar med er oppdatert.",
+      foodError: "Kunne ikke lagre. Prøv igjen senere, eller kontakt FAU."
     },
     documents: {
       documentDeleted: "Dokument slettet",
@@ -2492,9 +2500,9 @@ export const translations: Record<Language, Translations> = {
       }
     },
     registrationCancel: {
-      navTitle: "Cancel registration",
-      title: "Cancel your registration",
-      subtitle: "Can no longer attend? Cancel here so the place can go to someone else.",
+      navTitle: "Your registration",
+      title: "Your registration",
+      subtitle: "Here is your registration. For a potluck you can change what you bring, and if you can no longer attend, cancel so the place can go to someone else.",
       loading: "Loading your registration...",
       registeredAs: "Registered as",
       attendees: "Number of attendees",
@@ -2503,13 +2511,17 @@ export const translations: Record<Language, Translations> = {
       cancelling: "Cancelling...",
       successTitle: "Your registration is cancelled",
       successDesc: "The registration has been deleted. You can sign up again from the calendar if there are places left.",
-      closedTitle: "Cancellation is closed",
+      closedTitle: "The registration can no longer be changed",
       closedDesc: "The event has already taken place, so the registration can no longer be changed.",
       notFoundTitle: "Registration not found",
       notFoundDesc: "The link is invalid, or the registration has already been cancelled.",
       errorTitle: "Something went wrong",
       errorDesc: "Could not cancel your registration. Please try again later, or contact FAU.",
-      missingTokenDesc: "Use the link in your confirmation or reminder email to cancel your registration."
+      missingTokenDesc: "Use the link in your confirmation or reminder email to see your registration.",
+      foodSave: "Save",
+      foodSaving: "Saving...",
+      foodSaved: "Saved. The list of what others bring is updated.",
+      foodError: "Could not save. Please try again later, or contact FAU."
     },
     documents: {
       documentDeleted: "Document deleted",

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useSearch } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, XCircle, CalendarDays, Clock, MapPin } from "lucide-react";
 import { ApiError, apiRequest } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -7,10 +8,16 @@ import { usePageMeta } from "@/hooks/usePageMeta";
 import PageHero from "@/components/site/page-hero";
 import { Surface } from "@/components/site/section";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import PotluckContributions from "@/components/potluck-contributions";
 
 type Lookup = {
   name: string;
   attendeeCount: number | null;
+  eventId: number;
+  potluck: boolean;
+  foodContribution: string | null;
   eventTitle: string;
   eventDate: string;
   eventTime: string;
@@ -27,6 +34,89 @@ type State =
   | { kind: "closed" }
   | { kind: "notFound" }
   | { kind: "error"; registration?: Lookup };
+
+type FoodStatus = "idle" | "saving" | "saved" | "invalid" | "error";
+
+/**
+ * For a potluck: what this registration brings, editable with the same link,
+ * next to what everyone else has promised. Saving is an explicit click, like
+ * cancelling, so a prefetching mail scanner changes nothing.
+ */
+function FoodSection({ token, registration }: { token: string; registration: Lookup }) {
+  const { t } = useLanguage();
+  const copy = t.registrationCancel;
+  const queryClient = useQueryClient();
+  const inputId = useId();
+  const [saved, setSaved] = useState(registration.foodContribution ?? "");
+  const [food, setFood] = useState(registration.foodContribution ?? "");
+  const [status, setStatus] = useState<FoodStatus>("idle");
+  const unchanged = food.trim() === saved.trim();
+
+  const save = (event: FormEvent) => {
+    event.preventDefault();
+    const value = food.trim();
+    if (!value) {
+      setStatus("invalid");
+      return;
+    }
+    setStatus("saving");
+    apiRequest("POST", "/api/registrations?action=update-food", { token, foodContribution: value })
+      .then((res) => res.json())
+      .then((body: { foodContribution: string }) => {
+        setSaved(body.foodContribution);
+        setFood(body.foodContribution);
+        setStatus("saved");
+        void queryClient.invalidateQueries({
+          queryKey: [`/api/registrations?eventId=${registration.eventId}&food=1`],
+        });
+      })
+      .catch(() => setStatus("error"));
+  };
+
+  const message =
+    status === "invalid"
+      ? t.modals.eventRegistration.errors.FOOD_CONTRIBUTION_REQUIRED
+      : status === "error"
+        ? copy.foodError
+        : status === "saved"
+          ? copy.foodSaved
+          : "";
+
+  return (
+    <form onSubmit={save} noValidate className="space-y-4 border-t border-hairline pt-6">
+      <div className="rounded-card border border-hairline bg-sand p-4">
+        <PotluckContributions eventId={registration.eventId} />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor={inputId}>{t.events.foodContributionLabel}</Label>
+        <p id={`${inputId}-hint`} className="text-small text-subtle">{t.events.foodContributionHint}</p>
+        <Input
+          id={inputId}
+          maxLength={200}
+          value={food}
+          placeholder={t.events.foodContributionPlaceholder}
+          aria-describedby={`${inputId}-hint ${inputId}-status`}
+          aria-invalid={status === "invalid"}
+          onChange={(event) => {
+            setFood(event.target.value);
+            if (status !== "saving") setStatus("idle");
+          }}
+        />
+        <p
+          id={`${inputId}-status`}
+          role={status === "invalid" || status === "error" ? "alert" : "status"}
+          className={`text-small ${status === "invalid" || status === "error" ? "text-destructive" : "text-brand"}`}
+        >
+          {message}
+        </p>
+      </div>
+      <Button type="submit" disabled={status === "saving" || unchanged}>
+        {status === "saving" && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
+        {status === "saving" ? copy.foodSaving : copy.foodSave}
+      </Button>
+    </form>
+  );
+}
 
 function StatusCard({
   tone,
@@ -48,10 +138,11 @@ function StatusCard({
   );
 }
 
-// Reached from the link in the registration confirmation and reminder emails.
-// Looking the registration up is harmless, so it happens on load; deleting it
-// waits for an explicit click, so a mail scanner that prefetches the link can
-// never cancel anyone's place.
+// "Din påmelding", reached from the link in the registration confirmation and
+// reminder emails (the path stays /avmelding, since links already sent point
+// there). Looking the registration up is harmless, so it happens on load;
+// cancelling it, or changing what a potluck registration brings, waits for an
+// explicit click, so a mail scanner that prefetches the link changes nothing.
 export default function RegistrationCancel() {
   const { language, t } = useLanguage();
   const copy = t.registrationCancel;
@@ -151,15 +242,23 @@ export default function RegistrationCancel() {
           <dd>{registration.attendeeCount ?? 1}</dd>
         </dl>
 
+        {registration.potluck && token && <FoodSection token={token} registration={registration} />}
+
         {state.kind === "error" && (
           <p className="text-small text-destructive" role="alert">
             {copy.errorDesc}
           </p>
         )}
 
-        <div className="space-y-3">
+        <div className={`space-y-3 ${registration.potluck ? "border-t border-hairline pt-6" : ""}`}>
           <p className="text-copy">{copy.confirmQuestion}</p>
-          <Button onClick={() => cancel(registration)} disabled={busy}>
+          {/* With the food form above, saving is the page's main action and
+              cancelling steps back to a secondary button (guide §7). */}
+          <Button
+            onClick={() => cancel(registration)}
+            disabled={busy}
+            variant={registration.potluck ? "outline" : "default"}
+          >
             {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />}
             {busy ? copy.cancelling : copy.cancelButton}
           </Button>
