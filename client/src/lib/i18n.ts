@@ -242,6 +242,12 @@ export interface Translations {
     foodContributionLabel: string;
     foodContributionPlaceholder: string;
     foodContributionHint: string;
+    otherAttendees: string;
+    otherAttendeeNames: string;
+    otherAttendeeNamesHint: string;
+    /** {n} is the attendee's number; the registrant is number 1. */
+    attendeeNumber: string;
+    attendeeNamePlaceholder: string;
     selectDate: string;
     clearDeadline: string;
     sendNewsletterReminder: string;
@@ -1271,6 +1277,11 @@ export const translations: Record<Language, Translations> = {
       foodContributionLabel: "Hva tar du med av mat? *",
       foodContributionPlaceholder: "F.eks. pastasalat, kake eller et fruktfat",
       foodContributionHint: "Dette er en kurvfest: alle tar med litt mat til et felles bord.",
+      otherAttendees: "Andre deltakere",
+      otherAttendeeNames: "Navn på de andre deltakerne *",
+      otherAttendeeNamesHint: "Du er deltaker 1. Skriv navnet på hver av de andre du melder på.",
+      attendeeNumber: "Deltaker {n}",
+      attendeeNamePlaceholder: "Fullt navn",
       selectDate: "Velg dato",
       clearDeadline: "Fjern frist",
       sendNewsletterReminder: "Send påminnelse på nyhetsbrev",
@@ -1532,6 +1543,7 @@ export const translations: Record<Language, Translations> = {
           SIGNUP_CLOSED: "Påmelding er ikke tilgjengelig for dette arrangementet.",
           DEADLINE_PASSED: "Påmeldingsfristen har gått ut.",
           CHILD_NAMES_REQUIRED: "Oppgi fornavn på hvert barn som skal fotograferes.",
+          ATTENDEE_NAMES_REQUIRED: "Oppgi navnet på hver av de andre deltakerne.",
           PHOTO_SLOTS_FULL: "Det er ikke nok ledige fototider igjen for denne påmeldingen.",
           PHOTO_SLOT_TAKEN: "Fototiden ble nettopp tatt. Prøv på nytt.",
           FOOD_CONTRIBUTION_REQUIRED: "Skriv hva du tar med av mat.",
@@ -2304,6 +2316,11 @@ export const translations: Record<Language, Translations> = {
       foodContributionLabel: "What food will you bring? *",
       foodContributionPlaceholder: "E.g. pasta salad, a cake or a fruit platter",
       foodContributionHint: "This is a potluck: everyone brings some food to share.",
+      otherAttendees: "Other attendees",
+      otherAttendeeNames: "Names of the other attendees *",
+      otherAttendeeNamesHint: "You are attendee 1. Enter the name of each other person you are signing up.",
+      attendeeNumber: "Attendee {n}",
+      attendeeNamePlaceholder: "Full name",
       selectDate: "Select date",
       clearDeadline: "Clear deadline",
       sendNewsletterReminder: "Send newsletter reminder",
@@ -2565,6 +2582,7 @@ export const translations: Record<Language, Translations> = {
           SIGNUP_CLOSED: "Registration is not available for this event.",
           DEADLINE_PASSED: "The registration deadline has passed.",
           CHILD_NAMES_REQUIRED: "Please give the first name of each child to be photographed.",
+          ATTENDEE_NAMES_REQUIRED: "Please give the name of each of the other attendees.",
           PHOTO_SLOTS_FULL: "There are not enough photo slots left for this registration.",
           PHOTO_SLOT_TAKEN: "The photo slot was just taken. Please try again.",
           FOOD_CONTRIBUTION_REQUIRED: "Please say what food you will bring.",

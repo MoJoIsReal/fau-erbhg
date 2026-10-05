@@ -56,7 +56,8 @@ export function isPhotoSlotConflict(error) {
     && error?.constraint === 'photo_event_slots_event_slot_unique_idx';
 }
 
-// Children names arrive as a JSON-stringified array from the client. Never trust
+// Children names (or, outside a photo day, the names of the other attendees)
+// arrive as a JSON-stringified array from the client. Never trust
 // it: parse, enforce it's an array of strings, sanitize each name, and cap both
 // the per-name length and the count so a crafted request can't store malformed
 // JSON or bloat the table.
@@ -367,17 +368,29 @@ export default withApiHandler(async function handler(req, res) {
 
     const requestedAttendees = sanitizedAttendeeCount;
 
-    const sanitizedChildrenNames = sanitizeChildrenNames(childrenNames, requestedAttendees);
+    // A photo booking names every child; any other signup names everyone it
+    // brings besides the registrant, who is already `name`. Both lists live in
+    // children_names, so the cancellation archive keeps them too.
+    const isPhotoEvent = event.type === 'foto';
+    const namesExpected = isPhotoEvent ? requestedAttendees : requestedAttendees - 1;
+    const sanitizedChildrenNames = namesExpected > 0
+      ? sanitizeChildrenNames(childrenNames, namesExpected)
+      : null;
+    const namesGiven = sanitizedChildrenNames ? JSON.parse(sanitizedChildrenNames).length : 0;
 
     // A photo booking is one slot per named child. Without a name for each,
     // the registration used to be stored without any slot, so a photo
     // registration must name every child it books for — which the form
     // already requires.
-    if (event.type === 'foto'
-        && (!sanitizedChildrenNames || JSON.parse(sanitizedChildrenNames).length !== requestedAttendees)) {
+    if (isPhotoEvent && namesGiven !== requestedAttendees) {
       return refuseSignup(res, 400, 'CHILD_NAMES_REQUIRED', sanitizedLanguage === 'no'
         ? 'Oppgi fornavn på hvert barn som skal fotograferes'
         : 'Please give the first name of each child to be photographed');
+    }
+    if (!isPhotoEvent && namesGiven !== namesExpected) {
+      return refuseSignup(res, 400, 'ATTENDEE_NAMES_REQUIRED', sanitizedLanguage === 'no'
+        ? 'Oppgi navnet på hver av de andre deltakerne'
+        : 'Please give the name of each of the other attendees');
     }
 
     // A potluck asks everyone what food they bring; any other event stores

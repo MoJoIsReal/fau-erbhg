@@ -50,13 +50,28 @@ for (const type of ['other', 'foto']) {
 test('a potluck export lists what each signup brings, and other events do not', async () => {
   const header = (rows) => rows.find((row) => row[0] === 'Navn');
   const potluck = await download('foreldrefest', ['Kari'], {
-    event: { potluck: true }, registration: { foodContribution: 'Pastasalat' },
+    event: { potluck: true }, registration: { foodContribution: 'Pastasalat', childrenNames: null },
   });
   const potluckRows = (await readXlsxFile(Buffer.from(await potluck.blob.arrayBuffer())))[0].data;
   assert.deepEqual(header(potluckRows), ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Tar med', 'Kommentarer']);
   assert.deepEqual(potluckRows[potluckRows.indexOf(header(potluckRows)) + 1].slice(4), ['Pastasalat', 'Kari']);
 
-  const plain = await download('foreldrefest', ['Kari'], { event: { potluck: false } });
+  const plain = await download('foreldrefest', ['Kari'], { event: { potluck: false }, registration: { childrenNames: null } });
   const plainRows = (await readXlsxFile(Buffer.from(await plain.blob.arrayBuffer())))[0].data;
   assert.deepEqual(header(plainRows), ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']);
+});
+
+test('a signup for several people lists the others by name, and the column is left out when nobody did', async () => {
+  const header = (rows) => rows.find((row) => row[0] === 'Navn');
+  const several = await download('foreldrefest', ['Kari'], {
+    event: { potluck: true },
+    registration: { attendeeCount: 3, childrenNames: JSON.stringify(['Ola Nordmann', 'Per']), foodContribution: 'Kake' },
+  });
+  const rows = (await readXlsxFile(Buffer.from(await several.blob.arrayBuffer())))[0].data;
+  assert.deepEqual(header(rows), ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Andre deltakere', 'Tar med', 'Kommentarer']);
+  assert.deepEqual(rows[rows.indexOf(header(rows)) + 1].slice(3), ['3', 'Ola Nordmann, Per', 'Kake', 'Kari']);
+
+  const alone = await download('dugnad', ['Kari'], { registration: { childrenNames: null } });
+  const aloneRows = (await readXlsxFile(Buffer.from(await alone.blob.arrayBuffer())))[0].data;
+  assert.deepEqual(header(aloneRows), ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']);
 });

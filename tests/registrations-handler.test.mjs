@@ -59,7 +59,8 @@ test('attendee count is capped server-side and must be a whole number', async (t
   }
   for (const [attendeeCount, stored] of [[undefined, 1], [10, 10], ['4', 4]]) {
     const sql = signupDatabase();
-    const res = await call(t, handler, signup({ attendeeCount }));
+    const others = Array.from({ length: stored - 1 }, (_, i) => `Gjest ${i + 2}`);
+    const res = await call(t, handler, signup({ attendeeCount, childrenNames: JSON.stringify(others) }));
     assert.equal(res.statusCode, 201, String(attendeeCount));
     assert.ok(signupStatement(sql).values.includes(stored), `${attendeeCount} stored as ${stored}`);
   }
@@ -77,6 +78,27 @@ test('a photo booking names every child it books a slot for', async (t) => {
   const res = await call(t, handler, signup({ attendeeCount: 2, childrenNames: JSON.stringify(['Ola', 'Kari']) }));
   assert.equal(res.statusCode, 201);
   assert.ok(signupStatement(sql).values.includes(JSON.stringify(['09:00', '09:05'])));
+});
+
+test('a signup for several people names everyone besides the registrant', async (t) => {
+  for (const childrenNames of [undefined, '', 'not json', JSON.stringify(['Ola']), JSON.stringify(['Ola', ' ']), JSON.stringify(['', 'Ola', 'Per'])]) {
+    const sql = signupDatabase();
+    const res = await call(t, handler, signup({ attendeeCount: 3, childrenNames }));
+    assert.equal(res.statusCode, 400, String(childrenNames));
+    assert.equal(res.body.code, 'ATTENDEE_NAMES_REQUIRED');
+    assert.equal(signupStatement(sql), undefined, `${childrenNames} reached the database`);
+  }
+
+  let sql = signupDatabase();
+  let res = await call(t, handler, signup({ attendeeCount: 3, childrenNames: JSON.stringify([' Ola <b>', 'Per', 'Extra']) }));
+  assert.equal(res.statusCode, 201);
+  assert.ok(signupStatement(sql).values.includes(JSON.stringify(['Ola b', 'Per'])), 'stored sanitized, one name per other attendee');
+
+  // Signing up alone names nobody else, whatever the request carried.
+  sql = signupDatabase();
+  res = await call(t, handler, signup({ attendeeCount: 1, childrenNames: JSON.stringify(['Ola']) }));
+  assert.equal(res.statusCode, 201);
+  assert.equal(signupStatement(sql).values.includes(JSON.stringify(['Ola'])), false);
 });
 
 test('a potluck signup must say what food it brings; any other signup stores none', async (t) => {
@@ -191,6 +213,7 @@ test('every refusal names its reason with a code the signup form translates', as
     ['SIGNUP_CLOSED', { event: eventRow({ no_signup: true }) }, {}],
     ['DEADLINE_PASSED', { event: eventRow({ registration_deadline: '2000-01-01T00:00:00.000Z' }) }, {}],
     ['CHILD_NAMES_REQUIRED', { event: eventRow({ type: 'foto' }) }, {}],
+    ['ATTENDEE_NAMES_REQUIRED', {}, { attendeeCount: 2 }],
     ['FOOD_CONTRIBUTION_REQUIRED', { event: eventRow({ type: 'foreldrefest', potluck: true }) }, { foodContribution: '  ' }],
     ['EVENT_FULL', { state: refused({ capacityAvailable: false }) }, {}],
     ['ALREADY_REGISTERED', { state: refused({}) }, {}],
