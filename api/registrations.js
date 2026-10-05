@@ -177,6 +177,25 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: 'Valid event ID required' });
     }
 
+    // ?food=1: what everyone has said they bring to a potluck, so the next
+    // person signing up can bring something else. Only the dish, never who
+    // brings it, and the same answer for every caller: the council's own view
+    // with names is the registrations list below. An event that is not a
+    // potluck has nothing to list.
+    if (req.query.food === '1') {
+      const rows = await sql`
+        SELECT r.food_contribution as "foodContribution"
+        FROM event_registrations r
+        JOIN events e ON e.id = r.event_id
+        WHERE r.event_id = ${eventIdNum}
+          AND e.potluck = true
+          AND r.food_contribution IS NOT NULL
+          AND r.food_contribution <> ''
+        ORDER BY r.registered_at ASC, r.id ASC
+      `;
+      return res.status(200).json({ foodContributions: rows.map((row) => row.foodContribution) });
+    }
+
     // Council members (with a valid session, no pending password change) get
     // full registration details. Everyone else — anonymous visitors, or an
     // authenticated non-council user like staff — gets the same public

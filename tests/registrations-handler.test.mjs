@@ -242,3 +242,22 @@ test('the codes the API refuses a signup with are exactly the ones the form tran
   const used = new Set([...source.matchAll(/refuseSignup\(res, \d{3}, '([A-Z_]+)'/g)].map((match) => match[1]));
   assert.deepEqual([...used].sort(), [...SIGNUP_ERROR_CODES].sort());
 });
+
+test('a potluck lists what everyone brings, never who brings it, to anyone who asks', async (t) => {
+  for (const as of [null, 'member']) {
+    const sql = useDatabase(scriptedSql({
+      respond: (statement) => (statement.includes('food_contribution')
+        ? [{ foodContribution: 'Pastasalat' }, { foodContribution: 'Kake' }]
+        : []),
+    }));
+    const res = await call(t, handler, { query: { eventId: '7', food: '1' }, as });
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body, { foodContributions: ['Pastasalat', 'Kake'] }, `the same for ${as ?? 'anonymous'}`);
+    const lookup = sql.calls.find(({ statement }) => statement.includes('food_contribution'));
+    assert.match(lookup.statement, /^SELECT r\.food_contribution as "foodContribution" FROM event_registrations r JOIN events e/);
+    assert.match(lookup.statement, /AND e\.potluck = true/, 'only an event that asked for food');
+    assert.doesNotMatch(lookup.statement, /\b(name|email|phone|comments|children_names)\b/);
+    assert.deepEqual(lookup.values, [7]);
+  }
+});

@@ -33,6 +33,14 @@ handles cancellation; `contact?action=newsletter-…` handles subscriptions.
 `secure-settings?resource=…` multiplexes content, contact messages and settings.
 Authorization remains enforced by the handler.
 
+What a visitor may read about a signup is deliberately narrow:
+`registrations?eventId=…` answers anyone outside the council with the attendee
+count only, and `registrations?eventId=…&food=1` lists the dishes promised for
+a potluck (`events.potluck`), so the next person can bring something else —
+the dish text alone, never who brings it. The signup form says that the food
+answer is shown to others. Names, contact details and comments stay
+council-only.
+
 Admins manage users, settings, board information and subscribers. Members also
 manage events, registrations, documents, blog posts, calendar and contact
 messages. Staff may edit yearly-calendar entries only. JWTs use an HttpOnly
