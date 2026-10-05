@@ -138,7 +138,9 @@ export default function CalendarEntryDetail({
         {signup?.mode === "internal" && <Fact label={t.calendar.detailSignup}>{t.events.internalEvent}</Fact>}
       </dl>
 
-      {signup?.mode === "registration" && signup.maxAttendees !== null && (
+      {/* Without a cap there is nothing to fill, so no "/ max" and no seat
+          meter, but how many are coming still tells a parent something. */}
+      {signup?.mode === "registration" && (
         <div className={`rounded-card p-4 ${style.tint}`}>
           <div className="flex items-baseline justify-between gap-3">
             <span className="text-micro font-semibold uppercase tracking-[0.14em] text-subtle">
@@ -150,15 +152,19 @@ export default function CalendarEntryDetail({
             <span className="text-h2 font-bold tabular-nums tracking-tight text-ink">
               {signup.currentAttendees}
             </span>
-            <span className="text-small tabular-nums text-subtle">/ {signup.maxAttendees}</span>
+            {signup.maxAttendees !== null && (
+              <span className="text-small tabular-nums text-subtle">/ {signup.maxAttendees}</span>
+            )}
           </p>
-          <div className="mt-3">
-            <CalendarSeatMeter
-              taken={signup.currentAttendees}
-              total={signup.maxAttendees}
-              fill={style.dot}
-            />
-          </div>
+          {signup.maxAttendees !== null && (
+            <div className="mt-3">
+              <CalendarSeatMeter
+                taken={signup.currentAttendees}
+                total={signup.maxAttendees}
+                fill={style.dot}
+              />
+            </div>
+          )}
         </div>
       )}
 
