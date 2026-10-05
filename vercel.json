@@ -23,6 +23,22 @@
       "destination": "/api/events?format=ics"
     },
     {
+      "source": "/kalender",
+      "has": [
+        {
+          "type": "query",
+          "key": "vis",
+          "value": "(?<vis>(?:event|entry)-[1-9][0-9]{0,8})"
+        },
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": ".*(facebookexternalhit|Facebot|Twitterbot|Slackbot|WhatsApp|TelegramBot|Discordbot|LinkedInBot|SkypeUriPreview|Viber|Snapchat|Mastodon|Iframely|Embedly|redditbot|Pinterest).*"
+        }
+      ],
+      "destination": "/api/events?format=preview&vis=:vis"
+    },
+    {
       "source": "/del",
       "destination": "/del.html"
     },

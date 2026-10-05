@@ -11,6 +11,12 @@ import {
 import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
+import {
+  LINK_PREVIEW_CACHE_CONTROL,
+  parseSharedEntryId,
+  previewFor,
+  renderLinkPreview,
+} from './_shared/link-preview.js';
 
 // All event endpoints return rows with the same camelCase shape so the
 // client (and any cache merge) sees one schema. `mapEvent` is the single
@@ -50,7 +56,8 @@ function mapEvent(row) {
 
 // Dated yearly-calendar entries ride along in the subscribable feed, so a
 // parent who subscribes gets planning days and holidays too — the same two
-// sources the /kalender page shows in its two tabs.
+// sources the /kalender page shows in its two tabs. A shared link to one entry
+// reads it the same way, plus the week fields a week-long entry is placed by.
 function mapFeedEntry(row) {
   return {
     id: row.id,
@@ -58,6 +65,10 @@ function mapFeedEntry(row) {
     description: row.description,
     entryType: row.entry_type,
     category: row.category ?? null,
+    year: row.year,
+    month: row.month,
+    weekNumber: row.week_number,
+    weekNumberEnd: row.week_number_end,
     date: row.date,
     startTime: row.start_time,
     endTime: row.end_time,
@@ -136,6 +147,35 @@ async function respondWithCalendarFeed(req, res, sql) {
   res.setHeader('Content-Disposition', 'inline; filename="fau-erdal-barnehage.ics"');
   res.setHeader('Cache-Control', CALENDAR_FEED_CACHE_CONTROL);
   return res.status(200).send(feed);
+}
+
+// A chat app's preview of a shared /kalender?vis=<id> link. vercel.json
+// rewrites only preview crawlers here; see api/_shared/link-preview.js. The
+// lookups apply the same visibility as the public list and the yearly calendar,
+// so a preview never shows more than opening the link would.
+async function respondWithLinkPreview(req, res, sql) {
+  const shared = parseSharedEntryId(req.query.vis);
+  let row = null;
+  if (shared?.source === 'event') {
+    const rows = await sql`
+      SELECT * FROM events
+      WHERE id = ${shared.id} AND status IN ('active', 'cancelled')
+    `;
+    row = rows[0] ? mapEvent(rows[0]) : null;
+  } else if (shared?.source === 'yearly') {
+    const rows = await sql`
+      SELECT id, title, description, entry_type, category, year, month,
+             week_number, week_number_end, date, start_time, end_time
+      FROM yearly_calendar_entries
+      WHERE id = ${shared.id}
+    `;
+    row = rows[0] ? mapFeedEntry(rows[0]) : null;
+  }
+
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', LINK_PREVIEW_CACHE_CONTROL);
+  res.setHeader('X-Robots-Tag', 'noindex');
+  return res.status(200).send(renderLinkPreview(previewFor(shared, row), publicBaseUrl()));
 }
 
 // events.time is `text NOT NULL` with no format constraint, and the only check
@@ -259,6 +299,9 @@ export default withApiHandler(async function handler(req, res) {
     // Public iCalendar feed for calendar apps that subscribe to the URL.
     if (req.query.format === 'ics') {
       return await respondWithCalendarFeed(req, res, sql);
+    }
+    if (req.query.format === 'preview') {
+      return await respondWithLinkPreview(req, res, sql);
     }
 
     const events = await sql`
