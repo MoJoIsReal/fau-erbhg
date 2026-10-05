@@ -76,17 +76,17 @@
     "@tailwindcss/typography": "0.5.20",
     "@tailwindcss/vite": "4.3.3",
     "@types/jsonwebtoken": "^9.0.10",
-    "@types/node": "26.6.2",
+    "@types/node": "26.6.4",
     "@types/nodemailer": "^8.0.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
-    "@types/sanitize-html": "^2.16.1",
+    "@types/sanitize-html": "^2.16.2",
     "@vitejs/plugin-react": "6.1.1",
     "drizzle-kit": "^0.31.11",
     "postcss": "^8.5.28",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
-    "vite": "8.3.1"
+    "vite": "8.3.2"
   },
   "overrides": {
     "esbuild": "0.25.12",
