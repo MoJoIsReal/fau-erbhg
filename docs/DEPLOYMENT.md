@@ -195,6 +195,10 @@ on the release/PR. Remove completed items from this list.
   against the real bucket and the iPhone checklist in
   [mediedeling.md](./mediedeling.md) §4.4 (large video upload and playback in
   iOS Safari, resume after a playback URL expires).
+- [ ] Potluck signups: apply `0020_event_food_contribution.sql` **before**
+  deploying (event saves write `events.potluck`), then create a Foreldrefest
+  with "Kurvfest" ticked on a preview, sign up, and check the food answer in the
+  registration list and the Excel export.
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.

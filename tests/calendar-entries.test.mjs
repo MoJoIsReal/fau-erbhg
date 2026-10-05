@@ -86,6 +86,7 @@ test('every event type maps to a known kind, unknown types included', () => {
   assert.equal(calendarKindForEventType('meeting'), 'mote');
   assert.equal(calendarKindForEventType('dugnad'), 'dugnad');
   assert.equal(calendarKindForEventType('foto'), 'foto');
+  assert.equal(calendarKindForEventType('foreldrefest'), 'arrangement');
   assert.equal(calendarKindForEventType('internal'), 'internt');
   assert.equal(calendarKindForEventType('event'), 'arrangement');
   assert.equal(calendarKindForEventType('annet'), 'arrangement');

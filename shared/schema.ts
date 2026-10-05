@@ -26,7 +26,7 @@ export const events = pgTable("events", {
   maxAttendees: integer("max_attendees"),
   currentAttendees: integer("current_attendees").default(0),
   registrationDeadline: text("registration_deadline"), // ISO datetime; signup closes after this point
-  type: text("type").notNull(), // "meeting", "event", "dugnad", etc.
+  type: text("type").notNull(), // "meeting", "event", "dugnad", "foreldrefest", etc.
   status: text("status").default("active").notNull(), // "active", "cancelled"
   vigiloSignup: boolean("vigilo_signup").default(false), // true if signup is through Vigilo platform
   noSignup: boolean("no_signup").default(false), // true if event has no signup/registration
@@ -35,6 +35,9 @@ export const events = pgTable("events", {
   // broadcast went out so it is never sent twice.
   notifyNewsletter: boolean("notify_newsletter").default(false),
   newsletterSentAt: text("newsletter_sent_at"),
+  // Potluck ("kurvfest"): everyone who signs up says what food they bring.
+  // Chosen per event, since the same kind of event is not always a potluck.
+  potluck: boolean("potluck").notNull().default(false),
 });
 
 export const eventRegistrations = pgTable("event_registrations", {
@@ -48,6 +51,7 @@ export const eventRegistrations = pgTable("event_registrations", {
   language: text("language").default("no"),
   childrenNames: text("children_names"), // JSON array of child names for "foto" events
   photoSlots: text("photo_slots"), // JSON array of assigned "HH:MM" slots for "foto" events
+  foodContribution: text("food_contribution"), // What the attendee brings, when the event is a potluck
   reminderSentAt: text("reminder_sent_at"),
   reminderClaimedAt: timestamp("reminder_claimed_at", { withTimezone: true }),
   reminderAttempts: integer("reminder_attempts").notNull().default(0),

@@ -1,5 +1,5 @@
 import type { Event, EventRegistration } from '@shared/schema';
-import { formatDate } from './i18n';
+import { formatDate, translations } from './i18n';
 import { resolvePhotoSlotsForRegistration } from '@shared/photo-slots';
 
 export async function exportAttendeesToExcel(event: Event, registrations: EventRegistration[], language: 'no' | 'en') {
@@ -65,10 +65,12 @@ export async function exportAttendeesToExcel(event: Event, registrations: EventR
        registrations.length.toString()],
     ];
   } else {
-    // Standard event export
+    // Standard event export. A potluck adds what each signup brings.
+    const asksFood = event.potluck === true;
     const headers = language === 'no'
       ? ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']
       : ['Name', 'Email', 'Phone', 'Attendee Count', 'Comments'];
+    if (asksFood) headers.splice(4, 0, translations[language].events.foodContribution);
 
     sheetRows = [
       [language === 'no' ? 'Arrangement:' : 'Event:', event.title],
@@ -83,6 +85,7 @@ export async function exportAttendeesToExcel(event: Event, registrations: EventR
         reg.email,
         reg.phone || '',
         reg.attendeeCount?.toString() || '1',
+        ...(asksFood ? [reg.foodContribution || ''] : []),
         reg.comments || ''
       ]),
       [''],

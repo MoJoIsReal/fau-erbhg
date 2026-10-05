@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Users, Mail, Phone, MessageSquare, Calendar, Camera, Clock, Download, Trash2, UserX } from "lucide-react";
+import { Users, Mail, Phone, MessageSquare, Calendar, Camera, Clock, Download, Trash2, UserX, Utensils } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { formatDate } from "@/lib/i18n";
 import { exportAttendeesToExcel } from "@/lib/excel-export";
@@ -333,17 +333,28 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                       )}
                     </div>
 
-                    {registration.comments && (
+                    {(registration.foodContribution || registration.comments) && (
                       <div className="space-y-2">
-                        <div className="flex items-start space-x-2 text-sm">
-                          <MessageSquare className="h-4 w-4 text-subtle mt-0.5" />
-                          <div>
-                            <p className="text-subtle text-xs mb-1">
-                              {t.events.comment}
-                            </p>
-                            <p className="text-ink">{registration.comments}</p>
+                        {registration.foodContribution && (
+                          <div className="flex items-start space-x-2 text-sm">
+                            <Utensils className="h-4 w-4 text-subtle mt-0.5" aria-hidden="true" />
+                            <div>
+                              <p className="text-subtle text-xs mb-1">{t.events.foodContribution}</p>
+                              <p className="text-ink break-words">{registration.foodContribution}</p>
+                            </div>
                           </div>
-                        </div>
+                        )}
+                        {registration.comments && (
+                          <div className="flex items-start space-x-2 text-sm">
+                            <MessageSquare className="h-4 w-4 text-subtle mt-0.5" />
+                            <div>
+                              <p className="text-subtle text-xs mb-1">
+                                {t.events.comment}
+                              </p>
+                              <p className="text-ink">{registration.comments}</p>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

@@ -102,6 +102,27 @@ test('a new event is stored sanitized, with strict flags and a normalized deadli
   assert.deepEqual([vigilo, noSignup, notify], [false, false, false], 'only a real true opts in to the newsletter');
 });
 
+test('only an event with signup on this site can be a potluck', async (t) => {
+  for (const [change, expected] of [
+    [{}, false],
+    [{ type: 'foreldrefest', potluck: 'true' }, false],
+    [{ type: 'foreldrefest', potluck: true }, true],
+    [{ type: 'foreldrefest', potluck: true, noSignup: true }, false],
+    [{ type: 'foreldrefest', potluck: true, vigiloSignup: true }, false],
+  ]) {
+    const sql = useDatabase(scriptedSql({ respond: () => [row({ potluck: expected })] }));
+    const res = await call(t, handler, write('POST', { ...VALID, ...change }));
+    assert.equal(res.statusCode, 201, JSON.stringify(change));
+    assert.equal(fields(sql.writes()[0]).potluck, expected, JSON.stringify(change));
+    assert.equal(res.body.potluck, expected);
+  }
+
+  const sql = useDatabase(scriptedSql({ respond: () => [row({ potluck: true })] }));
+  const res = await call(t, handler, write('PUT', { ...VALID, type: 'foreldrefest', potluck: true }, { id: '7' }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(fields(sql.writes()[0]).potluck, true, 'an update writes the flag too');
+});
+
 test('an empty capacity still means no limit; boundary values and a leap day are kept', async (t) => {
   for (const [change, expected] of [
     [{}, { max_attendees: null }],

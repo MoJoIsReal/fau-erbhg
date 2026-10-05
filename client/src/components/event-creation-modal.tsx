@@ -47,10 +47,11 @@ const createFormSchema = (maxAttendeesRange: string) => insertEventSchema.extend
   ),
   vigiloSignup: z.boolean().default(false),
   noSignup: z.boolean().default(false),
-  notifyNewsletter: z.boolean().default(false)
+  notifyNewsletter: z.boolean().default(false),
+  potluck: z.boolean().default(false)
 });
 
-// The three `.default(false)` fields above make zod 4 distinguish the two
+// The four `.default(false)` fields above make zod 4 distinguish the two
 // sides of the schema: on the way in those booleans are optional, on the way
 // out they are always present. FormInput is what the fields bind to and what
 // defaultValues must satisfy; FormData is what the resolver hands to onSubmit.
@@ -214,7 +215,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       customLocation: event.customLocation || "",
       vigiloSignup: event.vigiloSignup || false,
       noSignup: event.noSignup || false,
-      notifyNewsletter: event.notifyNewsletter || false
+      notifyNewsletter: event.notifyNewsletter || false,
+      potluck: event.potluck || false
     } : {
       title: "",
       description: "",
@@ -227,7 +229,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       customLocation: "",
       vigiloSignup: false,
       noSignup: false,
-      notifyNewsletter: false
+      notifyNewsletter: false,
+      potluck: false
     }
   });
 
@@ -245,7 +248,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         customLocation: event.customLocation || "",
         vigiloSignup: event.vigiloSignup || false,
         noSignup: event.noSignup || false,
-        notifyNewsletter: event.notifyNewsletter || false
+        notifyNewsletter: event.notifyNewsletter || false,
+        potluck: event.potluck || false
       });
     } else {
       form.reset({
@@ -260,7 +264,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         customLocation: "",
         vigiloSignup: false,
         noSignup: false,
-        notifyNewsletter: false
+        notifyNewsletter: false,
+        potluck: false
       });
     }
   }, [event, form, isOpen]);
@@ -270,6 +275,11 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
   const vigiloSignup = useWatch({ control: form.control, name: "vigiloSignup" });
   const registrationMode = selectedType === "internal" ? "none" : vigiloSignup ? "vigilo" : noSignup ? "none" : "website";
   const displayKind = calendarDisplayKind(calendarKindForEventType(selectedType));
+  // Types the category select offers by name rather than through the calendar
+  // category they display as.
+  const namedType = selectedType === "foto" || selectedType === "foreldrefest" ? selectedType : null;
+  // A photo signup has its own fields; any other signup here may be a potluck.
+  const canAskFood = registrationMode === "website" && selectedType !== "foto";
 
   const selectedLocation = useWatch({
     control: form.control,
@@ -284,6 +294,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         maxAttendees: registrationMode === "website" ? data.maxAttendees : null,
         noSignup: registrationMode === "none",
         vigiloSignup: registrationMode === "vigilo",
+        potluck: canAskFood && data.potluck,
         customLocation: data.location === "Annet" ? data.customLocation : null
       };
 
@@ -368,8 +379,8 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 <FormField control={form.control} name="type" render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t.entryEditor.category}</FormLabel>
-                    <Select value={selectedType === "foto" ? "foto" : displayKind} onValueChange={(kind) => {
-                      field.onChange(({ bhgdag: "activity", arrangement: "event", family: "family", info: "info", internt: "internal", foto: "foto" })[kind]);
+                    <Select value={namedType ?? displayKind} onValueChange={(kind) => {
+                      field.onChange(({ bhgdag: "activity", arrangement: "event", family: "family", info: "info", internt: "internal", foto: "foto", foreldrefest: "foreldrefest" })[kind]);
                       if (kind === "foto") {
                         form.setValue("noSignup", false, { shouldDirty: true });
                         form.setValue("vigiloSignup", false, { shouldDirty: true });
@@ -379,6 +390,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                       <SelectContent>
                         {CALENDAR_DISPLAY_KINDS.map((kind) => <SelectItem key={kind} value={kind}>{t.entryEditor.categories[kind]}</SelectItem>)}
                         <SelectItem value="foto">{t.modals.eventCreation.types.foto}</SelectItem>
+                        <SelectItem value="foreldrefest">{t.modals.eventCreation.types.foreldrefest}</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -539,6 +551,24 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
 
 
                 </div>}
+                {canAskFood && <FormField
+                  control={form.control}
+                  name="potluck"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2 pb-2">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>{t.entryEditor.potluck}</FormLabel>
+                        <p className="text-small text-muted-foreground">{t.entryEditor.potluckHint}</p>
+                      </div>
+                    </FormItem>
+                  )}
+                />}
               </>}
             </EditorSection>
             <EditorSection title={t.entryEditor.publishing}>

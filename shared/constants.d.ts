@@ -22,6 +22,7 @@ export const EVENT_TYPES: readonly [
   'family',
   'dugnad',
   'foto',
+  'foreldrefest',
   'internal',
   'info',
   'annet',
@@ -44,6 +45,7 @@ export const SIGNUP_ERROR_CODES: readonly [
   'CHILD_NAMES_REQUIRED',
   'PHOTO_SLOTS_FULL',
   'PHOTO_SLOT_TAKEN',
+  'FOOD_CONTRIBUTION_REQUIRED',
   'EVENT_FULL',
   'ALREADY_REGISTERED',
 ];

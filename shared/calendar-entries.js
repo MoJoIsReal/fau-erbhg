@@ -53,6 +53,8 @@ const EVENT_TYPE_TO_KIND = {
   info: 'info',
   dugnad: 'dugnad',
   foto: 'foto',
+  // A parents' party is an FAU arrangement; it has no category of its own.
+  foreldrefest: 'arrangement',
   internal: 'internt',
   event: 'arrangement',
   annet: 'arrangement',
