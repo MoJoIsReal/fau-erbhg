@@ -1,5 +1,12 @@
 import { CalendarCategory } from "@/components/site/calendar-category";
-import { calendarDisplayKind, calendarDisplayKindForEntry, calendarKindForEventType } from "@shared/calendar-entries";
+import {
+  calendarDisplayKind,
+  calendarDisplayKindForEntry,
+  calendarEntryPath,
+  calendarKindForEventType,
+  eventEntryId,
+  yearlyEntryId,
+} from "@shared/calendar-entries";
 import { useQuery } from "@tanstack/react-query";
 import { QueryNotice } from "@/components/site/query-notice";
 import { Link } from "wouter";
@@ -8,7 +15,6 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { FAU_EMAIL } from "@shared/constants";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
-import { calendarEntryPath } from "@/lib/calendar-share";
 import { useUpcomingItems, type UpcomingItem } from "@/hooks/useUpcomingItems";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { Button } from "@/components/ui/button";
@@ -243,7 +249,7 @@ export default function Home() {
                     <Button asChild variant="outline" size="sm">
                       <Link
                         href={calendarEntryPath(
-                          next.kind === "event" ? `event-${next.event.id}` : `entry-${next.entry.id}`,
+                          next.kind === "event" ? eventEntryId(next.event.id) : yearlyEntryId(next.entry.id),
                         )}
                       >
                         {t.home.moreInfo}

@@ -9,6 +9,7 @@ import {
   calendarKindSource,
   calendarDisplayKind,
   calendarDisplayKindForEntry,
+  calendarEntryPath,
   calendarWeekKey,
   compareSpanningEntries,
   describeEventSignup,
@@ -279,6 +280,7 @@ test('entry ids stay stable, because shared calendar links carry them', () => {
   assert.equal(normalizeEvent(event({ id: 12 })).id, 'event-12');
   assert.equal(normalizeYearlyEntry(entry({ id: 5 })).id, 'entry-5');
   assert.equal(normalizeYearlyEntry(entry({ id: 6, date: '2026-10-02', weekNumber: null })).id, 'entry-6');
+  assert.equal(calendarEntryPath('event-12'), '/kalender?vis=event-12');
 });
 
 test('a bad end week falls back to a single week rather than an inverted span', () => {

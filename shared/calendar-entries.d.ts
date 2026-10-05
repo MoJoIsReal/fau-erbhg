@@ -77,6 +77,12 @@ export function calendarWeekKey(weekYear: number, weekNumber: number): number;
 
 export function describeEventSignup(event: Event, now?: Date): CalendarSignupState;
 
+export const SHARED_ENTRY_PARAM: 'vis';
+export function eventEntryId(id: number): string;
+export function yearlyEntryId(id: number): string;
+/** Site-relative path that opens one calendar entry's detail panel. */
+export function calendarEntryPath(entryId: string): string;
+
 export function normalizeEvent(event: Event, now?: Date): CalendarEntry | null;
 export function normalizeYearlyEntry(entry: YearlyCalendarEntry): CalendarEntry | null;
 

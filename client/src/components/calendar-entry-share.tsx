@@ -13,8 +13,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
-import { calendarEntryPath } from "@/lib/calendar-share";
 import type { CalendarEntry } from "@shared/calendar-entries";
+import { calendarEntryPath } from "@shared/calendar-entries";
 
 const CalendarEntryQr = lazy(() => import("@/components/calendar-entry-qr"));
 

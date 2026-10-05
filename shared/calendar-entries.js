@@ -194,6 +194,26 @@ function baseEntry(fields) {
   };
 }
 
+// The merged entry ids double as public links: /kalender?vis=<id> opens that
+// entry's detail panel, and those links are printed as QR codes, pasted into
+// group chats and written into every subscriber's calendar by the feed. Their
+// shape is pinned in tests/calendar-entries.test.mjs — change it and every
+// link already handed out stops working.
+export const SHARED_ENTRY_PARAM = 'vis';
+
+export function eventEntryId(id) {
+  return `event-${id}`;
+}
+
+export function yearlyEntryId(id) {
+  return `entry-${id}`;
+}
+
+/** Site-relative path that opens one calendar entry's detail panel. */
+export function calendarEntryPath(entryId) {
+  return `/kalender?${SHARED_ENTRY_PARAM}=${encodeURIComponent(entryId)}`;
+}
+
 export function normalizeEvent(event, now = new Date()) {
   const date = parseCalendarDate(event?.date);
   if (!date) return null;
@@ -201,7 +221,7 @@ export function normalizeEvent(event, now = new Date()) {
   const weekYear = isoWeekYear(date);
 
   return baseEntry({
-    id: `event-${event.id}`,
+    id: eventEntryId(event.id),
     sourceId: event.id,
     source: 'event',
     kind: calendarKindForEventType(event.type),
@@ -233,7 +253,7 @@ export function normalizeYearlyEntry(entry) {
   if (date) {
     const week = isoWeek(date);
     return baseEntry({
-      id: `entry-${entry.id}`,
+      id: yearlyEntryId(entry.id),
       sourceId: entry.id,
       source: 'yearly',
       kind,
@@ -264,7 +284,7 @@ export function normalizeYearlyEntry(entry) {
   const weekEnd = endCandidate !== null && endCandidate > week ? endCandidate : week;
 
   return baseEntry({
-    id: `entry-${entry.id}`,
+    id: yearlyEntryId(entry.id),
     sourceId: entry.id,
     source: 'yearly',
     kind,

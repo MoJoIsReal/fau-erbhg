@@ -5,6 +5,7 @@ import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries"
 import {
   CALENDAR_ENTRY_KINDS,
   CALENDAR_FILTER_KINDS,
+  SHARED_ENTRY_PARAM,
   calendarWeekKey,
   isoWeekYear,
 } from "@shared/calendar-entries";
@@ -13,7 +14,6 @@ import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { useCalendarEntries } from "@/hooks/useCalendarEntries";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
-import { SHARED_ENTRY_PARAM } from "@/lib/calendar-share";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
