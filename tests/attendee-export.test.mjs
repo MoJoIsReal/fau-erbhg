@@ -8,7 +8,7 @@ import { importBundle } from './helpers.mjs';
 // boundary is substituted. Inspect both the XLSX XML and a parsed round trip.
 const { exportAttendeesToExcel } = await importBundle({ entryPoints: ['client/src/lib/excel-export.ts'], platform: 'browser' });
 
-async function download(type, values) {
+async function download(type, values, { event = {}, registration = {} } = {}) {
   let blob, filename;
   const original = { document: globalThis.document, create: URL.createObjectURL, revoke: URL.revokeObjectURL };
   globalThis.document = {
@@ -18,9 +18,9 @@ async function download(type, values) {
   URL.createObjectURL = (value) => { blob = value; return 'blob:test'; };
   URL.revokeObjectURL = () => {};
   try {
-    await exportAttendeesToExcel({ id: 1, type, title: '=1+1', date: '2026-09-24', time: '09:00', location: '@SUM(1)' }, values.map((value, i) => ({
+    await exportAttendeesToExcel({ id: 1, type, title: '=1+1', date: '2026-09-24', time: '09:00', location: '@SUM(1)', ...event }, values.map((value, i) => ({
       id: i + 1, name: value, email: 'fixture@example.test', phone: '+4712345678', attendeeCount: 1,
-      comments: value, childrenNames: JSON.stringify([value]), photoSlots: ['09:00'],
+      comments: value, childrenNames: JSON.stringify([value]), photoSlots: ['09:00'], ...registration,
     })), 'no');
   } finally {
     globalThis.document = original.document; URL.createObjectURL = original.create; URL.revokeObjectURL = original.revoke;
@@ -46,3 +46,17 @@ for (const type of ['other', 'foto']) {
     assert.ok(flattened.includes(String(values.length)));
   });
 }
+
+test('a potluck export lists what each signup brings, and other events do not', async () => {
+  const header = (rows) => rows.find((row) => row[0] === 'Navn');
+  const potluck = await download('foreldrefest', ['Kari'], {
+    event: { potluck: true }, registration: { foodContribution: 'Pastasalat' },
+  });
+  const potluckRows = (await readXlsxFile(Buffer.from(await potluck.blob.arrayBuffer())))[0].data;
+  assert.deepEqual(header(potluckRows), ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Tar med', 'Kommentarer']);
+  assert.deepEqual(potluckRows[potluckRows.indexOf(header(potluckRows)) + 1].slice(4), ['Pastasalat', 'Kari']);
+
+  const plain = await download('foreldrefest', ['Kari'], { event: { potluck: false } });
+  const plainRows = (await readXlsxFile(Buffer.from(await plain.blob.arrayBuffer())))[0].data;
+  assert.deepEqual(header(plainRows), ['Navn', 'E-post', 'Telefon', 'Antall deltakere', 'Kommentarer']);
+});

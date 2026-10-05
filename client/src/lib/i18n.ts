@@ -47,6 +47,8 @@ export interface Translations {
     noSignup: string;
     vigiloSignup: string;
     internalSignup: string;
+    potluck: string;
+    potluckHint: string;
     updated: string;
     update: string;
     saving: string;
@@ -236,6 +238,10 @@ export interface Translations {
     deleteRegistration2: string;
     childrenTimeSlots: string;
     comment: string;
+    foodContribution: string;
+    foodContributionLabel: string;
+    foodContributionPlaceholder: string;
+    foodContributionHint: string;
     selectDate: string;
     clearDeadline: string;
     sendNewsletterReminder: string;
@@ -478,6 +484,7 @@ export interface Translations {
       errorDesc: string;
       types: {
         foto: string;
+        foreldrefest: string;
       };
       locations: {
         digitalt: string;
@@ -1064,6 +1071,8 @@ export const translations: Record<Language, Translations> = {
       noSignup: "Ingen påmelding",
       vigiloSignup: "Påmelding i Vigilo",
       internalSignup: "Interne møter vises offentlig, men har ingen påmelding.",
+      potluck: "Kurvfest – påmeldte skriver hva de tar med av mat",
+      potluckHint: "Påmeldingsskjemaet får et eget, påkrevd felt for mat. Svarene står i påmeldingslisten og i Excel-eksporten.",
       updated: "Arrangement oppdatert",
       update: "Lagre endringer",
       saving: "Lagrer …",
@@ -1258,6 +1267,10 @@ export const translations: Record<Language, Translations> = {
       deleteRegistration2: "Slett påmelding?",
       childrenTimeSlots: "Barn og tidspunkt",
       comment: "Kommentar:",
+      foodContribution: "Tar med",
+      foodContributionLabel: "Hva tar du med av mat? *",
+      foodContributionPlaceholder: "F.eks. pastasalat, kake eller et fruktfat",
+      foodContributionHint: "Dette er en kurvfest: alle tar med litt mat til et felles bord.",
       selectDate: "Velg dato",
       clearDeadline: "Fjern frist",
       sendNewsletterReminder: "Send påminnelse på nyhetsbrev",
@@ -1493,7 +1506,8 @@ export const translations: Record<Language, Translations> = {
         success: "Arrangement opprettet!",
         errorDesc: "Kunne ikke opprette arrangementet. Prøv igjen senere.",
         types: {
-          foto: "Foto"
+          foto: "Foto",
+          foreldrefest: "Foreldrefest"
         },
         locations: {
           digitalt: "Digitalt",
@@ -1520,6 +1534,7 @@ export const translations: Record<Language, Translations> = {
           CHILD_NAMES_REQUIRED: "Oppgi fornavn på hvert barn som skal fotograferes.",
           PHOTO_SLOTS_FULL: "Det er ikke nok ledige fototider igjen for denne påmeldingen.",
           PHOTO_SLOT_TAKEN: "Fototiden ble nettopp tatt. Prøv på nytt.",
+          FOOD_CONTRIBUTION_REQUIRED: "Skriv hva du tar med av mat.",
           EVENT_FULL: "Arrangementet er fullt.",
           ALREADY_REGISTERED: "Denne e-postadressen er allerede registrert for dette arrangementet."
         }
@@ -2089,6 +2104,8 @@ export const translations: Record<Language, Translations> = {
       noSignup: "No registration",
       vigiloSignup: "Registration in Vigilo",
       internalSignup: "Internal meetings are publicly listed, without registration.",
+      potluck: "Potluck – people who sign up say what food they bring",
+      potluckHint: "The signup form gets its own required food field. The answers appear in the registration list and the Excel export.",
       updated: "Event updated",
       update: "Save changes",
       saving: "Saving …",
@@ -2283,6 +2300,10 @@ export const translations: Record<Language, Translations> = {
       deleteRegistration2: "Delete registration?",
       childrenTimeSlots: "Children and time slots",
       comment: "Comment:",
+      foodContribution: "Bringing",
+      foodContributionLabel: "What food will you bring? *",
+      foodContributionPlaceholder: "E.g. pasta salad, a cake or a fruit platter",
+      foodContributionHint: "This is a potluck: everyone brings some food to share.",
       selectDate: "Select date",
       clearDeadline: "Clear deadline",
       sendNewsletterReminder: "Send newsletter reminder",
@@ -2518,7 +2539,8 @@ export const translations: Record<Language, Translations> = {
         success: "Event created!",
         errorDesc: "Could not create the event. Please try again later.",
         types: {
-          foto: "Photo"
+          foto: "Photo",
+          foreldrefest: "Parents' party"
         },
         locations: {
           digitalt: "Digital",
@@ -2545,6 +2567,7 @@ export const translations: Record<Language, Translations> = {
           CHILD_NAMES_REQUIRED: "Please give the first name of each child to be photographed.",
           PHOTO_SLOTS_FULL: "There are not enough photo slots left for this registration.",
           PHOTO_SLOT_TAKEN: "The photo slot was just taken. Please try again.",
+          FOOD_CONTRIBUTION_REQUIRED: "Please say what food you will bring.",
           EVENT_FULL: "This event is full.",
           ALREADY_REGISTERED: "This email address is already registered for this event."
         }

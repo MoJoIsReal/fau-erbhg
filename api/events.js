@@ -44,6 +44,7 @@ function mapEvent(row) {
     noSignup: row.no_signup,
     notifyNewsletter: row.notify_newsletter ?? false,
     newsletterSentAt: row.newsletter_sent_at,
+    potluck: row.potluck ?? false,
   };
 }
 
@@ -198,6 +199,7 @@ function validateEventBody(body = {}) {
     vigiloSignup,
     noSignup,
     notifyNewsletter,
+    potluck,
   } = body;
 
   const values = {
@@ -213,6 +215,8 @@ function validateEventBody(body = {}) {
     vigiloSignup: vigiloSignup || false,
     noSignup: noSignup || false,
     notifyNewsletter: notifyNewsletter === true,
+    // Only a signup on this site can ask what food people bring.
+    potluck: potluck === true && !noSignup && !vigiloSignup,
   };
 
   if (!values.title || !date || !time) {
@@ -283,8 +287,8 @@ export default withApiHandler(async function handler(req, res) {
     if (error) return res.status(400).json(error);
 
     const inserted = await sql`
-      INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup, notify_newsletter)
-      VALUES (${values.title}, ${values.description}, ${values.date}, ${values.time}, ${values.location}, ${values.customLocation}, ${values.maxAttendees}, ${values.registrationDeadline}, ${values.type}, ${values.vigiloSignup}, ${values.noSignup}, ${values.notifyNewsletter})
+      INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup, notify_newsletter, potluck)
+      VALUES (${values.title}, ${values.description}, ${values.date}, ${values.time}, ${values.location}, ${values.customLocation}, ${values.maxAttendees}, ${values.registrationDeadline}, ${values.type}, ${values.vigiloSignup}, ${values.noSignup}, ${values.notifyNewsletter}, ${values.potluck})
       RETURNING *
     `;
 
@@ -312,7 +316,8 @@ export default withApiHandler(async function handler(req, res) {
           type = ${values.type},
           vigilo_signup = ${values.vigiloSignup},
           no_signup = ${values.noSignup},
-          notify_newsletter = ${values.notifyNewsletter}
+          notify_newsletter = ${values.notifyNewsletter},
+          potluck = ${values.potluck}
       WHERE id = ${eventId}
       RETURNING *, (
         SELECT COALESCE(SUM(r.attendee_count), 0)::int

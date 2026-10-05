@@ -24,6 +24,7 @@ contents of each migration file. The current migrations are:
 17. `0017_delivery_failed_status.sql`
 18. `0018_iso_text_timestamps.sql`
 19. `0019_media_shares.sql`
+20. `0020_event_food_contribution.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -147,3 +148,20 @@ SELECT to_regclass('public.media_shares'), to_regclass('public.media_files');
 ```
 
 Both must be non-null.
+
+## Potluck signups (kurvfest)
+
+`0020_event_food_contribution.sql` adds `events.potluck` (the event asks what
+food each signup brings) and `event_registrations.food_contribution` (the
+answer). Both are additive; existing events default to `false`. Apply it
+**before** deploying: the events API writes `potluck` on every save and the
+signup reads it. Verify with:
+
+```sql
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE (table_name = 'events' AND column_name = 'potluck')
+   OR (table_name = 'event_registrations' AND column_name = 'food_contribution');
+```
+
+Both rows must be returned.

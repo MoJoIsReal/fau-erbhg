@@ -25,6 +25,7 @@ import { z } from "zod";
 const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
   attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(MAX_ATTENDEES_PER_REGISTRATION, `Maksimalt ${MAX_ATTENDEES_PER_REGISTRATION} deltakere`),
   childrenNames: z.string().optional().nullable(),
+  foodContribution: z.string().max(200).optional().nullable(),
   // Email validation removed from frontend - handled by backend database blacklist
 });
 
@@ -41,6 +42,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const queryClient = useQueryClient();
   const { language, t } = useLanguage();
   const isFotoEvent = event?.type === "foto";
+  const asksFood = event?.potluck === true;
   const turnstileRef = useRef<TurnstileHandle>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileNotReady, setTurnstileNotReady] = useState(false);
@@ -54,6 +56,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       attendeeCount: 1,
       comments: "",
       childrenNames: null,
+      foodContribution: "",
     }
   });
 
@@ -127,6 +130,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       const message = messages[code]
         .replace("{max}", String(MAX_ATTENDEES_PER_REGISTRATION))
         .replace("{email}", suggestion);
+      if (code === "FOOD_CONTRIBUTION_REQUIRED") {
+        form.setError("foodContribution", { type: "manual", message });
+        return;
+      }
       // A problem with the address belongs under the address field.
       if (code === "EMAIL_REJECTED" || code === "ALREADY_REGISTERED" || (code === "EMAIL_TYPO" && suggestion)) {
         form.setError("email", { type: "manual", message });
@@ -162,6 +169,19 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       // Trim the array to only the needed children
       const trimmedNames = names.slice(0, count).map(n => n.trim());
       data.childrenNames = JSON.stringify(trimmedNames);
+    }
+    if (asksFood) {
+      const food = data.foodContribution?.trim() ?? "";
+      if (!food) {
+        form.setError("foodContribution", {
+          type: "manual",
+          message: t.modals.eventRegistration.errors.FOOD_CONTRIBUTION_REQUIRED,
+        });
+        return;
+      }
+      data.foodContribution = food;
+    } else {
+      data.foodContribution = null;
     }
     if (turnstileEnabled && !turnstileToken) {
       setTurnstileNotReady(true);
@@ -315,6 +335,28 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                   </div>
                 ))}
               </div>
+            )}
+
+            {asksFood && (
+              <FormField
+                control={form.control}
+                name="foodContribution"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t.events.foodContributionLabel}</FormLabel>
+                    <p className="text-sm text-subtle">{t.events.foodContributionHint}</p>
+                    <FormControl>
+                      <Input
+                        maxLength={200}
+                        placeholder={t.events.foodContributionPlaceholder}
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             )}
 
             <FormField

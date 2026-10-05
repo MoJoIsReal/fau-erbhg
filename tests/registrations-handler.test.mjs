@@ -79,6 +79,27 @@ test('a photo booking names every child it books a slot for', async (t) => {
   assert.ok(signupStatement(sql).values.includes(JSON.stringify(['09:00', '09:05'])));
 });
 
+test('a potluck signup must say what food it brings; any other signup stores none', async (t) => {
+  const kurvfest = eventRow({ type: 'foreldrefest', potluck: true });
+  for (const foodContribution of [undefined, '', '   ', 42]) {
+    const sql = signupDatabase({ event: kurvfest });
+    const res = await call(t, handler, signup({ foodContribution }));
+    assert.equal(res.statusCode, 400, JSON.stringify(foodContribution));
+    assert.equal(res.body.code, 'FOOD_CONTRIBUTION_REQUIRED');
+    assert.equal(signupStatement(sql), undefined, `${JSON.stringify(foodContribution)} reached the database`);
+  }
+
+  let sql = signupDatabase({ event: kurvfest });
+  let res = await call(t, handler, signup({ foodContribution: ' Pastasalat <b>' }));
+  assert.equal(res.statusCode, 201);
+  assert.ok(signupStatement(sql).values.includes('Pastasalat b'), 'stored sanitized');
+
+  sql = signupDatabase({ event: eventRow({ type: 'foreldrefest', potluck: false }) });
+  res = await call(t, handler, signup({ foodContribution: 'Pastasalat' }));
+  assert.equal(res.statusCode, 201);
+  assert.equal(signupStatement(sql).values.includes('Pastasalat'), false, 'an event that does not ask stores nothing');
+});
+
 test('a photo day with too few free slots refuses instead of booking a child with no time', async (t) => {
   // 23:50 leaves two five-minute slots before midnight.
   const sql = signupDatabase({ event: eventRow({ type: 'foto', time: '23:50' }) });
@@ -170,6 +191,7 @@ test('every refusal names its reason with a code the signup form translates', as
     ['SIGNUP_CLOSED', { event: eventRow({ no_signup: true }) }, {}],
     ['DEADLINE_PASSED', { event: eventRow({ registration_deadline: '2000-01-01T00:00:00.000Z' }) }, {}],
     ['CHILD_NAMES_REQUIRED', { event: eventRow({ type: 'foto' }) }, {}],
+    ['FOOD_CONTRIBUTION_REQUIRED', { event: eventRow({ type: 'foreldrefest', potluck: true }) }, { foodContribution: '  ' }],
     ['EVENT_FULL', { state: refused({ capacityAvailable: false }) }, {}],
     ['ALREADY_REGISTERED', { state: refused({}) }, {}],
     ['RATE_LIMITED', { rateCount: 999 }, {}],

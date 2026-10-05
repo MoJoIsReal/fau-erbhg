@@ -29,6 +29,7 @@ import {
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
 const REGISTRATION_MAX_ATTEMPTS = 10;
 const MAX_CHILD_NAME_LENGTH = 100;
+const MAX_FOOD_CONTRIBUTION_LENGTH = 200;
 const PHOTO_SLOT_ALLOCATION_ATTEMPTS = 3;
 const CANCEL_WINDOW_SECONDS = 10 * 60;
 const CANCEL_MAX_ATTEMPTS = 30;
@@ -210,7 +211,8 @@ export default withApiHandler(async function handler(req, res) {
                attendee_count as "attendeeCount", comments,
                registered_at as "registeredAt",
                children_names as "childrenNames",
-               photo_slots as "photoSlots"
+               photo_slots as "photoSlots",
+               food_contribution as "foodContribution"
         FROM event_registrations
         WHERE event_id = ${eventIdNum}
         ORDER BY registered_at DESC
@@ -229,7 +231,7 @@ export default withApiHandler(async function handler(req, res) {
 
   if (req.method === 'POST') {
     // Public access - Create new registration
-    const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames } = req.body;
+    const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames, foodContribution } = req.body;
 
     // Public and unauthenticated: refuse an abusive body, then let the per-IP
     // limiter see the request, before spending anything on sanitization.
@@ -341,7 +343,7 @@ export default withApiHandler(async function handler(req, res) {
     const nowIso = new Date().toISOString();
     const events = await sql`
       SELECT id, title, date, time, location, custom_location, max_attendees, current_attendees,
-             registration_deadline, type, no_signup, vigilo_signup
+             registration_deadline, type, no_signup, vigilo_signup, potluck
       FROM events
       WHERE id = ${eventIdNum} AND status = 'active'
     `;
@@ -376,6 +378,17 @@ export default withApiHandler(async function handler(req, res) {
       return refuseSignup(res, 400, 'CHILD_NAMES_REQUIRED', sanitizedLanguage === 'no'
         ? 'Oppgi fornavn på hvert barn som skal fotograferes'
         : 'Please give the first name of each child to be photographed');
+    }
+
+    // A potluck asks everyone what food they bring; any other event stores
+    // nothing, whatever the request carried.
+    const sanitizedFoodContribution = event.potluck
+      ? (sanitizeText(foodContribution, MAX_FOOD_CONTRIBUTION_LENGTH) || null)
+      : null;
+    if (event.potluck && !sanitizedFoodContribution) {
+      return refuseSignup(res, 400, 'FOOD_CONTRIBUTION_REQUIRED', sanitizedLanguage === 'no'
+        ? 'Skriv hva du tar med av mat'
+        : 'Please say what food you will bring');
     }
 
     // Last check before anything is written: by now the request is otherwise
@@ -442,12 +455,13 @@ export default withApiHandler(async function handler(req, res) {
           ),
           inserted_registration AS (
             INSERT INTO event_registrations (
-              event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots
+              event_id, name, email, phone, attendee_count, comments, language, children_names, photo_slots,
+              food_contribution
             )
             SELECT
               ${eventIdNum}, ${sanitizedName}, ${sanitizedEmail}, ${sanitizedPhone},
               ${requestedAttendees}, ${sanitizedComments}, ${sanitizedLanguage},
-              ${childrenNamesParam}, ${photoSlotsParam}
+              ${childrenNamesParam}, ${photoSlotsParam}, ${sanitizedFoodContribution}
             WHERE EXISTS (SELECT 1 FROM target_event)
               AND (SELECT ok FROM capacity_available)
               AND NOT EXISTS (
