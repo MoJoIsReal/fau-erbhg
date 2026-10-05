@@ -85,6 +85,28 @@ feed serializer is `shared/calendar-feed.js`, served by `api/events.js` through
 the `/kalender.ics` rewrite. Printable and spreadsheet exports are separate:
 `client/src/lib/yearly-calendar-pdf.tsx` and `yearly-calendar-excel.ts`.
 
+## Shared entry links
+
+Files: the link helpers at the top of `shared/calendar-entries.js`
+(`calendarEntryPath`, `eventEntryId`, `yearlyEntryId`),
+`client/src/components/calendar-entry-share.tsx` (+ the lazily loaded
+`calendar-entry-qr.tsx`), the `?vis=` handling in
+`client/src/components/calendar-views.tsx`, and the feed's `URL`s.
+
+`/kalender?vis=<entry id>` opens the calendar with that entry's detail panel
+showing; the "Del" button in the panel (and in the month view's day panel)
+offers the link, the phone's share sheet where there is one, and a QR code of
+the same link as a PNG download. The id is the merged entry id from
+`shared/calendar-entries.js` (`event-<id>`, `entry-<id>`), so **those ids are
+now public**: they end up on printed posters, in group chats and in every
+subscriber's calendar (the feed's `URL`, and the link at the end of an event's
+`DESCRIPTION`), and `tests/calendar-entries.test.mjs` pins their shape. They
+are not the feed's `UID`s, which keep their own `yearly-<id>@` form. A link to an entry that has
+since been deleted shows a toast and the whole calendar.
+Opening and closing an entry keeps `?vis=` in step with the URL (replaced, not
+pushed). Link previews in chat apps still show the calendar page's own title,
+since the SPA's meta tags are set in the browser.
+
 ## Newsletter
 
 Files: `api/cron/event-reminders.js` (`?task=newsletter`), `api/_shared/newsletter.js`,

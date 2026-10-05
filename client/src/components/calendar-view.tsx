@@ -14,6 +14,7 @@ import {
   isoWeek,
 } from "@shared/yearly-calendar-display";
 import SafeHtml from "@/components/safe-html";
+import CalendarEntryShare from "@/components/calendar-entry-share";
 import { StatusPill } from "@/components/site/controls";
 import { EditorSurface } from "@/components/site/cards";
 import { MonthPicker } from "@/components/site/month-picker";
@@ -604,6 +605,10 @@ export default function CalendarView({
                           </Button>
                         </div>
                       )}
+
+                      <div className="pt-1">
+                        <CalendarEntryShare entry={entry} />
+                      </div>
 
                       {editorActionsFor?.(entry)}
                     </article>

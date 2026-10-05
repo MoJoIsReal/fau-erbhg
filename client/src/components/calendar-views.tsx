@@ -1,9 +1,11 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import { Bell, CalendarDays, List, Loader2, SlidersHorizontal } from "lucide-react";
 import type { CalendarEntry, CalendarEntryKind } from "@shared/calendar-entries";
 import {
   CALENDAR_ENTRY_KINDS,
   CALENDAR_FILTER_KINDS,
+  SHARED_ENTRY_PARAM,
   calendarWeekKey,
   isoWeekYear,
 } from "@shared/calendar-entries";
@@ -11,6 +13,7 @@ import { isoWeek } from "@shared/yearly-calendar-display";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
 import { useCalendarEntries } from "@/hooks/useCalendarEntries";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/i18n";
 import { KIND_STYLE } from "@/lib/calendar-kind-style";
 import type { Event } from "@shared/schema";
@@ -75,6 +78,13 @@ function initialMode(): CalendarViewMode {
 /** One calendar with a week-first list and an editable month view. */
 export default function CalendarViews() {
   const { language, t } = useLanguage();
+  const { toast } = useToast();
+  const [location, navigate] = useLocation();
+  const search = useSearch();
+  const sharedId = new URLSearchParams(search).get(SHARED_ENTRY_PARAM);
+  // The link already acted on, so a refetch or a deletion while the panel is
+  // open does not read it again as someone arriving from a shared link.
+  const handledSharedId = useRef<string | null>(null);
   const [active, setActive] = useState<Record<CalendarEntryKind, boolean>>(initialActive);
   const [mode, setMode] = useState<CalendarViewMode>(initialMode);
   const [signupOnly, setSignupOnly] = useState(() => readPreferences().signupOnly === true);
@@ -121,21 +131,52 @@ export default function CalendarViews() {
 
   const toggle = (kind: CalendarEntryKind) => setActive((prev) => ({ ...prev, [kind]: !prev[kind] }));
 
+  // The open entry is mirrored into the address, so the URL bar is always
+  // a link to what is on screen. Replaced rather than pushed: the back button
+  // leaves the calendar instead of stepping through every entry looked at.
+  const setSharedParam = (id: string | null) => {
+    const params = new URLSearchParams(search);
+    if (id) params.set(SHARED_ENTRY_PARAM, id);
+    else params.delete(SHARED_ENTRY_PARAM);
+    handledSharedId.current = id;
+    navigate(`${location}${params.size ? `?${params}` : ""}`, { replace: true });
+  };
   const openEntry = (entry: CalendarEntry) => {
     setSelected(entry);
     setSheetOpen(true);
+    setSharedParam(entry.id);
+  };
+  const closeEntry = () => {
+    setSheetOpen(false);
+    if (sharedId) setSharedParam(null);
   };
   const registerFor = (entry: CalendarEntry) => {
     if (entry.event) setSelectedEvent(entry.event);
   };
   const changeMode = (next: CalendarViewMode) => {
-    setSheetOpen(false);
+    closeEntry();
     setMode(next);
   };
 
   useEffect(() => {
     setSelected((current) => current ? entries.find((entry) => entry.id === current.id) ?? null : null);
   }, [entries]);
+
+  // Arriving from a shared link or QR code: open that entry once everything
+  // has loaded. One that is gone says so, and leaves the whole calendar.
+  useEffect(() => {
+    if (!sharedId || isLoading || handledSharedId.current === sharedId) return;
+    const match = entries.find((entry) => entry.id === sharedId);
+    if (match) {
+      handledSharedId.current = sharedId;
+      setSelected(match);
+      setSheetOpen(true);
+    } else {
+      toast({ title: t.calendar.sharedNotFound, description: t.calendar.sharedNotFoundHint });
+      setSharedParam(null);
+    }
+    // Keyed on the link and the data; the helpers are recreated every render.
+  }, [sharedId, isLoading, entries]);
 
   const editor = useCalendarEditor({ schoolYear, month: monthCursor });
   const view = mode;
@@ -321,7 +362,7 @@ export default function CalendarViews() {
       <Sheet
         open={sheetOpen && selected !== null}
         onOpenChange={(open) => {
-          if (!open) setSheetOpen(false);
+          if (!open) closeEntry();
         }}
       >
         <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-md">

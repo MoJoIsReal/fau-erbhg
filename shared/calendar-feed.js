@@ -5,6 +5,7 @@
 // (`events`) and dated yearly-calendar entries (`day_event` / `closed`).
 // Week-based yearly entries have no date and are deliberately left out.
 import { htmlToPlainText } from './html-text.js';
+import { calendarEntryPath, eventEntryId, yearlyEntryId } from './calendar-entries.js';
 
 const UID_DOMAIN = 'erdal-bhg.no';
 
@@ -150,10 +151,16 @@ function eventLocation(event) {
   return event.customLocation ? `${event.location} (${event.customLocation})` : event.location;
 }
 
+// Each entry links to its own detail panel on the site, the same link the
+// "Del" button hands out, rather than to the top of the calendar.
+function eventLink(event, baseUrl) {
+  return `${baseUrl}${calendarEntryPath(eventEntryId(event.id))}`;
+}
+
 function eventDescription(event, baseUrl) {
   const text = htmlToPlainText(event.description);
   if (!baseUrl) return text;
-  const link = `${baseUrl}/kalender`;
+  const link = eventLink(event, baseUrl);
   return text ? `${text}\n\n${link}` : link;
 }
 
@@ -175,7 +182,7 @@ function signupEventLines(event, { dtstamp, baseUrl }) {
   const location = eventLocation(event);
   if (location) lines.push(`LOCATION:${escapeIcsText(location)}`);
 
-  if (baseUrl) lines.push(`URL:${baseUrl}/kalender`);
+  if (baseUrl) lines.push(`URL:${eventLink(event, baseUrl)}`);
   // Cancelled events stay in the feed as STATUS:CANCELLED so subscribers see
   // the cancellation instead of the entry silently disappearing.
   lines.push(`STATUS:${event.status === 'cancelled' ? 'CANCELLED' : 'CONFIRMED'}`);
@@ -217,7 +224,7 @@ function yearlyEntryLines(entry, { dtstamp, baseUrl, language }) {
 
   const description = htmlToPlainText(entry.description);
   if (description) lines.push(`DESCRIPTION:${escapeIcsText(description)}`);
-  if (baseUrl) lines.push(`URL:${baseUrl}/kalender/arskalender`);
+  if (baseUrl) lines.push(`URL:${baseUrl}${calendarEntryPath(yearlyEntryId(entry.id))}`);
   // A timed entry is a genuine commitment, so leave it as busy. An all-day
   // kindergarten date should not blank out a parent's whole day.
   if (!startStamp) lines.push('TRANSP:TRANSPARENT');

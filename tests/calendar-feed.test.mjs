@@ -233,3 +233,18 @@ test('an event the feed cannot render does not hide the day entry', () => {
   assert.ok(!feed.includes('UID:event-8@erdal-bhg.no'));
   assert.ok(feed.includes('UID:yearly-24@erdal-bhg.no'));
 });
+
+test('each entry links to its own detail panel on the site, not the top of the calendar', () => {
+  const feed = buildCalendarFeed({
+    events: [signupEvent({ id: 7, description: '<p>Velkommen</p>' })],
+    entries: [{ id: 22, title: 'Planleggingsdag', entryType: 'closed', date: '2026-03-30' }],
+    baseUrl: 'https://www.erdal-bhg.no',
+    now: NOW,
+  });
+  const feedLines = lines(feed);
+  assert.ok(feedLines.includes('URL:https://www.erdal-bhg.no/kalender?vis=event-7'));
+  assert.ok(feedLines.includes('URL:https://www.erdal-bhg.no/kalender?vis=entry-22'));
+  // Google Calendar does not show URL, so the event's description carries the
+  // same link. Unfold before looking, since the line may be folded.
+  assert.ok(feed.replace(/\r\n /g, '').includes('DESCRIPTION:Velkommen\\n\\nhttps://www.erdal-bhg.no/kalender?vis=event-7'));
+});

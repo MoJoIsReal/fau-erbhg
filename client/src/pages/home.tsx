@@ -1,5 +1,12 @@
 import { CalendarCategory } from "@/components/site/calendar-category";
-import { calendarDisplayKind, calendarDisplayKindForEntry, calendarKindForEventType } from "@shared/calendar-entries";
+import {
+  calendarDisplayKind,
+  calendarDisplayKindForEntry,
+  calendarEntryPath,
+  calendarKindForEventType,
+  eventEntryId,
+  yearlyEntryId,
+} from "@shared/calendar-entries";
 import { useQuery } from "@tanstack/react-query";
 import { QueryNotice } from "@/components/site/query-notice";
 import { Link } from "wouter";
@@ -240,7 +247,13 @@ export default function Home() {
 
                   <div className="mt-auto pt-2">
                     <Button asChild variant="outline" size="sm">
-                      <Link href="/kalender">{t.home.moreInfo}</Link>
+                      <Link
+                        href={calendarEntryPath(
+                          next.kind === "event" ? eventEntryId(next.event.id) : yearlyEntryId(next.entry.id),
+                        )}
+                      >
+                        {t.home.moreInfo}
+                      </Link>
                     </Button>
                   </div>
                 </Surface>
