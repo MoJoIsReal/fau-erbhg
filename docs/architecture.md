@@ -29,7 +29,8 @@ directly. There is no second backend, ORM query layer or generic repository tier
 Several resources share a function to stay within the deployment's function
 budget. `auth?action=…` handles login/session/password operations;
 `documents?action=download` handles downloads; `registrations?action=cancel…`
-handles cancellation; `contact?action=newsletter-…` handles subscriptions.
+and `update-food` handle the "Din påmelding" page behind the emailed link
+(cancelling, and changing a potluck's food answer); `contact?action=newsletter-…` handles subscriptions.
 `secure-settings?resource=…` multiplexes content, contact messages and settings.
 Authorization remains enforced by the handler.
 

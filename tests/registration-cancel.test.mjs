@@ -14,13 +14,14 @@ import { mockResponse } from './helpers.mjs';
 
 const TOKEN = 'ab'.repeat(32);
 
-function scriptedSql({ lookup = [], cancelled = [], rateCount = 1 } = {}) {
+function scriptedSql({ lookup = [], cancelled = [], updated = [], rateCount = 1 } = {}) {
   const calls = [];
   const sql = async (strings, ...values) => {
     const statement = strings.join('?').replace(/\s+/g, ' ').trim();
     calls.push({ statement, values });
     if (statement.startsWith('INSERT INTO api_rate_limits')) return [{ count: rateCount, retryAfter: 60 }];
     if (statement.includes('WITH deleted AS')) return cancelled;
+    if (statement.startsWith('UPDATE event_registrations r SET food_contribution')) return updated;
     if (statement.includes('WHERE r.cancel_token = ?')) return lookup;
     throw new Error(`unexpected statement: ${statement}`);
   };
@@ -196,4 +197,75 @@ test('cancellation migration cascades with the event', () => {
   );
   assert.match(migration, /CREATE TABLE IF NOT EXISTS event_registration_cancellations/);
   assert.match(migration, /REFERENCES events\(id\) ON DELETE CASCADE/);
+});
+
+const foodUpdate = (calls) => calls.find(({ statement }) => statement.startsWith('UPDATE event_registrations r SET food_contribution'));
+
+test('the lookup says whether the event is a potluck and what this registration brings', async () => {
+  const { sql } = scriptedSql({
+    lookup: [{
+      name: 'Kari', attendeeCount: 1, foodContribution: 'Pastasalat', eventId: 57, potluck: true,
+      eventTitle: 'Foreldrefest', eventDate: '2999-11-07', eventTime: '18:00', location: 'Annet', customLocation: null,
+    }],
+  });
+  const res = mockResponse();
+  await handleCancel(post(TOKEN), res, sql, 'cancel-lookup');
+  assert.equal(res.body.potluck, true);
+  assert.equal(res.body.foodContribution, 'Pastasalat');
+  assert.equal(res.body.eventId, 57);
+  assert.equal('email' in res.body, false);
+});
+
+test('the link can change what a potluck registration brings, sanitized, until the event day is over', async () => {
+  const { sql, calls } = scriptedSql({ updated: [{ foodContribution: 'Kake b' }] });
+  const res = mockResponse();
+  await handleCancel({ ...post(TOKEN), body: { token: TOKEN, foodContribution: ' Kake <b>' } }, res, sql, 'update-food');
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body, { foodContribution: 'Kake b' });
+
+  const update = foodUpdate(calls);
+  assert.match(update.statement, /WHERE r\.cancel_token = \? AND e\.id = r\.event_id AND e\.potluck = true AND e\.date >= \?/);
+  assert.deepEqual(update.values.slice(0, 2), ['Kake b', TOKEN]);
+  assert.match(update.values[2], /^\d{4}-\d{2}-\d{2}$/);
+});
+
+test('an empty food answer is refused like at signup, before anything is written', async () => {
+  for (const foodContribution of [undefined, '', '   ', 42]) {
+    const { sql, calls } = scriptedSql();
+    const res = mockResponse();
+    await handleCancel({ ...post(TOKEN), body: { token: TOKEN, foodContribution } }, res, sql, 'update-food');
+    assert.equal(res.statusCode, 400, JSON.stringify(foodContribution));
+    assert.equal(res.body.code, 'FOOD_CONTRIBUTION_REQUIRED');
+    assert.equal(foodUpdate(calls), undefined);
+  }
+});
+
+test('changing the food needs a valid link, a potluck and an event still ahead', async () => {
+  let { sql, calls } = scriptedSql();
+  let res = mockResponse();
+  await handleCancel({ ...post('not-a-token'), body: { token: 'nope', foodContribution: 'Kake' } }, res, sql, 'update-food');
+  assert.equal(res.statusCode, 400);
+  assert.equal(calls.length, 0);
+
+  ({ sql } = scriptedSql({ updated: [] }));
+  res = mockResponse();
+  await handleCancel({ ...post(TOKEN), body: { token: TOKEN, foodContribution: 'Kake' } }, res, sql, 'update-food');
+  assert.equal(res.statusCode, 404, 'unknown token, not a potluck, or the event is over');
+
+  ({ sql, calls } = scriptedSql());
+  res = mockResponse();
+  await handleCancel({ ...post(TOKEN), method: 'GET', body: { token: TOKEN, foodContribution: 'Kake' } }, res, sql, 'update-food');
+  assert.equal(res.statusCode, 405);
+  assert.equal(calls.length, 0);
+});
+
+test('a potluck email says the same link changes what you bring', () => {
+  assert.match(cancellationText({ language: 'no', cancelToken: TOKEN, potluck: true }), /endre hva du tar med.*\/avmelding\?token=/);
+  assert.match(cancellationText({ language: 'en', cancelToken: TOKEN, potluck: true }), /change what you bring/);
+  assert.doesNotMatch(cancellationText({ language: 'no', cancelToken: TOKEN }), /tar med/);
+  const { text } = registrationReminderEmail({
+    name: 'Kari', language: 'no', eventTitle: 'Foreldrefest', eventDate: '2026-11-07', eventTime: '18:00',
+    location: 'Annet', attendeeCount: 1, cancelToken: TOKEN, potluck: true,
+  });
+  assert.match(text, /endre hva du tar med/);
 });

@@ -117,6 +117,7 @@ export function registrationReminderEmail(registration) {
   const cancellation = cancellationText({
     language: registration.language,
     cancelToken: registration.cancelToken,
+    potluck: registration.potluck,
   });
 
   const subject = isNorwegian
@@ -591,7 +592,8 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
           e.date as "eventDate",
           e.time as "eventTime",
           e.location,
-          e.custom_location as "customLocation"
+          e.custom_location as "customLocation",
+          e.potluck
         FROM event_registrations r
         JOIN events e ON e.id = r.event_id
         WHERE e.status = 'active'
