@@ -1,3 +1,5 @@
+import { htmlToPlainText } from './html-text.js';
+
 export const VALID_YEARLY_CALENDAR_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'closed', 'note'];
 export const VALID_YEARLY_CALENDAR_COLORS = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
 export const YEARLY_CALENDAR_HEX_COLOR_PATTERN = '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$';
@@ -357,8 +359,12 @@ export function diffYearlyCalendarEntry(existingEntry, payload) {
   const changes = [];
 
   for (const field of COMPARE_FIELDS) {
-    const oldValue = getEntryField(existingEntry, field);
+    let oldValue = getEntryField(existingEntry, field);
     const newValue = canonical[field] ?? null;
+    // The site stores a description as rich text and the sheet carries it as
+    // plain text, so compare the text: a round trip through Excel must not
+    // read as an edit and overwrite the formatting with the flattened copy.
+    if (field === 'description' && oldValue) oldValue = htmlToPlainText(oldValue) || null;
 
     if (oldValue !== newValue) {
       changes.push({

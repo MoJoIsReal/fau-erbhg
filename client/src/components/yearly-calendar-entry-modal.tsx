@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TimeInput24h } from "@/components/time-input-24h";
-import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/RichTextEditor";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
@@ -36,6 +36,7 @@ import type { CalendarEntryKind, CalendarDayKind } from "@shared/calendar-entrie
 import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarDisplayKindForEntry } from "@shared/calendar-entries";
 import { resolveYearlyCalendarPlacement } from "@shared/yearly-calendar-placement";
 import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
+import { plainTextToHtml } from "@shared/html-text";
 
 export type EntryDraft = {
   schoolYear: number;
@@ -110,6 +111,9 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
   const [endTime, setEndTime] = useState<string>("");
   const [title, setTitle] = useState<string>("");
   const [description, setDescription] = useState<string>("");
+  // The editor reads its content once, when it mounts; remount it on each
+  // seed so it opens on the entry being edited rather than the previous one.
+  const [descriptionSeed, setDescriptionSeed] = useState(0);
   const [color, setColor] = useState<string>("");
   const [showOnHomepage, setShowOnHomepage] = useState<boolean>(false);
   const [notifyNewsletter, setNotifyNewsletter] = useState<boolean>(false);
@@ -130,7 +134,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
     setStartTime(seed.startTime ?? "");
     setEndTime(seed.endTime ?? "");
     setTitle(seed.title ?? "");
-    setDescription(seed.description ?? "");
+    setDescription(plainTextToHtml(seed.description));
+    setDescriptionSeed((n) => n + 1);
     setColor(seed.color ?? "");
     setShowOnHomepage(seed.showOnHomepage === true || seed.showForParents === true);
     setNotifyNewsletter(seed.notifyNewsletter === true);
@@ -277,8 +282,14 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
           </div>
 
           <div>
-            <Label htmlFor="entry-description">{t.yearlyCalendar.modal.description}</Label>
-            <Textarea id="entry-description" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={1000} />
+            <Label id="entry-description-label">{t.yearlyCalendar.modal.description}</Label>
+            <RichTextEditor
+              key={descriptionSeed}
+              id="entry-description"
+              aria-labelledby="entry-description-label"
+              content={description}
+              onChange={setDescription}
+            />
           </div>
 
 

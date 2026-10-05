@@ -5,6 +5,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { EditorSurface } from "@/components/site/cards";
+import SafeHtml from "@/components/safe-html";
 import { CalendarCategory } from "@/components/site/calendar-category";
 import { yearlyCalendarEntryOverlapsMonth } from "@shared/yearly-calendar-placement";
 import { calendarDisplayKindForEntry } from "@shared/calendar-entries";
@@ -74,7 +75,7 @@ export default function CalendarMonthTools({ month, schoolYear, entries, editor,
           {notes.map((entry) => (
             <div key={entry.id}>
               <h3 className="text-body font-semibold text-ink">{entry.title}</h3>
-              {entry.description && <p className="whitespace-pre-line text-small text-copy">{entry.description}</p>}
+              {entry.description && <SafeHtml html={entry.description} className="text-small text-copy" />}
             </div>
           ))}
         </section>

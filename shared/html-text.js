@@ -49,3 +49,18 @@ export function truncatePlainText(text, maxLength) {
   const cut = lastBreak > maxLength * 0.6 ? clipped.slice(0, lastBreak) : clipped;
   return `${cut.trimEnd()}…`;
 }
+
+// The other direction, for a description written before its editor took rich
+// text: a yearly calendar entry used to be a plain textarea, so its stored line
+// breaks only survive into the rich text editor as paragraphs. Anything that
+// already holds markup is returned unchanged.
+export function plainTextToHtml(text) {
+  const value = String(text || '').trim();
+  if (!value || /<[a-z/!]/i.test(value)) return value;
+
+  const escape = (part) => part.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return value
+    .split(/\r?\n\s*\r?\n/)
+    .map((paragraph) => `<p>${paragraph.split(/\r?\n/).map(escape).join('<br>')}</p>`)
+    .join('');
+}

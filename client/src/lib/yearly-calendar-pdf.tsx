@@ -6,6 +6,7 @@ import type { CalendarEntry, CalendarDisplayKind } from "@shared/calendar-entrie
 import { mergeCalendarEntries, isoWeekYear, compareSpanningEntries } from "@shared/calendar-entries";
 import { monthsForSchoolYear, weeksOfMonth, toCalendarIsoDate } from "@shared/yearly-calendar-display";
 import { yearlyCalendarEntryOverlapsMonth } from "@shared/yearly-calendar-placement";
+import { htmlToPlainText } from "@shared/html-text";
 import { formatDate, useTranslation as translationFor, type Language } from "@/lib/i18n";
 import { printToken, printPoints } from "@/lib/calendar-pdf-theme";
 
@@ -170,7 +171,7 @@ function Month({ year, month, entries, lang, schoolYear, notes }: {
       {notes.map((note, index) => <View key={note.id} style={styles.notes} wrap={false}>
         {index === 0 && <Text style={styles.sectionTitle}>{t.yearlyCalendar.notes}</Text>}
         <Text style={styles.noteTitle}>{note.title}</Text>
-        {note.description && <Text style={styles.noteBody}>{note.description}</Text>}
+        {note.description && <Text style={styles.noteBody}>{htmlToPlainText(note.description)}</Text>}
       </View>)}
       {overflow.size > 0 && <View style={{ marginTop: space(2) }}>
         <Text style={styles.sectionTitle} minPresenceAhead={45}>{t.calendarWorkspace.pdfDetails}</Text>

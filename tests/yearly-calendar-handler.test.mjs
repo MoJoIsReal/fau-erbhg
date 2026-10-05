@@ -87,6 +87,21 @@ test('fields another entry type cannot use are cleared rather than stored', asyn
   );
 });
 
+// The entry editor is the same rich text editor as an event's, so bold text
+// has to be stored as markup — the plain-text sanitizer used to strip the
+// tags and leave the words.
+test('a description keeps its formatting as sanitized HTML, and an emptied editor stores none', async (t) => {
+  for (const [description, expected] of [
+    ['<p><strong>Ta med</strong> matpakke</p><script>alert(1)</script>', '<p><strong>Ta med</strong> matpakke</p>'],
+    ['<p></p>', null],
+    ['', null],
+  ]) {
+    const sql = useDatabase(scriptedSql({ respond: () => [stored()] }));
+    await call(t, handler, write('POST', { ...DAY_EVENT, description }));
+    assert.equal(fields(sql.writes()[0]).description, expected);
+  }
+});
+
 test('update and delete need a numeric id and an existing entry', async (t) => {
   for (const [method, body] of [['PUT', DAY_EVENT], ['DELETE', {}]]) {
     const refused = useDatabase(scriptedSql());
