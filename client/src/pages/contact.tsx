@@ -21,7 +21,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
+import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { insertContactMessageSchema } from "@shared/schema";
 import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
 import {
@@ -182,7 +182,7 @@ export default function Contact() {
       }
       toast({
         title: t.contact.error,
-        description: error.message || t.contact.errorDesc,
+        description: apiErrorText(error, t, t.contact.errorDesc),
         variant: "destructive",
       });
     },

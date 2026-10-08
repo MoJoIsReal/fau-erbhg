@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CloudUpload, X } from "lucide-react";
 import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import { formatFileSize } from "@/lib/i18n";
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
@@ -141,7 +141,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
     onError: (error: any) => {
       toast({
         title: t.documents.uploadError,
-        description: error.message || t.documents.uploadErrorDesc,
+        description: apiErrorText(error, t, t.documents.uploadErrorDesc),
         variant: "destructive"
       });
     }

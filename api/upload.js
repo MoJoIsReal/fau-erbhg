@@ -49,7 +49,7 @@ export default withApiHandler(async function handler(req, res) {
     const validation = validateUploadFile({ filename, mimeType, size: reportedSize });
 
     if (!validation.ok) {
-      return res.status(400).json({ error: validation.error });
+      return res.status(400).json({ error: validation.error, code: validation.code });
     }
 
     const cloudinary = configureCloudinary();
@@ -88,12 +88,12 @@ export default withApiHandler(async function handler(req, res) {
     });
   }
   if (!filename || !title || !fileUrl || !publicId) {
-    return res.status(400).json({ error: 'Missing required fields' });
+    return res.status(400).json({ error: 'Missing required fields', code: 'REQUIRED_FIELDS' });
   }
 
   const validation = validateUploadFile({ filename, mimeType, size: reportedSize });
   if (!validation.ok) {
-    return res.status(400).json({ error: validation.error });
+    return res.status(400).json({ error: validation.error, code: validation.code });
   }
 
   const sanitizedFilename = validation.sanitizedFilename;
@@ -104,11 +104,11 @@ export default withApiHandler(async function handler(req, res) {
   try {
     parsedUrl = new URL(sanitizedFileUrl);
   } catch {
-    return res.status(400).json({ error: 'Invalid uploaded file URL' });
+    return res.status(400).json({ error: 'Invalid uploaded file URL', code: 'UPLOAD_NOT_VERIFIED' });
   }
 
   if (parsedUrl.protocol !== 'https:' || parsedUrl.hostname !== 'res.cloudinary.com') {
-    return res.status(400).json({ error: 'Uploaded file must be hosted by Cloudinary' });
+    return res.status(400).json({ error: 'Uploaded file must be hosted by Cloudinary', code: 'UPLOAD_NOT_VERIFIED' });
   }
 
   // Verify the URL points to our own Cloudinary account, not someone else's.
@@ -121,15 +121,15 @@ export default withApiHandler(async function handler(req, res) {
     !['image', 'raw'].includes(delivery.resourceType) ||
     delivery.deliveryType !== 'upload'
   ) {
-    return res.status(400).json({ error: 'Uploaded file must be hosted in our Cloudinary account' });
+    return res.status(400).json({ error: 'Uploaded file must be hosted in our Cloudinary account', code: 'UPLOAD_NOT_VERIFIED' });
   }
 
   if (!sanitizedPublicId.startsWith('fau-documents/')) {
-    return res.status(400).json({ error: 'Invalid uploaded file location' });
+    return res.status(400).json({ error: 'Invalid uploaded file location', code: 'UPLOAD_NOT_VERIFIED' });
   }
 
   if (delivery.publicId !== sanitizedPublicId) {
-    return res.status(400).json({ error: 'Uploaded file URL does not match uploaded asset' });
+    return res.status(400).json({ error: 'Uploaded file URL does not match uploaded asset', code: 'UPLOAD_NOT_VERIFIED' });
   }
 
   let uploadedAsset;
@@ -139,11 +139,11 @@ export default withApiHandler(async function handler(req, res) {
       resource_type: delivery.resourceType,
     });
   } catch {
-    return res.status(400).json({ error: 'Uploaded asset could not be verified' });
+    return res.status(400).json({ error: 'Uploaded asset could not be verified', code: 'UPLOAD_NOT_VERIFIED' });
   }
 
   if (uploadedAsset.public_id !== sanitizedPublicId) {
-    return res.status(400).json({ error: 'Uploaded asset could not be verified' });
+    return res.status(400).json({ error: 'Uploaded asset could not be verified', code: 'UPLOAD_NOT_VERIFIED' });
   }
 
   const providerValidation = validateProviderUpload({
@@ -153,7 +153,7 @@ export default withApiHandler(async function handler(req, res) {
     fileExtension: validation.fileExtension,
   });
   if (!providerValidation.ok) {
-    return res.status(400).json({ error: providerValidation.error });
+    return res.status(400).json({ error: providerValidation.error, code: providerValidation.code });
   }
   const observedFileSize = providerValidation.size;
   // Store what Cloudinary actually parsed: a PNG named "bilde.jpg" is saved
@@ -171,7 +171,7 @@ export default withApiHandler(async function handler(req, res) {
 
   // Validate sanitized inputs
   if (!sanitizedTitle || sanitizedTitle.length < 1) {
-    return res.status(400).json({ error: 'Valid title is required' });
+    return res.status(400).json({ error: 'Valid title is required', code: 'TITLE_REQUIRED' });
   }
 
   const newDocument = await sql`

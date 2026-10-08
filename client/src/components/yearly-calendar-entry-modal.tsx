@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -183,7 +183,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
     onError: (err: any) => {
       toast({
         title: t.yearlyCalendar.modal.error,
-        description: err?.message ?? "",
+        description: apiErrorText(err, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },
@@ -204,7 +204,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
     onError: (err: any) => {
       toast({
         title: t.yearlyCalendar.modal.error,
-        description: err?.message ?? "",
+        description: apiErrorText(err, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },

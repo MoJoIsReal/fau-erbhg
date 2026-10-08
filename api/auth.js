@@ -120,7 +120,7 @@ async function handleLogin(req, res, sql) {
   // Strings only: an object or array password used to reach bcrypt and come
   // back as a 500, and a non-string username the rate-limit keys.
   if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
+    return res.status(400).json({ error: 'Username and password required', code: 'REQUIRED_FIELDS' });
   }
 
   let jwtConfig;
@@ -158,7 +158,7 @@ async function handleLogin(req, res, sql) {
   ].filter(Boolean));
   if (limits.some((limit) => !limit.allowed)) {
     res.setHeader('Retry-After', String(Math.max(...limits.map((limit) => limit.retryAfter))));
-    return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
+    return res.status(429).json({ error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
   }
 
   // An unknown browser's attempt is counted against the account before the
@@ -174,7 +174,7 @@ async function handleLogin(req, res, sql) {
     });
     if (!accountLimit.allowed) {
       res.setHeader('Retry-After', String(accountLimit.retryAfter));
-      return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
+      return res.status(429).json({ error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
     }
   }
 
@@ -202,7 +202,7 @@ async function handleLogin(req, res, sql) {
         windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
       });
     }
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return res.status(401).json({ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
   }
 
   // A success from an unknown browser means the account was not locked, so
@@ -285,13 +285,13 @@ async function handleChangePassword(req, res, sql, decoded) {
   const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
 
   if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Current password and new password are required' });
+    return res.status(400).json({ error: 'Current password and new password are required', code: 'REQUIRED_FIELDS' });
   }
   if (newPassword.length < 12) {
-    return res.status(400).json({ error: 'New password must be at least 12 characters' });
+    return res.status(400).json({ error: 'New password must be at least 12 characters', code: 'PASSWORD_TOO_SHORT' });
   }
   if (currentPassword === newPassword) {
-    return res.status(400).json({ error: 'New password must be different from current password' });
+    return res.status(400).json({ error: 'New password must be different from current password', code: 'PASSWORD_UNCHANGED' });
   }
   let jwtConfig;
   try {
@@ -313,7 +313,7 @@ async function handleChangePassword(req, res, sql, decoded) {
 
   const passwordIsValid = await bcryptjs.compare(currentPassword, existingUser.password);
   if (!passwordIsValid) {
-    return res.status(400).json({ error: 'Current password is incorrect' });
+    return res.status(400).json({ error: 'Current password is incorrect', code: 'CURRENT_PASSWORD_INCORRECT' });
   }
 
   const passwordHash = await bcryptjs.hash(newPassword, 10);

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 
 export default function PasswordChangeModal() {
   const { t } = useLanguage();
@@ -42,7 +42,7 @@ export default function PasswordChangeModal() {
     onError: (error: any) => {
       toast({
         title: t.modals.passwordChange.error,
-        description: error?.message ?? "",
+        description: apiErrorText(error, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },
@@ -71,6 +71,7 @@ export default function PasswordChangeModal() {
             <Label htmlFor="current-password">{t.modals.passwordChange.currentPassword}</Label>
             <Input
               id="current-password"
+              autoComplete="current-password"
               type="password"
               value={currentPassword}
               onChange={(event) => setCurrentPassword(event.target.value)}
@@ -81,6 +82,7 @@ export default function PasswordChangeModal() {
             <Label htmlFor="new-password">{t.modals.passwordChange.newPassword}</Label>
             <Input
               id="new-password"
+              autoComplete="new-password"
               type="password"
               value={newPassword}
               onChange={(event) => setNewPassword(event.target.value)}
@@ -92,6 +94,7 @@ export default function PasswordChangeModal() {
             <Label htmlFor="confirm-password">{t.modals.passwordChange.confirmPassword}</Label>
             <Input
               id="confirm-password"
+              autoComplete="new-password"
               type="password"
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}

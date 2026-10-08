@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import type { Language, useTranslation } from "@/lib/i18n";
 import type {
   ImportDecisionAction,
@@ -340,7 +340,7 @@ export default function YearlyCalendarImportModal({
     onError: (error: unknown) => {
       toast({
         title: t.yearlyCalendar.importModal.previewError,
-        description: error instanceof Error ? error.message : "",
+        description: apiErrorText(error, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },
@@ -394,7 +394,7 @@ export default function YearlyCalendarImportModal({
     onError: (error: unknown) => {
       toast({
         title: t.yearlyCalendar.importModal.importError,
-        description: error instanceof Error ? error.message : "",
+        description: apiErrorText(error, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },

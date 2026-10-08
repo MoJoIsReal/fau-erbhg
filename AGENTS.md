@@ -209,7 +209,7 @@ sends credentials.
 **i18n is enforced.** Every user-facing string goes in `client/src/lib/i18n.ts`
 so the typed `Translations` interface forces both languages. Inline
 `language === 'no' ? … : …` copy is capped by a ratchet in
-`scripts/check-i18n.mjs` (`BUDGET`, currently 31) that `npm run check` runs —
+`scripts/check-i18n.mjs` (`BUDGET`, currently 30) that `npm run check` runs —
 the number may fall, never rise. Locale ids and date-fns locales are the
 legitimate inline cases.
 
@@ -225,9 +225,11 @@ stores PostgreSQL's own format, which the browser then has to parse.
 anything unexpected is thrown and `withApiHandler` answers 500, redacted and
 reported (`handleError` does not read a status off the error). A failing
 provider call that must not fail the request goes through `reportProviderError`.
-Client: `useToast()` — never `alert()`. A form that reacts to a particular
-refusal keys off the body's `code` (`SIGNUP_ERROR_CODES` in `shared/constants.js`,
-`TURNSTILE_FAILED`) and shows its translation; it never matches the `error` text.
+Client: `useToast()` — never `alert()`. A refusal a user can run into carries
+a `code` from `API_ERROR_CODES` (or `SIGNUP_ERROR_CODES`, `MEDIA_ERROR_CODES`,
+`TURNSTILE_FAILED`), and the client shows its translation through
+`apiErrorText(error, t, fallback)`; it never shows or matches the `error` text.
+A new code goes in the list and in `t.apiErrors` for both languages.
 
 **Auth model.** JWT in an HttpOnly `jwt` cookie (`Authorization: Bearer` still
 accepted as a fallback), plus a double-submit `csrf-token` cookie. Guard with

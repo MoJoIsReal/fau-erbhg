@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { apiErrorText } from "@/lib/queryClient";
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -44,7 +45,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
     onError: (error: any) => {
       toast({
         title: t.modals.login.error,
-        description: error.message || t.modals.login.invalidCredentials,
+        description: apiErrorText(error, t, t.modals.login.invalidCredentials),
         variant: "destructive",
       });
     },
@@ -71,6 +72,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </Label>
             <Input
               id="username"
+              autoComplete="username"
               type="email"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -85,6 +87,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </Label>
             <Input
               id="password"
+              autoComplete="current-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

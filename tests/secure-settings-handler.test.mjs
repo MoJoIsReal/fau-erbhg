@@ -179,7 +179,7 @@ test('a user created twice at once is a 400 and sends no login mail', async (t) 
     as: 'admin',
   });
   assert.equal(res.statusCode, 400);
-  assert.deepEqual(res.body, { error: 'Brukernavnet er allerede i bruk' });
+  assert.deepEqual(res.body, { error: 'Username is already in use', code: 'USERNAME_TAKEN' });
   assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO users')).statement, /ON CONFLICT \(username\) DO NOTHING/);
   assert.equal(sql.calls.filter(({ statement }) => statement.startsWith('DELETE FROM users')).length, 0);
 });

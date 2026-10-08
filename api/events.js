@@ -260,24 +260,24 @@ function validateEventBody(body = {}) {
   };
 
   if (!values.title || !date || !time) {
-    return { error: { error: 'Valid title, date, and time are required' } };
+    return { error: { error: 'Valid title, date, and time are required', code: 'EVENT_FIELDS_REQUIRED' } };
   }
   if (!isValidEventDate(date)) {
-    return { error: { error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12' } };
+    return { error: { error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12', code: 'INVALID_EVENT_DATE' } };
   }
   if (!isValidEventTime(time)) {
-    return { error: { error: 'Time must be written as HH:MM (24-hour), for example 17:00' } };
+    return { error: { error: 'Time must be written as HH:MM (24-hour), for example 17:00', code: 'INVALID_EVENT_TIME' } };
   }
   if (values.maxAttendees === undefined) {
     return {
-      error: { error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit` },
+      error: { error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit`, code: 'INVALID_MAX_ATTENDEES' },
     };
   }
   if (values.registrationDeadline === undefined) {
-    return { error: { error: 'Valid registration deadline is required' } };
+    return { error: { error: 'Valid registration deadline is required', code: 'INVALID_REGISTRATION_DEADLINE' } };
   }
   if (!EVENT_TYPES.includes(type)) {
-    return { error: { error: `Invalid event type: ${type}`, allowed: EVENT_TYPES } };
+    return { error: { error: `Invalid event type: ${type}`, allowed: EVENT_TYPES, code: 'INVALID_EVENT_TYPE' } };
   }
   return { values };
 }
@@ -370,7 +370,7 @@ export default withApiHandler(async function handler(req, res) {
     `;
 
     if (updated.length === 0) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapEvent(updated[0]));
@@ -396,7 +396,7 @@ export default withApiHandler(async function handler(req, res) {
       `;
 
       if (cancelled.length === 0) {
-        return res.status(404).json({ error: 'Event not found' });
+        return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
       }
 
       return res.status(200).json(mapEvent(cancelled[0]));
@@ -448,7 +448,7 @@ export default withApiHandler(async function handler(req, res) {
 
     const state = deletion[0];
     if (!state?.eventExists) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
     }
 
     if (state.hasRegistrations) {

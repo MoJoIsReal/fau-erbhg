@@ -51,34 +51,36 @@ export function validateUploadFile({ filename, mimeType, size }) {
   const fileExtension = getFileExtension(sanitizedFilename);
 
   if (!sanitizedFilename || !fileExtension) {
-    return { ok: false, error: 'Valid filename is required' };
+    return { ok: false, error: 'Valid filename is required', code: 'REQUIRED_FIELDS' };
   }
 
   if (!ALLOWED_UPLOAD_EXTENSIONS.includes(fileExtension)) {
     return {
       ok: false,
-      error: `File type not allowed. Allowed types: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`
+      error: `File type not allowed. Allowed types: ${ALLOWED_UPLOAD_EXTENSIONS.join(', ')}`,
+      code: 'UPLOAD_TYPE_NOT_ALLOWED',
     };
   }
 
   if (!mimeType || !ALLOWED_UPLOAD_MIME_TYPES.includes(mimeType)) {
     return {
       ok: false,
-      error: `File type '${mimeType || '(missing)'}' not allowed. Allowed types: ${ALLOWED_UPLOAD_MIME_TYPES.join(', ')}`
+      error: `File type '${mimeType || '(missing)'}' not allowed. Allowed types: ${ALLOWED_UPLOAD_MIME_TYPES.join(', ')}`,
+      code: 'UPLOAD_TYPE_NOT_ALLOWED',
     };
   }
 
   if (!MIME_EXTENSION_MAP[mimeType]?.includes(fileExtension)) {
-    return { ok: false, error: 'File extension does not match the declared content type' };
+    return { ok: false, error: 'File extension does not match the declared content type', code: 'UPLOAD_TYPE_NOT_ALLOWED' };
   }
 
   const numericSize = Number(size);
   if (!Number.isSafeInteger(numericSize) || numericSize < 0) {
-    return { ok: false, error: 'Valid non-negative file size is required' };
+    return { ok: false, error: 'Valid non-negative file size is required', code: 'REQUIRED_FIELDS' };
   }
 
   if (numericSize > MAX_UPLOAD_SIZE_BYTES) {
-    return { ok: false, error: 'File size exceeds maximum allowed size of 10MB' };
+    return { ok: false, error: 'File size exceeds maximum allowed size of 10MB', code: 'UPLOAD_TOO_LARGE' };
   }
 
   return { ok: true, sanitizedFilename, fileExtension, size: numericSize };
@@ -147,15 +149,16 @@ export function validateProviderUpload({ uploadedAsset, delivery, mimeType, file
       error: observed && resourceTypeAgrees
         ? `Uploaded asset is a "${observed}" file, which is not an allowed type`
         : 'Uploaded asset type does not match the declared file type',
+      code: 'UPLOAD_TYPE_NOT_ALLOWED',
     };
   }
 
   const size = Number(uploadedAsset?.bytes);
   if (!Number.isSafeInteger(size) || size < 0) {
-    return { ok: false, error: 'Uploaded asset has invalid size metadata' };
+    return { ok: false, error: 'Uploaded asset has invalid size metadata', code: 'UPLOAD_NOT_VERIFIED' };
   }
   if (size > MAX_UPLOAD_SIZE_BYTES) {
-    return { ok: false, error: 'File size exceeds maximum allowed size of 10MB' };
+    return { ok: false, error: 'File size exceeds maximum allowed size of 10MB', code: 'UPLOAD_TOO_LARGE' };
   }
 
   // Report what the file actually is, so the caller stores truthful metadata

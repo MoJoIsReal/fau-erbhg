@@ -192,7 +192,7 @@ async function handleBoardMembers(req, res, sql) {
     const sanitizedSortOrder = sanitizeInteger(sortOrder, 0, 1000) ?? 0;
 
     if (!sanitizedName || !sanitizedRole) {
-      return res.status(400).json({ error: 'Valid name and role are required' });
+      return res.status(400).json({ error: 'Valid name and role are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
@@ -215,7 +215,7 @@ async function handleBoardMembers(req, res, sql) {
     const sanitizedSortOrder = sanitizeInteger(sortOrder, 0, 1000) ?? 0;
 
     if (!sanitizedName || !sanitizedRole) {
-      return res.status(400).json({ error: 'Valid name and role are required' });
+      return res.status(400).json({ error: 'Valid name and role are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
@@ -229,7 +229,7 @@ async function handleBoardMembers(req, res, sql) {
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Board member not found' });
+      return res.status(404).json({ error: 'Board member not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapBoardMember(result[0]));
@@ -250,7 +250,7 @@ async function handleBoardMembers(req, res, sql) {
     `;
 
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Board member not found' });
+      return res.status(404).json({ error: 'Board member not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json({ message: 'Board member deleted successfully' });
@@ -346,7 +346,7 @@ async function handleBlogPosts(req, res, sql) {
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
     if (!sanitizedTitle || !sanitizedContent) {
-      return res.status(400).json({ error: 'Valid title and content are required' });
+      return res.status(400).json({ error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' });
     }
 
     const pubDate = publishedDate || now;
@@ -373,7 +373,7 @@ async function handleBlogPosts(req, res, sql) {
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
     if (!sanitizedTitle || !sanitizedContent) {
-      return res.status(400).json({ error: 'Valid title and content are required' });
+      return res.status(400).json({ error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
@@ -392,7 +392,7 @@ async function handleBlogPosts(req, res, sql) {
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Blog post not found' });
+      return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapBlogPost(result[0]));
@@ -410,7 +410,7 @@ async function handleBlogPosts(req, res, sql) {
     `;
 
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Blog post not found' });
+      return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json({ message: 'Blog post deleted successfully' });
@@ -431,7 +431,7 @@ async function handleKindergartenInfo(req, res, sql) {
     `;
 
     if (info.length === 0) {
-      return res.status(404).json({ error: 'Kindergarten info not found' });
+      return res.status(404).json({ error: 'Kindergarten info not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapKindergartenInfo(info[0]));
@@ -461,7 +461,7 @@ async function handleKindergartenInfo(req, res, sql) {
 
     if (!sanitizedContactEmail || !sanitizedAddress || !sanitizedOpeningHours ||
         sanitizedNumberOfChildren === null || !sanitizedOwner || !sanitizedDescription) {
-      return res.status(400).json({ error: 'All required fields must be valid' });
+      return res.status(400).json({ error: 'All required fields must be valid', code: 'REQUIRED_FIELDS' });
     }
 
     // Update the first (and only) row
@@ -481,7 +481,7 @@ async function handleKindergartenInfo(req, res, sql) {
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Kindergarten info not found' });
+      return res.status(404).json({ error: 'Kindergarten info not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapKindergartenInfo(result[0]));
@@ -545,7 +545,7 @@ async function handleContactMessages(req, res, sql) {
         `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ error: 'Message not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapContactMessage(result[0]));
@@ -560,7 +560,7 @@ async function handleContactMessages(req, res, sql) {
 
     const reply = sanitizeText(req.body?.message, CONTACT_REPLY_MAX_LENGTH);
     if (!reply) {
-      return res.status(400).json({ error: 'Reply message is required' });
+      return res.status(400).json({ error: 'Reply message is required', code: 'REPLY_REQUIRED' });
     }
 
     const rows = await sql`
@@ -570,7 +570,7 @@ async function handleContactMessages(req, res, sql) {
     `;
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ error: 'Message not found', code: 'NOT_FOUND' });
     }
 
     const original = mapContactMessage(rows[0]);
@@ -578,11 +578,11 @@ async function handleContactMessages(req, res, sql) {
 
     // Anonymous inquiries carry no address, so there is nobody to answer.
     if (!recipient) {
-      return res.status(400).json({ error: 'This inquiry has no reply address' });
+      return res.status(400).json({ error: 'This inquiry has no reply address', code: 'NO_REPLY_ADDRESS' });
     }
 
     if (!isEmailConfigured()) {
-      return res.status(503).json({ error: 'Email is not configured' });
+      return res.status(503).json({ error: 'Email is not configured', code: 'EMAIL_NOT_CONFIGURED' });
     }
 
     const { subject, text } = contactReplyEmail(original, reply);
@@ -594,7 +594,7 @@ async function handleContactMessages(req, res, sql) {
       await sendEmail({ to: recipient, subject, text });
     } catch (emailError) {
       reportProviderError('Failed to send contact reply', emailError);
-      return res.status(502).json({ error: 'Could not send the reply email' });
+      return res.status(502).json({ error: 'Could not send the reply email', code: 'REPLY_SEND_FAILED' });
     }
 
     const updated = await sql`
@@ -622,7 +622,7 @@ async function handleContactMessages(req, res, sql) {
     `;
 
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ error: 'Message not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json({ message: 'Contact message deleted successfully' });
@@ -654,10 +654,10 @@ async function handleUsers(req, res, sql) {
     const role = [ROLES.member, ROLES.staff].includes(req.body?.role) ? req.body.role : null;
 
     if (!username || !name || !role) {
-      return res.status(400).json({ error: 'username, name and role are required' });
+      return res.status(400).json({ error: 'username, name and role are required', code: 'REQUIRED_FIELDS' });
     }
     if (!isEmailConfigured()) {
-      return res.status(500).json({ error: 'Email is not configured; cannot send login details' });
+      return res.status(500).json({ error: 'Email is not configured; cannot send login details', code: 'EMAIL_NOT_CONFIGURED' });
     }
 
     // The lookup spares a bcrypt hash in the usual case; ON CONFLICT covers
@@ -666,7 +666,7 @@ async function handleUsers(req, res, sql) {
     // a 500 — instead of this 400.
     const existing = await sql`SELECT id FROM users WHERE username = ${username} LIMIT 1`;
     if (existing.length > 0) {
-      return res.status(400).json({ error: 'Brukernavnet er allerede i bruk' });
+      return res.status(400).json({ error: 'Username is already in use', code: 'USERNAME_TAKEN' });
     }
 
     const temporaryPassword = generateTemporaryPassword();
@@ -679,7 +679,7 @@ async function handleUsers(req, res, sql) {
       RETURNING id, username, name, role, created_at
     `;
     if (created.length === 0) {
-      return res.status(400).json({ error: 'Brukernavnet er allerede i bruk' });
+      return res.status(400).json({ error: 'Username is already in use', code: 'USERNAME_TAKEN' });
     }
 
     try {
@@ -719,7 +719,7 @@ async function handleUsers(req, res, sql) {
       DELETE FROM users WHERE id = ${id} AND role IN (${ROLES.member}, ${ROLES.staff}) RETURNING id
     `;
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'User not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json({ success: true });
   }
@@ -757,7 +757,7 @@ async function handleNewsletterSubscribers(req, res, sql) {
       DELETE FROM newsletter_subscribers WHERE id = ${id} RETURNING id
     `;
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Subscriber not found' });
+      return res.status(404).json({ error: 'Subscriber not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json({ success: true });
   }

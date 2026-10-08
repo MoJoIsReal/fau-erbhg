@@ -42,13 +42,14 @@ export default withApiHandler(async function handler(req, res) {
   // public and unauthenticated, so the cheapest checks go first.
   const oversizedField = findOversizedField(req.body);
   if (oversizedField) {
-    return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+    return res.status(413).json({ error: `Field '${oversizedField}' is too large`, code: 'FIELD_TOO_LARGE' });
   }
 
   // Validate required fields
   if (!subject || !message) {
     return res.status(400).json({
-      error: 'Subject and message are required'
+      error: 'Subject and message are required',
+      code: 'MESSAGE_REQUIRED',
     });
   }
 
@@ -56,7 +57,8 @@ export default withApiHandler(async function handler(req, res) {
   const allowedSubjects = ['anonymous', 'general', 'concern', 'feedback'];
   if (!allowedSubjects.includes(subject)) {
     return res.status(400).json({
-      error: 'Invalid subject type'
+      error: 'Invalid subject type',
+      code: 'MESSAGE_REQUIRED',
     });
   }
 
@@ -73,7 +75,7 @@ export default withApiHandler(async function handler(req, res) {
   });
   if (!ipRateLimit.allowed) {
     res.setHeader('Retry-After', String(ipRateLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many messages. Try again later.' });
+    return res.status(429).json({ error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
   }
 
   // For anonymous submissions, we don't require name/email
@@ -87,13 +89,15 @@ export default withApiHandler(async function handler(req, res) {
 
   if (!isAnonymous && (!sanitizedName || !sanitizedEmail)) {
     return res.status(400).json({
-      error: 'Valid name and email are required for non-anonymous submissions'
+      error: 'Valid name and email are required for non-anonymous submissions',
+      code: 'NAME_AND_EMAIL_REQUIRED',
     });
   }
 
   if (!sanitizedMessage) {
     return res.status(400).json({
-      error: 'Valid message is required'
+      error: 'Valid message is required',
+      code: 'MESSAGE_REQUIRED',
     });
   }
 
@@ -108,7 +112,7 @@ export default withApiHandler(async function handler(req, res) {
 
   if (!rateLimit.allowed) {
     res.setHeader('Retry-After', String(rateLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many messages. Try again later.' });
+    return res.status(429).json({ error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
   }
 
   if (!(await verifyTurnstile(req, req.body?.turnstileToken, 'contact'))) {
@@ -230,12 +234,12 @@ async function handleNewsletterSubscribe(req, res) {
   // abusive body before sanitizing anything.
   const oversizedField = findOversizedField(req.body);
   if (oversizedField) {
-    return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+    return res.status(413).json({ error: `Field '${oversizedField}' is too large`, code: 'FIELD_TOO_LARGE' });
   }
 
   const sanitizedEmail = sanitizeEmail(email);
   if (!sanitizedEmail) {
-    return res.status(400).json({ error: 'Valid email is required' });
+    return res.status(400).json({ error: 'Valid email is required', code: 'INVALID_EMAIL' });
   }
 
   const sanitizedName = name ? sanitizeText(name, 100) : null;
@@ -257,7 +261,7 @@ async function handleNewsletterSubscribe(req, res) {
 
   if (!emailLimit.allowed || !ipLimit.allowed) {
     res.setHeader('Retry-After', String(Math.max(emailLimit.retryAfter, ipLimit.retryAfter)));
-    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
   if (!(await verifyTurnstile(req, req.body?.turnstileToken, 'newsletter'))) {
@@ -318,7 +322,7 @@ async function handleNewsletterConfirm(req, res) {
   });
   if (!ipLimit.allowed) {
     res.setHeader('Retry-After', String(ipLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
   const now = new Date().toISOString();
@@ -351,7 +355,7 @@ async function handleNewsletterUnsubscribe(req, res) {
   });
   if (!ipLimit.allowed) {
     res.setHeader('Retry-After', String(ipLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
   const now = new Date().toISOString();

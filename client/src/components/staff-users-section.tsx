@@ -19,7 +19,7 @@ import {
 import { Trash2, UserPlus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 
 interface StaffUser {
   id: number;
@@ -62,7 +62,7 @@ export default function StaffUsersSection() {
     onError: (err: any) => {
       toast({
         title: t.yearlyCalendar.staff.errorCreate,
-        description: err?.message ?? "",
+        description: apiErrorText(err, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },
@@ -87,7 +87,7 @@ export default function StaffUsersSection() {
     onError: (err: unknown) => {
       toast({
         title: t.yearlyCalendar.staff.errorDelete,
-        description: getApiErrorMessage(err, ""),
+        description: apiErrorText(err, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },
@@ -107,6 +107,7 @@ export default function StaffUsersSection() {
           <Label htmlFor="staff-username">{t.yearlyCalendar.staff.username}</Label>
           <Input
             id="staff-username"
+            autoComplete="off"
             type="email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -116,6 +117,7 @@ export default function StaffUsersSection() {
           <Label htmlFor="staff-name">{t.yearlyCalendar.staff.name}</Label>
           <Input
             id="staff-name"
+            autoComplete="off"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />

@@ -33,7 +33,7 @@ test('an unknown account and a wrong password get the same answer and no session
     useDatabase(scriptedSql({ respond: accounts() }));
     const res = await call(t, handler, login(body));
     assert.equal(res.statusCode, 401, body.username);
-    assert.deepEqual(res.body, { error: 'Invalid credentials' });
+    assert.deepEqual(res.body, { error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     assert.deepEqual(cookies(res), []);
   }
 });
@@ -50,7 +50,7 @@ test('a login whose fields are not strings is a 400 before anything is looked up
     const sql = useDatabase(scriptedSql({ respond: accounts() }));
     const res = await call(t, handler, login(body));
     assert.equal(res.statusCode, 400, JSON.stringify(body));
-    assert.deepEqual(res.body, { error: 'Username and password required' });
+    assert.deepEqual(res.body, { error: 'Username and password required', code: 'REQUIRED_FIELDS' });
     assert.deepEqual(sql.calls, [], JSON.stringify(body));
   }
 });
@@ -98,7 +98,9 @@ const rateLimitWrites = (sql) => sql.calls
 
 test('only a failed password counts against the account, and no key stores the address', async (t) => {
   const failed = useDatabase(scriptedSql({ respond: accounts() }));
-  assert.equal((await call(t, handler, login({ username: USERNAME, password: 'wrong' }))).statusCode, 401);
+  const refused = await call(t, handler, login({ username: USERNAME, password: 'wrong' }));
+  assert.equal(refused.statusCode, 401);
+  assert.equal(refused.body.code, 'INVALID_CREDENTIALS', 'the form translates the code, not the English text');
   assert.ok(rateLimitWrites(failed).includes(ACCOUNT_FAILURES), 'a failure is recorded');
   const lookup = failed.calls.findIndex(({ statement }) => statement.includes('FROM users'));
   const counted = failed.calls.findIndex(({ statement, values }) =>
@@ -112,9 +114,10 @@ test('only a failed password counts against the account, and no key stores the a
     'a success is not left counted');
 
   // A request another limit refuses never reaches the account counter.
-  const refused = useDatabase(scriptedSql({ respond: accounts(), rateCount: (key) => (key === rateLimitKey(CLIENT, 'login-ip', '') ? 99 : 1) }));
-  assert.equal((await call(t, handler, login({ username: USERNAME, password: 'wrong' }))).statusCode, 429);
-  assert.ok(!rateLimitWrites(refused).includes(ACCOUNT_FAILURES), 'refused by the IP limit, not counted against the account');
+  const limited = useDatabase(scriptedSql({ respond: accounts(), rateCount: (key) => (key === rateLimitKey(CLIENT, 'login-ip', '') ? 99 : 1) }));
+  const tooMany = await call(t, handler, login({ username: USERNAME, password: 'wrong' }));
+  assert.deepEqual([tooMany.statusCode, tooMany.body.code], [429, 'RATE_LIMITED']);
+  assert.ok(!rateLimitWrites(limited).includes(ACCOUNT_FAILURES), 'refused by the IP limit, not counted against the account');
 
   for (const sql of [failed, succeeded]) {
     for (const { statement, values } of sql.calls) {

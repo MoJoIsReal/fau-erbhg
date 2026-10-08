@@ -1,3 +1,5 @@
+import { API_ERROR_CODES, type ApiErrorCode } from "@shared/constants";
+import type { Translations } from "@/lib/i18n";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 export type ApiErrorBody = {
@@ -35,14 +37,16 @@ export function getApiErrorBody(error: unknown): ApiErrorBody | null {
   return null;
 }
 
-export function getApiErrorMessage(error: unknown, fallback = "An unexpected error occurred"): string {
-  if (error instanceof ApiError) {
-    return error.message || fallback;
-  }
-  if (error instanceof Error) {
-    return error.message || fallback;
-  }
-  return fallback;
+// What to tell the user about a failed request. A refusal the user can run
+// into carries a `code` the API names in API_ERROR_CODES, shown translated;
+// anything else gets the caller's own translated `fallback`. The `error` text
+// in the body is never shown: it is English (once Norwegian only), so a parent
+// using the site in Norwegian used to read "Invalid credentials".
+export function apiErrorText(error: unknown, t: Translations, fallback: string): string {
+  const code = getApiErrorBody(error)?.code;
+  return typeof code === "string" && (API_ERROR_CODES as readonly string[]).includes(code)
+    ? t.apiErrors[code as ApiErrorCode]
+    : fallback;
 }
 
 // Both cookies live exactly 2 hours. When they expire, every council endpoint

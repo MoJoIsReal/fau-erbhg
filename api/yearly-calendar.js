@@ -413,7 +413,7 @@ export default withApiHandler(async function handler(req, res) {
 
     const payload = sanitizeEntryPayload(req.body || {});
     if (!hasRequiredEntryFields(payload)) {
-      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR });
+      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
     }
     const now = new Date().toISOString();
     const created = await sql`
@@ -436,7 +436,7 @@ export default withApiHandler(async function handler(req, res) {
     if (!id) return;
     const payload = sanitizeEntryPayload(req.body || {});
     if (!hasRequiredEntryFields(payload)) {
-      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR });
+      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
     }
     const now = new Date().toISOString();
     const updated = await sql`
@@ -464,7 +464,7 @@ export default withApiHandler(async function handler(req, res) {
       RETURNING *
     `;
     if (updated.length === 0) {
-      return res.status(404).json({ error: 'Entry not found' });
+      return res.status(404).json({ error: 'Entry not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json(mapEntry(updated[0]));
   }
@@ -476,7 +476,7 @@ export default withApiHandler(async function handler(req, res) {
       DELETE FROM yearly_calendar_entries WHERE id = ${id} RETURNING id
     `;
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Entry not found' });
+      return res.status(404).json({ error: 'Entry not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json({ success: true });
   }

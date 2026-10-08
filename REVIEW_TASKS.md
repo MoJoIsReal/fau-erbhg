@@ -305,7 +305,9 @@ TEST-002.
 ### Related findings
 TEST-002, TRACE-002
 
-## [ ] TRACE-003 — Give user-reachable refusals a `code` and translate them in the client
+## [x] TRACE-003 — Give user-reachable refusals a `code` and translate them in the client
+> **Done.** `API_ERROR_CODES` (27 codes) in `shared/constants.js`, translated in `t.apiErrors` (tsc enforces both languages). Every listed toast now goes through `apiErrorText(error, t, fallback)`; `getApiErrorMessage` is gone. Guards: no page renders `error.message` (client-invariants), and handler codes ⇄ client lists agree (backend-invariants). Not covered: the yearly-calendar import's per-row validation report, which already maps its Norwegian messages itself.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** Traceability / i18n contract
 
 ### Files
@@ -501,7 +503,9 @@ None.
 ### Related findings
 SEC-005
 
-## [ ] PERF-001 — Lazy-load the council editor modals on `/kalender`
+## [x] PERF-001 — Lazy-load the council editor modals on `/kalender`
+> **Done.** The four editor modals are `React.lazy` and the editor block renders only for editors. `/kalender` static closure: 515 → 339 kB gzipped, no RichTextEditor. Guarded in client-invariants.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed (measured) · **Effort:** S · **Area:** Performance / Frontend
 
 ### Files
@@ -719,7 +723,9 @@ None.
 ### Related findings
 PERF-007 (Google Fonts IP disclosure)
 
-## [ ] A11Y-001 — Label the photo-day child-name inputs and show their errors inline
+## [x] A11Y-001 — Label the photo-day child-name inputs and show their errors inline
+> **Done.** Child-name inputs are a fieldset with a legend, a Label per input, `aria-invalid` and an inline `role="alert"` error instead of the toast.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Accessibility
 
 ### Files
@@ -747,7 +753,9 @@ None.
 ### Related findings
 A11Y-002, A11Y-004
 
-## [ ] A11Y-002 — Move hard-coded Norwegian form labels into `i18n.ts`
+## [x] A11Y-002 — Move hard-coded Norwegian form labels into `i18n.ts`
+> **Done.** All signup-form labels, placeholders, the seats-left line and the dialog intro come from `i18n.ts` (i18n ratchet 31 → 30).
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Accessibility / i18n
 
 ### Files
@@ -776,7 +784,9 @@ None.
 ### Related findings
 A11Y-001, TRACE-003
 
-## [ ] A11Y-003 — Add `autocomplete` to identity and credential fields
+## [x] A11Y-003 — Add `autocomplete` to identity and credential fields
+> **Done.** `autocomplete` on login, password change, signup and newsletter fields; `off` on the admin's create-user fields (they describe someone else).
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Accessibility
 
 ### Files

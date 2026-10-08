@@ -27,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Mail, Clock, User, Phone, Trash2, Check, Archive, Loader2, Reply } from "lucide-react";
-import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 
 interface ContactMessage {
   id: number;
@@ -130,7 +130,7 @@ export default function Messages() {
       toast({
         variant: "destructive",
         title: t.messagesPage.couldNotSendReply,
-        description: getApiErrorMessage(error, t.messagesPage.couldNotSendReply),
+        description: apiErrorText(error, t, t.messagesPage.couldNotSendReply),
       });
     },
   });

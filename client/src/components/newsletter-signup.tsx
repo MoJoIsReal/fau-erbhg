@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
+import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import {
   TURNSTILE_FAILED,
@@ -52,7 +52,7 @@ export default function NewsletterSignup() {
       }
       toast({
         title: t.newsletter.errorTitle,
-        description: error?.message || t.newsletter.errorDesc,
+        description: apiErrorText(error, t, t.newsletter.errorDesc),
         variant: "destructive",
       });
     },
@@ -90,6 +90,7 @@ export default function NewsletterSignup() {
         <Label htmlFor="newsletter-email">{t.newsletter.emailLabel} *</Label>
         <Input
           id="newsletter-email"
+          autoComplete="email"
           type="email"
           required
           value={email}
@@ -102,6 +103,7 @@ export default function NewsletterSignup() {
         <Label htmlFor="newsletter-name">{t.newsletter.nameLabel}</Label>
         <Input
           id="newsletter-name"
+          autoComplete="name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={t.newsletter.namePlaceholder}

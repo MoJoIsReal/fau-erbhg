@@ -17,7 +17,7 @@ import { InfoBanner } from "@/components/site/banners";
 import { StatusPill } from "@/components/site/controls";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 
 interface Subscriber {
   id: number;
@@ -58,7 +58,7 @@ export default function NewsletterSubscribersSection() {
     onError: (err: any) => {
       toast({
         title: t.settings.error,
-        description: err?.message ?? "",
+        description: apiErrorText(err, t, t.apiErrors.generic),
         variant: "destructive",
       });
     },

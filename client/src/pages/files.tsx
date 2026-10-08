@@ -26,7 +26,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import { formatDate, formatFileSize } from "@/lib/i18n";
 import PageHero from "@/components/site/page-hero";
 import { ILLUSTRATION_DOCUMENTS } from "@/components/site/illustrations";
@@ -231,7 +231,7 @@ export default function Files() {
             isError
             icon={<FileText className="h-5 w-5" aria-hidden="true" />}
             title={t.documents.error}
-            description={error.message}
+            description={apiErrorText(error, t, t.apiErrors.generic)}
           />
         ) : shown.length === 0 ? (
           <EmptyState

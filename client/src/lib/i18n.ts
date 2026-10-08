@@ -1,4 +1,4 @@
-import type { SignupErrorCode } from "@shared/constants";
+import type { ApiErrorCode, SignupErrorCode } from "@shared/constants";
 
 export type Language = 'no' | 'en';
 
@@ -288,7 +288,6 @@ export interface Translations {
     noRegistrationsYet: string;
     loading: string;
     attendees2: string;
-    missingNames: string;
     registerPhotoSession: string;
     eventRegistration: string;
     parentGuardianName: string;
@@ -297,6 +296,19 @@ export interface Translations {
     child: string;
     children: string;
     childrenSFirstNames: string;
+    /** Labels of the public signup form. {n}, {left} and {max} are filled in. */
+    childFirstName: string;
+    signupFullName: string;
+    signupFullNamePlaceholder: string;
+    signupEmail: string;
+    signupEmailPlaceholder: string;
+    signupPhone: string;
+    signupComments: string;
+    signupCommentsPlaceholder: string;
+    seatsLeftLabel: string;
+    seatsLeftValue: string;
+    signupIntro: string;
+    signupIntroPhoto: string;
     register: string;
     full: string;
     attendees: string;
@@ -1046,10 +1058,42 @@ export interface Translations {
       errorDelete: string;
     };
   };
+  /** One message per `code` the API refuses with (API_ERROR_CODES), and `generic` when there is none. */
+  apiErrors: Record<ApiErrorCode, string> & { generic: string };
 }
 
 export const translations: Record<Language, Translations> = {
   no: {
+    apiErrors: {
+      RATE_LIMITED: "For mange forsøk. Vent litt og prøv igjen.",
+      REQUIRED_FIELDS: "Fyll ut alle påkrevde felt.",
+      NOT_FOUND: "Fant den ikke – noen andre kan ha slettet den. Last siden på nytt.",
+      INVALID_CREDENTIALS: "Feil brukernavn eller passord.",
+      CURRENT_PASSWORD_INCORRECT: "Nåværende passord er feil.",
+      PASSWORD_TOO_SHORT: "Det nye passordet må ha minst 12 tegn.",
+      PASSWORD_UNCHANGED: "Det nye passordet må være forskjellig fra det nåværende.",
+      FIELD_TOO_LARGE: "Teksten er for lang.",
+      INVALID_EMAIL: "Skriv inn en gyldig e-postadresse.",
+      NAME_AND_EMAIL_REQUIRED: "Skriv inn navn og en gyldig e-postadresse, eller send henvendelsen anonymt.",
+      MESSAGE_REQUIRED: "Velg emne og skriv en melding.",
+      EVENT_FIELDS_REQUIRED: "Tittel, dato og klokkeslett må fylles ut.",
+      INVALID_EVENT_DATE: "Datoen må være en ekte dato.",
+      INVALID_EVENT_TIME: "Klokkeslett må skrives som TT:MM (24 timer).",
+      INVALID_MAX_ATTENDEES: "Maks antall deltakere må være et heltall, eller tomt for ingen grense.",
+      INVALID_REGISTRATION_DEADLINE: "Påmeldingsfristen er ikke gyldig.",
+      INVALID_EVENT_TYPE: "Ugyldig type arrangement.",
+      TITLE_REQUIRED: "Tittel må fylles ut.",
+      UPLOAD_TYPE_NOT_ALLOWED: "Denne filtypen er ikke tillatt.",
+      UPLOAD_TOO_LARGE: "Filen er større enn 10 MB.",
+      UPLOAD_NOT_VERIFIED: "Opplastingen kunne ikke bekreftes. Prøv igjen.",
+      USERNAME_TAKEN: "Brukernavnet er allerede i bruk.",
+      EMAIL_NOT_CONFIGURED: "E-post er ikke satt opp, så ingenting ble sendt.",
+      REPLY_REQUIRED: "Skriv et svar.",
+      NO_REPLY_ADDRESS: "Henvendelsen har ingen adresse å svare til.",
+      REPLY_SEND_FAILED: "Svaret kunne ikke sendes. Prøv igjen senere.",
+      ENTRY_FIELDS_REQUIRED: "Type, tittel, skoleår, år og måned må fylles ut.",
+      generic: "Noe gikk galt. Prøv igjen.",
+    },
     dataState: {
       unavailable: "Opplysningene er ikke tilgjengelige akkurat nå",
       staleHint: "Prøv igjen. Opplysninger som fortsatt vises, kan være ufullstendige eller utdaterte.",
@@ -1344,7 +1388,6 @@ export const translations: Record<Language, Translations> = {
       noRegistrationsYet: "Ingen påmeldte ennå",
       loading: "Laster...",
       attendees2: "påmeldte",
-      missingNames: "Manglende navn",
       registerPhotoSession: "Påmelding til fotografering",
       eventRegistration: "Påmelding til arrangement",
       parentGuardianName: "Navn foresatt *",
@@ -1353,6 +1396,18 @@ export const translations: Record<Language, Translations> = {
       child: "barn",
       children: "barn",
       childrenSFirstNames: "Fornavn på barn",
+      childFirstName: "Barn {n} – fornavn",
+      signupFullName: "Fullt navn *",
+      signupFullNamePlaceholder: "Ditt navn",
+      signupEmail: "E-post *",
+      signupEmailPlaceholder: "din.epost@example.com",
+      signupPhone: "Telefon",
+      signupComments: "Kommentarer",
+      signupCommentsPlaceholder: "Eventuelle allergier, spørsmål eller kommentarer …",
+      seatsLeftLabel: "Plasser igjen:",
+      seatsLeftValue: "{left} av {max}",
+      signupIntro: "Fyll ut skjemaet nedenfor for å melde deg på arrangementet.",
+      signupIntroPhoto: "Oppgi antall barn som skal fotograferes og fornavn på hvert barn.",
       register: "Meld deg på",
       full: "Fullt",
       attendees: "påmeldte",
@@ -2110,6 +2165,36 @@ export const translations: Record<Language, Translations> = {
     }
   },
   en: {
+    apiErrors: {
+      RATE_LIMITED: "Too many attempts. Wait a little and try again.",
+      REQUIRED_FIELDS: "Fill in all required fields.",
+      NOT_FOUND: "Not found – someone else may have deleted it. Reload the page.",
+      INVALID_CREDENTIALS: "Wrong username or password.",
+      CURRENT_PASSWORD_INCORRECT: "The current password is wrong.",
+      PASSWORD_TOO_SHORT: "The new password must be at least 12 characters.",
+      PASSWORD_UNCHANGED: "The new password must differ from the current one.",
+      FIELD_TOO_LARGE: "The text is too long.",
+      INVALID_EMAIL: "Enter a valid email address.",
+      NAME_AND_EMAIL_REQUIRED: "Enter your name and a valid email address, or send the inquiry anonymously.",
+      MESSAGE_REQUIRED: "Choose a subject and write a message.",
+      EVENT_FIELDS_REQUIRED: "Title, date and time are required.",
+      INVALID_EVENT_DATE: "The date must be a real calendar date.",
+      INVALID_EVENT_TIME: "The time must be written as HH:MM (24-hour).",
+      INVALID_MAX_ATTENDEES: "Max attendees must be a whole number, or empty for no limit.",
+      INVALID_REGISTRATION_DEADLINE: "The registration deadline is not valid.",
+      INVALID_EVENT_TYPE: "Invalid event type.",
+      TITLE_REQUIRED: "A title is required.",
+      UPLOAD_TYPE_NOT_ALLOWED: "This file type is not allowed.",
+      UPLOAD_TOO_LARGE: "The file is larger than 10 MB.",
+      UPLOAD_NOT_VERIFIED: "The upload could not be verified. Try again.",
+      USERNAME_TAKEN: "That username is already in use.",
+      EMAIL_NOT_CONFIGURED: "Email is not set up, so nothing was sent.",
+      REPLY_REQUIRED: "Write a reply.",
+      NO_REPLY_ADDRESS: "This inquiry has no address to reply to.",
+      REPLY_SEND_FAILED: "The reply could not be sent. Try again later.",
+      ENTRY_FIELDS_REQUIRED: "Type, title, school year, year and month are required.",
+      generic: "Something went wrong. Try again.",
+    },
     dataState: {
       unavailable: "Information is currently unavailable",
       staleHint: "Please try again. Any information still shown may be incomplete or out of date.",
@@ -2404,7 +2489,6 @@ export const translations: Record<Language, Translations> = {
       noRegistrationsYet: "No registrations yet",
       loading: "Loading...",
       attendees2: "attendees",
-      missingNames: "Missing names",
       registerPhotoSession: "Register for photo session",
       eventRegistration: "Event registration",
       parentGuardianName: "Parent/guardian name *",
@@ -2413,6 +2497,18 @@ export const translations: Record<Language, Translations> = {
       child: "child",
       children: "children",
       childrenSFirstNames: "Children\\'s first names",
+      childFirstName: "Child {n} – first name",
+      signupFullName: "Full name *",
+      signupFullNamePlaceholder: "Your name",
+      signupEmail: "Email *",
+      signupEmailPlaceholder: "your.email@example.com",
+      signupPhone: "Phone",
+      signupComments: "Comments",
+      signupCommentsPlaceholder: "Any allergies, questions or comments …",
+      seatsLeftLabel: "Places left:",
+      seatsLeftValue: "{left} of {max}",
+      signupIntro: "Fill out the form below to register for the event.",
+      signupIntroPhoto: "Enter the number of children to be photographed and the first name of each child.",
       register: "Register",
       full: "Full",
       attendees: "registered",

@@ -3,7 +3,7 @@
 // Each encodes a regression that shipped once. Don't pin copy, class names or
 // anything `npm run check` already enforces here.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
@@ -115,4 +115,38 @@ test('every illustration ships all four crops and dark mode swaps rather than di
   assert.match(artwork, /const art = isDark \? illustration\.dark : illustration\.light;/);
   assert.match(artwork, /<source media=\{NARROW\}/);
   assert.equal(/grayscale|brightness\(|saturate\(|\bfilter:|mix-blend|opacity-\d/.test(artwork), false);
+});
+
+// /kalender is the main public page. A static import of an editor modal pulls
+// the rich-text editor (TipTap, ~130 kB gzipped) into every visitor's load,
+// which is what the calendar shipped until the modals were made lazy.
+test('the public calendar loads the editor modals lazily', () => {
+  const modals = ['event-creation-modal', 'event-registrations-modal', 'yearly-calendar-entry-modal', 'yearly-calendar-import-modal'];
+  for (const file of ['client/src/components/calendar-editor-tools.tsx', 'client/src/components/calendar-views.tsx', 'client/src/components/calendar-view.tsx', 'client/src/pages/calendar.tsx']) {
+    const source = read(file);
+    for (const modal of modals) {
+      const staticImport = new RegExp(`^import (?!type )[^;]*from "@/components/${modal}";`, 'm');
+      assert.doesNotMatch(source, staticImport, `${file} imports ${modal} statically`);
+    }
+  }
+});
+
+// The `error` text in an API body is English (once Norwegian only) and meant
+// for logs; a toast showing it gave a Norwegian parent "Invalid credentials".
+// What a user reads comes from apiErrorText: a translated `code`, or the
+// caller's own translated fallback.
+test('no page shows the raw error text from an API response', () => {
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) { if (entry.name !== 'ui') walk(path); continue; }
+      if (!/\.tsx$/.test(entry.name)) continue;
+      read(path).split('\n').forEach((line, index) => {
+        if (/description[:=]\s*\{?\s*(error|err)\??\.message|getApiErrorMessage\(/.test(line)) offenders.push(`${path}:${index + 1}`);
+      });
+    }
+  };
+  walk('client/src');
+  assert.deepEqual(offenders, []);
 });

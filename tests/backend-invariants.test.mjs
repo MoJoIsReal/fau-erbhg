@@ -144,3 +144,23 @@ test('every Sentry capture in a handler is awaited or kept alive with waitUntil'
     });
   }
 });
+
+// A `code` the client has no translation for falls back to a generic message
+// without anyone noticing, and a listed code no handler sends is dead copy.
+// Every code a handler answers with is one the client knows, and every
+// API_ERROR_CODES entry is answered somewhere.
+test('handler refusal codes and the client code lists agree', async () => {
+  const { API_ERROR_CODES, SIGNUP_ERROR_CODES } = await import('../shared/constants.js');
+  const { MEDIA_ERROR_CODES } = await import('../shared/media.js');
+  const known = new Set([...API_ERROR_CODES, ...SIGNUP_ERROR_CODES, ...MEDIA_ERROR_CODES, 'PASSWORD_CHANGE_REQUIRED', 'TURNSTILE_FAILED']);
+  const files = ['auth', 'contact', 'documents', 'events', 'media', 'registrations', 'secure-settings', 'upload', 'yearly-calendar']
+    .map((name) => `api/${name}.js`).concat(['api/_shared/upload-validation.js', 'api/_shared/middleware.js']);
+  const used = new Set();
+  for (const file of files) {
+    for (const [, code] of read(file).matchAll(/\bcode: '([A-Z_]+)'/g)) {
+      used.add(code);
+      assert.ok(known.has(code), `${file} answers with code ${code}, which no client list translates`);
+    }
+  }
+  for (const code of API_ERROR_CODES) assert.ok(used.has(code), `API_ERROR_CODES lists ${code}, but no handler sends it`);
+});

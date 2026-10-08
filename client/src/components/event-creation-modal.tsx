@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TimeInput24h } from "@/components/time-input-24h";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import { insertEventSchema, type Event } from "@shared/schema";
 import { MAX_EVENT_ATTENDEES } from "@shared/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -316,7 +316,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
     onError: (error: any) => {
       toast({
         title: t.entryEditor.error,
-        description: error.message || t.modals.eventCreation.errorDesc,
+        description: apiErrorText(error, t, t.modals.eventCreation.errorDesc),
         variant: "destructive"
       });
     }
