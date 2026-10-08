@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { before, test } from 'node:test';
-import { database, initialize, literal, productionStatement } from './postgres-fixture.mjs';
+import { database, initialize, literal, productionStatement, declaredSchema } from './postgres-fixture.mjs';
 
 const sql = database();
 before(async () => { await initialize(sql); });
@@ -451,4 +451,45 @@ test('the cron purges expired shares and day-old drafts, and nothing else', asyn
   }));
   assert.deepEqual(due.map((row) => Number(row.id)).sort((a, b) => a - b), [expired, staleDraft].sort((a, b) => a - b));
   assert.ok(!due.some((row) => Number(row.id) === active));
+});
+
+// The database the migrations build is what production has; shared/schema.ts
+// is what the types, the insert schemas and drizzle-kit believe. The fixture
+// used to build the base tables from schema.ts itself, so the two could never
+// disagree here, and a column added to schema.ts without a migration passed CI
+// and failed on Neon. It now builds from a frozen baseline plus the migrations,
+// and this compares the result with the declaration: tables, columns
+// (type, NOT NULL), indexes, unique and CHECK constraints.
+test('the migrated database matches what shared/schema.ts declares', async () => {
+  const declared = await declaredSchema();
+  const typeOf = (type) => ({ serial: 'integer', bigserial: 'bigint', timestamp: 'timestamp without time zone' }[type] ?? type);
+  const problems = [];
+  const live = {
+    columns: await sql("SELECT table_name, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'public';"),
+    indexes: await sql("SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname NOT LIKE '%_pkey';"),
+    constraints: await sql("SELECT conrelid::regclass::text AS table_name, conname, contype FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype IN ('u', 'c');"),
+  };
+  const tables = new Map(Object.values(declared.tables).map((table) => [table.name, table]));
+  const liveTables = new Set(live.columns.map((row) => row.table_name));
+  for (const name of liveTables) if (!tables.has(name)) problems.push(`table ${name} exists but is not declared`);
+  for (const [name, table] of tables) {
+    if (!liveTables.has(name)) { problems.push(`table ${name} is declared but no migration creates it`); continue; }
+    const columns = live.columns.filter((row) => row.table_name === name);
+    for (const column of Object.values(table.columns)) {
+      const row = columns.find((candidate) => candidate.column_name === column.name);
+      if (!row) { problems.push(`${name}.${column.name} is declared but no migration adds it`); continue; }
+      if (typeOf(column.type) !== row.data_type) problems.push(`${name}.${column.name} is ${row.data_type}, declared ${column.type}`);
+      if (Boolean(column.notNull) !== (row.is_nullable === 'NO')) problems.push(`${name}.${column.name} NOT NULL differs (declared ${Boolean(column.notNull)})`);
+    }
+    for (const row of columns) if (!table.columns[row.column_name]) problems.push(`${name}.${row.column_name} exists but is not declared`);
+    const declaredIndexes = new Set([...Object.keys(table.indexes), ...Object.keys(table.uniqueConstraints)]);
+    const liveIndexes = new Set(live.indexes.filter((row) => row.tablename === name).map((row) => row.indexname));
+    for (const index of declaredIndexes) if (!liveIndexes.has(index)) problems.push(`index ${index} is declared but no migration creates it`);
+    for (const index of liveIndexes) if (!declaredIndexes.has(index)) problems.push(`index ${index} exists but is not declared`);
+    const liveChecks = new Set(live.constraints.filter((row) => row.table_name === name && row.contype === 'c').map((row) => row.conname));
+    const declaredChecks = new Set(Object.keys(table.checkConstraints));
+    for (const check of declaredChecks) if (!liveChecks.has(check)) problems.push(`check ${check} is declared but no migration creates it`);
+    for (const check of liveChecks) if (!declaredChecks.has(check)) problems.push(`check ${check} exists but is not declared`);
+  }
+  assert.deepEqual(problems, []);
 });

@@ -39,14 +39,19 @@ libpq settings, disables psql startup files and checks the connected database
 and role before resetting the fixture.
 
 **Each run drops/recreates the test database's `public` schema.** It builds the
-schema the way production was built: Drizzle DDL from `shared/schema.ts` only
-for the base tables no migration creates, then every numbered SQL migration in
-order. A table a migration creates must come from that migration, because the
-CHECK constraints live only there; letting Drizzle create it first turned the
-migration's `CREATE TABLE IF NOT EXISTS` into a no-op and tested a looser table
-than production has (how a newsletter status the 0008 check rejected once passed
-this suite). It does not prove upgrades against historical production data. No
-migrations are edited.
+schema the way production was built: the base tables no migration creates come
+from the frozen [`tests/integration/baseline.sql`](../tests/integration/baseline.sql),
+then every numbered SQL migration runs in order. A table a migration creates
+comes from that migration, because its CHECK constraints live there; letting
+Drizzle create it first once turned the migration's `CREATE TABLE IF NOT EXISTS`
+into a no-op and tested a looser table than production has. The base tables
+used to be generated from the current `shared/schema.ts` on every run, which
+made every `ADD COLUMN IF NOT EXISTS` a no-op too, so a forgotten migration
+passed. The baseline is frozen instead, and one test compares the database the
+migrations build with what `shared/schema.ts` declares (tables, columns, NOT
+NULL, indexes, unique and CHECK constraints). It does not prove upgrades
+against historical production data. No migrations are edited.
+
 A test failure leaves only synthetic records in this disposable database;
 the next run resets them, and destroying the service removes them altogether.
 

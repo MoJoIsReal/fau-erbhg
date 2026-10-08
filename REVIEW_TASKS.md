@@ -267,7 +267,9 @@ None.
 ### Related findings
 DB-001, OBS-005
 
-## [ ] DB-001 — Bring `shared/schema.ts` in line with the migrations (or retire `db:push`)
+## [x] DB-001 — Bring `shared/schema.ts` in line with the migrations (or retire `db:push`)
+> **Done.** `schema.ts` now declares the unique `(event_id, lower(email))` index, the 0010 partial index, every migration-only CHECK (newsletter_deliveries, photo_event_slots, yearly_calendar_entries, media_*) and the PostgreSQL-default unique names (`*_key`). `registered_at` gets an ISO default via new migration `0021_registration_iso_registered_at.sql`, which also rewrites rows still in `NOW()::text` form. `npm run db:push` is removed; DEPLOYMENT.md says how to build a fresh database instead.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Possible · **Effort:** M · **Area:** Database / Schema drift
 
 ### Files
@@ -600,7 +602,9 @@ Dashboard access.
 ### Related findings
 PERF-005
 
-## [ ] TEST-001 — Cover secure-settings mutation logic in the handler harness
+## [x] TEST-001 — Cover secure-settings mutation logic in the handler harness
+> **Done.** New handler cases: users DELETE only matches member/staff; a reply is stored as sent only after Gmail accepts it (502 and no UPDATE when it refuses); no-address, empty-reply, missing and mail-not-configured refusals; blog update's three-state newsletter flag and HTML sanitizing; board-member and kindergarten validation. Checked: removing the role filter, or updating before sending, fails a test.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** Tests
 
 ### Files
@@ -634,7 +638,9 @@ None.
 ### Related findings
 TRACE-004
 
-## [ ] TEST-002 — Make the integration gate detect incomplete migrations
+## [x] TEST-002 — Make the integration gate detect incomplete migrations
+> **Done.** The base tables come from a frozen `tests/integration/baseline.sql` instead of the current `schema.ts`, and a new integration test compares the migrated database with the declaration (tables, columns, type, NOT NULL, indexes, unique and CHECK constraints). Checked: adding a column to `schema.ts` without a migration fails it.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** Tests / DB
 
 ### Files

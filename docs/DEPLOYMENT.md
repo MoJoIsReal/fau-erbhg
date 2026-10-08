@@ -61,17 +61,21 @@ secrets or capability tokens while troubleshooting.
 The current table/type declaration is [`shared/schema.ts`](../shared/schema.ts).
 Handlers use parameterized Neon SQL, not Drizzle's query builder.
 
-For a **new isolated database**, explicitly configure its `DATABASE_URL`, use
-`npm run db:push` to create the declared schema, then apply applicable SQL files
-in numeric order according to [`migrations/README.md`](../migrations/README.md).
-The SQL files also contain constraints, indexes and data repairs absent from the
-Drizzle declaration. `db:push` does not create a numbered migration file.
+For a **new isolated database**, apply
+[`tests/integration/baseline.sql`](../tests/integration/baseline.sql) (the base
+tables no migration creates), then every SQL file in numeric order according to
+[`migrations/README.md`](../migrations/README.md) — exactly what the CI
+integration job does. There is no `db:push` script any more: pushing the Drizzle
+declaration reconciled a database to `shared/schema.ts`, and at the time that
+dropped indexes and checks only the migrations created, among them the unique
+`(event_id, lower(email))` index that stops duplicate signups.
 
 For an **existing deployment**, review and apply only outstanding numbered SQL
 migrations through the Neon SQL editor before the dependent code is deployed.
-Do not use `db:push` as a production migration generator. Never edit or renumber
-an applied migration. New schema changes require both the shared declaration
-and a new migration. Review existing data and arrange recovery before destructive
+Never edit or renumber an applied migration. New schema changes require both
+the shared declaration and a new migration; `npm run test:integration` compares
+the database the migrations build with the declaration and fails when they
+disagree. Review existing data and arrange recovery before destructive
 changes; test migrations on an isolated database first.
 
 Create the initial administrator using a reviewed bootstrap procedure with a

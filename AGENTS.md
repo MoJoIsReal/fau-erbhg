@@ -21,7 +21,6 @@ npm test           # every offline suite in tests/ (node:test)
 npm run build      # production frontend build (Vite → dist/public)
 npm run verify     # check + offline tests + build (CI's verify job)
 npm run test:integration # isolated PostgreSQL gate; see docs/database-testing.md
-npm run db:push    # push shared/schema.ts to the DB (needs DATABASE_URL)
 ```
 
 There is **no local backend**. `api/*.js` only executes on Vercel (or under
@@ -315,7 +314,9 @@ request logic. Never point automated tests at the production Neon database.
   structure and re-apply those token values; do not add markup or props here.
 - `migrations/*.sql` — append a new numbered file; never edit or renumber an
   applied one. Schema changes need **both** `shared/schema.ts` and a migration
-  (see `migrations/README.md`).
+  (see `migrations/README.md`); `npm run test:integration` fails when the two
+  disagree. There is no `db:push`: the migrations are the only way a schema
+  reaches a database, and `tests/integration/baseline.sql` is frozen.
 - `package-lock.json`, `attached_assets/`, `dist/` — don't hand-edit; Dependabot
   owns dependency bumps.
 - `.env*`, secrets, production Vercel/Neon/Cloudinary config — never commit
