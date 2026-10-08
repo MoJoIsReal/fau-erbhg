@@ -160,6 +160,13 @@ export function request({ method = 'GET', url = '/api/test', query = {}, body = 
   };
 }
 
+// Mail goes out after the response (waitUntil), behind a few awaited
+// statements. Let every pending callback run before looking at what was sent,
+// including mail a previous test left in flight.
+export async function settle() {
+  for (let round = 0; round < 50; round += 1) await new Promise(setImmediate);
+}
+
 const quieted = new WeakSet();
 
 // Run a handler and return the response, with its log lines kept off the

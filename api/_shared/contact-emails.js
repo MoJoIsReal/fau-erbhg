@@ -1,3 +1,4 @@
+import { nameForMail } from './middleware.js';
 import { publicBaseUrl } from './newsletter.js';
 
 // Labels for the subject values the public contact form submits.
@@ -47,8 +48,9 @@ function osloTimestamp(value, language = 'no') {
  *
  * Deliberately does NOT quote the submitted message: the form is public and
  * accepts any recipient address, so echoing attacker-supplied text back out
- * would turn the site into a relay for arbitrary mail. Only the validated
- * subject value and a server-side timestamp are included.
+ * would turn the site into a relay for arbitrary mail. Besides FAU's own
+ * text there is only the validated subject value, a server-side timestamp and
+ * the name, reduced by nameForMail to plain words (no links, no line breaks).
  *
  * @param {{ name?: string, subject: string, language?: string, receivedAt?: string }} params
  * @returns {{ subject: string, text: string }}
@@ -56,6 +58,7 @@ function osloTimestamp(value, language = 'no') {
 export function contactAcknowledgementEmail({ name, subject, language = 'no', receivedAt } = {}) {
   const isNorwegian = language !== 'en';
   const received = osloTimestamp(receivedAt, isNorwegian ? 'no' : 'en');
+  name = nameForMail(name);
 
   if (isNorwegian) {
     return {

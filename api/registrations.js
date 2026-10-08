@@ -11,19 +11,20 @@ import {
   sanitizeInteger,
   findOversizedField,
   MAX_INT_ID,
+  nameForMail,
 } from './_shared/middleware.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
-import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
+import { checkRateLimit, rateLimitKey, reservePublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
-import Sentry from './_shared/sentry.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION } from '../shared/constants.js';
 import {
   cancellationText,
   isCancelToken,
   isCancellationOpen,
-  osloToday
+  osloToday,
+  registrationCancelUrl
 } from './_shared/registration-cancel.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
@@ -363,11 +364,9 @@ export default withApiHandler(async function handler(req, res) {
         }
       } catch (blacklistError) {
         // Table may not exist yet or have different schema — skip check, don't block registration.
-        // Surface to Sentry so silent spam-filter degradation is noticed instead of slowly missed.
-        console.warn('Email blacklist check failed, skipping:', blacklistError.message);
-        if (process.env.NODE_ENV === 'production') {
-          Sentry.captureException(blacklistError);
-        }
+        // Reported (redacted, and kept alive past the response) so a silently
+        // degraded spam filter is noticed instead of slowly missed.
+        reportProviderError('Email blacklist check failed; skipped', blacklistError);
       }
     }
 
@@ -599,25 +598,39 @@ export default withApiHandler(async function handler(req, res) {
     const newRegistration = [registrationState.registration];
     const updatedEvent = registrationState.event || event;
 
-    // Send confirmation email (if configured). Never fails the request, so
-    // there's no reason to make the caller wait on Gmail's response time —
-    // waitUntil() lets it finish after the response is already sent.
-    waitUntil(
-      sendPublicMail(sql, 'registration-confirmation', () => sendEventConfirmationEmail({
-        registration: newRegistration[0],
-        event: updatedEvent,
-        language: sanitizedLanguage,
-        photoSlots: photoSlots
-      }))
-        .then((sent) => sent && console.log('Event confirmation email sent successfully'))
-        .catch((emailError) => {
-          reportProviderError('Failed to send event confirmation email', emailError);
+    // The confirmation carries the only link a parent has to their signup, so
+    // whether it can go out is settled before answering: when it cannot (no
+    // mail configured, or the day's public mail budget is spent), the answer
+    // carries the link instead and the page shows it once. Sending itself
+    // never fails the request, so the caller does not wait on Gmail —
+    // waitUntil() lets it finish after the response is sent.
+    const mailQueued = isEmailConfigured() && await reservePublicMail(sql, 'registration-confirmation');
+    if (mailQueued) {
+      waitUntil(
+        sendEventConfirmationEmail({
+          registration: newRegistration[0],
+          event: updatedEvent,
+          language: sanitizedLanguage,
+          photoSlots: photoSlots
         })
-    );
+          .then(() => console.log('Event confirmation email sent successfully'))
+          .catch((emailError) => {
+            reportProviderError('Failed to send event confirmation email', emailError);
+          })
+      );
+    }
 
-    // The cancel token only ever travels in the confirmation email.
-    const { cancel_token: _cancelToken, ...publicRegistration } = newRegistration[0];
-    return res.status(201).json(publicRegistration);
+    // An allow-list, not the stored row minus the token: a column added to
+    // event_registrations later must not reach an anonymous caller by default.
+    // Otherwise the cancel token only ever travels in the confirmation email.
+    const created = newRegistration[0];
+    return res.status(201).json({
+      id: created.id,
+      eventId: created.event_id,
+      attendeeCount: created.attendee_count,
+      confirmationEmail: mailQueued,
+      ...(mailQueued ? {} : { cancelUrl: registrationCancelUrl(created.cancel_token) }),
+    });
   }
 
   if (req.method === 'DELETE') {
@@ -661,9 +674,10 @@ export default withApiHandler(async function handler(req, res) {
 });
 
 // The address is not verified before this goes out, so the mail carries only
-// what FAU wrote plus the name: the free-text comment is not echoed back, or
-// the form would send anyone's words to anyone from FAU's account. Council
-// members still see the comment in the registrations list.
+// what FAU wrote plus the names, reduced by nameForMail to plain words: the
+// free-text comment is not echoed back, or the form would send anyone's words
+// (and links) to anyone from FAU's account. Council members still see the
+// comment in the registrations list.
 async function sendEventConfirmationEmail(params) {
   const { registration, event, language, photoSlots } = params;
 
@@ -674,6 +688,8 @@ async function sendEventConfirmationEmail(params) {
 
   const isNorwegian = language === 'no';
   const locale = isNorwegian ? 'no-NO' : 'en-US';
+  // The address is not verified, so the names go out only as plain words.
+  const name = nameForMail(registration.name);
 
   // Special email for foto events
   if (event.type === 'foto' && photoSlots && registration.children_names) {
@@ -681,6 +697,8 @@ async function sendEventConfirmationEmail(params) {
     try {
       childrenNames = JSON.parse(registration.children_names);
     } catch {}
+    childrenNames = (Array.isArray(childrenNames) ? childrenNames : [])
+      .map((child, i) => nameForMail(child) || (isNorwegian ? `Barn ${i + 1}` : `Child ${i + 1}`));
 
     const shortDate = new Date(event.date).toLocaleDateString(locale, {
       day: 'numeric',
@@ -690,7 +708,7 @@ async function sendEventConfirmationEmail(params) {
 
     let fotoContent = '';
     if (isNorwegian) {
-      fotoContent += `Hei ${registration.name}\n\n`;
+      fotoContent += name ? `Hei ${name}\n\n` : `Hei\n\n`;
       fotoContent += `Ditt barn er nå påmeldt fotografering ${shortDate}\n\n`;
       for (let i = 0; i < childrenNames.length; i++) {
         fotoContent += `${childrenNames[i]} har fått tidspunkt ${photoSlots[i] || 'TBD'}\n`;
@@ -699,7 +717,7 @@ async function sendEventConfirmationEmail(params) {
       fotoContent += `${cancellationText({ language, cancelToken: registration.cancel_token, potluck: event.potluck })}\n\n`;
       fotoContent += `Mvh\nFAU Erdal Barnehage`;
     } else {
-      fotoContent += `Hi ${registration.name}\n\n`;
+      fotoContent += name ? `Hi ${name}\n\n` : `Hi\n\n`;
       fotoContent += `Your child is now registered for photography on ${shortDate}\n\n`;
       for (let i = 0; i < childrenNames.length; i++) {
         fotoContent += `${childrenNames[i]} has been assigned time slot ${photoSlots[i] || 'TBD'}\n`;
@@ -722,12 +740,12 @@ async function sendEventConfirmationEmail(params) {
     : `Registration confirmed: ${event.title}`;
 
   const emailContent = isNorwegian ? `
-Hei ${registration.name},
+Hei${name ? ` ${name}` : ''},
 
 Din påmelding til "${event.title}" er bekreftet!
 
 Detaljer:
-- Navn: ${registration.name}
+- Navn: ${name}
 - E-post: ${registration.email}
 - Telefon: ${registration.phone || 'Ikke oppgitt'}
 - Antall deltakere: ${registration.attendee_count || 1}
@@ -745,12 +763,12 @@ ${cancellationText({ language, cancelToken: registration.cancel_token, potluck: 
 Med vennlig hilsen,
 FAU Erdal Barnehage
 ` : `
-Hello ${registration.name},
+Hello${name ? ` ${name}` : ''},
 
 Your registration for "${event.title}" has been confirmed!
 
 Details:
-- Name: ${registration.name}
+- Name: ${name}
 - Email: ${registration.email}
 - Phone: ${registration.phone || 'Not provided'}
 - Number of attendees: ${registration.attendee_count || 1}

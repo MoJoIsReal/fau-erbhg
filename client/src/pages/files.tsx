@@ -33,7 +33,7 @@ import { ILLUSTRATION_DOCUMENTS } from "@/components/site/illustrations";
 import { Surface, EmptyState } from "@/components/site/section";
 import { FilterChip } from "@/components/site/controls";
 import { EditorSurface } from "@/components/site/cards";
-import type { Document } from "@shared/schema";
+import type { PublicDocument } from "@shared/schema";
 
 // Images uploaded from inside the rich-text editor are stored as documents
 // under the "editor-image" category with a raw Cloudinary filename. They are
@@ -91,7 +91,7 @@ export default function Files() {
     data: allDocuments = [],
     isLoading,
     error,
-  } = useQuery<Document[]>({
+  } = useQuery<PublicDocument[]>({
     queryKey: ["/api/documents"],
   });
 
@@ -132,7 +132,7 @@ export default function Files() {
   const countFor = (id: CategoryId) => documents.filter((doc) => doc.category === id).length;
   const categoryName = (id: string) => categories.find((item) => item.id === id)?.name ?? id;
 
-  const deleteButton = (doc: Document) => (
+  const deleteButton = (doc: PublicDocument) => (
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button

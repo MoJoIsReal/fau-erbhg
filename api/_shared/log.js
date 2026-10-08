@@ -3,7 +3,7 @@
  *
  * Every log line used to be `console.error('API Error:', {name, message, stack,
  * code})` and nothing else. That is unusable on this codebase in particular,
- * because four handlers multiplex many resources behind one serverless
+ * because several handlers multiplex many resources behind one serverless
  * function: a 500 from `secure-settings.js` did not say whether the caller was
  * asking for `resource=users` or `resource=blog-posts`, and nothing tied the
  * line to the request the user was complaining about. Successful mutations were
@@ -12,7 +12,9 @@
  * One JSON object per line, so a log drain can filter on the fields rather than
  * on substrings. Everything that can carry user input goes through
  * `redactSensitiveText` and is length-capped first — a log line is never worth
- * leaking an address into.
+ * leaking an address into. The few fields that only name the request (its id,
+ * path, action) are kept as they are when they look like one (see
+ * IDENTIFIER_FIELDS).
  */
 
 import { redactSensitiveText } from './redact.js';
@@ -61,6 +63,22 @@ function scrub(value) {
   return text.length > MAX_FIELD_LENGTH ? text.slice(0, MAX_FIELD_LENGTH) : text;
 }
 
+// Fields that name the request rather than carry what the caller typed. The
+// phone-number rule in redactSensitiveText reads a run of digits as a number
+// to hide, which turned Vercel's request id (`arn1::iad1::5wq9b-1759912345678-…`)
+// into `…-[redacted-phone]…`: the id a parent quotes could no longer be found
+// in the log. These keep their value when it is made only of characters an id
+// or a path uses — no `@`, no spaces — and fall back to redaction otherwise.
+const IDENTIFIER_FIELDS = new Set(['requestId', 'method', 'path', 'action', 'resource', 'role', 'task', 'targetDate', 'stage', 'stagesFailed']);
+const IDENTIFIER_SHAPE = /^[A-Za-z0-9:._/-]+$/;
+
+function scrubField(key, value) {
+  if (IDENTIFIER_FIELDS.has(key) && typeof value === 'string' && IDENTIFIER_SHAPE.test(value)) {
+    return value.slice(0, MAX_FIELD_LENGTH);
+  }
+  return scrub(value);
+}
+
 /**
  * Write one structured line. Returns the object that was written so tests (and
  * callers that want to attach the same fields to something else) can assert on
@@ -75,7 +93,7 @@ export function logEvent(level, event, fields = {}) {
   const line = { level: safeLevel, event: String(event) };
 
   for (const [key, value] of Object.entries(fields)) {
-    const scrubbed = scrub(value);
+    const scrubbed = scrubField(key, value);
     if (scrubbed !== undefined) line[key] = scrubbed;
   }
 

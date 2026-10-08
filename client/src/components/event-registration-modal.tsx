@@ -95,17 +95,33 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const namesError = form.formState.errors.childrenNames?.message;
 
   const mutation = useMutation({
-    mutationFn: (data: FormData) => {
+    mutationFn: async (data: FormData): Promise<{ confirmationEmail?: boolean; cancelUrl?: string }> => {
       if (!event) throw new Error("Ingen arrangement valgt");
-      return apiRequest("POST", `/api/registrations`, { ...data, eventId: event.id, language, turnstileToken });
+      const res = await apiRequest("POST", `/api/registrations`, { ...data, eventId: event.id, language, turnstileToken });
+      return res.json();
     },
     // A Turnstile token is single-use, whatever the outcome.
     onSettled: () => turnstileRef.current?.reset(),
-    onSuccess: () => {
-      toast({
-        title: t.modals.eventRegistration.success,
-        description: t.modals.eventRegistration.successDesc,
-      });
+    onSuccess: (result) => {
+      // No confirmation mail today (the day's mail budget is spent): the link
+      // it would have carried is shown here instead, and stays until closed.
+      if (result?.cancelUrl) {
+        toast({
+          title: t.modals.eventRegistration.success,
+          description: (
+            <span>
+              {t.modals.eventRegistration.noMailDesc}{" "}
+              <a href={result.cancelUrl} className="font-semibold underline">{t.modals.eventRegistration.noMailLink}</a>
+            </span>
+          ),
+          duration: Infinity,
+        });
+      } else {
+        toast({
+          title: t.modals.eventRegistration.success,
+          description: t.modals.eventRegistration.successDesc,
+        });
+      }
       form.reset();
       onClose();
       // Refresh events to show updated attendee count

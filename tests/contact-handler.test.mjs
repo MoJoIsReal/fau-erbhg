@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
-import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
 
 // Mail is configured, and every message is captured instead of sent.
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
@@ -68,6 +68,7 @@ test('a named inquiry needs a valid address and is stored sanitized', async (t) 
     subject: 'concern', name: 'Kari', email: ' Kari@Example.TEST ', message: 'Hei<script>alert(1)</script> der',
   }));
   assert.equal(res.statusCode, 201);
+  assert.deepEqual(res.body, { success: true }, 'the stored row is not echoed back');
   const [{ values: [name, email, , subject, message, createdAt] }] = inserts(sql);
   assert.deepEqual([name, email, subject], ['Kari', 'kari@example.test', 'concern']);
   assert.doesNotMatch(message, /<script/i);
@@ -78,10 +79,12 @@ test('a named inquiry needs a valid address and is stored sanitized', async (t) 
 // Mail goes out after the response (waitUntil), so let it settle first.
 test('the council hears about every inquiry; only a named sender gets a receipt', async (t) => {
   for (const [subject, recipients] of [['anonymous', ['fau@example.test']], ['general', ['fau@example.test', 'kari@example.test']]]) {
-    sent.length = 0;
+    await settle();
+    await settle();
+  sent.length = 0;
     useDatabase(scriptedSql({ respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }] }));
     await call(t, handler, submit({ subject, name: 'Kari', email: 'kari@example.test', message: 'Hei' }));
-    await new Promise(setImmediate);
+    await settle();
     assert.deepEqual(sent.map(({ to }) => to).sort(), recipients, subject);
     if (subject === 'anonymous') assert.doesNotMatch(sent[0].text, /Kari|kari@/, 'an anonymous tip names no one');
   }
@@ -137,6 +140,7 @@ test('confirm activates only a pending subscription; unsubscribe never reveals a
 // Every mail these forms trigger shares one daily Gmail quota with the
 // scheduled reminders; past the cap the inquiry is kept and mail is skipped.
 test('past the daily public-mail cap an inquiry is stored but no mail goes out', async (t) => {
+  await settle();
   sent.length = 0;
   const cap = crypto.createHash('sha256').update('public-mail').digest('hex');
   const sql = useDatabase(scriptedSql({
@@ -144,7 +148,7 @@ test('past the daily public-mail cap an inquiry is stored but no mail goes out',
     respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }],
   }));
   const res = await call(t, handler, submit({ subject: 'general', name: 'Kari', email: 'kari@example.test', message: 'Hei' }));
-  await new Promise(setImmediate);
+  await settle();
   assert.equal(res.statusCode, 201);
   assert.equal(inserts(sql).length, 1);
   assert.deepEqual(sent, []);
@@ -185,4 +189,16 @@ test('with Turnstile on, the two forms need a valid token and the e-mailed links
     const res = await call(t, handler, submit({ token: TOKEN }, { action }));
     assert.equal(res.statusCode, 200, action);
   }
+});
+
+// One failure, one line. The handler used to wrap itself in its own
+// try/catch → handleError, and withApiHandler then logged the same 500 again.
+test('a database failure is logged once, as an error', async (t) => {
+  useDatabase(scriptedSql({ respond: () => { throw new Error('Connection terminated unexpectedly'); } }));
+  const res = await call(t, handler, submit({ subject: 'general', name: 'Kari', email: 'kari@example.test', message: 'Hei' }));
+  assert.equal(res.statusCode, 500);
+  const events = console.error.mock.calls
+    .map(({ arguments: [line] }) => { try { return JSON.parse(line).event; } catch { return null; } })
+    .filter(Boolean);
+  assert.deepEqual(events.filter((event) => event.startsWith('api.')), ['api.error']);
 });

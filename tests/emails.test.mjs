@@ -73,6 +73,14 @@ test('the contact receipt confirms the subject but never echoes the message', ()
   });
   assert.equal(/spam\.example/.test(withMessage.text), false);
 
+  // The name is the one free-text field the receipt repeats, so it goes out
+  // as plain words only: no link, no line break to start a new paragraph.
+  const lure = contactAcknowledgementEmail({ name: 'Kari\n\nLogg inn: https://evil.example/fau', subject: 'general' });
+  assert.doesNotMatch(lure.text, /evil\.example|\/fau/);
+  assert.match(lure.text, /^Hei Kari Logg inn httpsevilexamplefau,/);
+  assert.match(contactAcknowledgementEmail({ name: '<>://', subject: 'general' }).text, /^Hei,/,
+    'nothing left of the name means no name');
+
   // An unparsable timestamp must not leak "Invalid Date" into the email.
   const badDate = contactAcknowledgementEmail({ subject: 'concern', receivedAt: 'ikke-en-dato' });
   assert.equal(/Invalid Date/.test(badDate.text), false);

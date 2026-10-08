@@ -62,8 +62,10 @@ authenticate, validate, run SQL and shape the response themselves.
 
 **Handler shape.** Every route is `export default withApiHandler(async function
 handler(req, res) {…})`. `withApiHandler` applies security headers, handles CORS
-preflight and funnels throws into `handleError`. Throw structured errors; don't
-write your own try/catch envelope.
+preflight and funnels throws into `handleError`, which answers 500. Write an
+expected refusal yourself (`res.status(4xx).json({ error, code })`) and let
+anything unexpected throw; don't write your own try/catch envelope around a
+handler, which logs the same 500 twice.
 
 **Query-param routing.** The Vercel Hobby plan caps this project at 12
 functions and 10 are used, so several handlers multiplex resources:
@@ -219,7 +221,10 @@ avoid timezone drift; `api_rate_limits` is the exception (`timestamptz`). Write
 them as `new Date().toISOString()`, never `NOW()`: into a `text` column that
 stores PostgreSQL's own format, which the browser then has to parse.
 
-**Errors.** Server: throw with a status, let `handleError` respond and redact.
+**Errors.** Server: a refusal is written as `res.status(4xx).json({ error, code })`;
+anything unexpected is thrown and `withApiHandler` answers 500, redacted and
+reported (`handleError` does not read a status off the error). A failing
+provider call that must not fail the request goes through `reportProviderError`.
 Client: `useToast()` — never `alert()`. A form that reacts to a particular
 refusal keys off the body's `code` (`SIGNUP_ERROR_CODES` in `shared/constants.js`,
 `TURNSTILE_FAILED`) and shows its translation; it never matches the `error` text.

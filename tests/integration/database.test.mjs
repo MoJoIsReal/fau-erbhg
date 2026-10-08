@@ -103,16 +103,28 @@ test('concurrent delivery claims are exclusive, expired leases recover, subscrib
 });
 
 test('privacy and delivery retention enforce the six/twelve-month and ninety-day windows', async () => {
-  const dates = await sql("SELECT (CURRENT_DATE-INTERVAL '7 months')::date AS old, (CURRENT_DATE-INTERVAL '5 months')::date AS recent;");
+  const dates = await sql("SELECT (CURRENT_DATE-INTERVAL '7 months')::date::text AS old, (CURRENT_DATE-INTERVAL '5 months')::date::text AS recent, (CURRENT_DATE-INTERVAL '6 months')::date::text AS cutoff;");
   const old = await event('event', 10, dates[0].old), recent = await event('event', 10, dates[0].recent);
-  for (const id of [old, recent]) {
+  // Dates the events handler once accepted. A cast on either used to throw and
+  // take the whole retention delete down with it, every morning.
+  const notADate = await event('event', 10, 'neste fredag'), impossible = await event('event', 10, '2020-02-31');
+  for (const id of [old, recent, notADate, impossible]) {
     await sql(`INSERT INTO event_registrations (event_id,name,email) VALUES (${id},'Test','retention@example.test');
       INSERT INTO event_registration_cancellations (event_id,registration_id,name,email) VALUES (${id},1,'Test','cancelled@example.test');`);
   }
-  await sql("INSERT INTO contact_messages (name,email,subject,message,created_at) VALUES ('Test','old@example.test','Test','Test',(NOW()-INTERVAL '13 months')::text), ('Test','recent@example.test','Test','Test',(NOW()-INTERVAL '11 months')::text);");
+  await sql("INSERT INTO contact_messages (name,email,subject,message,created_at) VALUES ('Test','old@example.test','Test','Test',(NOW()-INTERVAL '13 months')::text), ('Test','recent@example.test','Test','Test',(NOW()-INTERVAL '11 months')::text), ('Test','legacy@example.test','Test','Test','ukjent');");
+  const contactCutoff = new Date();
+  contactCutoff.setUTCMonth(contactCutoff.getUTCMonth() - 12);
+  const bindings = { contactCutoff, eventCutoff: dates[0].cutoff };
   for (const marker of ['DELETE FROM contact_messages', 'DELETE FROM event_registrations r\n', 'DELETE FROM event_registration_cancellations c']) {
-    await sql(await productionStatement(cronFile, marker));
+    await sql(await productionStatement(cronFile, marker, bindings));
   }
+  assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${notADate};`)).length, 1, 'skipped, not a failure');
+  assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${impossible};`)).length, 0, 'compared as text, never cast');
+  const [unparseable] = await sql(await productionStatement(cronFile, 'AS "contactMessages"'));
+  assert.deepEqual([Number(unparseable.contactMessages), Number(unparseable.events)], [1, 1]);
+  await sql(`DELETE FROM event_registrations WHERE event_id IN (${notADate},${impossible}); DELETE FROM event_registration_cancellations WHERE event_id IN (${notADate},${impossible});
+    DELETE FROM events WHERE id IN (${notADate},${impossible}); DELETE FROM contact_messages WHERE created_at = 'ukjent';`);
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${old};`)).length, 0);
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${recent};`)).length, 1);
   assert.equal((await sql(`SELECT * FROM event_registration_cancellations WHERE event_id=${old};`)).length, 0);

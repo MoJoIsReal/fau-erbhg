@@ -202,8 +202,12 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: 'Valid schoolYear query parameter required' });
     }
 
+    // Anyone may read the calendar, so who wrote an entry stays out of it:
+    // created_by is the editor's name, or their login e-mail when the name is
+    // empty, and no page shows it. (The newsletter flags stay: they hold no
+    // personal data, and the entry editor fills its form from this answer.)
     const entries = await getEntriesForSchoolYear(sql, schoolYear);
-    return res.status(200).json(entries);
+    return res.status(200).json(entries.map(({ createdBy, ...entry }) => entry));
   }
 
   // All write methods require auth + a yearly-calendar-eligible role

@@ -522,6 +522,9 @@ export interface Translations {
     eventRegistration: {
       success: string;
       successDesc: string;
+      /** Shown instead of successDesc when no confirmation mail could be sent. */
+      noMailDesc: string;
+      noMailLink: string;
       error: string;
       errorDesc: string;
       /** One message per `code` the signup API refuses with. {max} and {email} are filled in. */
@@ -1569,6 +1572,8 @@ export const translations: Record<Language, Translations> = {
       eventRegistration: {
         success: "Påmelding vellykket!",
         successDesc: "Du er nå påmeldt arrangementet. Bekreftelsen på e-post har en lenke du kan bruke hvis du må melde deg av.",
+        noMailDesc: "Vi fikk ikke sendt bekreftelsen på e-post i dag. Ta vare på denne lenken – den trenger du hvis du vil endre eller melde deg av:",
+        noMailLink: "Din påmelding",
         error: "Feil ved påmelding",
         errorDesc: "Kunne ikke melde deg på. Prøv igjen senere.",
         errors: {
@@ -2627,6 +2632,8 @@ export const translations: Record<Language, Translations> = {
       eventRegistration: {
         success: "Registration successful!",
         successDesc: "You are now registered for the event. The confirmation email has a link you can use if you need to cancel.",
+        noMailDesc: "We could not send the confirmation email today. Keep this link – you need it to change or cancel your signup:",
+        noMailLink: "Your signup",
         error: "Registration error",
         errorDesc: "Could not register you. Please try again later.",
         errors: {

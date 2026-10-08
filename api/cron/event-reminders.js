@@ -526,10 +526,22 @@ async function cleanupDeliveryHistory(sql) {
   return deleted.length;
 }
 
-export async function cleanupPrivacyRetention(sql) {
+// The date columns are text holding ISO strings, so the windows compare text
+// against an ISO cutoff instead of casting each row: one value that is not a
+// date (the events handler once stored "neste fredag" and 2026-02-31) made the
+// cast throw and the whole delete fail, every morning. A row that does not
+// start with a date is skipped and counted, so it shows up in the run's log
+// line instead of holding personal data unseen.
+export async function cleanupPrivacyRetention(sql, now = new Date()) {
+  const contactCutoff = new Date(now);
+  contactCutoff.setUTCMonth(contactCutoff.getUTCMonth() - 12);
+  const eventCutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 6, now.getUTCDate()))
+    .toISOString().slice(0, 10);
+
   const deletedContactMessages = await sql`
     DELETE FROM contact_messages
-    WHERE created_at::timestamptz < NOW() - INTERVAL '12 months'
+    WHERE created_at ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+      AND created_at < ${contactCutoff.toISOString()}
     RETURNING id
   `;
 
@@ -537,7 +549,8 @@ export async function cleanupPrivacyRetention(sql) {
     DELETE FROM event_registrations r
     USING events e
     WHERE e.id = r.event_id
-      AND e.date::date < CURRENT_DATE - INTERVAL '6 months'
+      AND e.date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+      AND e.date < ${eventCutoff}
     RETURNING r.id
   `;
 
@@ -547,14 +560,22 @@ export async function cleanupPrivacyRetention(sql) {
     DELETE FROM event_registration_cancellations c
     USING events e
     WHERE e.id = c.event_id
-      AND e.date::date < CURRENT_DATE - INTERVAL '6 months'
+      AND e.date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+      AND e.date < ${eventCutoff}
     RETURNING c.id
+  `;
+
+  const [unparseable] = await sql`
+    SELECT
+      (SELECT count(*) FROM contact_messages WHERE created_at !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}')::int AS "contactMessages",
+      (SELECT count(*) FROM events WHERE date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')::int AS "events"
   `;
 
   return {
     contactMessagesDeleted: deletedContactMessages.length,
     eventRegistrationsDeleted: deletedRegistrations.length,
     registrationCancellationsDeleted: deletedCancellations.length,
+    unparseableDates: (unparseable?.contactMessages ?? 0) + (unparseable?.events ?? 0),
   };
 }
 
@@ -684,7 +705,7 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     try {
       summary[name] = await work();
     } catch (error) {
-      errors.push(error);
+      errors.push({ stage: name, error });
       logEvent('error', 'cron.stage_failed', { stage: name, message: redactSensitiveText(error?.message || String(error)) });
     }
   };
@@ -700,12 +721,18 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     closePooledTransporter();
   }
   if (errors.length) {
-    // Flattened: logEvent writes a nested object as "[object Object]", which
-    // lost the reminder and retention counts from the one line a failing run
-    // leaves behind. A stage that failed has null here and adds nothing.
+    // A failing run still writes its cron.run line, naming the stages that
+    // failed, so every run leaves one (the handler's error line and Sentry
+    // event follow from the throw). Flattened: logEvent writes a nested
+    // object as "[object Object]". A stage that failed has null here and
+    // adds nothing.
+    const stagesFailed = errors.map(({ stage: name }) => name);
     const { reminders, retention, media, ...counts } = summary;
-    logEvent('error', 'cron.morning_partial', { ...counts, ...retention, ...media, ...reminders });
-    throw new AggregateError(errors, `${errors.length} morning stage(s) failed`);
+    logEvent('error', 'cron.run', {
+      task: 'reminders', targetDate, ...counts, ...retention, ...media, ...reminders,
+      stagesFailed: stagesFailed.join(','),
+    });
+    throw new AggregateError(errors.map(({ error }) => error), `Morning stage(s) failed: ${stagesFailed.join(', ')}`);
   }
   return summary;
 }
@@ -727,6 +754,20 @@ export function mailProblems(task, summary) {
   return problems;
 }
 
+// Housekeeping that left something behind: an expired share whose private
+// photos could not be deleted from R2, or rows whose date the privacy
+// retention could not read and so never deletes. Neither is mail, but both
+// keep personal data past its time, so they are reported the same way.
+export function housekeepingProblems(task, summary) {
+  if (task !== 'reminders') return {};
+  const problems = {};
+  for (const key of ['mediaPurgeFailed', 'unparseableDates']) {
+    const count = Number(summary?.[key]) || 0;
+    if (count > 0) problems[key] = count;
+  }
+  return problems;
+}
+
 // Vercel Cron discards the response body, so the only durable record that a
 // run happened is what gets logged. One line per run, so a cron that has been
 // failing for a fortnight is visible instead of silent. A run that left mail
@@ -735,18 +776,23 @@ export function mailProblems(task, summary) {
 export function logCronRun(task, targetDate, summary) {
   const problems = mailProblems(task, summary);
   const troubled = Object.keys(problems).length > 0;
+  const leftovers = housekeepingProblems(task, summary);
+  const untidy = Object.keys(leftovers).length > 0;
   // Written directly rather than through logEvent, whose redaction reads the
   // run's date as a phone number; every field here is a count, the task or
   // that date. Warn goes to stderr, as logEvent does it.
-  const line = { level: troubled ? 'warn' : 'info', event: 'cron.run', task, targetDate, ...summary, mailProblems: troubled };
-  (troubled ? console.error : console.log)(JSON.stringify(line));
-  if (troubled) {
-    const detail = Object.entries(problems).map(([key, value]) => `${key}=${value}`).join(', ');
-    reportProviderError(
-      `Mail delivery problems in the ${task} run`,
-      Object.assign(new Error(detail), { code: 'MAIL_DELIVERY_PROBLEMS' }),
-    );
-  }
+  const line = {
+    level: troubled || untidy ? 'warn' : 'info', event: 'cron.run', task, targetDate, ...summary,
+    mailProblems: troubled,
+    ...(untidy ? { housekeepingProblems: true } : {}),
+  };
+  (troubled || untidy ? console.error : console.log)(JSON.stringify(line));
+  const report = (title, found, code) => reportProviderError(
+    title,
+    Object.assign(new Error(Object.entries(found).map(([key, value]) => `${key}=${value}`).join(', ')), { code }),
+  );
+  if (troubled) report(`Mail delivery problems in the ${task} run`, problems, 'MAIL_DELIVERY_PROBLEMS');
+  if (untidy) report(`Housekeeping problems in the ${task} run`, leftovers, 'HOUSEKEEPING_PROBLEMS');
   return line;
 }
 

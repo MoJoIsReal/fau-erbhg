@@ -7,7 +7,7 @@ import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
-import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
 import { SIGNUP_ERROR_CODES } from '../shared/constants.js';
 
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
@@ -27,7 +27,7 @@ function eventRow(overrides = {}) {
 
 // Answers the event lookup, the photo-slot snapshot and the signup statement
 // the way PostgreSQL would for a successful insert.
-function signupDatabase({ event = eventRow(), existing = [], rateCount = 1 } = {}) {
+function signupDatabase({ event = eventRow(), existing = [], rateCount = 1, registration = {} } = {}) {
   return useDatabase(scriptedSql({
     rateCount,
     respond(statement) {
@@ -39,6 +39,7 @@ function signupDatabase({ event = eventRow(), existing = [], rateCount = 1 } = {
           registration: {
             id: 1, event_id: event.id, name: 'Kari', email: 'kari@example.test', phone: '', attendee_count: 1,
             comments: 'Klikk https://evil.example/login for premie', language: 'no', children_names: null, cancel_token: 'c'.repeat(64),
+            ...registration,
           },
         }];
       }
@@ -133,25 +134,59 @@ test('a photo day with too few free slots refuses instead of booking a child wit
 
 // Mail goes out after the response (waitUntil), so let it settle first.
 test('the confirmation does not repeat the free-text comment to an unverified address', async (t) => {
+  await settle();
   sent.length = 0;
   signupDatabase();
   const res = await call(t, handler, signup({ comments: 'Klikk https://evil.example/login for premie' }));
-  await new Promise(setImmediate);
+  await settle();
   assert.equal(res.statusCode, 201);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, 'kari@example.test');
   assert.doesNotMatch(sent[0].text, /evil\.example|premie/);
   assert.match(sent[0].text, /avmelding\?token=c{64}/);
+  // When the mail goes out, the link travels only in it, and the answer is
+  // an allow-list rather than the stored row.
+  assert.deepEqual(res.body, { id: 1, eventId: 7, attendeeCount: 1, confirmationEmail: true });
+  assert.equal(res.body.confirmationEmail, true);
+  assert.equal('cancelUrl' in res.body, false);
+  assert.equal('cancel_token' in res.body, false);
+});
+
+// The name is kept in the greeting, but only as plain words: anyone can sign
+// up with anyone's address, so a name must not carry a link or a paragraph.
+test('the confirmation repeats the name only as plain words', async (t) => {
+  await settle();
+  sent.length = 0;
+  const lure = 'Ola\n\nVIKTIG: https://evil.example/refusjon';
+  signupDatabase({ registration: { name: lure } });
+  const res = await call(t, handler, signup({ name: lure }));
+  await settle();
+  assert.equal(res.statusCode, 201);
+  assert.equal(sent.length, 1);
+  assert.doesNotMatch(sent[0].text, /evil\.example|\/refusjon/);
+  assert.match(sent[0].text, /Hei Ola VIKTIG httpsevilexamplerefusjon,/);
+
+  await settle();
+  sent.length = 0;
+  signupDatabase({ registration: { name: 'Anne-Marie Ødegård' } });
+  await call(t, handler, signup({ name: 'Anne-Marie Ødegård' }));
+  await settle();
+  assert.match(sent[0].text, /Hei Anne-Marie Ødegård,/);
 });
 
 test('past the daily public-mail cap the signup is kept but no mail is sent', async (t) => {
+  await settle();
   sent.length = 0;
   const sql = signupDatabase({ rateCount: (key) => (key === PUBLIC_MAIL_KEY ? 999 : 1) });
   const res = await call(t, handler, signup({}));
-  await new Promise(setImmediate);
+  await settle();
   assert.equal(res.statusCode, 201);
   assert.ok(signupStatement(sql), 'the registration is still stored');
   assert.equal(sent.length, 0);
+  // The mail held the only link to the signup, so the page gets it instead.
+  assert.equal(res.body.confirmationEmail, false);
+  assert.match(res.body.cancelUrl, /\/avmelding\?token=c{64}$/);
+  assert.equal('cancel_token' in res.body, false);
 });
 
 // With TURNSTILE_SECRET_KEY set, a signup must carry a token Cloudflare

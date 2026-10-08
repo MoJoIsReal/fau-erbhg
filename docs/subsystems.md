@@ -184,7 +184,10 @@ newsletter `failed`, `abandoned` or `remaining`, reminder `failed` or `deferred`
 or a newsletter run that could not send at all — the line is written at `warn`
 with `mailProblems: true`, and one error-tracker event is raised under the fixed
 title "Mail delivery problems in the … run" for the alert in
-[DEPLOYMENT.md](./DEPLOYMENT.md). The admin's settings page (Nyhetsbrev) shows
+[DEPLOYMENT.md](./DEPLOYMENT.md). Housekeeping that left personal data behind
+(an expired media share R2 would not delete, rows retention cannot date) is
+flagged the same way as `housekeepingProblems: true` under "Housekeeping
+problems in the reminders run". The admin's settings page (Nyhetsbrev) shows
 each subscriber's waiting and failed deliveries.
 
 Cron sending stops at an absolute 23-second deadline, leaving seven seconds of

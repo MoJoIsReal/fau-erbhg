@@ -153,22 +153,32 @@ test('the claim only selects unsent rows whose lease has expired', async () => {
 // messages after 12 months, and nothing else is touched.
 test('privacy retention deletes only past its windows', async () => {
   const statements = [];
-  const sql = async (strings) => {
-    statements.push(strings.join('?').replace(/\s+/g, ' ').trim());
+  const sql = async (strings, ...values) => {
+    statements.push({ text: strings.join('?').replace(/\s+/g, ' ').trim(), values });
+    if (statements.length === 4) return [{ contactMessages: 1, events: 2 }];
     return statements.length === 1 ? [{ id: 1 }, { id: 2 }] : [{ id: 3 }];
   };
 
-  const result = await cleanupPrivacyRetention(sql);
+  const result = await cleanupPrivacyRetention(sql, new Date('2026-10-08T07:00:00.000Z'));
 
   assert.deepEqual(result, {
     contactMessagesDeleted: 2,
     eventRegistrationsDeleted: 1,
     registrationCancellationsDeleted: 1,
+    unparseableDates: 3,
   });
-  assert.equal(statements.length, 3);
-  assert.match(statements[0], /^DELETE FROM contact_messages WHERE created_at::timestamptz < NOW\(\) - INTERVAL '12 months'/);
-  assert.match(statements[1], /^DELETE FROM event_registrations r USING events e WHERE e\.id = r\.event_id AND e\.date::date < CURRENT_DATE - INTERVAL '6 months'/);
-  assert.match(statements[2], /^DELETE FROM event_registration_cancellations c USING events e WHERE e\.id = c\.event_id AND e\.date::date < CURRENT_DATE - INTERVAL '6 months'/);
+  assert.equal(statements.length, 4);
+  const [contact, registrations, cancellations, count] = statements;
+  assert.match(contact.text, /^DELETE FROM contact_messages WHERE created_at ~ '\^\[0-9\]\{4\}-\[0-9\]\{2\}-\[0-9\]\{2\}' AND created_at < \?/);
+  assert.deepEqual(contact.values, ['2025-10-08T07:00:00.000Z'], '12 months back');
+  assert.match(registrations.text, /^DELETE FROM event_registrations r USING events e WHERE e\.id = r\.event_id AND e\.date ~ .* AND e\.date < \?/);
+  assert.deepEqual(registrations.values, ['2026-04-08'], '6 months back');
+  assert.match(cancellations.text, /^DELETE FROM event_registration_cancellations c USING events e WHERE e\.id = c\.event_id AND e\.date ~ .* AND e\.date < \?/);
+  assert.deepEqual(cancellations.values, ['2026-04-08']);
+  assert.match(count.text, /^SELECT/);
+  // A cast on a text date throws on the first value that is not one, and
+  // with it the whole delete; nothing here casts.
+  for (const { text } of statements) assert.doesNotMatch(text, /::(date|timestamptz)/);
 });
 
 // The morning run is reminders first, then housekeeping. A reminder the
@@ -186,6 +196,7 @@ test('the morning run still runs retention after a provider failure', async () =
     contactMessagesDeleted: 0,
     eventRegistrationsDeleted: 0,
     registrationCancellationsDeleted: 0,
+    unparseableDates: 0,
   });
 
   const order = [
@@ -277,16 +288,21 @@ test('a housekeeping failure is reported without preventing other stages', async
     if (statement.startsWith('DELETE FROM contact_messages')) throw new Error('retention unavailable');
     return [];
   };
-  await assert.rejects(runMorningTasks(sql, '2026-09-10', async () => {}), AggregateError);
+  await assert.rejects(runMorningTasks(sql, '2026-09-10', async () => {}), (error) => {
+    assert.ok(error instanceof AggregateError);
+    assert.match(error.message, /Morning stage\(s\) failed: retention/, 'the report names the stage');
+    return true;
+  });
   assert.ok(calls.some(statement => statement.startsWith('DELETE FROM api_rate_limits')));
   assert.ok(calls.some(statement => statement.includes('WITH due AS')));
-  // The one line a failing run leaves carries the counts of the stages that
-  // ran, not "[object Object]".
-  const partial = errors.mock.calls.map(({ arguments: [line] }) => String(line)).find((line) => line.includes('cron.morning_partial'));
-  assert.deepEqual(JSON.parse(partial), {
-    level: 'error', event: 'cron.morning_partial',
+  // A failing run still writes its cron.run line, with the counts of the
+  // stages that ran (not "[object Object]") and the ones that did not.
+  const run = errors.mock.calls.map(({ arguments: [line] }) => String(line)).find((line) => line.includes('"cron.run"'));
+  assert.deepEqual(JSON.parse(run), {
+    level: 'error', event: 'cron.run', task: 'reminders', targetDate: '2026-09-10',
     attendeeCountsRepaired: 0, expiredRateLimitsDeleted: 0, deliveryHistoryDeleted: 0,
     claimed: 0, sent: 0, failed: 0, deferred: 0,
+    stagesFailed: 'retention',
   });
 });
 
@@ -329,6 +345,17 @@ test('a run that left mail unsent logs its counts at warn and raises one report'
   assert.equal(quiet.mailProblems, false);
   assert.equal(errors.mock.callCount(), 0);
   assert.equal(logs.mock.callCount(), 1);
+
+  // Private media that could not be deleted, or rows retention cannot date,
+  // keep personal data past its time: reported, under their own title.
+  errors.mock.resetCalls();
+  const untidy = logCronRun('reminders', '2026-09-10', { claimed: 0, sent: 0, failed: 0, deferred: 0, mediaPurgeFailed: 1, unparseableDates: 0 });
+  assert.equal(untidy.level, 'warn');
+  assert.equal(untidy.mailProblems, false);
+  assert.equal(untidy.housekeepingProblems, true);
+  const titles = errors.mock.calls.map(({ arguments: [first] }) => String(first));
+  assert.equal(titles.filter((line) => line.startsWith('Housekeeping problems in the reminders run')).length, 1);
+  assert.equal(titles.some((line) => line.startsWith('Mail delivery problems')), false);
 
   // A reminder that fails or is deferred is lost: the next run is another day.
   assert.equal(logCronRun('reminders', '2026-09-10', { claimed: 3, sent: 2, failed: 0, deferred: 1 }).level, 'warn');

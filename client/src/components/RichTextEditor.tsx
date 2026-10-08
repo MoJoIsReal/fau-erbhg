@@ -259,7 +259,7 @@ export default function RichTextEditor({ content, onChange, placeholder, id, ref
         mimeType: file.type,
       });
       const data = await metaRes.json();
-      return data.fileUrl || data.document?.cloudinary_url || null;
+      return data.fileUrl || data.document?.fileUrl || null;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error('Image upload failed:', error);

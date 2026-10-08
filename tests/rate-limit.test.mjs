@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import test from 'node:test';
 import {
-  checkRateLimit, getClientIp, identityRateLimitKey, rateLimitKey, releaseRateLimit,
+  checkRateLimit, getClientIp, identityRateLimitKey, rateLimitKey, releaseRateLimit, reservePublicMail,
 } from '../api/_shared/rate-limit.js';
 
 // Models what actually reaches a Vercel function: the platform sets x-real-ip
@@ -52,6 +53,7 @@ test('a request within the limit is allowed; the next one over it is refused', a
   const within = stubSql({ count: 5, retryAfter: 42 });
   assert.deepEqual(await checkRateLimit(within.sql, { key: 'k', limit: 5, windowSeconds: 60 }), {
     allowed: true,
+    count: 5,
     retryAfter: 42,
   });
   assert.deepEqual(within.calls[0].values, ['k', 60, 60]);
@@ -87,4 +89,31 @@ test('identity keys are hashed and case-insensitive, and never carry the address
   assert.equal(key, identityRateLimitKey('login-account', 'member@example.test'));
   assert.match(key, /^[a-f0-9]{64}$/);
   assert.notEqual(key, identityRateLimitKey('login-device', 'member@example.test'));
+});
+
+// Every public form shares one Gmail account. A burst of contact or newsletter
+// mail may use part of the day, never all of it: the signup confirmation
+// carries the only link a parent has to their signup.
+test('public mail: other kinds share a pool, so confirmations are never starved', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const sha = (...parts) => crypto.createHash('sha256').update(parts.join(':')).digest('hex');
+  const counts = new Map();
+  const sql = async (strings, ...values) => {
+    const key = values[0];
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return [{ count: counts.get(key), retryAfter: 60 }];
+  };
+
+  let acknowledgements = 0;
+  while (await reservePublicMail(sql, 'contact-acknowledgement')) acknowledgements += 1;
+  assert.equal(acknowledgements, 40, 'the receipt to an unverified sender has the smallest share');
+
+  let others = 0;
+  while (await reservePublicMail(sql, 'contact-notification')) others += 1;
+  assert.equal(acknowledgements + others, 100, 'all non-confirmation mail shares one pool');
+
+  let confirmations = 0;
+  while (await reservePublicMail(sql, 'registration-confirmation')) confirmations += 1;
+  assert.equal(confirmations, 100, 'whatever the others used, confirmations keep the rest of the day');
+  assert.equal(counts.get(sha('public-mail')) - 1, 200, 'and the day never goes past the total');
 });

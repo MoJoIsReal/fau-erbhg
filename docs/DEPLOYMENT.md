@@ -156,6 +156,20 @@ page (Innstillinger → Nyhetsbrev) shows which subscribers' mail failed and how
 much is waiting for another try; deleting a failing subscriber removes the
 banner.
 
+**Housekeeping that left personal data behind.** When the morning run could not
+delete an expired private media share from R2 (`mediaPurgeFailed`), or found
+rows whose date the privacy retention cannot read and so never deletes
+(`unparseableDates`), its `cron.run` line is written at `warn` with
+`"housekeepingProblems":true`, and backend Sentry gets one event titled
+`Housekeeping problems in the reminders run`. Add a second alert matching that
+title (or widen the mail alert to `problems in the`). Unreadable dates are fixed
+in the data: find them with
+`SELECT id, date FROM events WHERE date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'` and
+`SELECT id, created_at FROM contact_messages WHERE created_at !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'`.
+A morning stage that fails outright still writes its `cron.run` line, at
+`error`, with `stagesFailed` naming it; the run answers 500 and Sentry gets
+`Morning stage(s) failed: …`.
+
 Use Vercel build/function logs and request IDs to investigate failures. Backend
 Sentry redacts sensitive text. Frontend Sentry scrubs capability-bearing data at
 the transport boundary and disables Session Replay; unsupported/binary envelopes

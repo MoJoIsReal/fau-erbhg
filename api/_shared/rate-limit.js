@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { logEvent } from './log.js';
+import { reportProviderError } from './provider-errors.js';
 
 // The left-most X-Forwarded-For entry is whatever the client sent. Taking it
 // made every per-IP limit here bypassable by rotating one request header, which
@@ -64,6 +65,7 @@ export async function checkRateLimit(sql, { key, limit, windowSeconds }) {
   const row = rows[0];
   return {
     allowed: row.count <= limit,
+    count: row.count,
     retryAfter: Math.max(row.retryAfter || windowSeconds, 1),
   };
 }
@@ -94,21 +96,60 @@ export async function clearRateLimit(sql, key) {
 // not bound the total: a caller rotating addresses could spend the quota, or
 // get the account throttled for spam, and legitimate mail would stop. This caps
 // the total across all callers per day and leaves the rest for scheduled mail.
-// A refused mail is logged, never an error: the request itself has already
-// succeeded and its data is stored.
+//
+// Within that total, a signup confirmation comes first: it carries the only
+// link a parent has to their signup. Every other kind shares a smaller pool,
+// so a burst of contact or newsletter submissions can use at most part of
+// the day and never starve confirmations; the receipt to whoever filled in
+// the contact form, the mail that matters least, has the smallest share.
+//
+// A refused mail is logged, never an error for the request: its data is
+// already stored. The first refusal of the day is also reported, so someone
+// hears about it before parents start asking where their mail went.
 export const PUBLIC_MAIL_DAILY_LIMIT = 200;
 const PUBLIC_MAIL_WINDOW_SECONDS = 24 * 60 * 60;
+const PRIORITY_MAIL_KINDS = new Set(['registration-confirmation']);
+export const PUBLIC_MAIL_OTHER_DAILY_LIMIT = 100;
+const PUBLIC_MAIL_KIND_LIMITS = { 'contact-acknowledgement': 40 };
+
+async function takeMailBudget(sql, key, limit) {
+  const result = await checkRateLimit(sql, { key, limit, windowSeconds: PUBLIC_MAIL_WINDOW_SECONDS });
+  return { allowed: result.allowed, first: result.count === limit + 1 };
+}
+
+/**
+ * Count one public mail of `kind` against the daily budgets. Returns whether
+ * it may be sent. Separate from sending so a handler can know before it
+ * answers whether the mail will go out.
+ * @param {Function} sql
+ * @param {string} kind
+ * @returns {Promise<boolean>}
+ */
+export async function reservePublicMail(sql, kind) {
+  const budgets = [];
+  if (!PRIORITY_MAIL_KINDS.has(kind)) {
+    if (PUBLIC_MAIL_KIND_LIMITS[kind]) {
+      budgets.push([hashKey(['public-mail', kind]), PUBLIC_MAIL_KIND_LIMITS[kind]]);
+    }
+    budgets.push([hashKey(['public-mail-other']), PUBLIC_MAIL_OTHER_DAILY_LIMIT]);
+  }
+  budgets.push([hashKey(['public-mail']), PUBLIC_MAIL_DAILY_LIMIT]);
+
+  // Narrowest first: a mail its own share refuses never counts against the
+  // total that confirmations depend on.
+  for (const [key, limit] of budgets) {
+    const { allowed, first } = await takeMailBudget(sql, key, limit);
+    if (!allowed) {
+      logEvent(first ? 'error' : 'warn', 'mail.public_daily_cap_reached', { kind, limit });
+      if (first) reportProviderError('Public mail daily cap reached', new Error(`${kind} refused at ${limit} a day`));
+      return false;
+    }
+  }
+  return true;
+}
 
 export async function sendPublicMail(sql, kind, send) {
-  const { allowed } = await checkRateLimit(sql, {
-    key: hashKey(['public-mail']),
-    limit: PUBLIC_MAIL_DAILY_LIMIT,
-    windowSeconds: PUBLIC_MAIL_WINDOW_SECONDS,
-  });
-  if (!allowed) {
-    logEvent('warn', 'mail.public_daily_cap_reached', { kind, limit: PUBLIC_MAIL_DAILY_LIMIT });
-    return false;
-  }
+  if (!(await reservePublicMail(sql, kind))) return false;
   await send();
   return true;
 }

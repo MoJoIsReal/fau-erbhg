@@ -16,7 +16,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useUpcomingItems } from "@/hooks/useUpcomingItems";
 import { formatDate } from "@/lib/i18n";
-import type { Document } from "@shared/schema";
+import type { PublicDocument } from "@shared/schema";
 
 interface ContactMessage {
   id: number;
@@ -63,7 +63,7 @@ export default function Admin() {
   const publishedPosts = posts.filter((p) => p.status === "published");
   const postsOnHomepage = publishedPosts.filter((p) => p.showOnHomepage !== false);
 
-  const documentsQuery = useQuery<Document[]>({
+  const documentsQuery = useQuery<PublicDocument[]>({
     queryKey: ["/api/documents"],
   });
   const { data: documents = [] } = documentsQuery;

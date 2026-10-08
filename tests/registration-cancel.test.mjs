@@ -163,7 +163,8 @@ test('the council list never selects the cancel token', () => {
     source.indexOf('Public access - return aggregate only'),
   );
   assert.doesNotMatch(councilList, /cancel_token/);
-  assert.match(source, /const \{ cancel_token: _cancelToken, \.\.\.publicRegistration \}/);
+  // The signup's own answer is an allow-list, pinned by behaviour in
+  // registrations-handler.test.mjs.
 });
 
 test('migration generates, backfills and uniquely indexes the token', () => {

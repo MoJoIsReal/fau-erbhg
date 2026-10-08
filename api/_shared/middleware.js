@@ -287,7 +287,8 @@ export function requireCsrf(req, res) {
 /**
  * Parse and validate JWT token from request (cookies or Authorization header)
  * @param {Object} req - Request object
- * @returns {Object|null} - Decoded token payload or null
+ * @returns {Promise<Object|null>} - Decoded token payload, or null when not signed in
+ * @throws when the session secret is missing or the user lookup fails
  */
 export async function parseAuthToken(req, sqlClient = null) {
   // First try to get token from HttpOnly cookie
@@ -306,42 +307,49 @@ export async function parseAuthToken(req, sqlClient = null) {
     return null;
   }
 
+  // Only a token that fails verification means "not signed in". A missing
+  // SESSION_SECRET or a database that cannot be reached is an outage: it used
+  // to be caught here too and answered 401, so during a Neon incident every
+  // council member looked signed out and nothing reached the error log or
+  // Sentry. Those now throw on to withApiHandler, which answers 500 and
+  // reports them.
+  const jwtConfig = getJwtConfig();
+  let decoded;
   try {
-    const jwtConfig = getJwtConfig();
-    const decoded = jwt.verify(token, jwtConfig.secret, jwtConfig.verifyOptions);
-    if (!Number.isInteger(decoded.tokenVersion)) {
-      return null;
-    }
-
-    const sql = sqlClient || getDb();
-    const users = await sql`
-      SELECT username, name, role, token_version as "tokenVersion",
-             must_change_password as "mustChangePassword",
-             password_changed_at as "passwordChangedAt"
-      FROM users
-      WHERE id = ${decoded.userId}
-      LIMIT 1
-    `;
-    const user = users[0];
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return null;
-    }
-
-    return {
-      ...decoded,
-      username: user.username,
-      name: user.name,
-      role: user.role,
-      mustChangePassword: user.mustChangePassword,
-      passwordChangedAt: user.passwordChangedAt,
-      passwordChangeRequired: isPasswordChangeRequired(user),
-    };
+    decoded = jwt.verify(token, jwtConfig.secret, jwtConfig.verifyOptions);
   } catch (error) {
     if (error.name !== 'TokenExpiredError') {
       console.error('Token validation error:', redactSensitiveText(error.message));
     }
     return null;
   }
+  if (!Number.isInteger(decoded.tokenVersion)) {
+    return null;
+  }
+
+  const sql = sqlClient || getDb();
+  const users = await sql`
+    SELECT username, name, role, token_version as "tokenVersion",
+           must_change_password as "mustChangePassword",
+           password_changed_at as "passwordChangedAt"
+    FROM users
+    WHERE id = ${decoded.userId}
+    LIMIT 1
+  `;
+  const user = users[0];
+  if (!user || user.tokenVersion !== decoded.tokenVersion) {
+    return null;
+  }
+
+  return {
+    ...decoded,
+    username: user.username,
+    name: user.name,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+    passwordChangedAt: user.passwordChangedAt,
+    passwordChangeRequired: isPasswordChangeRequired(user),
+  };
 }
 
 /**
@@ -503,6 +511,28 @@ export function sanitizeText(text, maxLength = 1000) {
   return removeUntilStable(withoutSchemes, INLINE_EVENT_HANDLER)
     .trim()
     .substring(0, maxLength);
+}
+
+/**
+ * A submitted name, fit to repeat in mail sent to an address nobody has
+ * verified. The public forms accept any recipient, so whatever the name holds
+ * goes out from FAU's own Gmail: a name like "Klikk https://…" would make the
+ * site a phishing relay. Only letters (any script), combining marks, spaces,
+ * hyphens and apostrophes survive, which keeps "Anne-Marie O'Neil" and drops
+ * the dots, slashes, digits and line breaks a link or a second paragraph needs.
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ * @returns {string} '' when nothing usable is left
+ */
+export function nameForMail(value, maxLength = 100) {
+  if (typeof value !== 'string') return '';
+  return value
+    .slice(0, maxLength * SANITIZE_INPUT_FACTOR)
+    .replace(/\s+/g, ' ')
+    .replace(/[^\p{L}\p{M} '’-]/gu, '')
+    .replace(/ {2,}/g, ' ')
+    .trim()
+    .slice(0, maxLength);
 }
 
 /**

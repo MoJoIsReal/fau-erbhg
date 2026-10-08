@@ -17,13 +17,15 @@ test('reading a school year needs a numeric year and returns mapped entries', as
   assert.equal((await call(t, handler, { query: { schoolYear: 'neste' } })).statusCode, 400);
   assert.deepEqual(refused.calls, []);
 
-  const sql = useDatabase(scriptedSql({ respond: () => [stored({ week_number: 23 })] }));
+  const sql = useDatabase(scriptedSql({ respond: () => [stored({ week_number: 23, created_by: 'staff@example.test' })] }));
   const res = await call(t, handler, { query: { schoolYear: String(SCHOOL_YEAR) } });
   assert.equal(res.statusCode, 200);
   assert.equal(res.body[0].weekNumber, 23);
   assert.equal(res.body[0].category, null, 'null means "follow the entry type"');
   assert.equal(res.body[0].showOnHomepage, false);
   assert.deepEqual(sql.calls[0].values, [SCHOOL_YEAR]);
+  // The public read never says who wrote an entry (a name, or a login e-mail).
+  assert.equal('createdBy' in res.body[0], false);
 });
 
 // school_year, year and month are NOT NULL. An update used to check only the

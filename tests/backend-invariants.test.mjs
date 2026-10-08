@@ -125,3 +125,22 @@ test('the yearly calendar reads the saved category back', () => {
   assert.ok(select, 'Locate the query used to reopen saved entries');
   assert.match(select[1], /\bcategory\b/);
 });
+
+// On Vercel the function freezes once the response is sent, so a capture that
+// is neither awaited nor handed to waitUntil is usually lost (sentry.js). The
+// blacklist-check failure was reported that way, and the spam filter could
+// have stayed off without anyone hearing of it.
+test('every Sentry capture in a handler is awaited or kept alive with waitUntil', () => {
+  const files = [
+    'api/registrations.js', 'api/events.js', 'api/contact.js', 'api/documents.js', 'api/auth.js',
+    'api/upload.js', 'api/yearly-calendar.js', 'api/secure-settings.js', 'api/media.js',
+    'api/cron/event-reminders.js', 'api/_shared/middleware.js', 'api/_shared/provider-errors.js',
+  ];
+  for (const file of files) {
+    read(file).split('\n').forEach((line, index) => {
+      if (/captureException\(/.test(line) && !/await |waitUntil\(/.test(line)) {
+        assert.fail(`${file}:${index + 1} captures without await or waitUntil, so the report is likely lost`);
+      }
+    });
+  }
+});

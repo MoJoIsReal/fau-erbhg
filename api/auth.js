@@ -231,7 +231,7 @@ async function handleLogin(req, res, sql) {
 
   return res.status(200).json({
     user: {
-      id: user.id,
+      userId: user.id,
       username: user.username,
       name: user.name,
       role: user.role,

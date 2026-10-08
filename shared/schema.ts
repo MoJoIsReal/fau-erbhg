@@ -378,6 +378,11 @@ export type ContactMessage = typeof contactMessages.$inferSelect;
 export type NewsletterSubscriber = typeof newsletterSubscribers.$inferSelect;
 export type NewsletterDelivery = typeof newsletterDeliveries.$inferSelect;
 export type Document = typeof documents.$inferSelect;
+// Wire shape of GET /api/documents and of the `document` an upload answers
+// with. The uploader's login e-mail and Cloudinary's public id stay server-side.
+export type PublicDocument = Pick<Document, 'id' | 'title' | 'filename' | 'category' | 'description' | 'uploadedAt' | 'fileSize' | 'mimeType'> & {
+  fileUrl: string | null;
+};
 export type User = typeof users.$inferSelect;
 export type BlogPost = typeof blogPosts.$inferSelect;
 export type KindergartenInfo = typeof kindergartenInfo.$inferSelect;

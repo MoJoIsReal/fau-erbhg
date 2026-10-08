@@ -134,7 +134,9 @@ OBS-001, TEST-003
 
 ## P2
 
-## [ ] SEC-003 — Stop echoing submitter-chosen text in mail to unverified addresses
+## [x] SEC-003 — Stop echoing submitter-chosen text in mail to unverified addresses
+> **Done.** Names are kept, as asked, but pass through the new `nameForMail` (letters, marks, spaces, `-` and `'` only — no dots, slashes, digits or line breaks), in both the signup confirmation (parent and child names) and the contact receipt.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed (verified) · **Effort:** S · **Area:** Security / Abuse
 
 ### Files
@@ -164,7 +166,9 @@ Easier after MAINT-005 (extracting the mail templates).
 ### Related findings
 SEC-006, MAINT-005
 
-## [ ] SEC-006 — Make the public-mail daily cap fair and never lose the only cancel link
+## [x] SEC-006 — Make the public-mail daily cap fair and never lose the only cancel link
+> **Done.** Signup confirmations may use the whole 200/day; every other kind shares a 100/day pool, contact receipts at most 40 of it. The first refusal of the day is reported. A signup whose mail cannot go out answers `confirmationEmail:false` + `cancelUrl`, and the form shows that link until closed.
+
 **Priority:** P2 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** M · **Area:** Security / Availability
 
 ### Files
@@ -195,7 +199,9 @@ None.
 ### Related findings
 SEC-003
 
-## [ ] SEC-005 — Strip `createdBy` and internal flags from the public yearly-calendar response
+## [x] SEC-005 — Strip `createdBy` and internal flags from the public yearly-calendar response
+> **Done.** `createdBy` is dropped from the public GET. The newsletter flags stay: they hold no personal data, and the entry editor seeds its form from this response, so removing them would silently untick "notify" on save.
+
 **Priority:** P2 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Privacy
 
 ### Files
@@ -223,7 +229,9 @@ None.
 ### Related findings
 MAINT-003
 
-## [ ] TRACE-002 — Make privacy retention robust to non-ISO legacy dates
+## [x] TRACE-002 — Make privacy retention robust to non-ISO legacy dates
+> **Done.** Retention compares text to ISO cutoffs (no casts) and skips rows that do not start with a date, counting them as `unparseableDates`. Verified against a local PostgreSQL 16: the old statements fail with `invalid input syntax … "ukjent"`, the new ones pass.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Possible · **Effort:** S · **Area:** Correctness / Data retention
 
 ### Files
@@ -329,7 +337,9 @@ None.
 ### Related findings
 A11Y-004, DOC-002
 
-## [ ] OBS-001 — Don't report DB or config failures as "logged out"
+## [x] OBS-001 — Don't report DB or config failures as "logged out"
+> **Done.** Only `jwt.verify` failures return null; config and DB errors propagate to `withApiHandler` (500 + report).
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Observability / Reliability
 
 ### Files
@@ -358,7 +368,9 @@ None.
 ### Related findings
 TRACE-001
 
-## [ ] OBS-002 — Keep request ids intact in logs
+## [x] OBS-002 — Keep request ids intact in logs
+> **Done.** `requestId`, `method`, `path`, `action`, `resource`, `role` (and cron `task`/`targetDate`/`stage`) keep their value when id-shaped; anything else is still redacted.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** S · **Area:** Observability
 
 ### Files
@@ -388,7 +400,9 @@ None.
 ### Related findings
 OBS-004
 
-## [ ] OBS-005 — Alert on media-purge and stage failures in the cron
+## [x] OBS-005 — Alert on media-purge and stage failures in the cron
+> **Done.** `mediaPurgeFailed` / `unparseableDates` raise "Housekeeping problems in the reminders run"; a failing stage still writes `cron.run` with `stagesFailed`. Docs say how to alert on it.
+
 **Priority:** P2 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Observability / Privacy
 
 ### Files
@@ -418,7 +432,9 @@ None.
 ### Related findings
 TRACE-002
 
-## [ ] MAINT-002 — One error-handling convention: no local 500 envelopes, provider errors via `reportProviderError`
+## [x] MAINT-002 — One error-handling convention: no local 500 envelopes, provider errors via `reportProviderError`
+> **Done.** Local envelopes removed from contact.js/upload.js; the blacklist path uses `reportProviderError`; a `backend-invariants` guard rejects un-awaited captures.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Maintainability / Observability
 
 ### Files
@@ -449,7 +465,9 @@ None.
 ### Related findings
 DOC-002, OBS-004
 
-## [ ] MAINT-003 — Map creation responses through allow-list mappers
+## [x] MAINT-003 — Map creation responses through allow-list mappers
+> **Done.** Signup answers `{id, eventId, attendeeCount, confirmationEmail[, cancelUrl]}`; contact POST answers `{success:true}`; upload returns the public document shape (`PublicDocument` type); login returns `userId` like `me`.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Maintainability / Contract / Privacy
 
 ### Files
@@ -640,7 +658,9 @@ DB-001 (to agree what the declaration should contain).
 ### Related findings
 DB-001
 
-## [ ] DOC-002 — Fix the documented error convention to match `handleError`
+## [x] DOC-002 — Fix the documented error convention to match `handleError`
+> **Done.** AGENTS.md now describes the real convention.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Docs
 
 ### Files
