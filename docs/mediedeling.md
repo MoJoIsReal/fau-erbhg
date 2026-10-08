@@ -89,6 +89,17 @@ Dokumentet har fire deler:
   - MP4, MOV og M4A får posisjonsfeltene blanket ut: `©xyz`, `loci` og
     `com.apple.quicktime.location.*`.
   - En fil som ikke kan tolkes, blir ikke lastet opp.
+- **Forhåndsvisning i rutenettet.** Originalen ville gitt en mobil 15–35 MB
+  bare for de første bildene, dekodet i full størrelse for en rute på 180 px.
+  Nettleseren til admin lager derfor også en liten kopi av hvert bilde (maks
+  640 px på lengste side, WebP eller JPEG, maks 512 KB). Kopien tegnes på et
+  lerret, så den har ingen EXIF eller GPS. Den lastes opp ved siden av
+  originalen under sin egen tilfeldige nøkkel og sjekkes på samme måte.
+  Rutenettet på delingssiden viser kopien. Når et bilde åpnes, og når det
+  lastes ned, er det originalen som vises, uendret. Bilder uten kopi (lastet
+  opp før dette, eller der nettleseren ikke klarte å lage en) vises som før.
+  Kopiene teller med i lagringskvoten og slettes sammen med originalene
+  (`migrations/0022_media_previews.sql`).
 - **Delingssiden er et eget inngangspunkt** (`del.html`). Den har ingen
   analytics, ingen Sentry og ingen Google Fonts. Fonten serveres fra vårt eget
   domene. `vercel.json` gir den blant annet:

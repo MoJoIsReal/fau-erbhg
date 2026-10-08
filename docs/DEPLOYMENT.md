@@ -5,9 +5,17 @@ boundaries in [architecture.md](./architecture.md).
 
 ## Runtime and verification
 
-The React SPA and the nine Vercel functions (eight top-level handlers and one
-cron handler) are one deployment. There is no separate Node server. The project
-requires Node **22.x**, matching `package.json` and `.github/workflows/ci.yml`.
+The React SPA and the ten Vercel functions (nine top-level handlers and one
+cron handler, of the Hobby plan's twelve) are one deployment. There is no
+separate Node server. The project requires Node **22.x**, matching
+`package.json` and `.github/workflows/ci.yml`.
+
+**Keep the functions in the database's region.** Every handler talks to Neon
+over HTTPS, one round trip per SQL statement, and a request runs up to about
+six of them in sequence (a public signup does). The function region (Vercel →
+Project → Settings → Functions) and the Neon project's region were checked on
+2026-10-08 and are the same. If either is ever moved, move the other with it: a
+transatlantic gap adds roughly 80–100 ms to every statement.
 
 ```bash
 npm ci

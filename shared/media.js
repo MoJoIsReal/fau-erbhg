@@ -92,6 +92,17 @@ export const MEDIA_MAX_FILES_PER_SHARE = 200;
 export const MEDIA_PIN_PATTERN = /^\d{4,8}$/;
 export const MEDIA_NEW_PIN_PATTERN = /^\d{6,8}$/;
 
+// The share page's grid shows a small copy of each photo instead of the
+// original (a phone camera's 12–48 MP file, 2–6 MB, decoded at full size for a
+// 180 px tile). The admin's browser draws it on a canvas at upload time, which
+// re-encodes only that copy: the original is uploaded untouched, as before,
+// and is what the lightbox and the download show. Canvas output carries no
+// EXIF or GPS. Optional: a photo without one shows the original in the grid.
+export const MEDIA_PREVIEW_MIME_TYPES = Object.freeze(['image/webp', 'image/jpeg']);
+export const MEDIA_PREVIEW_MAX_BYTES = 512 * 1024;
+/** Longest edge, in pixels: a 3-column tile on a 3x phone is about 360 px. */
+export const MEDIA_PREVIEW_EDGE = 640;
+
 // Why the media API refused something. The share page and the admin page key
 // their message off these, never off the `error` text.
 export const MEDIA_ERROR_CODES = Object.freeze([

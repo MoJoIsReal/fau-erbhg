@@ -9,7 +9,14 @@
  */
 import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { scrubMedia, ScrubError } from "@/lib/media-scrub";
-import { mediaKind, normalizeMediaMime, type MediaKind, type MediaMimeType } from "@shared/media";
+import {
+  MEDIA_PREVIEW_EDGE,
+  MEDIA_PREVIEW_MAX_BYTES,
+  mediaKind,
+  normalizeMediaMime,
+  type MediaKind,
+  type MediaMimeType,
+} from "@shared/media";
 
 export type MediaUploadErrorCode = "UNSUPPORTED_TYPE" | "UNREADABLE" | "NETWORK" | "ABORTED" | "SERVER";
 
@@ -32,6 +39,8 @@ export interface PreparedMedia {
   width: number | null;
   height: number | null;
   removedMetadata: boolean;
+  /** A photo's small copy for the share page's grid, or null (see makePreview). */
+  preview: Blob | null;
 }
 
 const PART_CONCURRENCY = 3;
@@ -59,7 +68,47 @@ export async function prepareMedia(file: File): Promise<PreparedMedia> {
     width: scrubbed.width,
     height: scrubbed.height,
     removedMetadata: scrubbed.removedMetadata,
+    preview: kind === "image" ? await makePreview(scrubbed.blob) : null,
   };
+}
+
+/**
+ * The share page's grid copy of a photo: drawn on a canvas at most
+ * MEDIA_PREVIEW_EDGE pixels on its long edge, as WebP (JPEG where the browser
+ * cannot encode WebP). Only this copy is re-encoded; the original is uploaded
+ * as it is. A canvas carries no EXIF or GPS, and the camera's rotation is
+ * applied while drawing. Null when the photo is small enough to be its own
+ * preview, or when the browser cannot make one: the grid then shows the
+ * original, so a preview is never a reason to fail an upload.
+ */
+async function makePreview(blob: Blob): Promise<Blob | null> {
+  try {
+    const bitmap = await createImageBitmap(blob, { imageOrientation: "from-image" });
+    const longEdge = Math.max(bitmap.width, bitmap.height);
+    if (longEdge <= MEDIA_PREVIEW_EDGE && blob.size <= MEDIA_PREVIEW_MAX_BYTES) {
+      bitmap.close();
+      return null;
+    }
+    const scale = Math.min(1, MEDIA_PREVIEW_EDGE / longEdge);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const context = canvas.getContext("2d");
+    if (!context) {
+      bitmap.close();
+      return null;
+    }
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    for (const [type, quality] of [["image/webp", 0.8], ["image/jpeg", 0.82]] as const) {
+      const encoded = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, type, quality));
+      // A browser that cannot encode a type hands back PNG instead.
+      if (encoded && encoded.type === type && encoded.size <= MEDIA_PREVIEW_MAX_BYTES) return encoded;
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 async function post<T>(action: string, body: unknown): Promise<T> {
@@ -112,6 +161,8 @@ interface InitResponse {
   fileId: number;
   mode: "single" | "multipart";
   url?: string;
+  /** Where the photo's preview goes, when one was offered and accepted. */
+  previewUrl?: string;
   partSize?: number;
   partCount?: number;
 }
@@ -135,9 +186,17 @@ export async function uploadMedia({ shareId, media, position, onProgress, signal
     width: media.width,
     height: media.height,
     position,
+    ...(media.preview ? { preview: { mimeType: media.preview.type, size: media.preview.size } } : {}),
   });
 
   try {
+    // The preview first: it is small, and upload-complete checks it along with
+    // the original. One that does not arrive is dropped there, not fatal.
+    if (init.previewUrl && media.preview) {
+      await put(init.previewUrl, media.preview, media.preview.type, () => undefined, signal).catch((error) => {
+        if (error instanceof MediaUploadError && error.code === "ABORTED") throw error;
+      });
+    }
     if (init.mode === "single" && init.url) {
       await put(init.url, media.blob, media.mimeType, (sent) => onProgress(sent / total), signal);
       await post("upload-complete", { fileId: init.fileId });

@@ -419,13 +419,15 @@ test('the storage quota is checked inside the insert, including files still uplo
   const id = await mediaShare({ status: 'draft' });
   await mediaObject(id, 600);
   await mediaObject(id, 300, 'uploading');
-  const insert = async (size) => sql(await productionStatement(mediaFile, 'INSERT INTO media_files', {
-    shareId: id, objectKey: `media/${id}/${size}`, kind: 'image', mimeType: 'image/jpeg', size,
+  const insert = async (size, preview = 0) => sql(await productionStatement(mediaFile, 'INSERT INTO media_files', {
+    shareId: id, objectKey: `media/${id}/${size}-${preview}`, kind: 'image', mimeType: 'image/jpeg', size,
+    previewKey: preview ? `media/${id}/${size}-${preview}-small` : null, previewBytes: preview || null,
     width: null, height: null, position: 0, quotaBytes: 1000,
   }));
   assert.equal((await insert(101)).length, 0, '900 + 101 is over 1000');
-  assert.equal((await insert(100)).length, 1, '900 + 100 fits exactly');
-  assert.equal((await insert(1)).length, 0, 'and now it is full');
+  assert.equal((await insert(90, 11)).length, 0, 'a preview counts too: 900 + 90 + 11 is over 1000');
+  assert.equal((await insert(90, 10)).length, 1, '900 + 90 + 10 fits exactly');
+  assert.equal((await insert(1)).length, 0, 'and now it is full, previews included');
 });
 
 test('a share summary counts only finished files and sums sizes past 2 GB', async () => {

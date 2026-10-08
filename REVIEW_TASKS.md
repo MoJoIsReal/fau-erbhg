@@ -538,7 +538,9 @@ None.
 ### Related findings
 PERF-004
 
-## [ ] PERF-002 — Serve small previews in the media-share grid
+## [x] PERF-002 — Serve small previews in the media-share grid
+> **Done (signed off 2026-10-08).** The admin's browser makes a ≤640 px WebP/JPEG copy (≤512 KB) on a canvas after scrubbing; the original is uploaded untouched. The copy has its own random key, gets the same server checks (dropped, not fatal, if it fails), counts against the quota and is deleted with the original. The grid shows it; the lightbox and download show the original. Migration `0022_media_previews.sql`. Checked in Chromium: 4000×3000 → 640×480 WebP, 27 KB, no EXIF/GPS.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** M · **Area:** Performance / Share page
 
 ### Files
@@ -572,7 +574,9 @@ Product decision.
 ### Related findings
 SEC-015
 
-## [ ] PERF-003 — Verify and pin function and DB regions
+## [x] PERF-003 — Verify and pin function and DB regions
+> **Done.** Function and Neon regions confirmed identical (2026-10-08); recorded in `docs/DEPLOYMENT.md`, no `vercel.json` change.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Unverified · **Effort:** S · **Area:** Performance / Platform
 
 ### Files
@@ -698,7 +702,9 @@ MAINT-002.
 ### Related findings
 MAINT-002, TRACE-003
 
-## [ ] DOC-005 — Update the privacy page for newsletter, media sharing, processors and cookies
+## [x] DOC-005 — Update the privacy page for newsletter, media sharing, processors and cookies
+> **Done (wording approved 2026-10-08).** New sections on the newsletter, shared photos and videos, and error reports/visit statistics; processors now include Cloudflare R2, Sentry, Vercel Analytics, Google (Gmail) and Google Fonts; deletion covers newsletter records, media and abuse counters; cookies list all three login cookies and the browser-stored preferences. No storage location is claimed for R2: confirm the bucket's jurisdiction before adding one.
+
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed (legal adequacy is the association's call) · **Effort:** S · **Area:** Docs / Privacy
 
 ### Files

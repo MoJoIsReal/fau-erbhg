@@ -58,6 +58,8 @@ import {
   MEDIA_MAX_LIFETIME_DAYS,
   MEDIA_NEW_PIN_PATTERN,
   MEDIA_PIN_PATTERN,
+  MEDIA_PREVIEW_MAX_BYTES,
+  MEDIA_PREVIEW_MIME_TYPES,
   MEDIA_TITLE_MAX,
   mediaKind,
   normalizeMediaMime,
@@ -101,6 +103,10 @@ const PIN_IP_WINDOW_SECONDS = 15 * 60;
 const PIN_SHARE_MAX_FAILURES = 30;
 const PIN_SHARE_WINDOW_SECONDS = 24 * 60 * 60;
 
+// The preview types, as plain strings: what a request or R2 reports is checked
+// against them.
+const PREVIEW_MIME_TYPES = /** @type {readonly string[]} */ (MEDIA_PREVIEW_MIME_TYPES);
+
 // Presigned part URLs per request; a file larger than this asks again.
 const MAX_PART_URLS_PER_REQUEST = 100;
 
@@ -140,6 +146,7 @@ async function mapSharedFile(row) {
     kind: row.kind,
     mimeType: row.mime_type,
     url: await presignGet(row.object_key),
+    previewUrl: row.preview_key ? await presignGet(row.preview_key) : null,
     width: row.width ?? null,
     height: row.height ?? null,
   };
@@ -221,7 +228,7 @@ async function handleView(req, res, sql) {
   }
 
   const files = await sql`
-    SELECT id, kind, mime_type, object_key, width, height
+    SELECT id, kind, mime_type, object_key, preview_key, width, height
     FROM media_files
     WHERE share_id = ${share.id} AND status = 'ready'
     ORDER BY position, id
@@ -252,7 +259,7 @@ async function handleList(req, res, sql) {
       ORDER BY s.created_at DESC
       LIMIT 500
     `,
-    sql`SELECT COALESCE(SUM(size_bytes), 0)::bigint AS used FROM media_files`,
+    sql`SELECT COALESCE(SUM(size_bytes + COALESCE(preview_bytes, 0)), 0)::bigint AS used FROM media_files`,
   ]);
   const now = Date.now();
   const { maxFileBytes, quotaBytes } = getMediaLimits();
@@ -311,18 +318,19 @@ async function handleCreate(req, res, sql, user) {
 // uploads only ever go into a draft.
 async function loadUploadingFile(sql, fileId) {
   const rows = await sql`
-    SELECT f.id, f.share_id, f.object_key, f.kind, f.mime_type, f.size_bytes, f.upload_id
+    SELECT f.id, f.share_id, f.object_key, f.kind, f.mime_type, f.size_bytes, f.upload_id,
+           f.preview_key, f.preview_bytes
     FROM media_files f
     JOIN media_shares s ON s.id = f.share_id
     WHERE f.id = ${fileId} AND f.status = 'uploading' AND s.status = 'draft'
   `;
   if (!rows[0]) return null;
-  return { ...rows[0], size_bytes: Number(rows[0].size_bytes) };
+  return { ...rows[0], size_bytes: Number(rows[0].size_bytes), preview_bytes: rows[0].preview_bytes === null ? null : Number(rows[0].preview_bytes) };
 }
 
 async function discardFile(sql, file) {
   if (file.upload_id) await abortMultipartUpload(file.object_key, file.upload_id);
-  await deleteObjects([file.object_key]);
+  await deleteObjects([file.object_key, file.preview_key].filter(Boolean));
   await sql`DELETE FROM media_files WHERE id = ${file.id}`;
 }
 
@@ -344,6 +352,15 @@ async function handleUploadInit(req, res, sql) {
   const height = sanitizeInteger(body.height, 1, 100000);
   const position = sanitizeInteger(body.position, 0, 100000) ?? 0;
 
+  // A photo may bring its small grid copy (MEDIA_PREVIEW_* in shared/media.js).
+  // One that does not fit the rules is simply not stored: the grid then shows
+  // the original, as it did before previews existed.
+  const previewMime = kind === 'image' && PREVIEW_MIME_TYPES.includes(body.preview?.mimeType)
+    ? body.preview.mimeType
+    : null;
+  const previewBytes = previewMime ? sanitizeInteger(body.preview?.size, 1, MEDIA_PREVIEW_MAX_BYTES) : null;
+  const previewKey = previewBytes ? newObjectKey(shareId) : null;
+
   const shares = await sql`
     SELECT s.status, (SELECT COUNT(*)::int FROM media_files f WHERE f.share_id = s.id) AS file_count
     FROM media_shares s
@@ -357,9 +374,9 @@ async function handleUploadInit(req, res, sql) {
   // together cannot both squeeze under the limit.
   const objectKey = newObjectKey(shareId);
   const inserted = await sql`
-    INSERT INTO media_files (share_id, object_key, kind, mime_type, size_bytes, width, height, position, status, created_at)
-    SELECT ${shareId}, ${objectKey}, ${kind}, ${mimeType}, ${size}, ${width}, ${height}, ${position}, ${'uploading'}, ${new Date().toISOString()}
-    WHERE (SELECT COALESCE(SUM(size_bytes), 0) FROM media_files) + ${size} <= ${quotaBytes}
+    INSERT INTO media_files (share_id, object_key, preview_key, kind, mime_type, size_bytes, preview_bytes, width, height, position, status, created_at)
+    SELECT ${shareId}, ${objectKey}, ${previewKey}, ${kind}, ${mimeType}, ${size}, ${previewKey ? previewBytes : null}, ${width}, ${height}, ${position}, ${'uploading'}, ${new Date().toISOString()}
+    WHERE (SELECT COALESCE(SUM(size_bytes + COALESCE(preview_bytes, 0)), 0) FROM media_files) + ${size} + ${previewKey ? previewBytes : 0} <= ${quotaBytes}
     RETURNING id
   `;
   if (!inserted[0]) return refuse(res, 507, 'STORAGE_QUOTA', 'Storage quota reached');
@@ -367,12 +384,13 @@ async function handleUploadInit(req, res, sql) {
 
   const plan = uploadPlan(size);
   try {
+    const preview = previewKey ? { previewUrl: await presignPut(previewKey, previewMime, previewBytes) } : {};
     if (plan.mode === 'single') {
-      return res.status(200).json({ fileId, mode: 'single', url: await presignPut(objectKey, mimeType, size) });
+      return res.status(200).json({ fileId, mode: 'single', url: await presignPut(objectKey, mimeType, size), ...preview });
     }
     const uploadId = await createMultipartUpload(objectKey, mimeType);
     await sql`UPDATE media_files SET upload_id = ${uploadId} WHERE id = ${fileId}`;
-    return res.status(200).json({ fileId, mode: 'multipart', partSize: plan.partSize, partCount: plan.partCount });
+    return res.status(200).json({ fileId, mode: 'multipart', partSize: plan.partSize, partCount: plan.partCount, ...preview });
   } catch (error) {
     // Give the reserved quota back before reporting the failure.
     await sql`DELETE FROM media_files WHERE id = ${fileId}`;
@@ -453,8 +471,26 @@ async function handleUploadComplete(req, res, sql) {
     return refuse(res, 422, 'UPLOAD_MISMATCH', 'Uploaded file does not match');
   }
 
-  await sql`UPDATE media_files SET status = ${'ready'}, upload_id = ${null} WHERE id = ${file.id}`;
-  return res.status(200).json({ file: { id: file.id, kind: file.kind } });
+  // The preview gets the same checks. A missing or wrong one is dropped, not
+  // fatal: the grid falls back to the original.
+  let previewKept = false;
+  if (file.preview_key) {
+    const preview = await headObject(file.preview_key);
+    const previewPrefix = preview && preview.size === file.preview_bytes && PREVIEW_MIME_TYPES.includes(preview.contentType)
+      ? await readObjectPrefix(file.preview_key, 16)
+      : null;
+    previewKept = Boolean(previewPrefix) && matchesFileSignature(preview.contentType, previewPrefix);
+    if (!previewKept) await deleteObjects([file.preview_key]);
+  }
+
+  await sql`
+    UPDATE media_files
+    SET status = ${'ready'}, upload_id = ${null},
+        preview_key = ${previewKept ? file.preview_key : null},
+        preview_bytes = ${previewKept ? file.preview_bytes : null}
+    WHERE id = ${file.id}
+  `;
+  return res.status(200).json({ file: { id: file.id, kind: file.kind, preview: previewKept } });
 }
 
 async function handleUploadAbort(req, res, sql) {
@@ -477,7 +513,7 @@ async function handlePublish(req, res, sql) {
   if (share.status !== 'draft') return refuse(res, 409, 'NOT_DRAFT', 'Share is already published');
 
   const files = await sql`
-    SELECT id, object_key, upload_id, status FROM media_files WHERE share_id = ${id}
+    SELECT id, object_key, preview_key, upload_id, status FROM media_files WHERE share_id = ${id}
   `;
   if (!files.some((file) => file.status === 'ready')) {
     return refuse(res, 409, 'EMPTY_SHARE', 'A share needs at least one file');

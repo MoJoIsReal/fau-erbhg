@@ -351,9 +351,12 @@ export const mediaFiles = pgTable("media_files", {
   id: serial("id").primaryKey(),
   shareId: integer("share_id").notNull().references(() => mediaShares.id, { onDelete: "cascade" }),
   objectKey: text("object_key").notNull().unique("media_files_object_key_key"),
+  // The grid's small copy of a photo (migration 0022); NULL when there is none.
+  previewKey: text("preview_key").unique("media_files_preview_key_key"),
   kind: text("kind").notNull(), // "image" | "video" | "audio"
   mimeType: text("mime_type").notNull(),
   sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  previewBytes: integer("preview_bytes"),
   width: integer("width"),
   height: integer("height"),
   position: integer("position").notNull().default(0),
@@ -365,6 +368,7 @@ export const mediaFiles = pgTable("media_files", {
   kindCheck: check("media_files_kind_check", sql`${table.kind} IN ('image', 'video', 'audio')`),
   statusCheck: check("media_files_status_check", sql`${table.status} IN ('uploading', 'ready')`),
   sizeCheck: check("media_files_size_bytes_check", sql`${table.sizeBytes} > 0`),
+  previewSizeCheck: check("media_files_preview_bytes_check", sql`${table.previewBytes} IS NULL OR ${table.previewBytes} > 0`),
   shareIdx: index("media_files_share_id_idx").on(table.shareId, table.position),
 }));
 
@@ -437,6 +441,8 @@ export type SharedMediaFile = {
   kind: "image" | "video" | "audio";
   mimeType: string;
   url: string;
+  /** A small copy for the grid (photos uploaded with one); null otherwise. */
+  previewUrl: string | null;
   width: number | null;
   height: number | null;
 };
