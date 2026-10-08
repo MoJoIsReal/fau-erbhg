@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  checkRateLimit, getClientIp, identityRateLimitKey, peekRateLimit, rateLimitKey,
+  checkRateLimit, getClientIp, identityRateLimitKey, rateLimitKey, releaseRateLimit,
 } from '../api/_shared/rate-limit.js';
 
 // Models what actually reaches a Vercel function: the platform sets x-real-ip
@@ -68,20 +68,18 @@ test('retryAfter never reports zero, so a Retry-After header is always meaningfu
   assert.equal((await checkRateLimit(negative.sql, { key: 'k', limit: 1, windowSeconds: 60 })).retryAfter, 1);
 });
 
-// A limit that counts only failures has to look before it counts. The look
-// must not write, and must refuse at the same boundary checkRateLimit does:
-// `limit` counted events are allowed, the next request is not.
-test('peeking reads the live window without counting, with the same boundary', async () => {
-  const empty = { sql: async () => [], calls: [] };
-  assert.deepEqual(await peekRateLimit(empty.sql, { key: 'k', limit: 20 }), { allowed: true, retryAfter: 0 });
-
-  const below = stubSql({ count: 19, retryAfter: 42 });
-  assert.deepEqual(await peekRateLimit(below.sql, { key: 'k', limit: 20 }), { allowed: true, retryAfter: 42 });
-  assert.doesNotMatch(below.calls[0].text, /INSERT|UPDATE|DELETE/);
-  assert.match(below.calls[0].text, /reset_at > NOW\(\)/, 'an expired window counts as empty');
-
-  const at = stubSql({ count: 20, retryAfter: 0 });
-  assert.deepEqual(await peekRateLimit(at.sql, { key: 'k', limit: 20 }), { allowed: false, retryAfter: 1 });
+// A limit that counts only failures reserves each attempt with
+// checkRateLimit before the slow check and hands it back when it was not a
+// failure. The hand-back never goes below zero and only touches a live window,
+// so an attempt is never credited to the next one.
+test('releasing hands one attempt back within the live window only', async () => {
+  const release = stubSql({});
+  await releaseRateLimit(release.sql, 'k');
+  assert.equal(release.calls.length, 1);
+  assert.match(release.calls[0].text, /^\s*UPDATE api_rate_limits/);
+  assert.match(release.calls[0].text, /GREATEST\(count - 1, 0\)/);
+  assert.match(release.calls[0].text, /reset_at > NOW\(\)/);
+  assert.deepEqual(release.calls[0].values, ['k']);
 });
 
 test('identity keys are hashed and case-insensitive, and never carry the address', () => {

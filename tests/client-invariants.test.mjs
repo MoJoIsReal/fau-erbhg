@@ -23,10 +23,15 @@ test('event editing invalidates the query the calendar reads and explains refuse
 
 // The default queryFn fetches the key's first segment, so a key like
 // ['/api/events', id, 'registrations'] silently fetched the events list.
-test('the attendee tooltip fetches the registrations endpoint', () => {
+// The plain ?eventId= answer is the public count, not a list: a council page
+// that asked for it would get `{count}` the moment its session lapsed.
+test('the council attendee views ask for the council list', () => {
   const tooltip = read('client/src/components/attendee-tooltip.tsx');
-  assert.match(tooltip, /queryKey:\s*\[`\/api\/registrations\?eventId=\$\{eventId\}`\]/);
+  assert.match(tooltip, /queryKey:\s*\[`\/api\/registrations\?eventId=\$\{eventId\}&view=council`\]/);
   assert.equal(tooltip.includes('queryKey: ["/api/events", eventId, "registrations"]'), false);
+  const view = read('client/src/components/event-registrations-view.tsx');
+  assert.match(view, /`\/api\/registrations\?eventId=\$\{event\.id\}&view=council`/);
+  assert.doesNotMatch(view, /`\/api\/registrations\?eventId=\$\{event\.id\}`/);
 });
 
 test('the messages route admits the same roles the API does', () => {

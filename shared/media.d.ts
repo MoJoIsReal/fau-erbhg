@@ -24,6 +24,7 @@ export declare const MEDIA_TITLE_MAX: number;
 export declare const MEDIA_DESCRIPTION_MAX: number;
 export declare const MEDIA_MAX_FILES_PER_SHARE: number;
 export declare const MEDIA_PIN_PATTERN: RegExp;
+export declare const MEDIA_NEW_PIN_PATTERN: RegExp;
 
 export type MediaErrorCode =
   | "SHARE_UNAVAILABLE"

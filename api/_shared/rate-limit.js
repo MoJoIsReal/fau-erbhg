@@ -68,22 +68,19 @@ export async function checkRateLimit(sql, { key, limit, windowSeconds }) {
   };
 }
 
-// Read a counter without adding to it. checkRateLimit counts the request it
-// is asked about; a limit that should count only failures has to look first
-// and record the failure afterwards. Same boundary: `limit` counted events are
-// allowed, the next is refused.
-export async function peekRateLimit(sql, { key, limit }) {
-  const rows = await sql`
-    SELECT count, EXTRACT(EPOCH FROM (reset_at - NOW()))::int AS "retryAfter"
-    FROM api_rate_limits
+// Give back an attempt counted by checkRateLimit. A limit that should count
+// only failures still has to count every attempt *before* the slow check:
+// looking first and recording the failure afterwards lets a burst of
+// concurrent requests all read the same count and all get through. So the
+// attempt is reserved up front and handed back here when it turns out not to
+// be a failure. Only a live window is touched, so an attempt never outlives
+// the window it was counted in.
+export async function releaseRateLimit(sql, key) {
+  await sql`
+    UPDATE api_rate_limits
+    SET count = GREATEST(count - 1, 0), updated_at = NOW()
     WHERE key = ${key} AND reset_at > NOW()
   `;
-  const row = rows[0];
-  if (!row) return { allowed: true, retryAfter: 0 };
-  return {
-    allowed: row.count < limit,
-    retryAfter: Math.max(row.retryAfter || 1, 1),
-  };
 }
 
 export async function clearRateLimit(sql, key) {

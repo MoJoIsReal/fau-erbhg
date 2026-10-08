@@ -8,7 +8,9 @@ General verification for every task: `npm run check`, the named suite, then `npm
 
 ## P1
 
-## [ ] SEC-001 — Make the PIN and account-wide failure lockouts atomic
+## [x] SEC-001 — Make the PIN and account-wide failure lockouts atomic
+> **Done.** Attempts are reserved with `checkRateLimit` before bcrypt and handed back with the new `releaseRateLimit` (media: correct PIN; share-lock refusal returns the IP attempt) or cleared on login success; `peekRateLimit` removed. Concurrent-burst tests added to `media-handler` and `auth-handler` (they fail on the old code).
+
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed (independently reproduced) · **Effort:** S · **Area:** Security / Authentication (brute force)
 
 ### Files
@@ -53,7 +55,9 @@ None.
 ### Related findings
 SEC-002, SEC-004, SEC-010
 
-## [ ] SEC-002 — Add a cumulative per-share PIN failure cap, raise the PIN minimum, and stop share-wide lockout of legitimate viewers
+## [x] SEC-002 — Add a cumulative per-share PIN failure cap, raise the PIN minimum, and stop share-wide lockout of legitimate viewers
+> **Done, narrowed scope.** New shares need a 6–8 digit PIN (`MEDIA_NEW_PIN_PATTERN`); viewing still accepts 4–8 so existing shares keep working until they expire. With SEC-001 this bounds a guesser to ~1% of the PIN space over the 365-day maximum. **Deferred:** the cumulative cap (needs a migration and an admin "set new PIN" action that does not exist) and exempting grant holders from the share lock (grants last 12 h, so returning parents rarely hold one). The share-wide lock remains the accepted trade-off of a shared PIN.
+
 **Priority:** P1 · **Severity:** Medium · **Confidence:** Confirmed (verified, with corrections) · **Effort:** M · **Area:** Security / Authentication
 
 ### Files
@@ -91,7 +95,9 @@ SEC-001 (atomic reserve). Migration per `migrations/README.md`.
 ### Related findings
 SEC-001
 
-## [ ] TRACE-001 — Stop the council attendee view crashing the app when the session has lapsed
+## [x] TRACE-001 — Stop the council attendee view crashing the app when the session has lapsed
+> **Done, different server fix.** The `jwt` cookie expires with the JWT, so a lapsed session arrives with no cookie and cannot be told apart from a visitor; "401 when a token is presented" would not have helped. Council pages now ask for `?eventId=…&view=council`, which requires a council session (401 → sign-in prompt); plain `?eventId=` still returns `{count}`. Both components also guard with `Array.isArray`. Covered by the authorization matrix, `read-error-ui` and a `client-invariants` guard.
+
 **Priority:** P1 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Traceability / Contract
 
 ### Files

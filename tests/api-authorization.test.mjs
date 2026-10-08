@@ -20,6 +20,7 @@ const ROUTES = [
   { handler: 'events', method: 'PATCH', query: { id: '1', action: 'cancel' }, allowed: COUNCIL },
   { handler: 'events', method: 'DELETE', query: { id: '1' }, allowed: COUNCIL },
   { handler: 'registrations', method: 'GET', query: { eventId: '1', cancelled: '1' }, allowed: COUNCIL },
+  { handler: 'registrations', method: 'GET', query: { eventId: '1', view: 'council' }, allowed: COUNCIL },
   { handler: 'registrations', method: 'DELETE', query: { id: '1' }, allowed: COUNCIL },
   { handler: 'documents', method: 'DELETE', query: { id: '1' }, allowed: COUNCIL },
   { handler: 'upload', method: 'POST', allowed: COUNCIL },

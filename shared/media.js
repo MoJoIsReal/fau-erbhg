@@ -83,9 +83,14 @@ export const MEDIA_TITLE_MAX = 120;
 export const MEDIA_DESCRIPTION_MAX = 1000;
 export const MEDIA_MAX_FILES_PER_SHARE = 200;
 
-// A PIN is 4–8 digits: easy to pass on by voice, and the API's per-share
-// failure limit (not the hash) is what makes guessing it impractical.
+// A PIN is digits only, easy to pass on by voice; the API's per-share failure
+// limit (not the hash) is what makes guessing it impractical. A new PIN needs
+// 6–8 digits: thirty guesses a day would work through a 4-digit PIN within a
+// share's lifetime. Shares made before that rule may still carry a 4- or
+// 5-digit PIN, so the share page and the view check accept 4–8 until the last
+// of those has expired (365 days at most).
 export const MEDIA_PIN_PATTERN = /^\d{4,8}$/;
+export const MEDIA_NEW_PIN_PATTERN = /^\d{6,8}$/;
 
 // Why the media API refused something. The share page and the admin page key
 // their message off these, never off the `error` text.

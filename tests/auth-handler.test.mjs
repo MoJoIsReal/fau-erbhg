@@ -64,12 +64,12 @@ test('login without the CSRF pair is refused before anything is looked up', asyn
 
 const ACCOUNT_FAILURES = identityRateLimitKey('login-account', USERNAME);
 
-// The account-wide failure counter is read, not bumped, before the password
-// check; `failures` is what every account's counter currently holds.
+// An unknown browser's attempt is counted against the account before the
+// password check; `failures` is what every account's counter held before this
+// attempt was added to it.
+const ACCOUNT_KEYS = new Set([USERNAME, 'other@example.test'].map((name) => identityRateLimitKey('login-account', name)));
 function lockedAccounts(failures) {
-  return accounts((statement) => (
-    statement.startsWith('SELECT count, EXTRACT') ? [{ count: failures, retryAfter: 60 }] : []
-  ));
+  return { respond: accounts(), rateCount: (key) => (ACCOUNT_KEYS.has(key) ? failures + 1 : 1) };
 }
 
 test('each of the three login limits refuses on its own, before the password is checked', async (t) => {
@@ -85,7 +85,7 @@ test('each of the three login limits refuses on its own, before the password is 
   }
 
   // This account, any IP: 20 recorded failures lock out an unknown browser.
-  const sql = useDatabase(scriptedSql({ respond: lockedAccounts(20) }));
+  const sql = useDatabase(scriptedSql(lockedAccounts(20)));
   const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
   assert.equal(res.statusCode, 429);
   assert.equal(res.headers['retry-after'], '60');
@@ -100,16 +100,44 @@ test('only a failed password counts against the account, and no key stores the a
   const failed = useDatabase(scriptedSql({ respond: accounts() }));
   assert.equal((await call(t, handler, login({ username: USERNAME, password: 'wrong' }))).statusCode, 401);
   assert.ok(rateLimitWrites(failed).includes(ACCOUNT_FAILURES), 'a failure is recorded');
+  const lookup = failed.calls.findIndex(({ statement }) => statement.includes('FROM users'));
+  const counted = failed.calls.findIndex(({ statement, values }) =>
+    statement.startsWith('INSERT INTO api_rate_limits') && values[0] === ACCOUNT_FAILURES);
+  assert.ok(counted < lookup, 'counted before the password is checked, so concurrent guesses cannot all slip past');
 
+  // The attempt was counted up front; a success takes it off again.
   const succeeded = useDatabase(scriptedSql({ respond: accounts() }));
   assert.equal((await call(t, handler, login({ username: USERNAME, password: PASSWORD }))).statusCode, 200);
-  assert.ok(!rateLimitWrites(succeeded).includes(ACCOUNT_FAILURES), 'a success is not counted');
+  assert.ok(succeeded.calls.some(({ statement, values }) => statement.startsWith('DELETE FROM api_rate_limits') && values[0] === ACCOUNT_FAILURES),
+    'a success is not left counted');
+
+  // A request another limit refuses never reaches the account counter.
+  const refused = useDatabase(scriptedSql({ respond: accounts(), rateCount: (key) => (key === rateLimitKey(CLIENT, 'login-ip', '') ? 99 : 1) }));
+  assert.equal((await call(t, handler, login({ username: USERNAME, password: 'wrong' }))).statusCode, 429);
+  assert.ok(!rateLimitWrites(refused).includes(ACCOUNT_FAILURES), 'refused by the IP limit, not counted against the account');
 
   for (const sql of [failed, succeeded]) {
     for (const { statement, values } of sql.calls) {
       if (statement.includes('api_rate_limits')) assert.doesNotMatch(String(values[0]), /@/);
     }
   }
+});
+
+// Reading the account count before the password check and recording the
+// failure afterwards let a burst from many addresses all read the same count.
+test('concurrent wrong passwords from many addresses stop at the account limit', async (t) => {
+  const counts = new Map();
+  const rateCount = (key) => {
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts.get(key);
+  };
+  const sql = useDatabase(scriptedSql({ respond: accounts(), rateCount }));
+  const attempts = Array.from({ length: 40 }, (_, index) => call(t, handler,
+    login({ username: USERNAME, password: 'wrong' }, { headers: { 'x-real-ip': `198.51.100.${index + 1}` } })));
+  const statuses = (await Promise.all(attempts)).map((res) => res.statusCode);
+  assert.equal(statuses.filter((status) => status === 401).length, 20);
+  assert.equal(statuses.filter((status) => status === 429).length, 20);
+  assert.equal(sql.calls.filter(({ statement }) => statement.includes('FROM users')).length, 20, 'only 20 passwords checked');
 });
 
 const deviceCookie = (res) => cookies(res).find((cookie) => cookie.startsWith('login-device='));
@@ -126,7 +154,7 @@ test('an account locked by failures elsewhere still lets a known browser in', as
   const cookie = deviceCookie(first);
   assert.match(cookie, /^login-device=[^;]+; Path=\/api\/auth; Max-Age=15552000; SameSite=Strict; HttpOnly/);
 
-  const sql = useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  const sql = useDatabase(scriptedSql(lockedAccounts(500)));
   const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }, withDevice(cookie)));
   assert.equal(res.statusCode, 200);
   assert.ok(rateLimitWrites(sql).includes(identityRateLimitKey('login-device', decodeJti(cookie))),
@@ -136,11 +164,11 @@ test('an account locked by failures elsewhere still lets a known browser in', as
 
   // The same cookie is no help for another account, and a session token is no
   // device token.
-  useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  useDatabase(scriptedSql(lockedAccounts(500)));
   const other = await call(t, handler, login({ username: 'other@example.test', password: PASSWORD }, withDevice(cookie)));
   assert.equal(other.statusCode, 429);
   const session = cookies(first).find((value) => value.startsWith('jwt='));
-  useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  useDatabase(scriptedSql(lockedAccounts(500)));
   const forged = await call(t, handler, login({ username: USERNAME, password: PASSWORD },
     withDevice(`login-device=${session.slice(4)}`)));
   assert.equal(forged.statusCode, 429);

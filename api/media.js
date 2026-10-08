@@ -13,8 +13,8 @@ import {
   checkRateLimit,
   clearRateLimit,
   identityRateLimitKey,
-  peekRateLimit,
   rateLimitKey,
+  releaseRateLimit,
 } from './_shared/rate-limit.js';
 import {
   abortMultipartUpload,
@@ -56,6 +56,7 @@ import {
   MEDIA_DESCRIPTION_MAX,
   MEDIA_MAX_FILES_PER_SHARE,
   MEDIA_MAX_LIFETIME_DAYS,
+  MEDIA_NEW_PIN_PATTERN,
   MEDIA_PIN_PATTERN,
   MEDIA_TITLE_MAX,
   mediaKind,
@@ -93,7 +94,8 @@ const VIEW_LIMIT = 120;
 const VIEW_WINDOW_SECONDS = 10 * 60;
 // PIN guesses. Per (IP, share) to slow one guesser; per share, IP-agnostic,
 // so rotating addresses cannot spread guesses past it. Thirty failures a day
-// against a 4-digit PIN is about a year to exhaust it.
+// over the 365-day maximum lifetime is about 1% of the 6-digit PINs new shares
+// require (shares made before that may still have 4 digits).
 const PIN_IP_MAX_FAILURES = 5;
 const PIN_IP_WINDOW_SECONDS = 15 * 60;
 const PIN_SHARE_MAX_FAILURES = 30;
@@ -195,23 +197,26 @@ async function handleView(req, res, sql) {
     }
     const ipKey = rateLimitKey(req, 'media-pin', share.id);
     const shareKey = identityRateLimitKey('media-pin-share', share.id);
-    const locks = await Promise.all([
-      peekRateLimit(sql, { key: ipKey, limit: PIN_IP_MAX_FAILURES }),
-      peekRateLimit(sql, { key: shareKey, limit: PIN_SHARE_MAX_FAILURES }),
-    ]);
-    if (locks.some((lock) => !lock.allowed)) {
-      res.setHeader('Retry-After', String(Math.max(...locks.map((lock) => lock.retryAfter))));
+    // Each guess is counted before the PIN is checked, so a burst of
+    // concurrent guesses cannot all slip past a count none of them has
+    // added to yet. The share counter is only touched once this IP is
+    // within its own limit, so one address cannot run it up on its own.
+    const ipLock = await checkRateLimit(sql, { key: ipKey, limit: PIN_IP_MAX_FAILURES, windowSeconds: PIN_IP_WINDOW_SECONDS });
+    if (!ipLock.allowed) {
+      res.setHeader('Retry-After', String(ipLock.retryAfter));
+      return refuse(res, 429, 'PIN_LOCKED', 'Too many attempts');
+    }
+    const shareLock = await checkRateLimit(sql, { key: shareKey, limit: PIN_SHARE_MAX_FAILURES, windowSeconds: PIN_SHARE_WINDOW_SECONDS });
+    if (!shareLock.allowed) {
+      await releaseRateLimit(sql, ipKey);
+      res.setHeader('Retry-After', String(shareLock.retryAfter));
       return refuse(res, 429, 'PIN_LOCKED', 'Too many attempts');
     }
     const correct = MEDIA_PIN_PATTERN.test(pin) && await verifyPin(pin, share.pin_hash);
-    if (!correct) {
-      await Promise.all([
-        checkRateLimit(sql, { key: ipKey, limit: PIN_IP_MAX_FAILURES, windowSeconds: PIN_IP_WINDOW_SECONDS }),
-        checkRateLimit(sql, { key: shareKey, limit: PIN_SHARE_MAX_FAILURES, windowSeconds: PIN_SHARE_WINDOW_SECONDS }),
-      ]);
-      return refuse(res, 401, 'PIN_INVALID', 'Wrong PIN');
-    }
-    await clearRateLimit(sql, ipKey);
+    if (!correct) return refuse(res, 401, 'PIN_INVALID', 'Wrong PIN');
+    // A right PIN was not a failure: hand back the share-wide attempt, so
+    // parents opening the share do not use up its daily failure budget.
+    await Promise.all([clearRateLimit(sql, ipKey), releaseRateLimit(sql, shareKey)]);
     newGrant = createViewGrant(share.id, nowMs);
   }
 
@@ -286,8 +291,8 @@ async function handleCreate(req, res, sql, user) {
 
   let pinHash = null;
   if (body.pin !== undefined && body.pin !== null && body.pin !== '') {
-    if (typeof body.pin !== 'string' || !MEDIA_PIN_PATTERN.test(body.pin)) {
-      return res.status(400).json({ error: 'PIN must be 4–8 digits' });
+    if (typeof body.pin !== 'string' || !MEDIA_NEW_PIN_PATTERN.test(body.pin)) {
+      return res.status(400).json({ error: 'PIN must be 6–8 digits' });
     }
     pinHash = await hashPin(body.pin);
   }

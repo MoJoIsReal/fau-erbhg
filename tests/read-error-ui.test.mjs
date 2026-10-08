@@ -21,7 +21,7 @@ const { render, copy } = await importBundle({ stdin: { resolveDir: process.cwd()
   export function render(name, status, data, overrides = {}) {
     const client = new QueryClient({defaultOptions:{queries:{queryFn:async()=>{throw new Error('unexpected fetch in static rendering')},retry:false, retryOnMount:false, staleTime:Infinity, gcTime:Infinity}}});
     const year = new Date().getFullYear() - (new Date().getMonth() < 7 ? 1 : 0);
-    for (const url of ['/api/registrations?eventId=1', '/api/registrations?eventId=1&cancelled=1', '/api/events', '/api/yearly-calendar?schoolYear='+year, '/api/yearly-calendar?schoolYear='+(year+1), '/api/documents', '/api/secure-settings?resource=contact-messages', '/api/secure-settings?resource=blog-posts&homepage=true&limit=3', '/api/secure-settings?resource=blog-posts&includeArchived=true', '/api/secure-settings?resource=blog-posts&id=42', '/api/secure-settings?resource=kindergarten-info']) {
+    for (const url of ['/api/registrations?eventId=1&view=council', '/api/registrations?eventId=1&cancelled=1', '/api/events', '/api/yearly-calendar?schoolYear='+year, '/api/yearly-calendar?schoolYear='+(year+1), '/api/documents', '/api/secure-settings?resource=contact-messages', '/api/secure-settings?resource=blog-posts&homepage=true&limit=3', '/api/secure-settings?resource=blog-posts&includeArchived=true', '/api/secure-settings?resource=blog-posts&id=42', '/api/secure-settings?resource=kindergarten-info']) {
       const q = client.getQueryCache().build(client, {queryKey:[url]});
       q.setState({status, error:status==='error'?new Error('fixture failure'):null, data: data ?? (status==='success'?[]:undefined), dataUpdatedAt: data ? Date.now() : 0});
       if (overrides[url]) q.setState(overrides[url]);
@@ -42,6 +42,15 @@ for (const page of ['home', 'messages', 'admin', 'article', 'attendees']) {
     }
   });
 }
+
+// The public answer for the same event is `{count}`, not a list. Whatever
+// reaches the council view, it must not take the whole page down with it.
+test('attendees: a non-list answer renders instead of throwing', () => {
+  const html = render('attendees', 'success', undefined, {
+    '/api/registrations?eventId=1&view=council': { status: 'success', error: null, data: { count: 3 }, dataUpdatedAt: Date.now() },
+  });
+  assert.ok(html.includes(copy.events.noRegistrationsYet));
+});
 
 test('successful empty article and inbox retain their real empty states', () => {
   assert.ok(render('article', 'success').includes(copy.newsPage.postNotFound));

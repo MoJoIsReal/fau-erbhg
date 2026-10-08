@@ -232,6 +232,12 @@ export default withApiHandler(async function handler(req, res) {
     const user = await parseAuthToken(req, sql);
     const isCouncilMember = user && !user.passwordChangeRequired && COUNCIL_ROLES.includes(user.role);
 
+    // ?view=council is the council pages asking for the list by name. A
+    // lapsed session then gets a 401, which signs the page out, instead of
+    // the public count: a different shape the page cannot render. A plain
+    // ?eventId= keeps answering anyone with the count.
+    if (req.query.view === 'council' && !isCouncilMember && !(await requireRole(req, res, COUNCIL_ROLES, sql))) return;
+
     // ?cancelled=1 lists who cancelled through their email link. Council only:
     // unlike the registrations list there is no public aggregate to fall back to.
     if (req.query.cancelled === '1') {

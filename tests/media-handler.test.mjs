@@ -25,17 +25,13 @@ const UNAVAILABLE = { error: 'Not found', code: 'SHARE_UNAVAILABLE' };
 // are matched loosely, but the filters that matter — status, expiry — are
 // evaluated here rather than assumed, so a share past its expiry really is
 // invisible to the lookup.
-function mediaDb({ shares = [], files = [], rateCount = 1, rateRows = {} } = {}) {
+function mediaDb({ shares = [], files = [], rateCount = 1 } = {}) {
   const respond = (statement, values) => {
     if (statement.startsWith('SELECT id, title, description, pin_hash, expires_at FROM media_shares WHERE token_hash')) {
       const [hash, now] = values;
       assert.match(statement, /status = 'published'/);
       assert.match(statement, /expires_at > \?/);
       return shares.filter((share) => share.token_hash === hash && share.status === 'published' && share.expires_at > now);
-    }
-    if (statement.startsWith('SELECT count, EXTRACT(EPOCH FROM (reset_at - NOW()))::int AS "retryAfter" FROM api_rate_limits')) {
-      const count = rateRows[values[0]];
-      return count === undefined ? [] : [{ count, retryAfter: 900 }];
     }
     if (statement.startsWith('SELECT id, kind, mime_type, object_key, width, height FROM media_files')) {
       return files.filter((file) => file.share_id === values[0] && file.status === 'ready');
@@ -168,6 +164,8 @@ test('a PIN share asks for the PIN, refuses a wrong one and counts the failure',
   assert.equal(res.body.files.length, 2);
   assert.match(res.body.grant, /^7\.\d+\.[A-Za-z0-9_-]+$/);
   assert.ok(sql.calls.some(({ statement }) => statement.startsWith('DELETE FROM api_rate_limits')), 'success clears the IP counter');
+  assert.ok(sql.calls.some(({ statement }) => statement.startsWith('UPDATE api_rate_limits SET count = GREATEST(count - 1, 0)')),
+    'and hands back the share-wide attempt, so parents opening it do not use up its failure budget');
 
   // The grant stands in for the PIN when the page asks for fresh URLs.
   useDatabase(mediaDb({ shares: [row], files: FILES }));
@@ -185,10 +183,47 @@ test('too many wrong PINs lock the share, even with the right PIN', async (t) =>
   const { token, row } = publishedShare({ pin_hash: await bcryptjs.hash('4321', 4) });
   const { identityRateLimitKey } = await import('../api/_shared/rate-limit.js');
   const shareKey = identityRateLimitKey('media-pin-share', 7);
-  useDatabase(mediaDb({ shares: [row], files: FILES, rateRows: { [shareKey]: 30 } }));
+  // 30 failures already counted; this attempt is the 31st.
+  const sql = useDatabase(mediaDb({ shares: [row], files: FILES, rateCount: (key) => (key === shareKey ? 31 : 1) }));
   const res = await view(t, { token, pin: '4321' });
   assert.deepEqual([res.statusCode, res.body.code], [429, 'PIN_LOCKED']);
   assert.ok(Number(res.headers['retry-after']) > 0);
+  assert.ok(sql.calls.some(({ statement }) => statement.startsWith('UPDATE api_rate_limits')),
+    'the IP attempt is handed back, since the PIN was never checked');
+});
+
+// A stand-in for the atomic upsert: each call adds one to its key and sees the
+// result, the way concurrent requests see PostgreSQL's row lock.
+function liveCounter() {
+  const counts = new Map();
+  return (key) => {
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts.get(key);
+  };
+}
+
+const fromIp = (ip) => ({ headers: { 'x-real-ip': ip } });
+const viewFrom = (t, ip, body) => call(t, handler, { method: 'POST', query: { action: 'view' }, body, csrf: false, ...fromIp(ip) });
+
+// Checking the count, then the PIN, then recording the failure let a burst of
+// concurrent guesses all read the same count: 120 per IP got a PIN checked.
+test('concurrent wrong PINs from one address stop at its limit', async (t) => {
+  const { token, row } = publishedShare({ pin_hash: await bcryptjs.hash('4321', 4) });
+  useDatabase(mediaDb({ shares: [row], files: FILES, rateCount: liveCounter() }));
+  const results = await Promise.all(Array.from({ length: 20 }, () => viewFrom(t, '203.0.113.20', { token, pin: '1111' })));
+  const codes = results.map((res) => res.body.code);
+  assert.equal(codes.filter((code) => code === 'PIN_INVALID').length, 5);
+  assert.equal(codes.filter((code) => code === 'PIN_LOCKED').length, 15);
+});
+
+test('concurrent wrong PINs spread over many addresses stop at the share limit', async (t) => {
+  const { token, row } = publishedShare({ pin_hash: await bcryptjs.hash('4321', 4) });
+  useDatabase(mediaDb({ shares: [row], files: FILES, rateCount: liveCounter() }));
+  const ips = Array.from({ length: 12 }, (_, index) => `198.51.100.${index + 1}`);
+  const results = await Promise.all(ips.flatMap((ip) => Array.from({ length: 5 }, () => viewFrom(t, ip, { token, pin: '1111' }))));
+  const codes = results.map((res) => res.body.code);
+  assert.equal(codes.filter((code) => code === 'PIN_INVALID').length, 30);
+  assert.equal(codes.filter((code) => code === 'PIN_LOCKED').length, 30);
 });
 
 test('the lookup itself is rate limited per IP', async (t) => {
@@ -257,7 +292,9 @@ test('create stores a draft with a hashed token, a sealed copy and a hashed PIN'
 test('create refuses a bad PIN, a missing title and a lifetime past 180 days', async (t) => {
   for (const body of [
     { title: 'x', pin: '12' },
-    { title: 'x', pin: 'abcd' },
+    { title: 'x', pin: '4321' },
+    { title: 'x', pin: '54321' },
+    { title: 'x', pin: 'abcdef' },
     { title: '' },
     { title: 'x', expiresInDays: 181 },
   ]) {

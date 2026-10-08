@@ -14,7 +14,6 @@ import {
   checkRateLimit,
   clearRateLimit,
   identityRateLimitKey,
-  peekRateLimit,
   rateLimitKey,
 } from './_shared/rate-limit.js';
 import { isPasswordChangeRequired } from './_shared/password-policy.js';
@@ -134,7 +133,8 @@ async function handleLogin(req, res, sql) {
   const loginRateLimitKey = rateLimitKey(req, 'login', username);
   const loginIpRateLimitKey = rateLimitKey(req, 'login-ip', '');
   // IP-agnostic, so a botnet rotating IPs can't spread its guesses past the
-  // per-(IP, account) limit. Counts failures only (recorded below).
+  // per-(IP, account) limit. Counts failures only: an unknown browser's
+  // attempt is reserved before the password check and cleared on success.
   const accountFailureKey = identityRateLimitKey('login-account', username);
   const device = knownDevice(req, username, jwtConfig);
   const limits = await Promise.all([
@@ -154,11 +154,28 @@ async function handleLogin(req, res, sql) {
         limit: LOGIN_DEVICE_MAX_ATTEMPTS,
         windowSeconds: LOGIN_WINDOW_SECONDS
       })
-      : peekRateLimit(sql, { key: accountFailureKey, limit: LOGIN_ACCOUNT_MAX_FAILURES }),
-  ]);
+      : null,
+  ].filter(Boolean));
   if (limits.some((limit) => !limit.allowed)) {
     res.setHeader('Retry-After', String(Math.max(...limits.map((limit) => limit.retryAfter))));
     return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
+  }
+
+  // An unknown browser's attempt is counted against the account before the
+  // password is checked, so concurrent guesses from many IPs cannot all read
+  // the count before any of them has added to it. A success clears it below.
+  // Counted only once the per-IP limits have passed, so requests they refuse
+  // never run the account count up.
+  if (!device) {
+    const accountLimit = await checkRateLimit(sql, {
+      key: accountFailureKey,
+      limit: LOGIN_ACCOUNT_MAX_FAILURES,
+      windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
+    });
+    if (!accountLimit.allowed) {
+      res.setHeader('Retry-After', String(accountLimit.retryAfter));
+      return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
+    }
   }
 
   // Get user by username (email)
@@ -176,11 +193,15 @@ async function handleLogin(req, res, sql) {
   const isValid = await bcryptjs.compare(password, user?.password || DUMMY_PASSWORD_HASH);
 
   if (!user || !isValid) {
-    await checkRateLimit(sql, {
-      key: accountFailureKey,
-      limit: LOGIN_ACCOUNT_MAX_FAILURES,
-      windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
-    });
+    // An unknown browser's failure was counted above. A known browser is held
+    // to its own attempt limit, so its failure can be recorded afterwards.
+    if (device) {
+      await checkRateLimit(sql, {
+        key: accountFailureKey,
+        limit: LOGIN_ACCOUNT_MAX_FAILURES,
+        windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
+      });
+    }
     return res.status(401).json({ error: 'Invalid credentials' });
   }
 

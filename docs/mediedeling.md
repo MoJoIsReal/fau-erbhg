@@ -66,8 +66,13 @@ Dokumentet har fire deler:
 - **Ugyldige lenker.** Ugyldig, utløpt, tilbakekalt og aldri eksisterende
   deling gir nøyaktig samme svar: «Denne lenken er ikke lenger tilgjengelig».
   Utløp sjekkes ved hvert oppslag, ikke bare av den daglige slettingen.
-- **PIN.** 4–8 sifre, lagret som bcrypt-hash. Feil PIN begrenses til 5 forsøk
-  per 15 minutter per IP og deling, og til 30 per døgn per deling. Etter riktig
+- **PIN.** 6–8 sifre for nye delinger (eldre delinger kan ha 4–5 og virker
+  til de utløper), lagret som bcrypt-hash. Feil PIN begrenses til 5 forsøk
+  per 15 minutter per IP og deling, og til 30 per døgn per deling. Hvert forsøk
+  telles før PIN-en sjekkes, så mange samtidige forsøk kommer ikke forbi
+  grensen; et riktig forsøk trekkes fra igjen. Med 30 forsøk i døgnet og
+  maksimal levetid på 365 dager rekker en gjetter om lag 1 % av 6-sifrede
+  PIN-er. Etter riktig
   PIN får fanen en signert tilgang som varer 12 timer, så forelderen slipper å
   skrive PIN på nytt når avspillings-URL-ene fornyes.
 - **Filene er aldri offentlige.** Bøtta har ingen offentlig tilgang og ingen
@@ -291,7 +296,7 @@ vanlig og velg **Admin → Mediedeling**, eller gå rett til
 1. Skriv en **tittel**, for eksempel «Sommerfest 2026». Legg eventuelt til en
    kort **beskrivelse**.
 2. Velg **Tilgjengelig i**. Standard er 90 dager.
-3. Legg eventuelt inn en **PIN-kode** på 4–8 sifre. Send PIN-koden på en
+3. Legg eventuelt inn en **PIN-kode** på 6–8 sifre. Send PIN-koden på en
    annen kanal enn lenken: lenken i Vigilo, PIN-en på SMS eller muntlig.
 4. **Velg filer**: bilder (JPEG, PNG, WebP), video (MP4, MOV) og lyd (MP3,
    M4A, WAV), inntil 1 GB per fil. Filer som ikke støttes, merkes med en gang
