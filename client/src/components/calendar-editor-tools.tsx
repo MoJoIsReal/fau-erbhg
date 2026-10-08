@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileSpreadsheet, Plus, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,7 +65,12 @@ export type CalendarEditor = {
  * so the picker is where that split belongs. Both branches then open the
  * existing modal unchanged.
  */
-export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; month: { year: number; month: number } }): CalendarEditor {
+export function useCalendarEditor({ schoolYear, month, yearlyEntries: loadedEntries }: {
+  schoolYear: number;
+  month: { year: number; month: number };
+  /** The rows the calendar already read (this school year and its neighbours). */
+  yearlyEntries: YearlyCalendarEntry[];
+}): CalendarEditor {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -82,9 +87,7 @@ export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; m
   const [busy, setBusy] = useState<"template" | null>(null);
 
   // Excel uses raw rows for the school year containing the displayed month.
-  const { data: yearlyEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`],
-  });
+  const yearlyEntries = loadedEntries.filter((entry) => entry.schoolYear === schoolYear);
 
   const cancelMutation = useMutation({
     mutationFn: (id: number) => apiRequest("PATCH", `/api/events?id=${id}&action=cancel`),

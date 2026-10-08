@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
+import { apiRequest, getApiErrorBody, invalidateEventRegistrations } from "@/lib/queryClient";
 import { insertEventRegistrationSchema } from "@shared/schema";
 import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
@@ -41,7 +41,6 @@ interface EventRegistrationModalProps {
 
 export default function EventRegistrationModal({ event, isOpen, onClose }: EventRegistrationModalProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { language, t } = useLanguage();
   const isFotoEvent = event?.type === "foto";
   const asksFood = event?.potluck === true;
@@ -124,9 +123,8 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       }
       form.reset();
       onClose();
-      // Refresh events to show updated attendee count
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      if (event) queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}&food=1`] });
+      // Refresh the seat count and every list of this event's attendees.
+      if (event) invalidateEventRegistrations(event.id);
     },
     onError: (error: unknown) => {
       const body = getApiErrorBody(error);

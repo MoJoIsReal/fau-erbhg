@@ -30,6 +30,8 @@ export const EVENT_TYPES: readonly [
 ];
 export type EventType = typeof EVENT_TYPES[number];
 
+export const DOCUMENT_CATEGORIES: readonly ['protokoll', 'vedtekter', 'budsjett', 'editor-image'];
+
 export const MAX_EVENT_ATTENDEES: number;
 export const MAX_ATTENDEES_PER_REGISTRATION: number;
 

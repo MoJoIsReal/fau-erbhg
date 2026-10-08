@@ -365,7 +365,7 @@ export default function YearlyCalendarImportModal({
       return response.json() as Promise<ImportSummary>;
     },
     onSuccess: (summary) => {
-      void queryClient.invalidateQueries({ queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`] });
+      void queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/yearly-calendar?") });
 
       const errors = summary.errors ?? [];
       if (errors.length > 0) {

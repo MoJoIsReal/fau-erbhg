@@ -43,7 +43,7 @@ test('the messages route admits the same roles the API does', () => {
 
 test('upcoming items come from one shared hook with the calendar dedupe rules', () => {
   const hook = read('client/src/hooks/useUpcomingItems.ts');
-  assert.match(hook, /\/api\/yearly-calendar\?schoolYear=/);
+  assert.match(hook, /\/api\/yearly-calendar\?fromSchoolYear=\$\{currentSchoolYear\}&toSchoolYear=/);
   assert.match(hook, /entry\.entryType === "closed"/);
   assert.match(hook, /daysWithEvent\.has\(dayKey\(entry\.date\)\)/);
   assert.match(read('client/src/pages/home.tsx'), /useUpcomingItems\(\)/);

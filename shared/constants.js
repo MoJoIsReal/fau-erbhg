@@ -42,6 +42,11 @@ export const EVENT_TYPES = [
   'other',
 ];
 
+// Document categories the upload API accepts: the three archive sections of
+// the documents page, and images uploaded from inside the rich-text editor
+// (stored as documents, never listed).
+export const DOCUMENT_CATEGORIES = Object.freeze(['protokoll', 'vedtekter', 'budsjett', 'editor-image']);
+
 // Largest capacity an event can be given. The events API refuses anything
 // above it rather than saving it as unlimited, and the event form checks the
 // same limit so the council sees the reason before submitting.

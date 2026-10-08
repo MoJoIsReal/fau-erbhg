@@ -87,6 +87,11 @@ test('the council hears about every inquiry; only a named sender gets a receipt'
     await settle();
     assert.deepEqual(sent.map(({ to }) => to).sort(), recipients, subject);
     if (subject === 'anonymous') assert.doesNotMatch(sent[0].text, /Kari|kari@/, 'an anonymous tip names no one');
+    // The council reads the label, not the form's enum value.
+    const council = sent.find(({ to }) => to === 'fau@example.test');
+    const label = subject === 'anonymous' ? 'Anonym henvendelse' : 'Generell henvendelse';
+    assert.equal(council.subject, `Ny henvendelse: ${label}`);
+    assert.match(council.text, new RegExp(`Emne: ${label}`));
   }
 });
 

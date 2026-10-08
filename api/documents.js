@@ -91,6 +91,13 @@ export default withApiHandler(async function handler(req, res) {
     }
 
     const document = documents[0];
+    // A row without a URL has no provider asset this code can address, so
+    // there is nothing to clean up first; only the row goes.
+    if (!document.cloudinary_url) {
+      await sql`DELETE FROM documents WHERE id = ${documentId} AND cloudinary_url IS NULL`;
+      return res.status(200).json({ success: true, message: 'Document deleted successfully', deletedDocument: document });
+    }
+
     // The verified delivery URL carries the provider type (PDFs can be image
     // resources). Never guess from MIME, or delete an unrelated stored ID.
     const url = new URL(document.cloudinary_url);

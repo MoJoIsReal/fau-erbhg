@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { getDb } from '../_shared/database.js';
-import { withApiHandler } from '../_shared/middleware.js';
+import { nameForMail, withApiHandler } from '../_shared/middleware.js';
+import { resolvePhotoSlotsForRegistration } from '../../shared/photo-slots.js';
 import {
   sendEmail,
   sendPooledEmail,
@@ -98,8 +99,31 @@ function formatOsloDate(date) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+// The calendar day before an ISO date, as 'YYYY-MM-DD'.
+function previousDay(isoDate) {
+  const date = new Date(`${isoDate}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function tomorrowInOslo() {
   return formatOsloDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+}
+
+// "Ola: 09:00" per child, as in the confirmation mail. The stored slots are a
+// JSON array; printing that raw gave `["09:00","09:10"]` with no names.
+function photoSlotText(registration, isNorwegian) {
+  if (!registration.photoSlots) return '';
+  const slots = resolvePhotoSlotsForRegistration({ time: registration.eventTime }, registration, [registration]);
+  if (slots.length === 0) return '';
+  let names = [];
+  try { names = JSON.parse(registration.childrenNames || '[]'); } catch {}
+  if (!Array.isArray(names)) names = [];
+  const lines = slots.map((slot, i) => {
+    const name = nameForMail(names[i]) || (isNorwegian ? `Barn ${i + 1}` : `Child ${i + 1}`);
+    return `- ${name}: ${slot}`;
+  });
+  return `${isNorwegian ? 'Fototidspunkt' : 'Photo slots'}:\n${lines.join('\n')}\n\n`;
 }
 
 export function registrationReminderEmail(registration) {
@@ -136,7 +160,7 @@ Arrangementsinformasjon:
 - Sted: ${location}
 - Antall deltakere: ${registration.attendeeCount || 1}
 
-${registration.photoSlots ? `Fototidspunkt: ${registration.photoSlots}\n\n` : ''}Vi gleder oss til å se deg!
+${photoSlotText(registration, true)}Vi gleder oss til å se deg!
 
 ${cancellation}
 
@@ -153,7 +177,7 @@ Event information:
 - Location: ${location}
 - Number of attendees: ${registration.attendeeCount || 1}
 
-${registration.photoSlots ? `Photo slot: ${registration.photoSlots}\n\n` : ''}We look forward to seeing you!
+${photoSlotText(registration, false)}We look forward to seeing you!
 
 ${cancellation}
 
@@ -181,7 +205,11 @@ function formatLongDate(dateStr, language) {
 // Fan out due items into a durable per-subscriber outbox, claim a bounded batch,
 // and only mark each delivery sent after Gmail accepts it. A crashed invocation
 // leaves processing rows reclaimable after the lease expires.
-export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
+// `queue: false` is the morning follow-up: it sends only what the evening run
+// already queued and left pending (past its per-run cap or its deadline), for
+// items dated today. It fans out nothing new, so an item flagged after last
+// night's run is not mailed the same morning.
+export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom(), { queue = true } = {}) {
   if (!isEmailConfigured()) {
     return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, abandoned: 0, remaining: 0, reason: 'email-not-configured' };
   }
@@ -190,7 +218,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, deferred: 0, abandoned: 0, remaining: null, reason: 'budget-exhausted' };
   }
 
-  const queued = await sql`
+  const queued = !queue ? [] : await sql`
     WITH due_items AS (
       SELECT 'event'::text AS item_type, id AS item_id, title, date AS event_date
       FROM events
@@ -621,6 +649,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
           r.language,
           r.attendee_count as "attendeeCount",
           r.photo_slots as "photoSlots",
+          r.children_names as "childrenNames",
           r.cancel_token as "cancelToken",
           e.title as "eventTitle",
           e.date as "eventDate",
@@ -712,7 +741,7 @@ export async function purgeMediaShares(sql) {
 }
 
 export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
-  const summary = { reminders: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null };
+  const summary = { reminders: null, newsletter: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null };
   const errors = [];
   const stage = async (name, work) => {
     try {
@@ -730,6 +759,11 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     await stage('expiredRateLimitsDeleted', () => cleanupExpiredRateLimits(sql));
     await stage('deliveryHistoryDeleted', () => cleanupDeliveryHistory(sql));
     await stage('reminders', () => sendEventReminders(sql, targetDate, send, deadline));
+    // The evening broadcast is capped per run and stops at its deadline. What
+    // it left pending for an item dated today would otherwise be skipped by
+    // tonight's run, which only sends items dated tomorrow. Last, so it only
+    // uses time the morning's own work left over.
+    await stage('newsletter', () => broadcastNewsletter(sql, previousDay(targetDate), send, deadline, { queue: false }));
   } finally {
     closePooledTransporter();
   }
@@ -740,7 +774,7 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     // object as "[object Object]". A stage that failed has null here and
     // adds nothing.
     const stagesFailed = errors.map(({ stage: name }) => name);
-    const { reminders, retention, media, ...counts } = summary;
+    const { reminders, newsletter, retention, media, ...counts } = summary;
     logEvent('error', 'cron.run', {
       task: 'reminders', targetDate, ...counts, ...retention, ...media, ...reminders,
       stagesFailed: stagesFailed.join(','),
@@ -837,8 +871,14 @@ export default withApiHandler(async function handler(req, res) {
     }
   }
 
-  const { reminders, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted } =
+  const { reminders, newsletter, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted } =
     await runMorningTasks(sql, targetDate, sendPooledEmail, deadline);
+  // Its own line, under the newsletter's rules: what it still leaves pending
+  // is lost tonight, and raises the newsletter's mail alert.
+  // (Unconfigured mail already fails the reminders stage loudly.)
+  if (newsletter && (newsletter.processed || newsletter.remaining || newsletter.reason === 'budget-exhausted')) {
+    logCronRun('newsletter', previousDay(targetDate), { ...newsletter, followUp: true });
+  }
   logRun('reminders', {
     ...reminders,
     ...retention,
@@ -853,6 +893,7 @@ export default withApiHandler(async function handler(req, res) {
     sent: reminders.sent,
     failed: reminders.failed,
     deferred: reminders.deferred,
+    newsletter,
     retention,
     media,
     attendeeCountsRepaired,

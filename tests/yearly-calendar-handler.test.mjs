@@ -23,9 +23,25 @@ test('reading a school year needs a numeric year and returns mapped entries', as
   assert.equal(res.body[0].weekNumber, 23);
   assert.equal(res.body[0].category, null, 'null means "follow the entry type"');
   assert.equal(res.body[0].showOnHomepage, false);
-  assert.deepEqual(sql.calls[0].values, [SCHOOL_YEAR]);
+  assert.deepEqual(sql.calls[0].values, [SCHOOL_YEAR, SCHOOL_YEAR]);
   // The public read never says who wrote an entry (a name, or a login e-mail).
   assert.equal('createdBy' in res.body[0], false);
+});
+
+// The calendar shows a school year with its neighbours in one call.
+test('up to three adjacent school years are read in one call', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: () => [stored()] }));
+  const res = await call(t, handler, { query: { fromSchoolYear: '2025', toSchoolYear: '2027' } });
+  assert.equal(res.statusCode, 200);
+  assert.match(sql.calls[0].statement, /WHERE school_year BETWEEN \? AND \?/);
+  assert.deepEqual(sql.calls[0].values, [2025, 2027]);
+
+  for (const query of [{ fromSchoolYear: '2025', toSchoolYear: '2028' }, { fromSchoolYear: '2027', toSchoolYear: '2025' },
+    { fromSchoolYear: '2025' }, { fromSchoolYear: 'i fjor', toSchoolYear: '2026' }]) {
+    const refused = useDatabase(scriptedSql());
+    assert.equal((await call(t, handler, { query })).statusCode, 400, JSON.stringify(query));
+    assert.deepEqual(refused.calls, []);
+  }
 });
 
 // school_year, year and month are NOT NULL. An update used to check only the

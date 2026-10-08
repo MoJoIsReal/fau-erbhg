@@ -6,7 +6,7 @@ import {
   requireRole,
   sanitizeText
 } from './_shared/middleware.js';
-import { COUNCIL_ROLES } from '../shared/constants.js';
+import { COUNCIL_ROLES, DOCUMENT_CATEGORIES } from '../shared/constants.js';
 import {
   ALLOWED_UPLOAD_EXTENSIONS,
   ALLOWED_UPLOAD_MIME_TYPES,
@@ -90,6 +90,11 @@ export default withApiHandler(async function handler(req, res) {
   if (!filename || !title || !fileUrl || !publicId) {
     return res.status(400).json({ error: 'Missing required fields', code: 'REQUIRED_FIELDS' });
   }
+  // Only a category some page lists: a document filed anywhere else was public
+  // through the API yet shown nowhere, so the council could not delete it.
+  if (!DOCUMENT_CATEGORIES.includes(category)) {
+    return res.status(400).json({ error: 'Unknown document category', code: 'REQUIRED_FIELDS' });
+  }
 
   const validation = validateUploadFile({ filename, mimeType, size: reportedSize });
   if (!validation.ok) {
@@ -166,7 +171,6 @@ export default withApiHandler(async function handler(req, res) {
   // Sanitize text inputs to prevent XSS
   const sanitizedTitle = sanitizeText(title, 1000);
   const sanitizedDescription = sanitizeText(description, 5000);
-  const sanitizedCategory = category ? sanitizeText(category, 100) : 'annet';
   const sanitizedUploadedBy = sanitizeText(decoded.username, 200);
 
   // Validate sanitized inputs
@@ -183,7 +187,7 @@ export default withApiHandler(async function handler(req, res) {
       ${sanitizedPublicId},
       ${observedFileSize},
       ${storedMimeType},
-      ${sanitizedCategory},
+      ${category},
       ${sanitizedDescription},
       ${sanitizedUploadedBy},
       ${new Date().toISOString()}

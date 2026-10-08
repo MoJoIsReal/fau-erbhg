@@ -1050,7 +1050,7 @@ An upstream release.
 ### Related findings
 —
 
-## [ ] TRACE-004 — Use one row selector for kindergarten info
+## [x] TRACE-004 — Use one row selector for kindergarten info
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** S · **Area:** Correctness
 ### Files
 `api/secure-settings.js` (:425-430, :479), `tests/secure-settings-handler.test.mjs`
@@ -1061,7 +1061,7 @@ GET reads the newest row and PUT updates the oldest. With two rows, saves appear
 ### Required change
 Run `SELECT count(*) FROM kindergarten_info` in production. Use the same ordering in GET and PUT, or enforce a single row.
 ### Acceptance criteria
-- [ ] A harness case with two rows shows GET returning what PUT wrote.
+- [x] A harness case with two rows shows GET returning what PUT wrote.
 ### Verification
 Secure-settings suite.
 ### Dependencies
@@ -1069,7 +1069,7 @@ None.
 ### Related findings
 TEST-001
 
-## [ ] TRACE-005 — Format stored values in outbound mail
+## [x] TRACE-005 — Format stored values in outbound mail
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Correctness / Mail
 ### Files
 `api/cron/event-reminders.js` (:138, :155), `api/contact.js` (:188, :198)
@@ -1080,8 +1080,8 @@ Reminder mails print `Fototidspunkt: ["09:00","09:10"]` without names, and counc
 ### Required change
 Use `resolvePhotoSlotsForRegistration` paired with child names, and `contactSubjectLabel`.
 ### Acceptance criteria
-- [ ] A reminder mail lists times paired with names.
-- [ ] The council mail shows the subject label.
+- [x] A reminder mail lists times paired with names.
+- [x] The council mail shows the subject label.
 ### Verification
 `tests/event-reminders.test.mjs`, `tests/emails.test.mjs`.
 ### Dependencies
@@ -1089,7 +1089,7 @@ SEC-003 (no child names in mail to unverified addresses; reminders go to the sam
 ### Related findings
 SEC-003
 
-## [ ] TRACE-006 — Invalidate seat counts after public signup and cancel
+## [x] TRACE-006 — Invalidate seat counts after public signup and cancel
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Correctness / Cache
 ### Files
 `client/src/pages/registration-cancel.tsx` (:176-184), `client/src/components/event-registration-modal.tsx` (:112-113)
@@ -1100,7 +1100,7 @@ Seat counts and the "full" state stay stale for up to 5 minutes after a signup o
 ### Required change
 Invalidate `['/api/events']` after cancel, and the eventId-prefixed registration keys after signup.
 ### Acceptance criteria
-- [ ] Counts refresh immediately after either action.
+- [x] Counts refresh immediately after either action.
 ### Verification
 `npm run build`; manual check.
 ### Dependencies
@@ -1108,7 +1108,7 @@ None.
 ### Related findings
 —
 
-## [ ] TRACE-007 — Handle documents with a null URL or another category
+## [x] TRACE-007 — Handle documents with a null URL or another category
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** S · **Area:** Correctness
 ### Files
 `api/documents.js` (:96), `api/upload.js` (:171), `client/src/pages/files.tsx` (:42, :124)
@@ -1119,7 +1119,7 @@ DELETE on a URL-less row returns 500, and documents in other categories are publ
 ### Required change
 Handle a null URL in DELETE. Validate the category server-side, or add an "other" section to the UI.
 ### Acceptance criteria
-- [ ] Every listed document can be deleted from the UI.
+- [x] Every listed document can be deleted from the UI.
 ### Verification
 `tests/document-deletion.test.mjs`.
 ### Dependencies
@@ -1146,7 +1146,7 @@ PERF-001.
 ### Related findings
 PERF-001
 
-## [ ] PERF-005 — Bound `/api/events` and batch yearly-calendar reads
+## [x] PERF-005 — Bound `/api/events` and batch yearly-calendar reads
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** M · **Area:** Performance
 ### Files
 `api/events.js` (:308-318), `api/yearly-calendar.js`, `client/src/hooks/useCalendarEntries.ts` (:28-38), `client/src/hooks/useUpcomingItems.ts`
@@ -1157,8 +1157,8 @@ The public events list returns every event ever, and the calendar makes 4 calls 
 ### Required change
 Add a one-year cutoff or a `?from=` parameter, and accept `schoolYears=a,b,c` in one call. Consider a short `s-maxage` only after designing editor cache busting.
 ### Acceptance criteria
-- [ ] The events payload is bounded.
-- [ ] The calendar makes at most 2 API calls.
+- [x] The events payload is bounded.
+- [x] The calendar makes at most 2 API calls.
 ### Verification
 `tests/events-handler.test.mjs`.
 ### Dependencies
@@ -1166,7 +1166,7 @@ PERF-003.
 ### Related findings
 —
 
-## [ ] PERF-006 — Don't silently drop newsletter overflow
+## [x] PERF-006 — Don't silently drop newsletter overflow
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** M · **Area:** Reliability
 ### Files
 `api/cron/event-reminders.js` (:33-34, :62, :305-323, :687-698), `vercel.json` (if a cron slot is added)
@@ -1177,7 +1177,7 @@ Event and calendar deliveries deferred past the per-run cap are marked `skipped`
 ### Required change
 Add a follow-up run while `remaining > 0`, or allow one extra day for dated items. Add deadline checks and a smaller purge batch. Alert on overflow.
 ### Acceptance criteria
-- [ ] A deadline expiring mid-batch leaves deliveries pending, and they are sent by the next run.
+- [x] A deadline expiring mid-batch leaves deliveries pending, and they are sent by the next run.
 ### Verification
 `tests/newsletter-broadcast.test.mjs`, `tests/event-reminders.test.mjs`.
 ### Dependencies

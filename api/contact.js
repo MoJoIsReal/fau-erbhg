@@ -10,7 +10,7 @@ import {
 import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { confirmationEmail, NEWSLETTER_CONFIRM_DAYS, newsletterToken } from './_shared/newsletter.js';
-import { contactAcknowledgementEmail } from './_shared/contact-emails.js';
+import { contactAcknowledgementEmail, contactSubjectLabel } from './_shared/contact-emails.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 
@@ -173,7 +173,8 @@ export default withApiHandler(async function handler(req, res) {
 });
 
 async function sendContactEmail(params) {
-  const { name, email, phone, subject, message, isAnonymous } = params;
+  const { name, email, phone, message, isAnonymous } = params;
+  const subject = contactSubjectLabel(params.subject, 'no');
 
   if (!isEmailConfigured()) {
     console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');

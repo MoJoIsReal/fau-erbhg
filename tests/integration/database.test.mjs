@@ -431,6 +431,21 @@ test('the storage quota is checked inside the insert, including files still uplo
   assert.equal((await insert(1)).length, 0, 'and now it is full, previews included');
 });
 
+test('with two kindergarten info rows, a save lands on the row the page shows', async () => {
+  await sql('DELETE FROM kindergarten_info;');
+  await sql(`INSERT INTO kindergarten_info (contact_email, address, opening_hours, number_of_children, owner, description, updated_at)
+    VALUES ('old@example.test', 'Old', '7-17', 1, 'Owner', 'Old row', 'then'), ('new@example.test', 'New', '7-17', 2, 'Owner', 'New row', 'then');`);
+  const file = 'api/secure-settings.js';
+  await sql(await productionStatement(file, 'UPDATE kindergarten_info', {
+    sanitizedContactEmail: 'saved@example.test', sanitizedAddress: 'Saved', sanitizedOpeningHours: '7-17',
+    sanitizedNumberOfChildren: 3, sanitizedOwner: 'Owner', sanitizedDescription: 'Saved', sanitizedStyrerName: null,
+    sanitizedStyrerEmail: null, now: new Date().toISOString(),
+  }));
+  const [shown] = await sql(await productionStatement(file, 'FROM kindergarten_info\n      ORDER BY id DESC'));
+  assert.equal(shown.contact_email, 'saved@example.test');
+  await sql('DELETE FROM kindergarten_info;');
+});
+
 // Each upload fits on its own, the two together do not. The first has inserted
 // but not committed when the second runs: without the advisory lock the second
 // INSERT's snapshot cannot see that row, and both land over the quota.

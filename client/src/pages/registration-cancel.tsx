@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, XCircle, CalendarDays, Clock, MapPin } from "lucide-react";
-import { ApiError, apiRequest } from "@/lib/queryClient";
+import { ApiError, apiRequest, invalidateEventRegistrations } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import PageHero from "@/components/site/page-hero";
@@ -175,7 +175,10 @@ export default function RegistrationCancel() {
   const cancel = (registration: Lookup) => {
     setState({ kind: "cancelling", registration });
     apiRequest("POST", "/api/registrations?action=cancel", { token })
-      .then(() => setState({ kind: "cancelled" }))
+      .then(() => {
+        setState({ kind: "cancelled" });
+        invalidateEventRegistrations(registration.eventId);
+      })
       .catch((error) =>
         setState(
           error instanceof ApiError && error.status === 404

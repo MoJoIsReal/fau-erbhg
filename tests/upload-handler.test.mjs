@@ -50,7 +50,7 @@ test('signing covers exactly the parameters Cloudinary re-signs, and never retur
 const PDF = {
   filename: 'referat.pdf', title: 'Referat', mimeType: 'application/pdf', fileSize: 1000,
   fileUrl: 'https://res.cloudinary.com/test/raw/upload/v1/fau-documents/1-referat.pdf',
-  publicId: 'fau-documents/1-referat.pdf',
+  publicId: 'fau-documents/1-referat.pdf', category: 'protokoll',
 };
 
 test('an asset outside our account, folder or URL is refused before the provider is asked', async (t) => {
@@ -63,6 +63,8 @@ test('an asset outside our account, folder or URL is refused before the provider
     { fileUrl: 'https://res.cloudinary.com/test/raw/private/v1/fau-documents/1-referat.pdf' },
     { fileUrl: 'https://res.cloudinary.com/test/raw/upload/v1/elsewhere/1-referat.pdf', publicId: 'elsewhere/1-referat.pdf' },
     { publicId: 'fau-documents/2-other.pdf' },
+    // A category no page lists would be public but impossible to manage.
+    { category: undefined }, { category: 'annet' }, { category: 'Protokoll' },
   ]) {
     const sql = useDatabase(scriptedSql());
     let asked = false;
@@ -98,14 +100,14 @@ test('a registered document stores the provider size and type, and who uploaded 
   const res = await call(t, handler, post({
     filename: 'bilde.jpg', title: 'Bilde<script>', mimeType: 'image/jpeg', fileSize: 5,
     fileUrl: 'https://res.cloudinary.com/test/image/upload/v1/fau-documents/1-bilde.jpg',
-    publicId: 'fau-documents/1-bilde',
+    publicId: 'fau-documents/1-bilde', category: 'editor-image',
   }));
   assert.equal(res.statusCode, 200);
   const row = fields(sql.writes()[0]);
   assert.equal(row.mime_type, 'image/png', 'what Cloudinary parsed, not what the name claimed');
   assert.equal(row.filename, 'bilde.png');
   assert.equal(row.file_size, 2048, 'the provider size, not the client-reported one');
-  assert.equal(row.category, 'annet');
+  assert.equal(row.category, 'editor-image');
   assert.equal(row.uploaded_by, 'member@example.test');
   assert.doesNotMatch(row.title, /[<>]/);
   // TRACE-003: ISO text, not NOW()'s '2026-09-24 11:56:00.123456+00'.

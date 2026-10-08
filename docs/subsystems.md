@@ -164,6 +164,12 @@ so a reminder never goes out after the day it is about.
 
 The broadcast runs from Vercel Cron at 19:00 UTC (≈21:00 Oslo); the 07:00 UTC
 run of the same handler does registration reminders and GDPR retention cleanup.
+One evening run sends at most 300 deliveries and stops at its deadline. As its
+last stage, the morning run sends what that left pending for items dated today
+(`broadcastNewsletter(…, { queue: false })`: it claims, sends and stamps, but
+queues nothing new), because tonight's run would skip them as past. Its counts
+go out as a second `cron.run` line with `task: "newsletter"` and
+`followUp: true`, so what it still leaves raises the newsletter's alert.
 Both schedules live in `vercel.json`, are fixed UTC, and do **not** follow
 Norwegian DST. `/api/cron/*` requires the `CRON_SECRET` bearer token in every
 environment, compared in constant time; without the secret it refuses everyone.

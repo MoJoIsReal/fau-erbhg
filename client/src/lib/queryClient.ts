@@ -174,3 +174,17 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * After a signup or a cancellation: refresh the seat counts (`/api/events`)
+ * and every registration list of that event (`…?eventId=7&food=1`,
+ * `…&view=council`, `…&cancelled=1`), whatever view a key asks for.
+ */
+export function invalidateEventRegistrations(eventId: number) {
+  const prefix = `/api/registrations?eventId=${eventId}`;
+  void queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+  void queryClient.invalidateQueries({
+    predicate: ({ queryKey }) =>
+      typeof queryKey[0] === "string" && (queryKey[0] === prefix || queryKey[0].startsWith(`${prefix}&`)),
+  });
+}

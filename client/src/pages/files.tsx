@@ -36,9 +36,9 @@ import { EditorSurface } from "@/components/site/cards";
 import type { PublicDocument } from "@shared/schema";
 
 // Images uploaded from inside the rich-text editor are stored as documents
-// under the "editor-image" category with a raw Cloudinary filename. They are
-// not archive documents, so they never appear here; these three categories
-// are the whole public list.
+// under the "editor-image" category, and the API leaves them out. These three
+// categories are the filter chips; the upload API accepts no others, but an
+// older row filed elsewhere still shows under "all", so it can be deleted.
 const CATEGORY_IDS = ["protokoll", "vedtekter", "budsjett"] as const;
 type CategoryId = (typeof CATEGORY_IDS)[number];
 
@@ -116,12 +116,11 @@ export default function Files() {
     },
   });
 
-  // Newest first, and only the three archive categories. Sorted explicitly
-  // rather than trusting the order the API happens to return.
+  // Newest first. Sorted explicitly rather than trusting the order the API
+  // happens to return.
   const documents = useMemo(
     () =>
       allDocuments
-        .filter((doc) => (CATEGORY_IDS as readonly string[]).includes(doc.category))
         .slice()
         .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()),
     [allDocuments],

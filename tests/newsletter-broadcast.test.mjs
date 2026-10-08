@@ -360,3 +360,18 @@ test('a news delivery carried to a later night is still sent', async () => {
   assert.equal(result.sent, 1);
   assert.match(sent[0].text, /nyheter\/3/);
 });
+
+// PERF-006. The evening run sends items dated tomorrow and stops at its cap
+// or its deadline; what it left pending used to be skipped the next evening,
+// when the item was dated "today". The morning follow-up sends it instead,
+// without queueing anything new.
+test('the morning follow-up sends what last night left pending, and queues nothing', async () => {
+  const { sql, calls } = scriptedSql([delivery({ eventDate: '2026-09-10' })]);
+  const sent = [];
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); }, undefined, { queue: false });
+  assert.equal(calls.some(({ statement }) => statement.includes('INSERT INTO newsletter_deliveries')), false, 'no fan-out');
+  assert.deepEqual(calls.find(({ statement }) => statement.includes('WITH candidates AS')).values[0], '2026-09-10');
+  assert.deepEqual([result.queued, result.sent, sent.length], [0, 1, 1]);
+  // The mail names the event's date, so a morning send still reads correctly.
+  assert.match(sent[0].subject, /10\. september 2026/);
+});

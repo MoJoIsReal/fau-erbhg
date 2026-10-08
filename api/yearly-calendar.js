@@ -183,33 +183,40 @@ function pushImportFailure(summary, rowNumber, message) {
   summary.errors.push({ rowNumber, errors: [message] });
 }
 
-async function getEntriesForSchoolYear(sql, schoolYear) {
+async function getEntriesForSchoolYear(sql, schoolYear, lastSchoolYear = schoolYear) {
   const rows = await sql`
     SELECT id, school_year, year, month, entry_type, category, week_number, week_number_end,
            weekday_start, weekday_end, date, start_time, end_time, title, description, color,
            show_on_homepage, show_for_parents, notify_newsletter, newsletter_sent_at,
            created_by, created_at, updated_at
     FROM yearly_calendar_entries
-    WHERE school_year = ${schoolYear}
+    WHERE school_year BETWEEN ${schoolYear} AND ${lastSchoolYear}
     ORDER BY year ASC, month ASC, week_number ASC NULLS LAST
   `;
   return rows.map(mapEntry);
 }
 
+// The calendar shows a school year with its neighbours (grid days and week
+// bands cross August), so it reads up to three adjacent years in one call.
+const MAX_SCHOOL_YEARS_PER_READ = 3;
+
 export default withApiHandler(async function handler(req, res) {
   const sql = getDb();
 
   if (req.method === 'GET') {
-    const schoolYear = sanitizeInteger(req.query.schoolYear, 1, MAX_INT_ID);
-    if (!schoolYear) {
-      return res.status(400).json({ error: 'Valid schoolYear query parameter required' });
+    const ranged = req.query.fromSchoolYear !== undefined;
+    const schoolYear = sanitizeInteger(ranged ? req.query.fromSchoolYear : req.query.schoolYear, 1, MAX_INT_ID);
+    const lastSchoolYear = ranged ? sanitizeInteger(req.query.toSchoolYear, 1, MAX_INT_ID) : schoolYear;
+    if (!schoolYear || !lastSchoolYear || lastSchoolYear < schoolYear
+        || lastSchoolYear - schoolYear >= MAX_SCHOOL_YEARS_PER_READ) {
+      return res.status(400).json({ error: 'Valid schoolYear, or fromSchoolYear and toSchoolYear at most three years apart, required' });
     }
 
     // Anyone may read the calendar, so who wrote an entry stays out of it:
     // created_by is the editor's name, or their login e-mail when the name is
     // empty, and no page shows it. (The newsletter flags stay: they hold no
     // personal data, and the entry editor fills its form from this answer.)
-    const entries = await getEntriesForSchoolYear(sql, schoolYear);
+    const entries = await getEntriesForSchoolYear(sql, schoolYear, lastSchoolYear);
     return res.status(200).json(entries.map(({ createdBy, ...entry }) => entry));
   }
 

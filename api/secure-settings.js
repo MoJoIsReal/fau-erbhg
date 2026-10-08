@@ -473,7 +473,8 @@ async function handleKindergartenInfo(req, res, sql) {
       return res.status(400).json({ error: 'All required fields must be valid', code: 'REQUIRED_FIELDS' });
     }
 
-    // Update the first (and only) row
+    // There should be one row. If a second ever appears, update the one GET
+    // shows (the newest), or a save would seem to revert.
     const result = await sql`
       UPDATE kindergarten_info
       SET contact_email = ${sanitizedContactEmail},
@@ -485,7 +486,7 @@ async function handleKindergartenInfo(req, res, sql) {
           styrer_name = ${sanitizedStyrerName},
           styrer_email = ${sanitizedStyrerEmail},
           updated_at = ${now}
-      WHERE id = (SELECT id FROM kindergarten_info ORDER BY id LIMIT 1)
+      WHERE id = (SELECT id FROM kindergarten_info ORDER BY id DESC LIMIT 1)
       RETURNING *
     `;
 

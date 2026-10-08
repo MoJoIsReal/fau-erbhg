@@ -4,6 +4,7 @@ import {
   cleanupPrivacyRetention,
   isAuthorizedCron,
   logCronRun,
+  registrationReminderEmail,
   runMorningTasks,
   sendEventReminders,
 } from '../api/cron/event-reminders.js';
@@ -210,9 +211,13 @@ test('the morning run still runs retention after a provider failure', async () =
     'DELETE FROM api_rate_limits',
     'DELETE FROM newsletter_deliveries',
     'WITH due AS',
+    'WITH candidates AS',
   ].map((needle) => calls.findIndex(({ statement }) => statement.includes(needle)));
   assert.ok(order.every((index) => index >= 0), 'every morning task should run');
-  assert.deepEqual([...order].sort((a, b) => a - b), order, 'retention and housekeeping before reminders');
+  assert.deepEqual([...order].sort((a, b) => a - b), order, 'retention and housekeeping before mail, newsletter overflow last');
+  // The follow-up finishes the items dated today (the run's target is tomorrow).
+  assert.equal(calls.find(({ statement }) => statement.includes('WITH candidates AS')).values[0], '2026-09-09');
+  assert.equal(calls.some(({ statement }) => statement.includes('INSERT INTO newsletter_deliveries')), false);
 });
 
 // SEC-004. Without CRON_SECRET this used to authorize anyone whenever NODE_ENV
@@ -365,4 +370,18 @@ test('a run that left mail unsent logs its counts at warn and raises one report'
   assert.equal(logCronRun('reminders', '2026-09-10', { claimed: 3, sent: 2, failed: 0, deferred: 1 }).level, 'warn');
   // A newsletter run that could not send at all is a problem too.
   assert.equal(logCronRun('newsletter', '2026-09-10', { queued: 0, reason: 'email-not-configured' }).level, 'warn');
+});
+
+// The stored slots are a JSON array; the mail pairs each time with a child.
+test('a photo reminder lists each child with their time', () => {
+  const photo = registration(1, {
+    photoSlots: '["09:00","09:05"]', childrenNames: '["Ola","Kari"]', attendeeCount: 2, eventTime: '09:00',
+    cancelToken: 'a'.repeat(64),
+  });
+  const { text } = registrationReminderEmail(photo);
+  assert.match(text, /Fototidspunkt:\n- Ola: 09:00\n- Kari: 09:05/);
+  assert.doesNotMatch(text, /\["09:00"/);
+  const english = registrationReminderEmail({ ...photo, language: 'en', childrenNames: null });
+  assert.match(english.text, /Photo slots:\n- Child 1: 09:00\n- Child 2: 09:05/);
+  assert.doesNotMatch(registrationReminderEmail(registration(2)).text, /Fototidspunkt/);
 });

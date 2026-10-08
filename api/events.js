@@ -11,6 +11,7 @@ import {
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
+import { getKindergartenSchoolYear } from '../shared/yearly-calendar-utils.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import {
   LINK_PREVIEW_CACHE_CONTROL,
@@ -299,6 +300,17 @@ export function isRegistrationForeignKeyConflict(error) {
     && error?.constraint === 'event_registrations_event_id_fkey';
 }
 
+// The public list used to return every event ever held, and grows by a few
+// dozen a year. By default it starts on 1 August of the previous school year,
+// which covers everything the calendar shows for the current one (it reads the
+// adjacent years too). The month view can be paged further back; it then asks
+// for `?from=` the start of that school year's previous year.
+export function eventListStart(value, now = new Date()) {
+  if (value === undefined || value === '') return `${getKindergartenSchoolYear(now) - 1}-08-01`;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  return Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ? null : value;
+}
+
 export default withApiHandler(async function handler(req, res) {
   const sql = getDb();
 
@@ -311,6 +323,9 @@ export default withApiHandler(async function handler(req, res) {
       return await respondWithLinkPreview(req, res, sql);
     }
 
+    const from = eventListStart(req.query.from);
+    if (!from) return res.status(400).json({ error: 'from must be a date (YYYY-MM-DD)' });
+
     const events = await sql`
       SELECT e.*,
              (
@@ -320,6 +335,7 @@ export default withApiHandler(async function handler(req, res) {
              ) AS derived_attendees
       FROM events e
       WHERE e.status IN ('active', 'cancelled')
+        AND e.date >= ${from}
       ORDER BY e.date ASC, e.time ASC
     `;
 

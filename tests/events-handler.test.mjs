@@ -25,7 +25,24 @@ test('the public list is mapped to camelCase with the derived attendee count', a
   assert.equal(res.body[0].currentAttendees, 12, 'the live sum, never the stored counter');
   assert.equal(res.body[0].notifyNewsletter, false);
   assert.equal('custom_location' in res.body[0], false);
-  assert.match(sql.calls[0].statement, /WHERE e\.status IN \('active', 'cancelled'\)/);
+  assert.match(sql.calls[0].statement, /WHERE e\.status IN \('active', 'cancelled'\) AND e\.date >= \?/);
+});
+
+// Unbounded, the public list grew with every event ever held.
+test('the public list starts at the previous school year unless asked for more', async (t) => {
+  const { eventListStart } = await import('../api/events.js');
+  assert.equal(eventListStart(undefined, new Date('2026-10-08T12:00:00Z')), '2025-08-01');
+  assert.equal(eventListStart(undefined, new Date('2026-07-31T12:00:00Z')), '2024-08-01');
+  assert.equal(eventListStart('2019-08-01'), '2019-08-01');
+
+  const sql = useDatabase(scriptedSql({ respond: () => [] }));
+  assert.equal((await call(t, handler, { query: { from: '2019-08-01' } })).statusCode, 200);
+  assert.equal(sql.calls.at(-1).values.at(-1), '2019-08-01');
+  for (const from of ['2019-8-1', 'yesterday', '2019-13-45', ['2019-08-01']]) {
+    const refused = useDatabase(scriptedSql());
+    assert.equal((await call(t, handler, { query: { from } })).statusCode, 400, String(from));
+    assert.deepEqual(refused.calls, []);
+  }
 });
 
 test('the calendar feed is cacheable iCalendar, a year deep, and skips unrenderable times', async (t) => {
