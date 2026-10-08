@@ -31,7 +31,7 @@ const content: Record<"no" | "en", PrivacyText> = {
       },
       {
         title: "Nyhetsbrev",
-        body: "Melder du deg på nyhetsbrevet, lagrer vi e-postadressen din, navnet hvis du oppgir det, og hvilket språk du vil ha det på. Du får først en e-post med en bekreftelseslenke, og vi sender ingenting før du har bekreftet. For hver utsending lagrer vi hva som ble sendt til deg og om det kom fram; dette slettes etter 90 dager. Hver e-post har en lenke for å melde deg av. Da får du ingen flere e-poster, men adressen står igjen merket som avmeldt – kontakt FAU hvis du vil ha den slettet helt. Grunnlaget er samtykket du gir når du bekrefter påmeldingen."
+        body: "Melder du deg på nyhetsbrevet, lagrer vi e-postadressen din, navnet hvis du oppgir det, og hvilket språk du vil ha det på. Du får først en e-post med en bekreftelseslenke som virker i 7 dager, og vi sender ingenting før du har bekreftet. En påmelding som ikke blir bekreftet, slettes etter 30 dager. For hver utsending lagrer vi hva som ble sendt til deg og om det kom fram; dette slettes etter 90 dager. Hver e-post har en lenke for å melde deg av. Da får du ingen flere e-poster, men adressen står igjen merket som avmeldt – kontakt FAU hvis du vil ha den slettet helt. Grunnlaget er samtykket du gir når du bekrefter påmeldingen."
       },
       {
         title: "Bilder og videoer som deles med foreldrene",
@@ -90,7 +90,7 @@ const content: Record<"no" | "en", PrivacyText> = {
       },
       {
         title: "Newsletter",
-        body: "If you sign up for the newsletter, we store your email address, your name if you give it, and the language you want it in. You first receive an email with a confirmation link, and we send nothing until you have confirmed. For each mailing we store what was sent to you and whether it was delivered; this is deleted after 90 days. Every email has a link to unsubscribe. You then receive no more emails, but the address stays marked as unsubscribed – contact FAU if you want it deleted completely. Our basis is the consent you give when you confirm the signup."
+        body: "If you sign up for the newsletter, we store your email address, your name if you give it, and the language you want it in. You first receive an email with a confirmation link that works for 7 days, and we send nothing until you have confirmed. A signup that is never confirmed is deleted after 30 days. For each mailing we store what was sent to you and whether it was delivered; this is deleted after 90 days. Every email has a link to unsubscribe. You then receive no more emails, but the address stays marked as unsubscribed – contact FAU if you want it deleted completely. Our basis is the consent you give when you confirm the signup."
       },
       {
         title: "Photos and videos shared with parents",

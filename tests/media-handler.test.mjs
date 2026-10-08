@@ -319,14 +319,28 @@ test('upload-init refuses other types, oversized files and uploads past the quot
   }
 
   // The quota check lives in the INSERT; no row back means it would not fit.
-  const sql = useDatabase(scriptedSql({ respond: (statement) => draft(statement) ?? [] }));
+  // It runs after an advisory lock in the same transaction, so a concurrent
+  // upload's row is counted (a statement's snapshot is taken when it starts).
+  const fileCount = (count) => (statement) => draft(statement)
+    ?? (statement.startsWith('SELECT COUNT(*)::int AS file_count') ? [{ file_count: count }] : []);
+  const sql = useDatabase(scriptedSql({ respond: fileCount(3) }));
   const res = await call(t, handler, {
     method: 'POST', query: { action: 'upload-init' }, body: { shareId: 1, mimeType: 'video/mp4', size: 5000 }, as: 'admin',
   });
   assert.deepEqual([res.statusCode, res.body.code], [507, 'STORAGE_QUOTA']);
+  const lock = sql.calls.findIndex(({ statement }) => statement.startsWith('SELECT pg_advisory_xact_lock'));
+  assert.ok(lock >= 0 && lock < sql.calls.findIndex(({ statement }) => statement.startsWith('INSERT INTO media_files')), 'the lock comes first');
+  assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO media_files')).statement, /AND \(SELECT COUNT\(\*\) FROM media_files WHERE share_id = \?\) < \?/);
+
+  // The file cap is checked the same way, and named when it was the reason.
+  useDatabase(scriptedSql({ respond: fileCount(200) }));
+  const full = await call(t, handler, {
+    method: 'POST', query: { action: 'upload-init' }, body: { shareId: 1, mimeType: 'video/mp4', size: 5000 }, as: 'admin',
+  });
+  assert.deepEqual([full.statusCode, full.body.code], [409, 'TOO_MANY_FILES']);
   const insert = sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO media_files'));
   assert.match(insert.statement, /WHERE \(SELECT COALESCE\(SUM\(size_bytes \+ COALESCE\(preview_bytes, 0\)\), 0\) FROM media_files\) \+ \? \+ \? <= \?/);
-  assert.equal(insert.values.at(-1), 9 * 1024 ** 3);
+  assert.deepEqual(insert.values.slice(-3), [9 * 1024 ** 3, 1, 200]);
 });
 
 test('upload-init only adds files to a draft', async (t) => {

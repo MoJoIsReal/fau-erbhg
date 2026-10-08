@@ -376,6 +376,13 @@ export interface Translations {
     successDesc: string;
     errorTitle: string;
     errorDesc: string;
+    /** Shown before anything happens: the page acts only on a click, so a mail scanner opening the link changes nothing. */
+    confirmReadyTitle: string;
+    confirmReadyDesc: string;
+    confirmButton: string;
+    unsubReadyTitle: string;
+    unsubReadyDesc: string;
+    unsubButton: string;
     confirmPendingTitle: string;
     confirmSuccessTitle: string;
     confirmSuccessDesc: string;
@@ -1056,6 +1063,10 @@ export interface Translations {
       emailSent: string;
       successDelete: string;
       errorDelete: string;
+      resetPassword: string;
+      resetPasswordConfirm: string;
+      successReset: string;
+      errorReset: string;
     };
   };
   /** One message per `code` the API refuses with (API_ERROR_CODES), and `generic` when there is none. */
@@ -1092,6 +1103,7 @@ export const translations: Record<Language, Translations> = {
       NO_REPLY_ADDRESS: "Henvendelsen har ingen adresse å svare til.",
       REPLY_SEND_FAILED: "Svaret kunne ikke sendes. Prøv igjen senere.",
       ENTRY_FIELDS_REQUIRED: "Type, tittel, skoleår, år og måned må fylles ut.",
+      TEMP_PASSWORD_EXPIRED: "Det midlertidige passordet har utløpt. Be en administrator om å sende deg et nytt.",
       generic: "Noe gikk galt. Prøv igjen.",
     },
     dataState: {
@@ -1472,6 +1484,12 @@ export const translations: Record<Language, Translations> = {
       successDesc: "Vi har sendt deg en bekreftelseslenke. Klikk på den for å fullføre påmeldingen.",
       errorTitle: "Noe gikk galt",
       errorDesc: "Kunne ikke fullføre påmeldingen. Prøv igjen senere.",
+      confirmReadyTitle: "Bekreft påmeldingen",
+      confirmReadyDesc: "Trykk på knappen for å bekrefte at du vil ha nyhetsbrevet fra FAU på e-post.",
+      confirmButton: "Bekreft påmelding",
+      unsubReadyTitle: "Meld deg av nyhetsbrevet",
+      unsubReadyDesc: "Trykk på knappen for å melde deg av. Du får ingen flere nyhetsbrev fra FAU etterpå.",
+      unsubButton: "Meld meg av",
       confirmPendingTitle: "Bekrefter påmelding...",
       confirmSuccessTitle: "Påmelding bekreftet!",
       confirmSuccessDesc: "Takk! Du vil nå motta påminnelser fra FAU Erdal Barnehage.",
@@ -2160,7 +2178,11 @@ export const translations: Record<Language, Translations> = {
         errorCreate: "Kunne ikke opprette bruker",
         emailSent: "Innloggingsdetaljer er sendt på e-post",
         successDelete: "Bruker slettet",
-        errorDelete: "Kunne ikke slette brukeren"
+        errorDelete: "Kunne ikke slette brukeren",
+        resetPassword: "Send nytt passord",
+        resetPasswordConfirm: "Brukeren får et nytt midlertidig passord på e-post, gyldig i 7 dager. Det gamle passordet slutter å virke, og brukeren logges ut overalt.",
+        successReset: "Nytt passord er sendt på e-post",
+        errorReset: "Kunne ikke sende nytt passord"
       }
     }
   },
@@ -2193,6 +2215,7 @@ export const translations: Record<Language, Translations> = {
       NO_REPLY_ADDRESS: "This inquiry has no address to reply to.",
       REPLY_SEND_FAILED: "The reply could not be sent. Try again later.",
       ENTRY_FIELDS_REQUIRED: "Type, title, school year, year and month are required.",
+      TEMP_PASSWORD_EXPIRED: "The temporary password has expired. Ask an administrator to send you a new one.",
       generic: "Something went wrong. Try again.",
     },
     dataState: {
@@ -2573,6 +2596,12 @@ export const translations: Record<Language, Translations> = {
       successDesc: "We have sent you a confirmation link. Click it to complete your subscription.",
       errorTitle: "Something went wrong",
       errorDesc: "Could not complete the subscription. Please try again later.",
+      confirmReadyTitle: "Confirm your subscription",
+      confirmReadyDesc: "Press the button to confirm that you want the FAU newsletter by email.",
+      confirmButton: "Confirm subscription",
+      unsubReadyTitle: "Unsubscribe from the newsletter",
+      unsubReadyDesc: "Press the button to unsubscribe. You will receive no more newsletters from FAU.",
+      unsubButton: "Unsubscribe",
       confirmPendingTitle: "Confirming subscription...",
       confirmSuccessTitle: "Subscription confirmed!",
       confirmSuccessDesc: "Thank you! You will now receive reminders from FAU Erdal Kindergarten.",
@@ -3261,7 +3290,11 @@ export const translations: Record<Language, Translations> = {
         errorCreate: "Could not create user",
         emailSent: "Login details were sent by email",
         successDelete: "User deleted",
-        errorDelete: "Could not delete the user"
+        errorDelete: "Could not delete the user",
+        resetPassword: "Send new password",
+        resetPasswordConfirm: "The user gets a new temporary password by email, valid for 7 days. The old password stops working and the user is signed out everywhere.",
+        successReset: "A new password was sent by email",
+        errorReset: "Could not send a new password"
       }
     }
   }

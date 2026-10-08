@@ -155,7 +155,7 @@ test('privacy retention deletes only past its windows', async () => {
   const statements = [];
   const sql = async (strings, ...values) => {
     statements.push({ text: strings.join('?').replace(/\s+/g, ' ').trim(), values });
-    if (statements.length === 4) return [{ contactMessages: 1, events: 2 }];
+    if (statements.length === 5) return [{ contactMessages: 1, events: 2 }];
     return statements.length === 1 ? [{ id: 1 }, { id: 2 }] : [{ id: 3 }];
   };
 
@@ -165,10 +165,13 @@ test('privacy retention deletes only past its windows', async () => {
     contactMessagesDeleted: 2,
     eventRegistrationsDeleted: 1,
     registrationCancellationsDeleted: 1,
+    pendingSubscribersDeleted: 1,
     unparseableDates: 3,
   });
-  assert.equal(statements.length, 4);
-  const [contact, registrations, cancellations, count] = statements;
+  assert.equal(statements.length, 5);
+  const [contact, registrations, cancellations, pending, count] = statements;
+  assert.match(pending.text, /^DELETE FROM newsletter_subscribers WHERE status = 'pending' AND created_at ~ .* AND created_at < \?/);
+  assert.deepEqual(pending.values, ['2026-09-08T07:00:00.000Z'], 'unconfirmed sign-ups go after 30 days');
   assert.match(contact.text, /^DELETE FROM contact_messages WHERE created_at ~ '\^\[0-9\]\{4\}-\[0-9\]\{2\}-\[0-9\]\{2\}' AND created_at < \?/);
   assert.deepEqual(contact.values, ['2025-10-08T07:00:00.000Z'], '12 months back');
   assert.match(registrations.text, /^DELETE FROM event_registrations r USING events e WHERE e\.id = r\.event_id AND e\.date ~ .* AND e\.date < \?/);
@@ -196,6 +199,7 @@ test('the morning run still runs retention after a provider failure', async () =
     contactMessagesDeleted: 0,
     eventRegistrationsDeleted: 0,
     registrationCancellationsDeleted: 0,
+    pendingSubscribersDeleted: 0,
     unparseableDates: 0,
   });
 

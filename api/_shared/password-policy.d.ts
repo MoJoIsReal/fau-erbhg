@@ -8,3 +8,12 @@ export function isPasswordChangeRequired(
 ): boolean;
 
 export function isUndefinedColumnError(error: unknown): boolean;
+
+export const TEMPORARY_PASSWORD_DAYS: 7;
+
+export function temporaryPasswordExpiry(now?: Date): string;
+
+export function isTemporaryPasswordExpired(
+  user: { tempPasswordExpiresAt?: string | null },
+  now?: Date,
+): boolean;

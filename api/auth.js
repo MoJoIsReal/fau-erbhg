@@ -16,7 +16,7 @@ import {
   identityRateLimitKey,
   rateLimitKey,
 } from './_shared/rate-limit.js';
-import { isPasswordChangeRequired } from './_shared/password-policy.js';
+import { isPasswordChangeRequired, isTemporaryPasswordExpired } from './_shared/password-policy.js';
 import { getJwtConfig, JWT_ALGORITHM, JWT_ISSUER } from './_shared/jwt-config.js';
 
 // Consolidates login/logout/current-user/change-password onto one function
@@ -27,6 +27,7 @@ const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_IP_MAX_ATTEMPTS = 30;
 const LOGIN_ACCOUNT_MAX_FAILURES = 20;
 const LOGIN_DEVICE_MAX_ATTEMPTS = 10;
+const CHANGE_PASSWORD_MAX_ATTEMPTS = 5;
 const LOGIN_WINDOW_SECONDS = 15 * 60;
 const LOGIN_ACCOUNT_WINDOW_SECONDS = 60 * 60;
 const DUMMY_PASSWORD_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8b5Fzi/i8rYJO/8qZjU1BkJ1REsHiy';
@@ -182,7 +183,8 @@ async function handleLogin(req, res, sql) {
   const users = await sql`
     SELECT id, username, name, role, password, token_version as "tokenVersion",
            must_change_password as "mustChangePassword",
-           password_changed_at as "passwordChangedAt"
+           password_changed_at as "passwordChangedAt",
+           temp_password_expires_at as "tempPasswordExpiresAt"
     FROM users
     WHERE username = ${username}
   `;
@@ -203,6 +205,13 @@ async function handleLogin(req, res, sql) {
       });
     }
     return res.status(401).json({ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+  }
+
+  // The right temporary password, but its week is over: no session. Told
+  // apart from a wrong password only after the password matched, so it says
+  // nothing to someone guessing.
+  if (user.mustChangePassword && isTemporaryPasswordExpired(user)) {
+    return res.status(401).json({ error: 'Temporary password has expired', code: 'TEMP_PASSWORD_EXPIRED' });
   }
 
   // A success from an unknown browser means the account was not locked, so
@@ -311,10 +320,25 @@ async function handleChangePassword(req, res, sql, decoded) {
     return res.status(404).json({ error: 'User not found' });
   }
 
+  // A session (an unlocked shared computer, a stolen cookie) must not become
+  // an unthrottled oracle for the account's password: each attempt is counted
+  // before bcrypt, as on login, and a success clears the count.
+  const attemptKey = identityRateLimitKey('change-password', decoded.userId);
+  const attempts = await checkRateLimit(sql, {
+    key: attemptKey,
+    limit: CHANGE_PASSWORD_MAX_ATTEMPTS,
+    windowSeconds: LOGIN_WINDOW_SECONDS
+  });
+  if (!attempts.allowed) {
+    res.setHeader('Retry-After', String(attempts.retryAfter));
+    return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
+  }
+
   const passwordIsValid = await bcryptjs.compare(currentPassword, existingUser.password);
   if (!passwordIsValid) {
     return res.status(400).json({ error: 'Current password is incorrect', code: 'CURRENT_PASSWORD_INCORRECT' });
   }
+  await clearRateLimit(sql, attemptKey);
 
   const passwordHash = await bcryptjs.hash(newPassword, 10);
   const now = new Date().toISOString();
@@ -323,6 +347,7 @@ async function handleChangePassword(req, res, sql, decoded) {
     SET password = ${passwordHash},
         must_change_password = false,
         password_changed_at = ${now},
+        temp_password_expires_at = NULL,
         token_version = token_version + 1
     WHERE id = ${decoded.userId}
     RETURNING id, username, name, role, token_version as "tokenVersion",

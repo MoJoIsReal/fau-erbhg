@@ -16,7 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Trash2, UserPlus, Loader2 } from "lucide-react";
+import { KeyRound, Trash2, UserPlus, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiErrorText, apiRequest } from "@/lib/queryClient";
@@ -93,6 +93,24 @@ export default function StaffUsersSection() {
     },
   });
 
+  // A new temporary password, for an account whose first one expired (it
+  // works for 7 days) or was lost.
+  const resetMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("PATCH", `${STAFF_KEY}&id=${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: t.yearlyCalendar.staff.successReset });
+    },
+    onError: (err: unknown) => {
+      toast({
+        title: t.yearlyCalendar.staff.errorReset,
+        description: apiErrorText(err, t, t.apiErrors.generic),
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <Card className="p-6">
       <div className="mb-4">
@@ -161,6 +179,33 @@ export default function StaffUsersSection() {
                     {u.username} - {roleName(u.role)}
                   </div>
                 </div>
+                <div className="flex shrink-0 items-center gap-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      disabled={resetMutation.isPending}
+                      aria-label={`${t.yearlyCalendar.staff.resetPassword}: ${u.name}`}
+                    >
+                      <KeyRound className="h-4 w-4" aria-hidden="true" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t.yearlyCalendar.staff.resetPassword}</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t.yearlyCalendar.staff.resetPasswordConfirm}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t.yearlyCalendar.modal.cancel}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => resetMutation.mutate(u.id)}>
+                        {t.yearlyCalendar.staff.resetPassword}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -191,6 +236,7 @@ export default function StaffUsersSection() {
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+                </div>
               </li>
             ))}
           </ul>

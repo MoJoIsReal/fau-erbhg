@@ -115,6 +115,7 @@ export function closePooledTransporter() {
  * Send a plain-text email through the shared Gmail transporter.
  * `from` defaults to GMAIL_USER. The transporter is cached across invocations
  * within a single warm Vercel function instance.
+ * @param {{ to: string, subject: string, text: string, from?: string, messageId?: string }} message
  */
 export async function sendEmail({ to, subject, text, from, messageId }) {
   const transporter = createTransporter();

@@ -150,3 +150,12 @@ test('no page shows the raw error text from an API response', () => {
   walk('client/src');
   assert.deepEqual(offenders, []);
 });
+
+// Mail scanners open the links in a message, some running the page's scripts.
+// A newsletter page that confirmed or unsubscribed on load let a scanner
+// unsubscribe a parent, or confirm an address someone else had typed in.
+test('the newsletter link page acts only on a click', () => {
+  const page = read('client/src/pages/newsletter.tsx');
+  assert.doesNotMatch(page, /useEffect\(/, 'no request from an effect');
+  assert.match(page, /onClick: act/);
+});

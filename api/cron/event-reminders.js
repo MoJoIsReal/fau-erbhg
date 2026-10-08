@@ -8,6 +8,7 @@ import {
   isEmailConfigured,
 } from '../_shared/email.js';
 import {
+  NEWSLETTER_PENDING_PURGE_DAYS,
   newsPostEmail,
   reminderEmail as newsletterReminderEmail,
 } from '../_shared/newsletter.js';
@@ -565,6 +566,17 @@ export async function cleanupPrivacyRetention(sql, now = new Date()) {
     RETURNING c.id
   `;
 
+  // Sign-ups never confirmed: an address someone may have typed for someone
+  // else, kept no longer than NEWSLETTER_PENDING_PURGE_DAYS.
+  const pendingCutoff = new Date(now.getTime() - NEWSLETTER_PENDING_PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const deletedPendingSubscribers = await sql`
+    DELETE FROM newsletter_subscribers
+    WHERE status = 'pending'
+      AND created_at ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+      AND created_at < ${pendingCutoff}
+    RETURNING id
+  `;
+
   const [unparseable] = await sql`
     SELECT
       (SELECT count(*) FROM contact_messages WHERE created_at !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}')::int AS "contactMessages",
@@ -575,6 +587,7 @@ export async function cleanupPrivacyRetention(sql, now = new Date()) {
     contactMessagesDeleted: deletedContactMessages.length,
     eventRegistrationsDeleted: deletedRegistrations.length,
     registrationCancellationsDeleted: deletedCancellations.length,
+    pendingSubscribersDeleted: deletedPendingSubscribers.length,
     unparseableDates: (unparseable?.contactMessages ?? 0) + (unparseable?.events ?? 0),
   };
 }

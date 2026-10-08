@@ -4,7 +4,7 @@ import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import { CONTACT_REPLY_MAX_LENGTH, contactReplyEmail } from './_shared/contact-emails.js';
 import { reportProviderError } from './_shared/provider-errors.js';
-import { generateTemporaryPassword } from './_shared/password-policy.js';
+import { generateTemporaryPassword, TEMPORARY_PASSWORD_DAYS, temporaryPasswordExpiry } from './_shared/password-policy.js';
 import {
   withApiHandler,
   requireCsrf,
@@ -12,6 +12,7 @@ import {
   requireRole,
   sanitizeText,
   sanitizeHtml,
+  isHtmlTooLong,
   sanitizeEmail,
   sanitizeInteger,
   MAX_INT_ID,
@@ -267,6 +268,8 @@ export function blogSearchPattern(value) {
 }
 
 // Handle Blog Posts operations
+const BLOG_CONTENT_MAX = 50000;
+
 async function handleBlogPosts(req, res, sql) {
   // GET - Public access to view published blog posts
   if (req.method === 'GET') {
@@ -341,7 +344,10 @@ async function handleBlogPosts(req, res, sql) {
     const { title, content, publishedDate, author, category, notifyNewsletter } = req.body;
 
     const sanitizedTitle = sanitizeText(title, 200);
-    const sanitizedContent = sanitizeHtml(content, 50000);
+    if (isHtmlTooLong(content, BLOG_CONTENT_MAX)) {
+      return res.status(400).json({ error: 'Content is too long', code: 'FIELD_TOO_LARGE' });
+    }
+    const sanitizedContent = sanitizeHtml(content, BLOG_CONTENT_MAX);
     const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
@@ -367,7 +373,10 @@ async function handleBlogPosts(req, res, sql) {
     const { title, content, status, publishedDate, author, showOnHomepage, category, notifyNewsletter } = req.body;
 
     const sanitizedTitle = sanitizeText(title, 200);
-    const sanitizedContent = sanitizeHtml(content, 50000);
+    if (isHtmlTooLong(content, BLOG_CONTENT_MAX)) {
+      return res.status(400).json({ error: 'Content is too long', code: 'FIELD_TOO_LARGE' });
+    }
+    const sanitizedContent = sanitizeHtml(content, BLOG_CONTENT_MAX);
     const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
     const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
@@ -631,6 +640,34 @@ async function handleContactMessages(req, res, sql) {
   return res.status(405).json({ error: 'Method not allowed' });
 }
 
+// The mail that carries a temporary password: for a new account, or a new
+// password the admin sent because the first one expired or was lost.
+function accountMail({ username, name, role, temporaryPassword, reissued = false }) {
+  return {
+    to: username,
+    subject: reissued ? 'Nytt midlertidig passord for FAU Erdal Barnehage' : 'Konto opprettet for FAU Erdal Barnehage',
+    text: [
+      `Hei ${name},`,
+      '',
+      reissued
+        ? 'Du har fått et nytt midlertidig passord til FAU Erdal Barnehage sin nettside. Det gamle virker ikke lenger.'
+        : `Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside.`,
+      `Nettside: ${publicBaseUrl()}`,
+      `Rolle: ${roleLabel(role)}`,
+      '',
+      roleDescription(role),
+      '',
+      `Brukernavn: ${username}`,
+      `Midlertidig passord: ${temporaryPassword}`,
+      '',
+      `Det midlertidige passordet virker i ${TEMPORARY_PASSWORD_DAYS} dager. Du blir bedt om å endre det første gang du logger inn. Passord må også oppdateres minst én gang i året.`,
+      '',
+      'Vennlig hilsen',
+      'FAU Erdal Barnehage',
+    ].join('\n'),
+  };
+}
+
 // Handle managed users (FAU members and kindergarten staff)
 async function handleUsers(req, res, sql) {
   const user = await requireRole(req, res, ADMIN_ONLY, sql);
@@ -673,8 +710,8 @@ async function handleUsers(req, res, sql) {
     const hashed = await bcrypt.hash(temporaryPassword, 10);
     const now = new Date().toISOString();
     const created = await sql`
-      INSERT INTO users (username, password, name, role, must_change_password, password_changed_at, created_at)
-      VALUES (${username}, ${hashed}, ${name}, ${role}, true, ${null}, ${now})
+      INSERT INTO users (username, password, name, role, must_change_password, password_changed_at, temp_password_expires_at, created_at)
+      VALUES (${username}, ${hashed}, ${name}, ${role}, true, ${null}, ${temporaryPasswordExpiry()}, ${now})
       ON CONFLICT (username) DO NOTHING
       RETURNING id, username, name, role, created_at
     `;
@@ -683,33 +720,38 @@ async function handleUsers(req, res, sql) {
     }
 
     try {
-      await sendEmail({
-        to: username,
-        subject: 'Konto opprettet for FAU Erdal Barnehage',
-        text: [
-          `Hei ${name},`,
-          '',
-          `Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside.`,
-          `Nettside: ${publicBaseUrl()}`,
-          `Rolle: ${roleLabel(role)}`,
-          '',
-          roleDescription(role),
-          '',
-          `Brukernavn: ${username}`,
-          `Midlertidig passord: ${temporaryPassword}`,
-          '',
-          'Du blir bedt om å endre passordet første gang du logger inn. Passord må også oppdateres minst én gang i året.',
-          '',
-          'Vennlig hilsen',
-          'FAU Erdal Barnehage',
-        ].join('\n'),
-      });
+      await sendEmail(accountMail({ username, name, role, temporaryPassword }));
     } catch (error) {
       await sql`DELETE FROM users WHERE id = ${created[0].id}`;
       throw error;
     }
 
     return res.status(201).json(mapUser(created[0]));
+  }
+
+  // PATCH: a new temporary password, for an account whose first one expired
+  // or was lost. Every session the account had is signed out.
+  if (req.method === 'PATCH') {
+    const id = requireIntId(req, res);
+    if (!id) return;
+    if (!isEmailConfigured()) {
+      return res.status(500).json({ error: 'Email is not configured; cannot send login details', code: 'EMAIL_NOT_CONFIGURED' });
+    }
+    const temporaryPassword = generateTemporaryPassword();
+    const hashed = await bcrypt.hash(temporaryPassword, 10);
+    const updated = await sql`
+      UPDATE users
+      SET password = ${hashed}, must_change_password = true, password_changed_at = ${null},
+          temp_password_expires_at = ${temporaryPasswordExpiry()}, token_version = token_version + 1
+      WHERE id = ${id} AND role IN (${ROLES.member}, ${ROLES.staff})
+      RETURNING id, username, name, role, created_at
+    `;
+    if (updated.length === 0) {
+      return res.status(404).json({ error: 'User not found', code: 'NOT_FOUND' });
+    }
+    const account = updated[0];
+    await sendEmail(accountMail({ username: account.username, name: account.name, role: account.role, temporaryPassword, reissued: true }));
+    return res.status(200).json(mapUser(account));
   }
 
   if (req.method === 'DELETE') {

@@ -9,6 +9,12 @@ export function publicBaseUrl() {
   return 'https://www.erdal-bhg.no';
 }
 
+// How long a confirmation link works, and how long an unconfirmed sign-up is
+// kept before the morning cron deletes it (an address someone else may have
+// entered should not be stored indefinitely).
+export const NEWSLETTER_CONFIRM_DAYS = 7;
+export const NEWSLETTER_PENDING_PURGE_DAYS = 30;
+
 export function newsletterToken() {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -33,7 +39,7 @@ export function confirmationEmail({ language, confirmToken }) {
 
 Du (eller noen som oppga din e-postadresse) har meldt seg på nyhetsbrevet til FAU Erdal Barnehage. Vi sender påminnelser om kommende arrangementer i barnehagen.
 
-Bekreft påmeldingen ved å klikke på lenken under:
+Bekreft påmeldingen ved å klikke på lenken under. Lenken virker i ${NEWSLETTER_CONFIRM_DAYS} dager.
 ${link}
 
 Hvis du ikke meldte deg på, kan du bare se bort fra denne e-posten – da skjer det ingenting.
@@ -49,7 +55,7 @@ FAU Erdal Barnehage`,
 
 You (or someone using your email address) signed up for the FAU Erdal Kindergarten newsletter. We send reminders about upcoming events at the kindergarten.
 
-Confirm your subscription by clicking the link below:
+Confirm your subscription by clicking the link below. The link works for ${NEWSLETTER_CONFIRM_DAYS} days.
 ${link}
 
 If you did not sign up, you can simply ignore this email and nothing will happen.

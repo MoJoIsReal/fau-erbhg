@@ -28,6 +28,7 @@ const ROUTES = [
   { handler: 'yearly-calendar', method: 'PUT', query: { id: '1' }, allowed: EDITORS },
   { handler: 'yearly-calendar', method: 'DELETE', query: { id: '1' }, allowed: EDITORS },
   settings('board-members', 'POST', ADMIN),
+  settings('users', 'PATCH', ADMIN, { id: '1' }),
   settings('board-members', 'PUT', ADMIN, { id: '1' }),
   settings('board-members', 'DELETE', ADMIN, { id: '1' }),
   settings('kindergarten-info', 'PUT', ADMIN),

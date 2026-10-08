@@ -9,7 +9,7 @@ import {
 } from './_shared/middleware.js';
 import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
-import { confirmationEmail, newsletterToken } from './_shared/newsletter.js';
+import { confirmationEmail, NEWSLETTER_CONFIRM_DAYS, newsletterToken } from './_shared/newsletter.js';
 import { contactAcknowledgementEmail } from './_shared/contact-emails.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
@@ -284,6 +284,10 @@ async function handleNewsletterSubscribe(req, res) {
           confirm_token = EXCLUDED.confirm_token,
           language = EXCLUDED.language,
           name = EXCLUDED.name,
+          -- A re-armed sign-up starts over: its confirmation link is valid
+          -- for NEWSLETTER_CONFIRM_DAYS from now, and the cron's purge of
+          -- unconfirmed sign-ups counts from here too.
+          created_at = EXCLUDED.created_at,
           unsubscribed_at = NULL
       WHERE newsletter_subscribers.status <> 'active'
     RETURNING id
@@ -325,11 +329,18 @@ async function handleNewsletterConfirm(req, res) {
     return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
-  const now = new Date().toISOString();
+  // A confirmation link works for NEWSLETTER_CONFIRM_DAYS after it was sent;
+  // an old mail must not opt someone in months later. Opening it again after
+  // confirming is answered as a success: the address is subscribed, which is
+  // what the parent wants to see (the token is cleared only on unsubscribe).
+  const nowMs = Date.now();
+  const now = new Date(nowMs).toISOString();
+  const sentAfter = new Date(nowMs - NEWSLETTER_CONFIRM_DAYS * 24 * 60 * 60 * 1000).toISOString();
   const confirmed = await sql`
     UPDATE newsletter_subscribers
-    SET status = 'active', confirmed_at = ${now}, confirm_token = NULL
-    WHERE confirm_token = ${token} AND status = 'pending'
+    SET status = 'active', confirmed_at = COALESCE(confirmed_at, ${now})
+    WHERE confirm_token = ${token}
+      AND (status = 'active' OR (status = 'pending' AND created_at >= ${sentAfter}))
     RETURNING id
   `;
 

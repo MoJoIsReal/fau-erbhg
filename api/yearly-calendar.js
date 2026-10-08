@@ -5,6 +5,7 @@ import {
   requireRole,
   sanitizeText,
   sanitizeHtml,
+  isHtmlTooLong,
   sanitizeInteger,
   requireIntId,
   MAX_INT_ID,
@@ -75,8 +76,10 @@ function mapEntry(row) {
 // The entry editor writes the same rich text as an event description, so a
 // description is stored as sanitized HTML and rendered through SafeHtml. An
 // editor the author emptied still sends "<p></p>"; store that as no description.
+const ENTRY_DESCRIPTION_MAX = 5000;
+
 function sanitizeEntryDescription(value) {
-  const html = sanitizeHtml(value, 5000);
+  const html = sanitizeHtml(value, ENTRY_DESCRIPTION_MAX);
   if (!htmlToPlainText(html) && !/<(img|iframe)\b/i.test(html)) return null;
   return html;
 }
@@ -411,6 +414,9 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(200).json(summary);
     }
 
+    if (isHtmlTooLong(req.body?.description, ENTRY_DESCRIPTION_MAX)) {
+      return res.status(400).json({ error: 'Description is too long', code: 'FIELD_TOO_LARGE' });
+    }
     const payload = sanitizeEntryPayload(req.body || {});
     if (!hasRequiredEntryFields(payload)) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
@@ -434,6 +440,9 @@ export default withApiHandler(async function handler(req, res) {
   if (req.method === 'PUT') {
     const id = requireIntId(req, res);
     if (!id) return;
+    if (isHtmlTooLong(req.body?.description, ENTRY_DESCRIPTION_MAX)) {
+      return res.status(400).json({ error: 'Description is too long', code: 'FIELD_TOO_LARGE' });
+    }
     const payload = sanitizeEntryPayload(req.body || {});
     if (!hasRequiredEntryFields(payload)) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });

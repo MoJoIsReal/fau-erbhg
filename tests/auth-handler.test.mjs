@@ -259,6 +259,64 @@ test('a short, unchanged or unverified new password changes nothing', async (t) 
   }
 });
 
+// A live session must not be an unthrottled way to guess the account's
+// password: attempts are counted before bcrypt, five per 15 minutes.
+test('guessing the current password through change-password is rate limited', async (t) => {
+  const attemptKey = identityRateLimitKey('change-password', 2);
+  const counts = new Map();
+  const sql = useDatabase(scriptedSql({
+    identities: { member: { mustChangePassword: true } },
+    rateCount: (key) => { counts.set(key, (counts.get(key) ?? 0) + 1); return counts.get(key); },
+    respond: (statement) => (statement.startsWith('SELECT id, username, name, role, password')
+      ? [{ id: 2, username: USERNAME, name: 'Member', role: 'member', password: HASH, tokenVersion: 0 }]
+      : []),
+  }));
+  const guesses = await Promise.all(Array.from({ length: 8 }, () => call(t, handler, {
+    method: 'POST', query: { action: 'change-password' }, as: 'member',
+    body: { currentPassword: 'a wrong guess', newPassword: 'a much longer passphrase' },
+  })));
+  const codes = guesses.map((res) => res.body.code);
+  assert.equal(codes.filter((code) => code === 'CURRENT_PASSWORD_INCORRECT').length, 5);
+  assert.equal(codes.filter((code) => code === 'RATE_LIMITED').length, 3);
+  assert.equal(counts.get(attemptKey), 8, 'counted per user, before the password is checked');
+  assert.deepEqual(sql.writes(), []);
+
+  // The right password clears the count.
+  const right = passwordChange();
+  const res = await call(t, handler, { method: 'POST', query: { action: 'change-password' }, as: 'member', body: { currentPassword: PASSWORD, newPassword: 'a much longer passphrase' } });
+  assert.equal(res.statusCode, 200);
+  assert.ok(right.calls.some(({ statement, values }) => statement.startsWith('DELETE FROM api_rate_limits') && values[0] === attemptKey));
+});
+
+// A temporary password works for seven days. After that the right password
+// still gets no session, and the answer says why (only once it matched).
+test('an expired temporary password gets no session', async (t) => {
+  const temporary = (tempPasswordExpiresAt) => (statement) => (
+    statement.includes('FROM users WHERE username = ?')
+      ? [{ id: 2, username: USERNAME, name: 'Member', role: 'member', password: HASH, tokenVersion: 4,
+        mustChangePassword: true, passwordChangedAt: null, tempPasswordExpiresAt }]
+      : []);
+  useDatabase(scriptedSql({ respond: temporary(new Date(Date.now() - 1000).toISOString()) }));
+  const expired = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
+  assert.deepEqual([expired.statusCode, expired.body.code], [401, 'TEMP_PASSWORD_EXPIRED']);
+  assert.equal(cookies(expired).some((cookie) => cookie.startsWith('jwt=')), false);
+
+  useDatabase(scriptedSql({ respond: temporary(new Date(Date.now() - 1000).toISOString()) }));
+  const wrong = await call(t, handler, login({ username: USERNAME, password: 'wrong' }));
+  assert.equal(wrong.body.code, 'INVALID_CREDENTIALS', 'a wrong guess learns nothing about expiry');
+
+  useDatabase(scriptedSql({ respond: temporary(new Date(Date.now() + 60_000).toISOString()) }));
+  const valid = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
+  assert.equal(valid.statusCode, 200);
+  assert.equal(valid.body.user.passwordChangeRequired, true);
+});
+
+test('setting an own password clears the temporary one\'s expiry', async (t) => {
+  const sql = passwordChange();
+  await call(t, handler, { method: 'POST', query: { action: 'change-password' }, as: 'member', body: { currentPassword: PASSWORD, newPassword: 'a much longer passphrase' } });
+  assert.match(sql.writes().at(-1).statement, /temp_password_expires_at = NULL/);
+});
+
 test('asking who is signed in without a session answers null, not an error', async (t) => {
   useDatabase(scriptedSql());
   const res = await call(t, handler, { query: { action: 'me' } });

@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { getJwtConfig } from './jwt-config.js';
 import { logEvent } from './log.js';
 import { reportProviderError } from './provider-errors.js';
 
@@ -26,20 +27,61 @@ export function getClientIp(req) {
   return req.socket?.remoteAddress || 'unknown';
 }
 
-function hashKey(parts) {
+// Keys are an HMAC, not a plain hash: IPv4 has 2^32 values and the parents'
+// and council's e-mail addresses are a small known set, so a plain SHA-256 of
+// either could be reversed from a copy of api_rate_limits. The key is derived
+// from SESSION_SECRET (as media-share.js derives its own); without a usable
+// secret, as in a misconfigured preview, it falls back to an empty key rather
+// than refusing every public form.
+let digestKey = null;
+let digestKeyFor = null;
+function rateLimitSecretKey() {
+  let secret = '';
+  try {
+    ({ secret } = getJwtConfig());
+  } catch {
+    // Login refuses the same misconfiguration loudly; see jwt-config.js.
+  }
+  if (digestKeyFor !== secret) {
+    digestKey = Buffer.from(crypto.hkdfSync('sha256', secret, 'fau-rate-limit', 'rate-limit-v1', 32));
+    digestKeyFor = secret;
+  }
+  return digestKey;
+}
+
+/** The stored key for a rate-limit or mail-budget counter. */
+export function rateLimitDigest(parts) {
   return crypto
-    .createHash('sha256')
+    .createHmac('sha256', rateLimitSecretKey())
     .update(parts.filter(Boolean).join(':'))
     .digest('hex');
 }
+const hashKey = rateLimitDigest;
+
+// An IPv6 client usually has a whole /64 to itself, so keying on the full
+// address handed one caller 2^64 separate buckets for every per-IP limit.
+// IPv6 is keyed on its /64 network; an IPv4-mapped address on its IPv4 form.
+export function clientNetwork(ip) {
+  const address = String(ip).split('%')[0].trim();
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(address);
+  if (mapped) return mapped[1];
+  if (!address.includes(':')) return address;
+  const halves = address.split('::');
+  if (halves.length > 2) return address;
+  const head = halves[0] ? halves[0].split(':') : [];
+  const tail = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
+  const groups = halves.length === 2 ? [...head, ...Array(8 - head.length - tail.length).fill('0'), ...tail] : head;
+  if (groups.length !== 8 || !groups.every((group) => /^[0-9a-f]{1,4}$/i.test(group))) return address;
+  return `${groups.slice(0, 4).map((group) => parseInt(group, 16).toString(16)).join(':')}::/64`;
+}
 
 export function rateLimitKey(req, scope, identifier = '') {
-  return hashKey([scope, getClientIp(req), String(identifier).trim().toLowerCase()]);
+  return hashKey([scope, clientNetwork(getClientIp(req)), String(identifier).trim().toLowerCase()]);
 }
 
 // For limits keyed on an identity alone (one account, one browser) rather
-// than on the caller's IP. Hashed like every other key, so no address is
-// stored in api_rate_limits.
+// than on the caller's IP. Keyed like every other, so no address is stored in
+// api_rate_limits, nor anything a list of addresses could be matched against.
 export function identityRateLimitKey(scope, identifier) {
   return hashKey([scope, String(identifier).trim().toLowerCase()]);
 }

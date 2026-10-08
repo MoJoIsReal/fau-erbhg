@@ -5,6 +5,7 @@ import {
   requireRole,
   sanitizeText,
   sanitizeHtml,
+  isHtmlTooLong,
   sanitizeInteger,
   MAX_INT_ID,
 } from './_shared/middleware.js';
@@ -225,6 +226,8 @@ function normalizeRegistrationDeadline(value) {
 // POST and PUT take the same event, and these checks used to be written out
 // twice, fifty lines each. Returns { values } ready for the columns, or
 // { error }: the body of the 400 to send.
+const EVENT_DESCRIPTION_MAX = 5000;
+
 function validateEventBody(body = {}) {
   const {
     title,
@@ -242,9 +245,13 @@ function validateEventBody(body = {}) {
     potluck,
   } = body;
 
+  if (isHtmlTooLong(description, EVENT_DESCRIPTION_MAX)) {
+    return { error: { error: 'Description is too long', code: 'FIELD_TOO_LARGE' } };
+  }
+
   const values = {
     title: sanitizeText(title, 200),
-    description: sanitizeHtml(description, 5000),
+    description: sanitizeHtml(description, EVENT_DESCRIPTION_MAX),
     date,
     time,
     location: sanitizeText(location, 200),

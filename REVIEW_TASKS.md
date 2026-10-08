@@ -833,7 +833,7 @@ A11Y-001
 
 ## P3
 
-## [ ] SEC-004 — Rate-limit the current-password check in change-password
+## [x] SEC-004 — Rate-limit the current-password check in change-password
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Authentication
 ### Files
 `api/auth.js` (:260-296), `tests/auth-handler.test.mjs`
@@ -844,7 +844,7 @@ A live session can make unthrottled, parallel guesses of the account password.
 ### Required change
 Apply a per-user atomic limit (about 5 per 15 min) before bcrypt.
 ### Acceptance criteria
-- [ ] Once over the limit, attempts never reach bcrypt and nothing changes.
+- [x] Once over the limit, attempts never reach bcrypt and nothing changes.
 ### Verification
 Auth-handler case.
 ### Dependencies
@@ -852,7 +852,7 @@ SEC-001 (atomic pattern).
 ### Related findings
 SEC-001
 
-## [ ] SEC-007 — Require a click to confirm or unsubscribe from the newsletter
+## [x] SEC-007 — Require a click to confirm or unsubscribe from the newsletter
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** S · **Area:** Security / CSRF-by-scanner
 ### Files
 `client/src/pages/newsletter.tsx` (:50-58), `api/_shared/newsletter.js`, `client/src/lib/i18n.ts`
@@ -863,7 +863,7 @@ A `useEffect` POSTs as soon as the page loads. Mail scanners that execute JS can
 ### Required change
 Show a button and POST only on click. Optionally add `List-Unsubscribe-Post` (RFC 8058).
 ### Acceptance criteria
-- [ ] No request is sent before user interaction.
+- [x] No request is sent before user interaction.
 ### Verification
 `client-invariants` guard; `npm run build`.
 ### Dependencies
@@ -871,7 +871,7 @@ None.
 ### Related findings
 SEC-008
 
-## [ ] SEC-008 — Expire newsletter confirmation tokens and purge stale pending rows
+## [x] SEC-008 — Expire newsletter confirmation tokens and purge stale pending rows
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Session management
 ### Files
 `api/contact.js` (:272-349), `api/cron/event-reminders.js`
@@ -882,9 +882,9 @@ Confirm tokens never expire, although the error message says "expired". Pending 
 ### Required change
 Refuse after about 7 days, refreshing the timestamp on re-arm. Purge stale pending rows in the morning cron. Treat a second confirm of an already-active address as success.
 ### Acceptance criteria
-- [ ] An old token returns 400.
-- [ ] Re-subscribe re-arms the token.
-- [ ] A repeat confirm shows success.
+- [x] An old token returns 400.
+- [x] Re-subscribe re-arms the token.
+- [x] A repeat confirm shows success.
 ### Verification
 `tests/contact-handler.test.mjs`.
 ### Dependencies
@@ -892,7 +892,7 @@ None.
 ### Related findings
 SEC-007
 
-## [ ] SEC-009 — HMAC rate-limit keys
+## [x] SEC-009 — HMAC rate-limit keys
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Privacy
 ### Files
 `api/_shared/rate-limit.js` (:28-44), `tests/rate-limit.test.mjs`
@@ -903,7 +903,7 @@ Keys are unsalted SHA-256 of IP and e-mail, so anyone with read access to the DB
 ### Required change
 Use HMAC with an HKDF key derived from `SESSION_SECRET` (purpose `rate-limit-v1`), as `media-share.js:45-48` does.
 ### Acceptance criteria
-- [ ] The key differs from a plain sha256 and is stable for a given secret.
+- [x] The key differs from a plain sha256 and is stable for a given secret.
 ### Verification
 Rate-limit suite.
 ### Dependencies
@@ -911,7 +911,7 @@ None.
 ### Related findings
 SEC-010
 
-## [ ] SEC-010 — Key per-IP limits by IPv6 /64
+## [x] SEC-010 — Key per-IP limits by IPv6 /64
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** S · **Area:** Security / Rate limiting
 ### Files
 `api/_shared/rate-limit.js` (:11-37)
@@ -922,7 +922,7 @@ One /64 gives an attacker 2^64 separate buckets for every per-IP limit.
 ### Required change
 Normalise IPv6 to its /64 prefix and handle IPv4-mapped addresses.
 ### Acceptance criteria
-- [ ] Two addresses in the same /64 produce the same key.
+- [x] Two addresses in the same /64 produce the same key.
 ### Verification
 Rate-limit suite.
 ### Dependencies
@@ -930,7 +930,7 @@ None.
 ### Related findings
 SEC-001
 
-## [ ] SEC-011 — Expire temporary passwords
+## [x] SEC-011 — Expire temporary passwords
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** M · **Area:** Security / Credentials
 ### Files
 `api/secure-settings.js` (:672-700), `api/auth.js`, `api/_shared/password-policy.js`, migration + `shared/schema.ts`
@@ -941,8 +941,8 @@ A temporary password mailed in clear text stays valid indefinitely, and whoever 
 ### Required change
 Add `temp_password_expires_at` (7 days), refuse login after it with a code, and add an admin re-issue action.
 ### Acceptance criteria
-- [ ] An expired temporary password is refused.
-- [ ] An admin can re-issue one.
+- [x] An expired temporary password is refused.
+- [x] An admin can re-issue one.
 ### Verification
 Auth-handler and secure-settings cases.
 ### Dependencies
@@ -950,7 +950,7 @@ None.
 ### Related findings
 —
 
-## [ ] SEC-012 — Ignore all `.env*` files except the example
+## [x] SEC-012 — Ignore all `.env*` files except the example
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Secrets
 ### Files
 `.gitignore` (:12-17)
@@ -961,8 +961,8 @@ None.
 ### Required change
 Use `.env*` together with `!.env.example`.
 ### Acceptance criteria
-- [ ] Those three files are ignored.
-- [ ] `.env.example` is still tracked.
+- [x] Those three files are ignored.
+- [x] `.env.example` is still tracked.
 ### Verification
 `git check-ignore`.
 ### Dependencies
@@ -970,7 +970,7 @@ None.
 ### Related findings
 —
 
-## [ ] SEC-013 — Tighten the main CSP
+## [-] SEC-013 — Tighten the main CSP (declined 2026-10-08: the owner chose to leave the CSP as is)
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Headers
 ### Files
 `vercel.json` (:76; deliberate change, mention it in the PR), `tests/deploy-config.test.mjs`
@@ -992,7 +992,7 @@ None.
 ### Related findings
 PERF-007
 
-## [ ] SEC-014 — Don't truncate sanitized HTML mid-tag
+## [x] SEC-014 — Don't truncate sanitized HTML mid-tag
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Security / Input handling
 ### Files
 `api/_shared/middleware.js` (:527-589), `tests/sanitizer-runtime.test.mjs`, `client/src/lib/i18n.ts`
@@ -1003,8 +1003,8 @@ The output is cut with `.substring` after sanitizing, which can leave an untermi
 ### Required change
 Refuse input over the limit with a coded 413, or sanitize again after truncating.
 ### Acceptance criteria
-- [ ] The output always parses to balanced tags.
-- [ ] Over-limit input returns a coded error.
+- [x] The output always parses to balanced tags.
+- [x] Over-limit input returns a coded error.
 ### Verification
 Sanitizer-runtime suite.
 ### Dependencies
@@ -1012,7 +1012,7 @@ None.
 ### Related findings
 —
 
-## [ ] SEC-015 — Serialize the media quota and file-count checks
+## [x] SEC-015 — Serialize the media quota and file-count checks
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** Security / Concurrency
 ### Files
 `api/media.js` (:342-360)
@@ -1023,7 +1023,7 @@ Concurrent `upload-init` calls can both pass the `SUM(size_bytes)` guard and the
 ### Required change
 Take `pg_advisory_xact_lock` inside the statement, or lock the share row `FOR UPDATE`. Fix the comment.
 ### Acceptance criteria
-- [ ] In an integration test, two concurrent inits that each fit alone cannot both succeed past the quota.
+- [x] In an integration test, two concurrent inits that each fit alone cannot both succeed past the quota.
 ### Verification
 `npm run test:integration`.
 ### Dependencies
@@ -1031,7 +1031,7 @@ None.
 ### Related findings
 PERF-002
 
-## [ ] SEC-016 — Clear the source-map-js audit finding
+## [x] SEC-016 — Clear the source-map-js audit finding
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** Security / Dependencies
 ### Files
 `package.json` (`overrides`), `docs/DEPLOYMENT.md`
@@ -1042,7 +1042,7 @@ PERF-002
 ### Required change
 Add an `overrides` entry once a patched version exists (let Dependabot handle the bump; don't hand-edit the lockfile), and record the triage.
 ### Acceptance criteria
-- [ ] `npm audit --omit=dev` is clean, or the triage is documented.
+- [x] `npm audit --omit=dev` is clean, or the triage is documented.
 ### Verification
 `npm audit --omit=dev`.
 ### Dependencies

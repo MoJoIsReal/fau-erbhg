@@ -60,7 +60,9 @@ export function literal(value) {
 // copies no SQL and fails if an edit makes the selected statement ambiguous.
 export async function productionStatement(file, marker, bindings = {}) {
   const source = (await readFile(new URL('../../' + file, import.meta.url), 'utf8')).replaceAll('\r\n', '\n');
-  const matches = [...source.matchAll(/await sql`([\s\S]*?)`/g)].filter(match => match[1].includes(marker));
+  // `await sql` for a statement on its own, plain `sql` for one inside a
+  // sql.transaction([...]) batch.
+  const matches = [...source.matchAll(/\bsql`([\s\S]*?)`/g)].filter(match => match[1].includes(marker));
   if (matches.length !== 1) throw new Error(`Expected one SQL statement for ${file}: ${marker}`);
   const tag = (strings, ...values) => strings.reduce((text, part, index) => text + part + (index < values.length ? literal(values[index]) : ''), '');
   return new Function('sql', ...Object.keys(bindings), 'return sql`' + matches[0][1] + '`')(tag, ...Object.values(bindings));

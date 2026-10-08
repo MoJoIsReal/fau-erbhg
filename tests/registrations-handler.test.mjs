@@ -3,11 +3,11 @@
 // cap, a named child per photo slot, the day's slots as the photo limit, and
 // what the confirmation mail is allowed to repeat back.
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
 import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
+import { rateLimitDigest } from '../api/_shared/rate-limit.js';
 import { SIGNUP_ERROR_CODES } from '../shared/constants.js';
 
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
@@ -15,7 +15,7 @@ const sent = [];
 mock.method(nodemailer, 'createTransport', () => ({ close() {}, sendMail: async (message) => { sent.push(message); } }));
 const handler = await importHandler('api/registrations.js');
 
-const PUBLIC_MAIL_KEY = crypto.createHash('sha256').update('public-mail').digest('hex');
+const PUBLIC_MAIL_KEY = rateLimitDigest(['public-mail']);
 
 function eventRow(overrides = {}) {
   return {

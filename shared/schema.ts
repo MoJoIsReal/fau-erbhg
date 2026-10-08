@@ -10,6 +10,9 @@ export const users = pgTable("users", {
   tokenVersion: integer("token_version").notNull().default(0),
   mustChangePassword: boolean("must_change_password").notNull().default(false),
   passwordChangedAt: text("password_changed_at"),
+  // When the temporary password mailed to a new or reset account stops
+  // working (migration 0023). Cleared once the user sets their own.
+  tempPasswordExpiresAt: text("temp_password_expires_at"),
   name: text("name").notNull(),
   role: text("role").notNull().default("member"), // "admin", "member", "staff"
   createdAt: text("created_at").notNull(),

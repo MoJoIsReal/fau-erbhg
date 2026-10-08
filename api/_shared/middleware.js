@@ -614,8 +614,22 @@ export function sanitizeHtml(html, maxLength = 10000) {
     disallowedTagsMode: 'discard',
     enforceHtmlBoundary: true
   })
-    .trim()
-    .substring(0, maxLength);
+    // Not cut again here: sanitizing lengthens text (`&` becomes `&amp;`, a
+    // link gains target and rel), and cutting the result to maxLength used
+    // to end stored HTML in the middle of a tag. The input slice above
+    // bounds the work; a handler refuses an over-long input outright
+    // (isHtmlTooLong) rather than silently storing less than was sent.
+    .trim();
+}
+
+/**
+ * True when rich text from an editor is longer than its field allows, so the
+ * handler can refuse it (FIELD_TOO_LARGE) instead of storing a truncated copy.
+ * @param {unknown} value
+ * @param {number} maxLength
+ */
+export function isHtmlTooLong(value, maxLength) {
+  return typeof value === 'string' && value.length > maxLength;
 }
 
 /**

@@ -2,10 +2,10 @@
 // write paths. Their protection is ordering: honeypot, size and rate limits
 // first, and nothing stored or revealed that the posture promises not to.
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
 import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
+import { rateLimitDigest } from '../api/_shared/rate-limit.js';
 
 // Mail is configured, and every message is captured instead of sent.
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
@@ -92,7 +92,7 @@ test('the council hears about every inquiry; only a named sender gets a receipt'
 
 // Double opt-in must not become a way to learn who is subscribed.
 test('subscribing answers the same for a new, pending or already active address', async (t) => {
-  const publicMail = crypto.createHash('sha256').update('public-mail').digest('hex');
+  const publicMail = rateLimitDigest(['public-mail']);
   const answers = [];
   for (const existing of [null, 'pending', 'unsubscribed', 'active']) {
     const sql = useDatabase(scriptedSql({
@@ -125,10 +125,20 @@ test('confirm and unsubscribe reject a malformed token before any lookup', async
   }
 });
 
-test('confirm activates only a pending subscription; unsubscribe never reveals a match', async (t) => {
+test('confirm activates a recent pending subscription; unsubscribe never reveals a match', async (t) => {
   const confirm = useDatabase(scriptedSql());
+  const before = Date.now();
   assert.equal((await call(t, handler, submit({ token: TOKEN }, { action: 'newsletter-confirm' }))).statusCode, 400);
-  assert.match(confirm.writes()[0].statement, /WHERE confirm_token = \? AND status = 'pending'/);
+  const [update] = confirm.writes();
+  // Pending and sent within the last seven days; or already active, so a
+  // second click on the same link is a success rather than an error.
+  assert.match(update.statement, /WHERE confirm_token = \? AND \(status = 'active' OR \(status = 'pending' AND created_at >= \?\)\)/);
+  const sentAfter = Date.parse(update.values.at(-1));
+  assert.ok(Math.abs(before - 7 * 24 * 60 * 60 * 1000 - sentAfter) < 5000, 'a link from more than seven days ago no longer works');
+  assert.match(update.statement, /confirmed_at = COALESCE\(confirmed_at, \?\)/, 'a repeat click keeps the first confirmation time');
+
+  useDatabase(scriptedSql({ respond: () => [{ id: 4 }] }));
+  assert.equal((await call(t, handler, submit({ token: TOKEN }, { action: 'newsletter-confirm' }))).statusCode, 200);
 
   for (const matched of [[], [{ id: 4 }]]) {
     useDatabase(scriptedSql({ respond: () => matched }));
@@ -142,7 +152,7 @@ test('confirm activates only a pending subscription; unsubscribe never reveals a
 test('past the daily public-mail cap an inquiry is stored but no mail goes out', async (t) => {
   await settle();
   sent.length = 0;
-  const cap = crypto.createHash('sha256').update('public-mail').digest('hex');
+  const cap = rateLimitDigest(['public-mail']);
   const sql = useDatabase(scriptedSql({
     rateCount: (key) => (key === cap ? 999 : 1),
     respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }],

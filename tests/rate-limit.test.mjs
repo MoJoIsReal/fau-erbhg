@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import test from 'node:test';
 import {
-  checkRateLimit, getClientIp, identityRateLimitKey, rateLimitKey, releaseRateLimit, reservePublicMail,
+  checkRateLimit, clientNetwork, getClientIp, identityRateLimitKey, rateLimitDigest, rateLimitKey, releaseRateLimit, reservePublicMail,
 } from '../api/_shared/rate-limit.js';
 
 // Models what actually reaches a Vercel function: the platform sets x-real-ip
@@ -96,7 +95,6 @@ test('identity keys are hashed and case-insensitive, and never carry the address
 // carries the only link a parent has to their signup.
 test('public mail: other kinds share a pool, so confirmations are never starved', async (t) => {
   t.mock.method(console, 'error', () => {});
-  const sha = (...parts) => crypto.createHash('sha256').update(parts.join(':')).digest('hex');
   const counts = new Map();
   const sql = async (strings, ...values) => {
     const key = values[0];
@@ -115,5 +113,35 @@ test('public mail: other kinds share a pool, so confirmations are never starved'
   let confirmations = 0;
   while (await reservePublicMail(sql, 'registration-confirmation')) confirmations += 1;
   assert.equal(confirmations, 100, 'whatever the others used, confirmations keep the rest of the day');
-  assert.equal(counts.get(sha('public-mail')) - 1, 200, 'and the day never goes past the total');
+  assert.equal(counts.get(rateLimitDigest(['public-mail'])) - 1, 200, 'and the day never goes past the total');
+});
+
+// A plain SHA-256 of an IP or an e-mail address can be reversed from a copy of
+// api_rate_limits: IPv4 has 2^32 values and the families' addresses are a
+// short list. The keys are an HMAC under a key derived from SESSION_SECRET.
+test('keys are keyed: a plain hash of the same input does not match', async () => {
+  const { createHash } = await import('node:crypto');
+  const key = identityRateLimitKey('login-account', 'member@example.test');
+  assert.notEqual(key, createHash('sha256').update('login-account:member@example.test').digest('hex'));
+  assert.equal(key, identityRateLimitKey('login-account', 'member@example.test'), 'stable for one secret');
+  const previous = process.env.SESSION_SECRET;
+  process.env.SESSION_SECRET = 'another-secret-that-is-long-enough-1234567890';
+  try {
+    assert.notEqual(identityRateLimitKey('login-account', 'member@example.test'), key, 'and changes with it');
+  } finally {
+    if (previous === undefined) delete process.env.SESSION_SECRET;
+    else process.env.SESSION_SECRET = previous;
+  }
+});
+
+// One IPv6 client usually holds a whole /64; keyed on the full address, every
+// per-IP limit was 2^64 limits.
+test('IPv6 callers are limited per /64 network, IPv4-mapped ones as IPv4', () => {
+  assert.equal(clientNetwork('2001:db8:abcd:12:1::5'), '2001:db8:abcd:12::/64');
+  assert.equal(clientNetwork('2001:db8:abcd:12:ffff::1'), clientNetwork('2001:db8:abcd:12:1::5'));
+  assert.notEqual(clientNetwork('2001:db8:abcd:13::1'), clientNetwork('2001:db8:abcd:12::1'));
+  assert.equal(clientNetwork('::ffff:203.0.113.5'), '203.0.113.5');
+  assert.equal(clientNetwork('203.0.113.5'), '203.0.113.5');
+  assert.equal(rateLimitKey(request('2001:db8:abcd:12:1::5'), 'login', 'x'), rateLimitKey(request('2001:db8:abcd:12:9::9'), 'login', 'x'));
+  assert.equal(clientNetwork('not::an::address'), 'not::an::address', 'anything unparsable is kept as it is');
 });

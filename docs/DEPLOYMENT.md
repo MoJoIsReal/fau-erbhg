@@ -194,6 +194,20 @@ extension, 10 MB limit and owned Cloudinary URL rules in
 `api/_shared/upload-validation.js`. Document deletion waits for provider
 confirmation before removing the database reference.
 
+## Dependency advisories
+
+Dependabot owns dependency bumps; don't hand-edit `package-lock.json` to clear
+an audit. When `npm audit --omit=dev` reports something, trace whether the
+vulnerable code is reachable from a request, record the call here, and let the
+Dependabot PR land the fix.
+
+- **source-map-js ≤ 1.2.1** (GHSA-68fv-2mgg-jv7q, high; event-loop denial of
+  service through crafted source-map sections). Pulled in at runtime only by
+  `postcss`, which `sanitize-html` uses to parse `style` attributes with
+  `{ map: false }`, so no source map is ever read from user input. Not
+  reachable; fixed in 1.2.2, which arrives with the next Dependabot lockfile
+  bump. Triaged 2026-10-08.
+
 ## Outstanding release checks
 
 The remediation is implemented locally. These checks have not yet been exercised
@@ -225,6 +239,11 @@ on the release/PR. Remove completed items from this list.
   deploying (event saves write `events.potluck`), then create a Foreldrefest
   with "Kurvfest" ticked on a preview, sign up, and check the food answer in the
   registration list and the Excel export.
+
+- [ ] Apply `0022_media_previews.sql` and `0023_temporary_password_expiry.sql`
+  **before** deploying: login reads `users.temp_password_expires_at` and media
+  uploads write `media_files.preview_key`, so without them those requests fail.
+  `0021_registration_iso_registered_at.sql` is safe before or after.
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.

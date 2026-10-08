@@ -267,6 +267,7 @@ test('two sign-ups for the same new address at once both succeed, and an active 
 test('two admins creating the same user at once get one user and no error', async () => {
   const create = (hashed) => productionStatement('api/secure-settings.js', 'ON CONFLICT (username) DO NOTHING', {
     username: 'twice@example.test', hashed, name: 'Twice', role: 'member', now: new Date().toISOString(),
+    temporaryPasswordExpiry: () => new Date(Date.now() + 7 * 86400000).toISOString(),
   });
   const outcomes = await raceOnUniqueRow(
     "INSERT INTO users (username, password, name, role, created_at) VALUES ('twice@example.test', 'blocker', 'Blocker', 'member', NOW()::text)",
@@ -422,12 +423,47 @@ test('the storage quota is checked inside the insert, including files still uplo
   const insert = async (size, preview = 0) => sql(await productionStatement(mediaFile, 'INSERT INTO media_files', {
     shareId: id, objectKey: `media/${id}/${size}-${preview}`, kind: 'image', mimeType: 'image/jpeg', size,
     previewKey: preview ? `media/${id}/${size}-${preview}-small` : null, previewBytes: preview || null,
-    width: null, height: null, position: 0, quotaBytes: 1000,
+    width: null, height: null, position: 0, quotaBytes: 1000, MEDIA_MAX_FILES_PER_SHARE: 200,
   }));
   assert.equal((await insert(101)).length, 0, '900 + 101 is over 1000');
   assert.equal((await insert(90, 11)).length, 0, 'a preview counts too: 900 + 90 + 11 is over 1000');
   assert.equal((await insert(90, 10)).length, 1, '900 + 90 + 10 fits exactly');
   assert.equal((await insert(1)).length, 0, 'and now it is full, previews included');
+});
+
+// Each upload fits on its own, the two together do not. The first has inserted
+// but not committed when the second runs: without the advisory lock the second
+// INSERT's snapshot cannot see that row, and both land over the quota.
+test('two uploads at once cannot both take the last of the quota', async () => {
+  await sql('DELETE FROM media_shares;');
+  const id = await mediaShare({ status: 'draft' });
+  await mediaObject(id, 900);
+  const source = await readFile(new URL('../../' + mediaFile, import.meta.url), 'utf8');
+  const lockId = Number(source.match(/const MEDIA_UPLOAD_LOCK = ([\d_]+);/)[1].replaceAll('_', ''));
+  const lock = await productionStatement(mediaFile, 'pg_advisory_xact_lock', { MEDIA_UPLOAD_LOCK: lockId });
+  const upload = (name) => productionStatement(mediaFile, 'INSERT INTO media_files', {
+    shareId: id, objectKey: `media/${id}/${name}`, kind: 'image', mimeType: 'image/jpeg', size: 80,
+    previewKey: null, previewBytes: null, width: null, height: null, position: 0, quotaBytes: 1000,
+    MEDIA_MAX_FILES_PER_SHARE: 200,
+  });
+
+  const first = sql(`BEGIN; ${lock}; ${await upload('a')}; SELECT pg_sleep(1.5); COMMIT;`);
+  let held = false;
+  for (let attempt = 0; attempt < 100 && !held; attempt++) {
+    const [row] = await sql("SELECT count(*) AS count FROM pg_stat_activity WHERE usename='fau_test' AND wait_event='PgSleep';");
+    held = Number(row.count) > 0;
+  }
+  assert.ok(held, 'the first upload holds its uncommitted row');
+  const second = sql(`BEGIN; ${lock}; ${await upload('b')}; COMMIT;`);
+  let waiting = false;
+  for (let attempt = 0; attempt < 100 && !waiting; attempt++) {
+    const [row] = await sql("SELECT count(*) AS count FROM pg_stat_activity WHERE usename='fau_test' AND wait_event='advisory';");
+    waiting = Number(row.count) > 0;
+  }
+  assert.ok(waiting, 'the second upload waits on the lock');
+  await Promise.all([first, second]);
+  const [row] = await sql(`SELECT count(*) AS count, sum(size_bytes) AS total FROM media_files WHERE share_id = ${id};`);
+  assert.deepEqual(row, { count: '2', total: '980' }, 'the second upload saw the first and was refused');
 });
 
 test('a share summary counts only finished files and sums sizes past 2 GB', async () => {

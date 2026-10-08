@@ -327,3 +327,50 @@ test('board members and kindergarten info refuse incomplete input and store it s
   assert.deepEqual([res.statusCode, res.body.code], [400, 'REQUIRED_FIELDS']);
   assert.deepEqual(statementsOf(sql, 'UPDATE kindergarten_info'), []);
 });
+
+// A temporary password works for seven days, and an admin can send a new one.
+test('users get a temporary password that expires, and an admin can send a new one', async (t) => {
+  process.env.GMAIL_USER = 'fau@example.test';
+  process.env.GMAIL_APP_PASSWORD = 'test-only-password';
+  t.after(() => { delete process.env.GMAIL_USER; delete process.env.GMAIL_APP_PASSWORD; });
+
+  sent.length = 0;
+  let sql = useDatabase(scriptedSql({
+    respond: (statement) => (statement.startsWith('INSERT INTO users') ? [{ id: 8, username: 'new@example.test', name: 'New', role: 'staff', created_at: '2026-10-08T00:00:00.000Z' }] : []),
+  }));
+  let res = await call(t, handler, asAdmin('POST', 'users', { body: { username: 'new@example.test', name: 'New', role: 'staff' } }));
+  assert.equal(res.statusCode, 201);
+  // The INSERT writes must_change_password as a literal, so read the bound
+  // values rather than pairing them with the column list.
+  const [insert] = statementsOf(sql, 'INSERT INTO users');
+  const latest = Math.max(...insert.values.filter((value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)).map(Date.parse));
+  const days = (latest - Date.now()) / (24 * 60 * 60 * 1000);
+  assert.ok(days > 6.99 && days <= 7, `expires in seven days (${days})`);
+  assert.match(sent.at(-1).text, /virker i 7 dager/);
+
+  sent.length = 0;
+  sql = useDatabase(scriptedSql({
+    respond: (statement) => (statement.startsWith('UPDATE users') ? [{ id: 8, username: 'new@example.test', name: 'New', role: 'staff', created_at: '2026-10-08T00:00:00.000Z' }] : []),
+  }));
+  res = await call(t, handler, asAdmin('PATCH', 'users', { query: { id: '8' } }));
+  assert.equal(res.statusCode, 200);
+  const [reset] = statementsOf(sql, 'UPDATE users');
+  assert.match(reset.statement, /must_change_password = true.*token_version = token_version \+ 1 WHERE id = \? AND role IN \(\?, \?\)/);
+  assert.deepEqual(reset.values.slice(-3), [8, 'member', 'staff'], 'never an admin account');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, 'new@example.test');
+  const password = sent[0].text.match(/Midlertidig passord: (\S+)/)[1];
+  assert.ok(await (await import('bcryptjs')).default.compare(password, reset.values[0]), 'the mailed password is the stored one');
+
+  useDatabase(scriptedSql());
+  res = await call(t, handler, asAdmin('PATCH', 'users', { query: { id: '1' } }));
+  assert.deepEqual([res.statusCode, res.body.code], [404, 'NOT_FOUND']);
+});
+
+// Over-long rich text is refused, not stored cut short.
+test('a post longer than the field allows is refused, not truncated', async (t) => {
+  const sql = useDatabase(database());
+  const res = await call(t, handler, { method: 'POST', query: { resource: 'blog-posts' }, as: 'member', body: { title: 'Lang', content: `<p>${'x'.repeat(50_001)}</p>` } });
+  assert.deepEqual([res.statusCode, res.body.code], [400, 'FIELD_TOO_LARGE']);
+  assert.deepEqual(statementsOf(sql, 'INSERT INTO blog_posts'), []);
+});

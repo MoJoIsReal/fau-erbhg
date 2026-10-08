@@ -100,6 +100,9 @@ export function scriptedSql({ respond = () => [], rateCount = 1, identities = {}
     return (await respond(statement, values)) ?? [];
   };
   sql.calls = calls;
+  // The Neon client runs a batch as one transaction. Here each statement has
+  // already run as it was built, in order, so the batch just collects them.
+  sql.transaction = async (queries) => Promise.all(queries);
   // Statements that changed data, rate-limit bookkeeping excluded.
   sql.writes = () => calls.filter(({ statement }) => {
     const match = statement.match(WRITE);

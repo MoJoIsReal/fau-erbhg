@@ -107,6 +107,10 @@ const PIN_SHARE_WINDOW_SECONDS = 24 * 60 * 60;
 // against them.
 const PREVIEW_MIME_TYPES = /** @type {readonly string[]} */ (MEDIA_PREVIEW_MIME_TYPES);
 
+// The advisory lock every upload-init takes before checking the quota (an
+// arbitrary bigint, unique to this use).
+const MEDIA_UPLOAD_LOCK = 7_101_965_001;
+
 // Presigned part URLs per request; a file larger than this asks again.
 const MAX_PART_URLS_PER_REQUEST = 100;
 
@@ -370,16 +374,28 @@ async function handleUploadInit(req, res, sql) {
   if (shares[0].status !== 'draft') return refuse(res, 409, 'NOT_DRAFT', 'Files can only be added to a draft');
   if (shares[0].file_count >= MEDIA_MAX_FILES_PER_SHARE) return refuse(res, 409, 'TOO_MANY_FILES', 'Too many files');
 
-  // The quota check and the insert are one statement, so two uploads started
-  // together cannot both squeeze under the limit.
+  // The quota and file-count checks ride on the insert, and every upload-init
+  // first takes one advisory lock in the same transaction. A single statement
+  // was not enough: PostgreSQL reads a statement's snapshot when it starts,
+  // so two uploads started together both summed the storage without the
+  // other's row and could both squeeze under the limit. The lock makes the
+  // second wait, and its insert then starts after the first has committed.
   const objectKey = newObjectKey(shareId);
-  const inserted = await sql`
-    INSERT INTO media_files (share_id, object_key, preview_key, kind, mime_type, size_bytes, preview_bytes, width, height, position, status, created_at)
-    SELECT ${shareId}, ${objectKey}, ${previewKey}, ${kind}, ${mimeType}, ${size}, ${previewKey ? previewBytes : null}, ${width}, ${height}, ${position}, ${'uploading'}, ${new Date().toISOString()}
-    WHERE (SELECT COALESCE(SUM(size_bytes + COALESCE(preview_bytes, 0)), 0) FROM media_files) + ${size} + ${previewKey ? previewBytes : 0} <= ${quotaBytes}
-    RETURNING id
-  `;
-  if (!inserted[0]) return refuse(res, 507, 'STORAGE_QUOTA', 'Storage quota reached');
+  const [, inserted] = await sql.transaction([
+    sql`SELECT pg_advisory_xact_lock(${MEDIA_UPLOAD_LOCK})`,
+    sql`
+      INSERT INTO media_files (share_id, object_key, preview_key, kind, mime_type, size_bytes, preview_bytes, width, height, position, status, created_at)
+      SELECT ${shareId}, ${objectKey}, ${previewKey}, ${kind}, ${mimeType}, ${size}, ${previewKey ? previewBytes : null}, ${width}, ${height}, ${position}, ${'uploading'}, ${new Date().toISOString()}
+      WHERE (SELECT COALESCE(SUM(size_bytes + COALESCE(preview_bytes, 0)), 0) FROM media_files) + ${size} + ${previewKey ? previewBytes : 0} <= ${quotaBytes}
+        AND (SELECT COUNT(*) FROM media_files WHERE share_id = ${shareId}) < ${MEDIA_MAX_FILES_PER_SHARE}
+      RETURNING id
+    `,
+  ]);
+  if (!inserted[0]) {
+    const [{ file_count: fileCount }] = await sql`SELECT COUNT(*)::int AS file_count FROM media_files WHERE share_id = ${shareId}`;
+    if (fileCount >= MEDIA_MAX_FILES_PER_SHARE) return refuse(res, 409, 'TOO_MANY_FILES', 'Too many files');
+    return refuse(res, 507, 'STORAGE_QUOTA', 'Storage quota reached');
+  }
   const fileId = inserted[0].id;
 
   const plan = uploadPlan(size);
