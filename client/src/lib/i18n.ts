@@ -3,7 +3,7 @@ import type { ApiErrorCode, SignupErrorCode } from "@shared/constants";
 export type Language = 'no' | 'en';
 
 export interface Translations {
-  dataState: { unavailable: string; staleHint: string; retry: string; loading: string };
+  dataState: { unavailable: string; staleHint: string; retry: string; loading: string; errorId: string };
   calendarWorkspace: {
     editHint: string;
     allEntries: string;
@@ -1111,6 +1111,7 @@ export const translations: Record<Language, Translations> = {
       staleHint: "Prøv igjen. Opplysninger som fortsatt vises, kan være ufullstendige eller utdaterte.",
       retry: "Prøv igjen",
       loading: "Laster opplysninger …",
+      errorId: "Feil-ID",
     },
     calendarWorkspace: {
       editHint: "Velg en dato eller uke i måneden for å legge til. Endre dato eller uke i skjemaet for å flytte en oppføring.",
@@ -2223,6 +2224,7 @@ export const translations: Record<Language, Translations> = {
       staleHint: "Please try again. Any information still shown may be incomplete or out of date.",
       retry: "Try again",
       loading: "Loading information …",
+      errorId: "Error ID",
     },
     calendarWorkspace: {
       editHint: "Select a date or week in the month to add an entry. Change its date or week in the form to move it.",

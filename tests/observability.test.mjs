@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import Sentry from '../api/_shared/sentry.js';
+import Sentry, { toSentryEvent } from '../api/_shared/sentry.js';
+import { reportProviderError } from '../api/_shared/provider-errors.js';
 import {
   getRequestId,
   getRequestPath,
@@ -254,4 +255,29 @@ test('well-formed cookies are still decoded', () => {
 
 test('no cookie header parses to an empty object', () => {
   assert.deepEqual(parseCookies({ headers: {} }), {});
+});
+
+// OBS-004. An event names its deploy and the request the user saw the id of.
+test('a server error event carries the release and the request as tags', (t) => {
+  const previous = process.env.VERCEL_GIT_COMMIT_SHA;
+  t.after(() => { if (previous === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA; else process.env.VERCEL_GIT_COMMIT_SHA = previous; });
+  process.env.VERCEL_GIT_COMMIT_SHA = 'abc123def';
+  const req = mockReq({ method: 'DELETE', url: '/api/secure-settings?resource=users&id=5', query: { resource: 'users', id: '5', action: 'kari@example.test' } });
+  setRequestActor(req, { userId: 1, role: 'admin' });
+  const event = toSentryEvent(new Error('boom'), requestFields(req));
+  assert.equal(event.release, 'abc123def');
+  assert.deepEqual(event.tags, {
+    requestId: 'arn1::iad1::5wq9b-1759912345678-2c4e6a8b0d1f', method: 'DELETE', path: '/api/secure-settings',
+    resource: 'users', role: 'admin', targetId: '5',
+  }, 'an action that is not an id is left out rather than tagged');
+});
+
+test('a provider failure is one structured, redacted line', (t) => {
+  const lines = captureLines(t);
+  reportProviderError('Mail failed', Object.assign(new Error('Recipient child@example.test'), { code: 'EENVELOPE' }));
+  const line = lines.find((entry) => entry.event === 'provider.error');
+  assert.equal(line.level, 'error');
+  assert.equal(line.context, 'Mail failed');
+  assert.equal(line.code, 'EENVELOPE');
+  assert.doesNotMatch(JSON.stringify(line), /child@example/);
 });

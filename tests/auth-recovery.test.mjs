@@ -50,3 +50,12 @@ test('a signup or cancel marks every view of that event stale, and only that eve
   assert.deepEqual(stale, keys.slice(0, 4).map((key) => key[0]));
   queryClient.clear();
 });
+
+test('a failed request keeps the id the server answered with', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('{"error":"Internal server error"}', {
+    status: 500, headers: { 'X-Request-Id': 'arn1::iad1::abc12-1759912345678' },
+  }));
+  const error = await apiRequest('GET', '/api/documents').catch((caught) => caught);
+  assert.equal(error.requestId, 'arn1::iad1::abc12-1759912345678');
+  queryClient.clear();
+});

@@ -255,7 +255,9 @@ test('a full import is one read and one write, and a failed write fails the whol
   const res = await call(t, handler, write('POST', { schoolYear: SCHOOL_YEAR, decisions }, { action: 'commit-import' }));
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.created.length, 500);
-  assert.ok(sql.calls.length <= 3, `${sql.calls.length} statements: identity lookup, school year, one write`);
+  const work = sql.calls.filter(({ statement }) => !statement.startsWith('INSERT INTO audit_log'));
+  assert.ok(work.length <= 3, `${work.length} statements: identity lookup, school year, one write`);
+  assert.equal(sql.audits().length, 1, 'and the one audit row');
 
   const failing = importDatabase({ fail: true });
   const failed = await call(t, handler, write('POST', { schoolYear: SCHOOL_YEAR, decisions }, { action: 'commit-import' }));

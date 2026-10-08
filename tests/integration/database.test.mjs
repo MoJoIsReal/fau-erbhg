@@ -446,6 +446,25 @@ test('with two kindergarten info rows, a save lands on the row the page shows', 
   await sql('DELETE FROM kindergarten_info;');
 });
 
+test('an audit row is written as the middleware writes it, and dropped after a year', async () => {
+  await sql('DELETE FROM audit_log;');
+  const req = { method: 'DELETE', url: '/api/secure-settings?resource=users&id=5', query: { resource: 'users', id: '5' }, headers: { 'x-vercel-id': 'arn1::abc' } };
+  const insert = await productionStatement('api/_shared/middleware.js', 'INSERT INTO audit_log', {
+    actor: { userId: 1, role: 'admin' }, req, res: {}, status: 200, CREATED_ID: Symbol('id'),
+    text: (value) => (typeof value === 'string' && value ? value : null),
+    getRequestPath: () => '/api/secure-settings', requestTargetId: () => 5, getRequestId: () => 'arn1::abc',
+  });
+  await sql(insert);
+  const [row] = await sql('SELECT user_id, role, method, path, action, resource, target_id, status, request_id FROM audit_log;');
+  assert.deepEqual(row, { user_id: '1', role: 'admin', method: 'DELETE', path: '/api/secure-settings', action: '', resource: 'users', target_id: '5', status: '200', request_id: 'arn1::abc' });
+
+  await sql(`INSERT INTO audit_log (created_at, user_id, role, method, path, status) VALUES ('${new Date(Date.now() - 366 * DAY).toISOString()}', 2, 'member', 'PUT', '/api/events', 200);`);
+  const purge = await productionStatement(cronFile, 'DELETE FROM audit_log', { cutoff: new Date(Date.now() - 365 * DAY).toISOString() });
+  assert.equal((await sql(purge)).length, 1, 'only the row older than a year');
+  assert.equal((await sql('SELECT count(*) AS count FROM audit_log;'))[0].count, '1');
+  await sql('DELETE FROM audit_log;');
+});
+
 // Each upload fits on its own, the two together do not. The first has inserted
 // but not committed when the second runs: without the advisory lock the second
 // INSERT's snapshot cannot see that row, and both land over the quota.

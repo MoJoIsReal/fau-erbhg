@@ -210,6 +210,7 @@ test('the morning run still runs retention after a provider failure', async () =
     'UPDATE events e SET current_attendees',
     'DELETE FROM api_rate_limits',
     'DELETE FROM newsletter_deliveries',
+    'DELETE FROM audit_log',
     'WITH due AS',
     'WITH candidates AS',
   ].map((needle) => calls.findIndex(({ statement }) => statement.includes(needle)));
@@ -218,6 +219,10 @@ test('the morning run still runs retention after a provider failure', async () =
   // The follow-up finishes the items dated today (the run's target is tomorrow).
   assert.equal(calls.find(({ statement }) => statement.includes('WITH candidates AS')).values[0], '2026-09-09');
   assert.equal(calls.some(({ statement }) => statement.includes('INSERT INTO newsletter_deliveries')), false);
+  // The audit trail is kept for a year.
+  const audit = calls.find(({ statement }) => statement.startsWith('DELETE FROM audit_log'));
+  const keptDays = (Date.now() - Date.parse(audit.values[0])) / 86_400_000;
+  assert.ok(keptDays > 364.9 && keptDays < 365.1, `${keptDays} days`);
 });
 
 // SEC-004. Without CRON_SECRET this used to authorize anyone whenever NODE_ENV
@@ -309,7 +314,7 @@ test('a housekeeping failure is reported without preventing other stages', async
   const run = errors.mock.calls.map(({ arguments: [line] }) => String(line)).find((line) => line.includes('"cron.run"'));
   assert.deepEqual(JSON.parse(run), {
     level: 'error', event: 'cron.run', task: 'reminders', targetDate: '2026-09-10',
-    attendeeCountsRepaired: 0, expiredRateLimitsDeleted: 0, deliveryHistoryDeleted: 0,
+    attendeeCountsRepaired: 0, expiredRateLimitsDeleted: 0, deliveryHistoryDeleted: 0, auditLogDeleted: 0,
     claimed: 0, sent: 0, failed: 0, deferred: 0,
     stagesFailed: 'retention',
   });
@@ -345,8 +350,10 @@ test('a run that left mail unsent logs its counts at warn and raises one report'
     queued: 40, processed: 40, sent: 36, failed: 3, skipped: 1, deferred: 0, abandoned: 1, remaining: 2,
     mailProblems: true,
   });
-  const reports = errors.mock.calls.map(({ arguments: [first] }) => String(first));
-  assert.equal(reports.filter((line) => line.startsWith('Mail delivery problems in the newsletter run')).length, 1);
+  // Reports are structured provider.error lines; the title is their context.
+  const contexts = (calls) => calls.map(({ arguments: [first] }) => { try { return JSON.parse(first).context; } catch { return null; } });
+  const reports = contexts(errors.mock.calls);
+  assert.equal(reports.filter((context) => context === 'Mail delivery problems in the newsletter run').length, 1);
 
   errors.mock.resetCalls();
   const quiet = logCronRun('reminders', '2026-09-10', { claimed: 12, sent: 12, failed: 0, deferred: 0 });
@@ -362,9 +369,9 @@ test('a run that left mail unsent logs its counts at warn and raises one report'
   assert.equal(untidy.level, 'warn');
   assert.equal(untidy.mailProblems, false);
   assert.equal(untidy.housekeepingProblems, true);
-  const titles = errors.mock.calls.map(({ arguments: [first] }) => String(first));
-  assert.equal(titles.filter((line) => line.startsWith('Housekeeping problems in the reminders run')).length, 1);
-  assert.equal(titles.some((line) => line.startsWith('Mail delivery problems')), false);
+  const titles = contexts(errors.mock.calls);
+  assert.equal(titles.filter((context) => context === 'Housekeeping problems in the reminders run').length, 1);
+  assert.equal(titles.some((context) => context?.startsWith('Mail delivery problems')), false);
 
   // A reminder that fails or is deferred is lost: the next run is another day.
   assert.equal(logCronRun('reminders', '2026-09-10', { claimed: 3, sent: 2, failed: 0, deferred: 1 }).level, 'warn');

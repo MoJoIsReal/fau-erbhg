@@ -17,7 +17,8 @@ function setup(enabled = true) {
   const bootstrap = readFileSync('client/src/main.tsx', 'utf8').split('// Vite fires')[0]
     .replace(/^import .*;\r?\n/gm, '')
     .replaceAll('import.meta.env.VITE_SENTRY_DSN', enabled ? "'https://public@example.test/1'" : 'undefined')
-    .replaceAll('import.meta.env.MODE', "'production'");
+    .replaceAll('import.meta.env.MODE', "'production'")
+    .replaceAll('import.meta.env.VITE_RELEASE', "''");
   vm.runInNewContext(bootstrap, { ...privacy, Sentry: {
     init(options) { config = options; }, makeFetchTransport: transport,
     browserTracingIntegration: () => ({ name: 'BrowserTracing' }),

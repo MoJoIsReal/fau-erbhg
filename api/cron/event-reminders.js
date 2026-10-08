@@ -555,6 +555,20 @@ async function cleanupDeliveryHistory(sql) {
   return deleted.length;
 }
 
+// The audit trail (migration 0024) answers "who changed this?" for a year,
+// then goes: it names council members' accounts, and nothing else reads it.
+const AUDIT_LOG_RETENTION_DAYS = 365;
+
+async function cleanupAuditLog(sql, now = new Date()) {
+  const cutoff = new Date(now.getTime() - AUDIT_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const deleted = await sql`
+    DELETE FROM audit_log
+    WHERE created_at < ${cutoff}
+    RETURNING id
+  `;
+  return deleted.length;
+}
+
 // The date columns are text holding ISO strings, so the windows compare text
 // against an ISO cutoff instead of casting each row: one value that is not a
 // date (the events handler once stored "neste fredag" and 2026-02-31) made the
@@ -741,7 +755,7 @@ export async function purgeMediaShares(sql) {
 }
 
 export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
-  const summary = { reminders: null, newsletter: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null };
+  const summary = { reminders: null, newsletter: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null, auditLogDeleted: null };
   const errors = [];
   const stage = async (name, work) => {
     try {
@@ -758,6 +772,7 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     await stage('attendeeCountsRepaired', () => reconcileEventAttendeeCounts(sql));
     await stage('expiredRateLimitsDeleted', () => cleanupExpiredRateLimits(sql));
     await stage('deliveryHistoryDeleted', () => cleanupDeliveryHistory(sql));
+    await stage('auditLogDeleted', () => cleanupAuditLog(sql));
     await stage('reminders', () => sendEventReminders(sql, targetDate, send, deadline));
     // The evening broadcast is capped per run and stops at its deadline. What
     // it left pending for an item dated today would otherwise be skipped by
@@ -871,7 +886,7 @@ export default withApiHandler(async function handler(req, res) {
     }
   }
 
-  const { reminders, newsletter, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted } =
+  const { reminders, newsletter, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted, auditLogDeleted } =
     await runMorningTasks(sql, targetDate, sendPooledEmail, deadline);
   // Its own line, under the newsletter's rules: what it still leaves pending
   // is lost tonight, and raises the newsletter's mail alert.
@@ -886,6 +901,7 @@ export default withApiHandler(async function handler(req, res) {
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,
+    auditLogDeleted,
   });
   return res.status(200).json({
     success: true,
@@ -899,5 +915,6 @@ export default withApiHandler(async function handler(req, res) {
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,
+    auditLogDeleted,
   });
 });

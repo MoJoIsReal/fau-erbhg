@@ -182,7 +182,21 @@ A morning stage that fails outright still writes its `cron.run` line, at
 `error`, with `stagesFailed` naming it; the run answers 500 and Sentry gets
 `Morning stage(s) failed: …`.
 
-Use Vercel build/function logs and request IDs to investigate failures. Backend
+**Who changed what.** Runtime logs on the Hobby plan are kept for an hour, so
+every successful change by a signed-in user also writes a row to `audit_log`
+(migration 0024): account id and role, method, path, `action`/`resource`, the
+id acted on or created, status and request id. No content is copied. Rows are
+deleted after 12 months by the morning run (`auditLogDeleted`). In the Neon
+SQL editor:
+`SELECT created_at, user_id, role, method, path, action, resource, target_id FROM audit_log ORDER BY id DESC LIMIT 50;`
+A failed audit write never fails the change; it logs `audit.write_failed`.
+
+Use Vercel build/function logs and request IDs to investigate failures. A page
+that could not load its data shows the request id as "Feil-ID"; it is the
+`requestId` of our log lines and the `x-vercel-id` of Vercel's, and backend
+Sentry events carry it as a tag beside `path`, `action`, `resource`, `role` and
+`targetId`. Both tiers set Sentry's `release` to the deployed commit
+(`VERCEL_GIT_COMMIT_SHA`). Backend
 Sentry redacts sensitive text. Frontend Sentry scrubs capability-bearing data at
 the transport boundary and disables Session Replay; unsupported/binary envelopes
 are dropped. Vercel Analytics scrubs page URLs before transmission. Configure
@@ -240,10 +254,13 @@ on the release/PR. Remove completed items from this list.
   with "Kurvfest" ticked on a preview, sign up, and check the food answer in the
   registration list and the Excel export.
 
-- [ ] Apply `0022_media_previews.sql` and `0023_temporary_password_expiry.sql`
-  **before** deploying: login reads `users.temp_password_expires_at` and media
-  uploads write `media_files.preview_key`, so without them those requests fail.
-  `0021_registration_iso_registered_at.sql` is safe before or after.
+- [ ] Apply `0022_media_previews.sql`, `0023_temporary_password_expiry.sql` and
+  `0024_audit_log.sql` **before** deploying: login reads
+  `users.temp_password_expires_at` and media uploads write
+  `media_files.preview_key`, so without them those requests fail (without
+  0024, every change logs `audit.write_failed` and the morning run fails its
+  `auditLogDeleted` stage). `0021_registration_iso_registered_at.sql` is safe
+  before or after.
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.

@@ -43,7 +43,7 @@ const content: Record<"no" | "en", PrivacyText> = {
       },
       {
         title: "Sletting",
-        body: "Kontakthenvendelser slettes automatisk etter 12 måneder. Arrangementspåmeldinger, og registrerte avmeldinger, slettes automatisk 6 måneder etter at arrangementet er gjennomført. Opplysninger om utsendte nyhetsbrev slettes etter 90 dager, og delte bilder og videoer senest 365 dager etter at de ble delt. For å stoppe misbruk av skjemaene og innloggingen teller vi forsøk per IP-adresse og e-postadresse i hashet form; disse tellerne slettes innen en uke etter at de er utløpt."
+        body: "Kontakthenvendelser slettes automatisk etter 12 måneder. Arrangementspåmeldinger, og registrerte avmeldinger, slettes automatisk 6 måneder etter at arrangementet er gjennomført. Opplysninger om utsendte nyhetsbrev slettes etter 90 dager, og delte bilder og videoer senest 365 dager etter at de ble delt. For å stoppe misbruk av skjemaene og innloggingen teller vi forsøk per IP-adresse og e-postadresse i hashet form; disse tellerne slettes innen en uke etter at de er utløpt. Når en innlogget bruker endrer eller sletter noe, logger vi hvilken konto som gjorde det og hva som ble endret (bare ID-er, ikke innholdet); loggen slettes etter 12 måneder."
       },
       {
         title: "Tilgang og databehandlere",
@@ -102,7 +102,7 @@ const content: Record<"no" | "en", PrivacyText> = {
       },
       {
         title: "Deletion",
-        body: "Contact messages are automatically deleted after 12 months. Event registrations, and recorded cancellations, are automatically deleted 6 months after the event has taken place. Records of sent newsletters are deleted after 90 days, and shared photos and videos at the latest 365 days after they were shared. To stop abuse of the forms and the login, we count attempts per IP address and email address in hashed form; these counters are deleted within a week after they expire."
+        body: "Contact messages are automatically deleted after 12 months. Event registrations, and recorded cancellations, are automatically deleted 6 months after the event has taken place. Records of sent newsletters are deleted after 90 days, and shared photos and videos at the latest 365 days after they were shared. To stop abuse of the forms and the login, we count attempts per IP address and email address in hashed form; these counters are deleted within a week after they expire. When a signed-in user changes or deletes something, we log which account did it and what was changed (ids only, not the content); this log is deleted after 12 months."
       },
       {
         title: "Access and processors",

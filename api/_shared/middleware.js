@@ -11,7 +11,7 @@ import { getDb } from './database.js';
 import { isPasswordChangeRequired } from './password-policy.js';
 import { getJwtConfig } from './jwt-config.js';
 import { YOUTUBE_EMBED_HOST, youtubeEmbedSrc } from '../../shared/video-embed.js';
-import { getRequestId, logEvent, requestFields, setRequestActor } from './log.js';
+import { getRequestId, getRequestPath, logEvent, requestActor, requestFields, requestTargetId, setRequestActor } from './log.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -95,9 +95,45 @@ export function handleCorsPreFlight(req, res) {
  * @param {(req: Object, res: Object) => Promise<any>} handler
  * @returns {(req: Object, res: Object) => Promise<any>}
  */
+// The id a POST created, read off the JSON it answers with, for the audit row.
+const CREATED_ID = Symbol.for('fau.response.createdId');
+
+/**
+ * One audit_log row (migration 0024) for a change a signed-in user made: who,
+ * which route and action, and the id it acted on or created. Ids only, never
+ * content. A failure here must not fail a change that has already happened,
+ * so it is logged and swallowed.
+ * @param {Object} req
+ * @param {Object} res
+ * @param {number} status
+ */
+async function recordAudit(req, res, status) {
+  const actor = requestActor(req);
+  if (!actor || !Number.isInteger(actor.userId)) return;
+  const text = (value) => (typeof value === 'string' && value ? value.slice(0, 100) : null);
+  try {
+    const sql = getDb();
+    await sql`
+      INSERT INTO audit_log (created_at, user_id, role, method, path, action, resource, target_id, status, request_id)
+      VALUES (${new Date().toISOString()}, ${actor.userId}, ${String(actor.role)}, ${String(req.method)},
+              ${getRequestPath(req) ?? ''}, ${text(req.query?.action)}, ${text(req.query?.resource)},
+              ${requestTargetId(req) ?? res[CREATED_ID] ?? null}, ${status}, ${getRequestId(req)})
+    `;
+  } catch (error) {
+    logEvent('warn', 'audit.write_failed', { ...requestFields(req), message: error?.message });
+  }
+}
+
 export function withApiHandler(handler) {
   return async function wrappedHandler(req, res) {
     const startedAt = Date.now();
+    if (typeof res.json === 'function') {
+      const json = res.json.bind(res);
+      res.json = (body) => {
+        if (Number.isInteger(body?.id)) res[CREATED_ID] = body.id;
+        return json(body);
+      };
+    }
     applySecurityHeaders(res, req.headers.origin);
 
     // Echoed so a parent reporting a problem can quote one id that matches both
@@ -126,9 +162,11 @@ export function withApiHandler(handler) {
         // stay unlogged: they are the bulk of the traffic and carry no change.
         logEvent('info', 'api.mutation', {
           ...requestFields(req),
+          createdId: res[CREATED_ID],
           status,
           durationMs: Date.now() - startedAt,
         });
+        await recordAudit(req, res, status);
       }
       return result;
     } catch (error) {
@@ -165,7 +203,7 @@ export async function handleError(res, error, statusCode = 500, req = null, star
   // instance freezes the moment this response is written, so an unawaited
   // capture frequently never reached Sentry at all.
   if (process.env.NODE_ENV === 'production' && statusCode >= 500) {
-    await Sentry.captureException(error);
+    await Sentry.captureException(error, requestFields(req));
   }
 
   // Internal error details only ever reach a local developer.

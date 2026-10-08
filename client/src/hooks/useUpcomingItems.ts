@@ -81,6 +81,7 @@ export function useUpcomingItems() {
   return {
     items,
     isError: queries.some(query => query.isError),
+    error: queries.find(query => query.error)?.error,
     isPending: queries.some(query => query.isPending),
     isFetching: queries.some(query => query.isFetching),
     refetch: () => Promise.all(queries.map(query => query.refetch())),

@@ -119,6 +119,24 @@ export const apiRateLimits = pgTable("api_rate_limits", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
+// One row per successful change by a signed-in user (migration 0024), written
+// by withApiHandler. Ids only, never content; kept 12 months.
+export const auditLog = pgTable("audit_log", {
+  id: serial("id").primaryKey(),
+  createdAt: text("created_at").notNull(),
+  userId: integer("user_id").notNull(),
+  role: text("role").notNull(),
+  method: text("method").notNull(),
+  path: text("path").notNull(),
+  action: text("action"),
+  resource: text("resource"),
+  targetId: integer("target_id"),
+  status: integer("status").notNull(),
+  requestId: text("request_id"),
+}, (table) => ({
+  createdAtIdx: index("audit_log_created_at_idx").on(table.createdAt),
+}));
+
 export const contactMessages = pgTable("contact_messages", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),

@@ -1205,7 +1205,7 @@ None.
 ### Related findings
 SEC-013, DOC-005
 
-## [ ] OBS-003 — Record the target id of admin mutations
+## [x] OBS-003 — Record the target id of admin mutations
 **Priority:** P3 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Observability / Audit
 ### Files
 `api/_shared/log.js` (:98-107), `api/_shared/middleware.js` (:123-131), `docs/DEPLOYMENT.md`
@@ -1216,7 +1216,7 @@ SEC-013, DOC-005
 ### Required change
 Add `targetId` (and the created id) to the mutation log line. Document a log drain, or add an `audit_log` table for admin resources.
 ### Acceptance criteria
-- [ ] A DELETE log line contains the target id.
+- [x] A DELETE log line contains the target id.
 ### Verification
 Observability suite.
 ### Dependencies
@@ -1224,7 +1224,7 @@ OBS-002.
 ### Related findings
 OBS-004
 
-## [ ] OBS-004 — Tag error events with request context and release; show the request id to users
+## [x] OBS-004 — Tag error events with request context and release; show the request id to users
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Observability
 ### Files
 `api/_shared/sentry.js` (:26-53), `client/src/main.tsx` (:17-26), `api/_shared/provider-errors.js` (:16-18), `client/src/lib/queryClient.ts`
@@ -1235,8 +1235,8 @@ Error events cannot be tied to a request or a deploy, and users never see the re
 ### Required change
 Send `requestFields` as tags and set the release from `VERCEL_GIT_COMMIT_SHA` on both tiers. Show `X-Request-Id` in the error UI. Route provider errors through `logEvent`.
 ### Acceptance criteria
-- [ ] A server Sentry event carries requestId and release.
-- [ ] The error UI shows the id.
+- [x] A server Sentry event carries requestId and release.
+- [x] The error UI shows the id.
 ### Verification
 `tests/telemetry-privacy.test.mjs`, `tests/observability.test.mjs`.
 ### Dependencies

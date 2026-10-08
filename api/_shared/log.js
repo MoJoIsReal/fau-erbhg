@@ -121,9 +121,26 @@ export function requestFields(req) {
     path: getRequestPath(req),
     action: req?.query?.action,
     resource: req?.query?.resource,
+    targetId: requestTargetId(req),
     userId: actor?.userId,
     role: actor?.role,
   };
+}
+
+/**
+ * The row a request acts on: every handler takes it as `?id=`. Only a plain
+ * integer counts, so a malformed id is not logged as if it were one.
+ * @param {Object} req
+ * @returns {number|undefined}
+ */
+export function requestTargetId(req) {
+  const id = req?.query?.id;
+  return typeof id === 'string' && /^\d{1,9}$/.test(id) ? Number(id) : undefined;
+}
+
+/** The signed-in account behind this request, once requireAuth has run. */
+export function requestActor(req) {
+  return req?.[ACTOR_KEY] ?? null;
 }
 
 /**

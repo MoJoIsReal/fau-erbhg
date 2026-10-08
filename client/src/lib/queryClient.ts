@@ -12,15 +12,23 @@ export class ApiError extends Error {
   status: number;
   body: ApiErrorBody | string | null;
   responseText: string;
+  /** The server's X-Request-Id: the id our logs and Vercel's carry for it. */
+  requestId: string | null;
 
-  constructor(status: number, body: ApiErrorBody | string | null, responseText: string, statusText: string) {
+  constructor(status: number, body: ApiErrorBody | string | null, responseText: string, statusText: string, requestId: string | null = null) {
     const message = getApiErrorMessageFromBody(body) || responseText || statusText || `Request failed with ${status}`;
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.body = body;
     this.responseText = responseText;
+    this.requestId = requestId;
   }
+}
+
+/** The request id of a failed API call, for a user to quote when reporting it. */
+export function apiErrorRequestId(error: unknown): string | null {
+  return error instanceof ApiError ? error.requestId : null;
 }
 
 function getApiErrorMessageFromBody(body: ApiErrorBody | string | null): string | null {
@@ -80,7 +88,7 @@ async function throwIfResNotOk(res: Response, recoverSession = true) {
       }
     }
 
-    throw new ApiError(res.status, body, text, res.statusText);
+    throw new ApiError(res.status, body, text, res.statusText, res.headers?.get?.("X-Request-Id") ?? null);
   }
 }
 

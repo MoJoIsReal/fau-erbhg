@@ -225,6 +225,46 @@ test('deleting a user can only ever remove a member or staff account', async (t)
   assert.deepEqual([admin.statusCode, admin.body.code], [404, 'NOT_FOUND']);
 });
 
+// OBS-003. Runtime logs are kept an hour on this plan, so "who deleted that
+// account last week?" needs a row. Ids only: who, where, and on what.
+test('a change by a signed-in user leaves an audit row naming its target', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('DELETE FROM users') ? [{ id: 5 }] : []) }));
+  const res = await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '5' } }));
+  assert.equal(res.statusCode, 200);
+  const [audit] = sql.audits();
+  assert.deepEqual(
+    { user: audit.user_id, role: audit.role, method: audit.method, resource: audit.resource, target: audit.target_id, status: audit.status },
+    { user: 1, role: 'admin', method: 'DELETE', resource: 'users', target: 5, status: 200 },
+  );
+  assert.match(audit.created_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  const line = console.log.mock.calls.map(({ arguments: [text] }) => { try { return JSON.parse(text); } catch { return null; } })
+    .find((entry) => entry?.event === 'api.mutation');
+  assert.equal(line.targetId, 5, 'the log line names the target too');
+
+  // A POST names the row it created, read off its answer.
+  const created = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('INSERT INTO fau_board_members') ? [{ id: 12, name: 'Kari', role: 'Leder', sort_order: 0 }] : []) }));
+  await call(t, handler, asAdmin('POST', 'board-members', { body: { name: 'Kari', role: 'Leder' } }));
+  assert.equal(created.audits()[0].target_id, 12);
+
+  // A refusal changed nothing, and a read is not a change.
+  const refused = useDatabase(scriptedSql());
+  await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '1' } }));
+  await call(t, handler, { method: 'GET', query: { resource: 'users' }, as: 'admin' });
+  assert.deepEqual(refused.audits(), []);
+});
+
+test('a failed audit write never fails a change that already happened', async (t) => {
+  const sql = scriptedSql({ respond: (statement) => (statement.startsWith('DELETE FROM users') ? [{ id: 5 }] : []) });
+  const failing = Object.assign(async (strings, ...values) => {
+    if (strings.join('?').includes('INSERT INTO audit_log')) throw new Error('relation "audit_log" does not exist');
+    return sql(strings, ...values);
+  }, sql);
+  useDatabase(failing);
+  const res = await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '5' } }));
+  assert.equal(res.statusCode, 200);
+  assert.ok(console.error.mock.calls.some(({ arguments: [text] }) => String(text).includes('audit.write_failed')));
+});
+
 function inquiryDatabase(row) {
   return useDatabase(scriptedSql({
     respond(statement) {
