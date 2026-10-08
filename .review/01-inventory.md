@@ -24,7 +24,7 @@
   - `auth.js` GET csrf|me; POST login|logout|change-password
   - `contact.js` POST contact; action newsletter-subscribe|confirm|unsubscribe
   - `documents.js` GET list | action=download; DELETE (council)
-  - `events.js` GET list|id|format=ics|format=preview; POST/PUT/PATCH(cancel)/DELETE (council)
+  - `events.js` GET list|format=ics|format=preview (no GET-by-id branch); POST/PUT/PATCH(cancel)/DELETE (council)
   - `media.js` view (public capability) ; list|link (GET) create|upload-init|parts|complete|abort|publish|extend (POST) DELETE (MEDIA_SHARE_ROLES)
   - `registrations.js` GET ?eventId (public count / &food=1 dishes / council full), cancel-lookup|cancel|update-food (capability token), POST signup (public, Turnstile), DELETE (council)
   - `secure-settings.js` resource=board-members|blog-posts|kindergarten-info (public GET, writes admin or council) contact-messages (council) users|newsletter-subscribers (admin)
