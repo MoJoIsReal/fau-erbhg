@@ -37,8 +37,8 @@ import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/hooks/use-toast";
 import { GripVertical, Loader2, Plus, Trash2, Save } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { FauBoardMember } from "@shared/schema";
-import { apiRequest, getApiErrorMessage } from "@/lib/queryClient";
+import type { FauBoardMember } from "@shared/schema";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import StaffUsersSection from "@/components/staff-users-section";
 import NewsletterSubscribersSection from "@/components/newsletter-subscribers-section";
 
@@ -412,7 +412,7 @@ export default function Settings() {
     }
 
     if (failure) {
-      const reason = getApiErrorMessage(failure, t.settings.couldNotSaveChanges);
+      const reason = apiErrorText(failure, t, t.settings.couldNotSaveChanges);
       toast({
         variant: "destructive",
         title: t.settings.error,

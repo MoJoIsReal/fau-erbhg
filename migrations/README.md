@@ -25,6 +25,10 @@ contents of each migration file. The current migrations are:
 18. `0018_iso_text_timestamps.sql`
 19. `0019_media_shares.sql`
 20. `0020_event_food_contribution.sql`
+21. `0021_registration_iso_registered_at.sql`
+22. `0022_media_previews.sql`
+23. `0023_temporary_password_expiry.sql`
+24. `0024_audit_log.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the

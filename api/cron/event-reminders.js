@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { getDb } from '../_shared/database.js';
-import { withApiHandler } from '../_shared/middleware.js';
+import { nameForMail, withApiHandler } from '../_shared/middleware.js';
+import { resolvePhotoSlotsForRegistration } from '../../shared/photo-slots.js';
 import {
   sendEmail,
   sendPooledEmail,
@@ -8,6 +9,7 @@ import {
   isEmailConfigured,
 } from '../_shared/email.js';
 import {
+  NEWSLETTER_PENDING_PURGE_DAYS,
   newsPostEmail,
   reminderEmail as newsletterReminderEmail,
 } from '../_shared/newsletter.js';
@@ -17,6 +19,7 @@ import { reportProviderError } from '../_shared/provider-errors.js';
 import { logEvent } from '../_shared/log.js';
 import {
   DELIVERY_CONCURRENCY,
+  DELIVERY_LEASE_MINUTES,
   deliveryMessageId,
   nextAttemptAt,
   runWithConcurrency,
@@ -97,8 +100,31 @@ function formatOsloDate(date) {
   return `${values.year}-${values.month}-${values.day}`;
 }
 
+// The calendar day before an ISO date, as 'YYYY-MM-DD'.
+function previousDay(isoDate) {
+  const date = new Date(`${isoDate}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
 function tomorrowInOslo() {
   return formatOsloDate(new Date(Date.now() + 24 * 60 * 60 * 1000));
+}
+
+// "Ola: 09:00" per child, as in the confirmation mail. The stored slots are a
+// JSON array; printing that raw gave `["09:00","09:10"]` with no names.
+function photoSlotText(registration, isNorwegian) {
+  if (!registration.photoSlots) return '';
+  const slots = resolvePhotoSlotsForRegistration({ time: registration.eventTime }, registration, [registration]);
+  if (slots.length === 0) return '';
+  let names = [];
+  try { names = JSON.parse(registration.childrenNames || '[]'); } catch {}
+  if (!Array.isArray(names)) names = [];
+  const lines = slots.map((slot, i) => {
+    const name = nameForMail(names[i]) || (isNorwegian ? `Barn ${i + 1}` : `Child ${i + 1}`);
+    return `- ${name}: ${slot}`;
+  });
+  return `${isNorwegian ? 'Fototidspunkt' : 'Photo slots'}:\n${lines.join('\n')}\n\n`;
 }
 
 export function registrationReminderEmail(registration) {
@@ -135,7 +161,7 @@ Arrangementsinformasjon:
 - Sted: ${location}
 - Antall deltakere: ${registration.attendeeCount || 1}
 
-${registration.photoSlots ? `Fototidspunkt: ${registration.photoSlots}\n\n` : ''}Vi gleder oss til å se deg!
+${photoSlotText(registration, true)}Vi gleder oss til å se deg!
 
 ${cancellation}
 
@@ -152,7 +178,7 @@ Event information:
 - Location: ${location}
 - Number of attendees: ${registration.attendeeCount || 1}
 
-${registration.photoSlots ? `Photo slot: ${registration.photoSlots}\n\n` : ''}We look forward to seeing you!
+${photoSlotText(registration, false)}We look forward to seeing you!
 
 ${cancellation}
 
@@ -180,7 +206,11 @@ function formatLongDate(dateStr, language) {
 // Fan out due items into a durable per-subscriber outbox, claim a bounded batch,
 // and only mark each delivery sent after Gmail accepts it. A crashed invocation
 // leaves processing rows reclaimable after the lease expires.
-export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
+// `queue: false` is the morning follow-up: it sends only what the evening run
+// already queued and left pending (past its per-run cap or its deadline), for
+// items dated today. It fans out nothing new, so an item flagged after last
+// night's run is not mailed the same morning.
+export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom(), { queue = true } = {}) {
   if (!isEmailConfigured()) {
     return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, abandoned: 0, remaining: 0, reason: 'email-not-configured' };
   }
@@ -189,7 +219,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, deferred: 0, abandoned: 0, remaining: null, reason: 'budget-exhausted' };
   }
 
-  const queued = await sql`
+  const queued = !queue ? [] : await sql`
     WITH due_items AS (
       SELECT 'event'::text AS item_type, id AS item_id, title, date AS event_date
       FROM events
@@ -253,7 +283,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
       WHERE event_date <= ${targetDate}
         AND (
           (status = 'pending' AND next_attempt_at <= NOW())
-          OR (status = 'processing' AND claimed_at < NOW() - INTERVAL '10 minutes')
+          OR (status = 'processing' AND claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
         )
       ORDER BY event_date, next_attempt_at, id
       FOR UPDATE SKIP LOCKED
@@ -526,10 +556,36 @@ async function cleanupDeliveryHistory(sql) {
   return deleted.length;
 }
 
-export async function cleanupPrivacyRetention(sql) {
+// The audit trail (migration 0024) answers "who changed this?" for a year,
+// then goes: it names council members' accounts, and nothing else reads it.
+const AUDIT_LOG_RETENTION_DAYS = 365;
+
+async function cleanupAuditLog(sql, now = new Date()) {
+  const cutoff = new Date(now.getTime() - AUDIT_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const deleted = await sql`
+    DELETE FROM audit_log
+    WHERE created_at < ${cutoff}
+    RETURNING id
+  `;
+  return deleted.length;
+}
+
+// The date columns are text holding ISO strings, so the windows compare text
+// against an ISO cutoff instead of casting each row: one value that is not a
+// date (the events handler once stored "neste fredag" and 2026-02-31) made the
+// cast throw and the whole delete fail, every morning. A row that does not
+// start with a date is skipped and counted, so it shows up in the run's log
+// line instead of holding personal data unseen.
+export async function cleanupPrivacyRetention(sql, now = new Date()) {
+  const contactCutoff = new Date(now);
+  contactCutoff.setUTCMonth(contactCutoff.getUTCMonth() - 12);
+  const eventCutoff = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 6, now.getUTCDate()))
+    .toISOString().slice(0, 10);
+
   const deletedContactMessages = await sql`
     DELETE FROM contact_messages
-    WHERE created_at::timestamptz < NOW() - INTERVAL '12 months'
+    WHERE created_at ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+      AND created_at < ${contactCutoff.toISOString()}
     RETURNING id
   `;
 
@@ -537,7 +593,8 @@ export async function cleanupPrivacyRetention(sql) {
     DELETE FROM event_registrations r
     USING events e
     WHERE e.id = r.event_id
-      AND e.date::date < CURRENT_DATE - INTERVAL '6 months'
+      AND e.date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+      AND e.date < ${eventCutoff}
     RETURNING r.id
   `;
 
@@ -547,14 +604,34 @@ export async function cleanupPrivacyRetention(sql) {
     DELETE FROM event_registration_cancellations c
     USING events e
     WHERE e.id = c.event_id
-      AND e.date::date < CURRENT_DATE - INTERVAL '6 months'
+      AND e.date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'
+      AND e.date < ${eventCutoff}
     RETURNING c.id
+  `;
+
+  // Sign-ups never confirmed: an address someone may have typed for someone
+  // else, kept no longer than NEWSLETTER_PENDING_PURGE_DAYS.
+  const pendingCutoff = new Date(now.getTime() - NEWSLETTER_PENDING_PURGE_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const deletedPendingSubscribers = await sql`
+    DELETE FROM newsletter_subscribers
+    WHERE status = 'pending'
+      AND created_at ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'
+      AND created_at < ${pendingCutoff}
+    RETURNING id
+  `;
+
+  const [unparseable] = await sql`
+    SELECT
+      (SELECT count(*) FROM contact_messages WHERE created_at !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}')::int AS "contactMessages",
+      (SELECT count(*) FROM events WHERE date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$')::int AS "events"
   `;
 
   return {
     contactMessagesDeleted: deletedContactMessages.length,
     eventRegistrationsDeleted: deletedRegistrations.length,
     registrationCancellationsDeleted: deletedCancellations.length,
+    pendingSubscribersDeleted: deletedPendingSubscribers.length,
+    unparseableDates: (unparseable?.contactMessages ?? 0) + (unparseable?.events ?? 0),
   };
 }
 
@@ -587,6 +664,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
           r.language,
           r.attendee_count as "attendeeCount",
           r.photo_slots as "photoSlots",
+          r.children_names as "childrenNames",
           r.cancel_token as "cancelToken",
           e.title as "eventTitle",
           e.date as "eventDate",
@@ -600,7 +678,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
           AND e.date = ${targetDate}
           AND r.reminder_sent_at IS NULL
           AND r.reminder_attempts < ${MAX_REMINDER_ATTEMPTS}
-          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
+          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
         ORDER BY e.time ASC, r.id ASC
         FOR UPDATE OF r SKIP LOCKED
         LIMIT ${MAX_REMINDERS_PER_RUN}
@@ -611,7 +689,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
         FROM due
         WHERE r.id = due.id
           AND r.reminder_sent_at IS NULL
-          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
+          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
         RETURNING r.id, r.reminder_attempts as "reminderAttempts"
       )
       SELECT due.*, claimed."reminderAttempts"
@@ -678,13 +756,13 @@ export async function purgeMediaShares(sql) {
 }
 
 export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
-  const summary = { reminders: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null };
+  const summary = { reminders: null, newsletter: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null, auditLogDeleted: null };
   const errors = [];
   const stage = async (name, work) => {
     try {
       summary[name] = await work();
     } catch (error) {
-      errors.push(error);
+      errors.push({ stage: name, error });
       logEvent('error', 'cron.stage_failed', { stage: name, message: redactSensitiveText(error?.message || String(error)) });
     }
   };
@@ -695,17 +773,29 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     await stage('attendeeCountsRepaired', () => reconcileEventAttendeeCounts(sql));
     await stage('expiredRateLimitsDeleted', () => cleanupExpiredRateLimits(sql));
     await stage('deliveryHistoryDeleted', () => cleanupDeliveryHistory(sql));
+    await stage('auditLogDeleted', () => cleanupAuditLog(sql));
     await stage('reminders', () => sendEventReminders(sql, targetDate, send, deadline));
+    // The evening broadcast is capped per run and stops at its deadline. What
+    // it left pending for an item dated today would otherwise be skipped by
+    // tonight's run, which only sends items dated tomorrow. Last, so it only
+    // uses time the morning's own work left over.
+    await stage('newsletter', () => broadcastNewsletter(sql, previousDay(targetDate), send, deadline, { queue: false }));
   } finally {
     closePooledTransporter();
   }
   if (errors.length) {
-    // Flattened: logEvent writes a nested object as "[object Object]", which
-    // lost the reminder and retention counts from the one line a failing run
-    // leaves behind. A stage that failed has null here and adds nothing.
-    const { reminders, retention, media, ...counts } = summary;
-    logEvent('error', 'cron.morning_partial', { ...counts, ...retention, ...media, ...reminders });
-    throw new AggregateError(errors, `${errors.length} morning stage(s) failed`);
+    // A failing run still writes its cron.run line, naming the stages that
+    // failed, so every run leaves one (the handler's error line and Sentry
+    // event follow from the throw). Flattened: logEvent writes a nested
+    // object as "[object Object]". A stage that failed has null here and
+    // adds nothing.
+    const stagesFailed = errors.map(({ stage: name }) => name);
+    const { reminders, newsletter, retention, media, ...counts } = summary;
+    logEvent('error', 'cron.run', {
+      task: 'reminders', targetDate, ...counts, ...retention, ...media, ...reminders,
+      stagesFailed: stagesFailed.join(','),
+    });
+    throw new AggregateError(errors.map(({ error }) => error), `Morning stage(s) failed: ${stagesFailed.join(', ')}`);
   }
   return summary;
 }
@@ -727,6 +817,20 @@ export function mailProblems(task, summary) {
   return problems;
 }
 
+// Housekeeping that left something behind: an expired share whose private
+// photos could not be deleted from R2, or rows whose date the privacy
+// retention could not read and so never deletes. Neither is mail, but both
+// keep personal data past its time, so they are reported the same way.
+export function housekeepingProblems(task, summary) {
+  if (task !== 'reminders') return {};
+  const problems = {};
+  for (const key of ['mediaPurgeFailed', 'unparseableDates']) {
+    const count = Number(summary?.[key]) || 0;
+    if (count > 0) problems[key] = count;
+  }
+  return problems;
+}
+
 // Vercel Cron discards the response body, so the only durable record that a
 // run happened is what gets logged. One line per run, so a cron that has been
 // failing for a fortnight is visible instead of silent. A run that left mail
@@ -735,18 +839,23 @@ export function mailProblems(task, summary) {
 export function logCronRun(task, targetDate, summary) {
   const problems = mailProblems(task, summary);
   const troubled = Object.keys(problems).length > 0;
+  const leftovers = housekeepingProblems(task, summary);
+  const untidy = Object.keys(leftovers).length > 0;
   // Written directly rather than through logEvent, whose redaction reads the
   // run's date as a phone number; every field here is a count, the task or
   // that date. Warn goes to stderr, as logEvent does it.
-  const line = { level: troubled ? 'warn' : 'info', event: 'cron.run', task, targetDate, ...summary, mailProblems: troubled };
-  (troubled ? console.error : console.log)(JSON.stringify(line));
-  if (troubled) {
-    const detail = Object.entries(problems).map(([key, value]) => `${key}=${value}`).join(', ');
-    reportProviderError(
-      `Mail delivery problems in the ${task} run`,
-      Object.assign(new Error(detail), { code: 'MAIL_DELIVERY_PROBLEMS' }),
-    );
-  }
+  const line = {
+    level: troubled || untidy ? 'warn' : 'info', event: 'cron.run', task, targetDate, ...summary,
+    mailProblems: troubled,
+    ...(untidy ? { housekeepingProblems: true } : {}),
+  };
+  (troubled || untidy ? console.error : console.log)(JSON.stringify(line));
+  const report = (title, found, code) => reportProviderError(
+    title,
+    Object.assign(new Error(Object.entries(found).map(([key, value]) => `${key}=${value}`).join(', ')), { code }),
+  );
+  if (troubled) report(`Mail delivery problems in the ${task} run`, problems, 'MAIL_DELIVERY_PROBLEMS');
+  if (untidy) report(`Housekeeping problems in the ${task} run`, leftovers, 'HOUSEKEEPING_PROBLEMS');
   return line;
 }
 
@@ -778,8 +887,14 @@ export default withApiHandler(async function handler(req, res) {
     }
   }
 
-  const { reminders, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted } =
+  const { reminders, newsletter, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted, auditLogDeleted } =
     await runMorningTasks(sql, targetDate, sendPooledEmail, deadline);
+  // Its own line, under the newsletter's rules: what it still leaves pending
+  // is lost tonight, and raises the newsletter's mail alert.
+  // (Unconfigured mail already fails the reminders stage loudly.)
+  if (newsletter && (newsletter.processed || newsletter.remaining || newsletter.reason === 'budget-exhausted')) {
+    logCronRun('newsletter', previousDay(targetDate), { ...newsletter, followUp: true });
+  }
   logRun('reminders', {
     ...reminders,
     ...retention,
@@ -787,6 +902,7 @@ export default withApiHandler(async function handler(req, res) {
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,
+    auditLogDeleted,
   });
   return res.status(200).json({
     success: true,
@@ -794,10 +910,12 @@ export default withApiHandler(async function handler(req, res) {
     sent: reminders.sent,
     failed: reminders.failed,
     deferred: reminders.deferred,
+    newsletter,
     retention,
     media,
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,
+    auditLogDeleted,
   });
 });

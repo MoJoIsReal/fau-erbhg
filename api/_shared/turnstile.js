@@ -41,10 +41,6 @@ const NOT_THE_VISITORS_FAULT = new Set([
   'internal-error',
 ]);
 
-export function isTurnstileEnabled() {
-  return Boolean(process.env.TURNSTILE_SECRET_KEY?.trim());
-}
-
 // The 400 body a handler sends when verifyTurnstile refuses. The client keys
 // its (translated) message off `code`; `error` is the fallback text.
 export function turnstileFailure(language) {

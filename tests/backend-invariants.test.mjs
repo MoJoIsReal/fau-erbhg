@@ -125,3 +125,47 @@ test('the yearly calendar reads the saved category back', () => {
   assert.ok(select, 'Locate the query used to reopen saved entries');
   assert.match(select[1], /\bcategory\b/);
 });
+
+// On Vercel the function freezes once the response is sent, so a capture that
+// is neither awaited nor handed to waitUntil is usually lost (sentry.js). The
+// blacklist-check failure was reported that way, and the spam filter could
+// have stayed off without anyone hearing of it.
+test('every Sentry capture in a handler is awaited or kept alive with waitUntil', () => {
+  const files = [
+    'api/registrations.js', 'api/events.js', 'api/contact.js', 'api/documents.js', 'api/auth.js',
+    'api/upload.js', 'api/yearly-calendar.js', 'api/secure-settings.js', 'api/media.js',
+    'api/cron/event-reminders.js', 'api/_shared/middleware.js', 'api/_shared/provider-errors.js',
+  ];
+  for (const file of files) {
+    read(file).split('\n').forEach((line, index) => {
+      if (/captureException\(/.test(line) && !/await |waitUntil\(/.test(line)) {
+        assert.fail(`${file}:${index + 1} captures without await or waitUntil, so the report is likely lost`);
+      }
+    });
+  }
+});
+
+// A `code` the client has no translation for falls back to a generic message
+// without anyone noticing, and a listed code no handler sends is dead copy.
+// Every code a handler answers with is one the client knows, and every
+// API_ERROR_CODES entry is answered somewhere.
+test('handler refusal codes and the client code lists agree', async () => {
+  const { API_ERROR_CODES, SIGNUP_ERROR_CODES } = await import('../shared/constants.js');
+  const { MEDIA_ERROR_CODES } = await import('../shared/media.js');
+  const known = new Set([...API_ERROR_CODES, ...SIGNUP_ERROR_CODES, ...MEDIA_ERROR_CODES, 'PASSWORD_CHANGE_REQUIRED', 'TURNSTILE_FAILED']);
+  const files = ['auth', 'contact', 'documents', 'events', 'media', 'registrations', 'secure-settings', 'upload', 'yearly-calendar']
+    .map((name) => `api/${name}.js`).concat(['api/_shared/upload-validation.js', 'api/_shared/middleware.js']);
+  const used = new Set();
+  const usedByMedia = new Set();
+  for (const file of files) {
+    // `code: 'X'` in a body, or media.js's refuse(res, status, 'X', …).
+    for (const [, literal, refused] of read(file).matchAll(/\bcode: '([A-Z_]+)'|\brefuse\(res, \d+, '([A-Z_]+)'/g)) {
+      const code = literal ?? refused;
+      used.add(code);
+      if (file === 'api/media.js') usedByMedia.add(code);
+      assert.ok(known.has(code), `${file} answers with code ${code}, which no client list translates`);
+    }
+  }
+  for (const code of API_ERROR_CODES) assert.ok(used.has(code), `API_ERROR_CODES lists ${code}, but no handler sends it`);
+  for (const code of MEDIA_ERROR_CODES) assert.ok(usedByMedia.has(code), `MEDIA_ERROR_CODES lists ${code}, but media.js never sends it`);
+});

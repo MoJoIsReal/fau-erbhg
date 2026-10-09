@@ -33,7 +33,7 @@ test('an unknown account and a wrong password get the same answer and no session
     useDatabase(scriptedSql({ respond: accounts() }));
     const res = await call(t, handler, login(body));
     assert.equal(res.statusCode, 401, body.username);
-    assert.deepEqual(res.body, { error: 'Invalid credentials' });
+    assert.deepEqual(res.body, { error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
     assert.deepEqual(cookies(res), []);
   }
 });
@@ -50,7 +50,7 @@ test('a login whose fields are not strings is a 400 before anything is looked up
     const sql = useDatabase(scriptedSql({ respond: accounts() }));
     const res = await call(t, handler, login(body));
     assert.equal(res.statusCode, 400, JSON.stringify(body));
-    assert.deepEqual(res.body, { error: 'Username and password required' });
+    assert.deepEqual(res.body, { error: 'Username and password required', code: 'REQUIRED_FIELDS' });
     assert.deepEqual(sql.calls, [], JSON.stringify(body));
   }
 });
@@ -64,12 +64,12 @@ test('login without the CSRF pair is refused before anything is looked up', asyn
 
 const ACCOUNT_FAILURES = identityRateLimitKey('login-account', USERNAME);
 
-// The account-wide failure counter is read, not bumped, before the password
-// check; `failures` is what every account's counter currently holds.
+// An unknown browser's attempt is counted against the account before the
+// password check; `failures` is what every account's counter held before this
+// attempt was added to it.
+const ACCOUNT_KEYS = new Set([USERNAME, 'other@example.test'].map((name) => identityRateLimitKey('login-account', name)));
 function lockedAccounts(failures) {
-  return accounts((statement) => (
-    statement.startsWith('SELECT count, EXTRACT') ? [{ count: failures, retryAfter: 60 }] : []
-  ));
+  return { respond: accounts(), rateCount: (key) => (ACCOUNT_KEYS.has(key) ? failures + 1 : 1) };
 }
 
 test('each of the three login limits refuses on its own, before the password is checked', async (t) => {
@@ -85,7 +85,7 @@ test('each of the three login limits refuses on its own, before the password is 
   }
 
   // This account, any IP: 20 recorded failures lock out an unknown browser.
-  const sql = useDatabase(scriptedSql({ respond: lockedAccounts(20) }));
+  const sql = useDatabase(scriptedSql(lockedAccounts(20)));
   const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
   assert.equal(res.statusCode, 429);
   assert.equal(res.headers['retry-after'], '60');
@@ -98,18 +98,49 @@ const rateLimitWrites = (sql) => sql.calls
 
 test('only a failed password counts against the account, and no key stores the address', async (t) => {
   const failed = useDatabase(scriptedSql({ respond: accounts() }));
-  assert.equal((await call(t, handler, login({ username: USERNAME, password: 'wrong' }))).statusCode, 401);
+  const refused = await call(t, handler, login({ username: USERNAME, password: 'wrong' }));
+  assert.equal(refused.statusCode, 401);
+  assert.equal(refused.body.code, 'INVALID_CREDENTIALS', 'the form translates the code, not the English text');
   assert.ok(rateLimitWrites(failed).includes(ACCOUNT_FAILURES), 'a failure is recorded');
+  const lookup = failed.calls.findIndex(({ statement }) => statement.includes('FROM users'));
+  const counted = failed.calls.findIndex(({ statement, values }) =>
+    statement.startsWith('INSERT INTO api_rate_limits') && values[0] === ACCOUNT_FAILURES);
+  assert.ok(counted < lookup, 'counted before the password is checked, so concurrent guesses cannot all slip past');
 
+  // The attempt was counted up front; a success takes it off again.
   const succeeded = useDatabase(scriptedSql({ respond: accounts() }));
   assert.equal((await call(t, handler, login({ username: USERNAME, password: PASSWORD }))).statusCode, 200);
-  assert.ok(!rateLimitWrites(succeeded).includes(ACCOUNT_FAILURES), 'a success is not counted');
+  assert.ok(succeeded.calls.some(({ statement, values }) => statement.startsWith('DELETE FROM api_rate_limits') && values[0] === ACCOUNT_FAILURES),
+    'a success is not left counted');
+
+  // A request another limit refuses never reaches the account counter.
+  const limited = useDatabase(scriptedSql({ respond: accounts(), rateCount: (key) => (key === rateLimitKey(CLIENT, 'login-ip', '') ? 99 : 1) }));
+  const tooMany = await call(t, handler, login({ username: USERNAME, password: 'wrong' }));
+  assert.deepEqual([tooMany.statusCode, tooMany.body.code], [429, 'RATE_LIMITED']);
+  assert.ok(!rateLimitWrites(limited).includes(ACCOUNT_FAILURES), 'refused by the IP limit, not counted against the account');
 
   for (const sql of [failed, succeeded]) {
     for (const { statement, values } of sql.calls) {
       if (statement.includes('api_rate_limits')) assert.doesNotMatch(String(values[0]), /@/);
     }
   }
+});
+
+// Reading the account count before the password check and recording the
+// failure afterwards let a burst from many addresses all read the same count.
+test('concurrent wrong passwords from many addresses stop at the account limit', async (t) => {
+  const counts = new Map();
+  const rateCount = (key) => {
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts.get(key);
+  };
+  const sql = useDatabase(scriptedSql({ respond: accounts(), rateCount }));
+  const attempts = Array.from({ length: 40 }, (_, index) => call(t, handler,
+    login({ username: USERNAME, password: 'wrong' }, { headers: { 'x-real-ip': `198.51.100.${index + 1}` } })));
+  const statuses = (await Promise.all(attempts)).map((res) => res.statusCode);
+  assert.equal(statuses.filter((status) => status === 401).length, 20);
+  assert.equal(statuses.filter((status) => status === 429).length, 20);
+  assert.equal(sql.calls.filter(({ statement }) => statement.includes('FROM users')).length, 20, 'only 20 passwords checked');
 });
 
 const deviceCookie = (res) => cookies(res).find((cookie) => cookie.startsWith('login-device='));
@@ -126,7 +157,7 @@ test('an account locked by failures elsewhere still lets a known browser in', as
   const cookie = deviceCookie(first);
   assert.match(cookie, /^login-device=[^;]+; Path=\/api\/auth; Max-Age=15552000; SameSite=Strict; HttpOnly/);
 
-  const sql = useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  const sql = useDatabase(scriptedSql(lockedAccounts(500)));
   const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }, withDevice(cookie)));
   assert.equal(res.statusCode, 200);
   assert.ok(rateLimitWrites(sql).includes(identityRateLimitKey('login-device', decodeJti(cookie))),
@@ -136,11 +167,11 @@ test('an account locked by failures elsewhere still lets a known browser in', as
 
   // The same cookie is no help for another account, and a session token is no
   // device token.
-  useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  useDatabase(scriptedSql(lockedAccounts(500)));
   const other = await call(t, handler, login({ username: 'other@example.test', password: PASSWORD }, withDevice(cookie)));
   assert.equal(other.statusCode, 429);
   const session = cookies(first).find((value) => value.startsWith('jwt='));
-  useDatabase(scriptedSql({ respond: lockedAccounts(500) }));
+  useDatabase(scriptedSql(lockedAccounts(500)));
   const forged = await call(t, handler, login({ username: USERNAME, password: PASSWORD },
     withDevice(`login-device=${session.slice(4)}`)));
   assert.equal(forged.statusCode, 429);
@@ -228,9 +259,78 @@ test('a short, unchanged or unverified new password changes nothing', async (t) 
   }
 });
 
+// A live session must not be an unthrottled way to guess the account's
+// password: attempts are counted before bcrypt, five per 15 minutes.
+test('guessing the current password through change-password is rate limited', async (t) => {
+  const attemptKey = identityRateLimitKey('change-password', 2);
+  const counts = new Map();
+  const sql = useDatabase(scriptedSql({
+    identities: { member: { mustChangePassword: true } },
+    rateCount: (key) => { counts.set(key, (counts.get(key) ?? 0) + 1); return counts.get(key); },
+    respond: (statement) => (statement.startsWith('SELECT id, username, name, role, password')
+      ? [{ id: 2, username: USERNAME, name: 'Member', role: 'member', password: HASH, tokenVersion: 0 }]
+      : []),
+  }));
+  const guesses = await Promise.all(Array.from({ length: 8 }, () => call(t, handler, {
+    method: 'POST', query: { action: 'change-password' }, as: 'member',
+    body: { currentPassword: 'a wrong guess', newPassword: 'a much longer passphrase' },
+  })));
+  const codes = guesses.map((res) => res.body.code);
+  assert.equal(codes.filter((code) => code === 'CURRENT_PASSWORD_INCORRECT').length, 5);
+  assert.equal(codes.filter((code) => code === 'RATE_LIMITED').length, 3);
+  assert.equal(counts.get(attemptKey), 8, 'counted per user, before the password is checked');
+  assert.deepEqual(sql.writes(), []);
+
+  // The right password clears the count.
+  const right = passwordChange();
+  const res = await call(t, handler, { method: 'POST', query: { action: 'change-password' }, as: 'member', body: { currentPassword: PASSWORD, newPassword: 'a much longer passphrase' } });
+  assert.equal(res.statusCode, 200);
+  assert.ok(right.calls.some(({ statement, values }) => statement.startsWith('DELETE FROM api_rate_limits') && values[0] === attemptKey));
+});
+
+// A temporary password works for seven days. After that the right password
+// still gets no session, and the answer says why (only once it matched).
+test('an expired temporary password gets no session', async (t) => {
+  const temporary = (tempPasswordExpiresAt) => (statement) => (
+    statement.includes('FROM users WHERE username = ?')
+      ? [{ id: 2, username: USERNAME, name: 'Member', role: 'member', password: HASH, tokenVersion: 4,
+        mustChangePassword: true, passwordChangedAt: null, tempPasswordExpiresAt }]
+      : []);
+  useDatabase(scriptedSql({ respond: temporary(new Date(Date.now() - 1000).toISOString()) }));
+  const expired = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
+  assert.deepEqual([expired.statusCode, expired.body.code], [401, 'TEMP_PASSWORD_EXPIRED']);
+  assert.equal(cookies(expired).some((cookie) => cookie.startsWith('jwt=')), false);
+
+  useDatabase(scriptedSql({ respond: temporary(new Date(Date.now() - 1000).toISOString()) }));
+  const wrong = await call(t, handler, login({ username: USERNAME, password: 'wrong' }));
+  assert.equal(wrong.body.code, 'INVALID_CREDENTIALS', 'a wrong guess learns nothing about expiry');
+
+  useDatabase(scriptedSql({ respond: temporary(new Date(Date.now() + 60_000).toISOString()) }));
+  const valid = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
+  assert.equal(valid.statusCode, 200);
+  assert.equal(valid.body.user.passwordChangeRequired, true);
+});
+
+test('setting an own password clears the temporary one\'s expiry', async (t) => {
+  const sql = passwordChange();
+  await call(t, handler, { method: 'POST', query: { action: 'change-password' }, as: 'member', body: { currentPassword: PASSWORD, newPassword: 'a much longer passphrase' } });
+  assert.match(sql.writes().at(-1).statement, /temp_password_expires_at = NULL/);
+});
+
 test('asking who is signed in without a session answers null, not an error', async (t) => {
   useDatabase(scriptedSql());
   const res = await call(t, handler, { query: { action: 'me' } });
   assert.equal(res.statusCode, 200);
   assert.equal(res.body, null);
+});
+
+// TEST-003. The token every form sends back starts here.
+test('asking for a CSRF token sets it as a readable, strict cookie and returns the same value', async (t) => {
+  useDatabase(scriptedSql());
+  const res = await call(t, handler, { query: { action: 'csrf' }, csrf: false });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.body.csrfToken, /^[a-f0-9]{32,}$/);
+  const [csrf] = cookies(res);
+  assert.match(csrf, new RegExp(`^csrf-token=${res.body.csrfToken}; Path=/; Max-Age=7200; SameSite=Strict`));
+  assert.doesNotMatch(csrf, /HttpOnly/, 'the client must be able to read it');
 });

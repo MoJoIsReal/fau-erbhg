@@ -20,7 +20,7 @@ export function getJwtConfig(env = process.env) {
       expiresIn: '2h',
     },
     verifyOptions: {
-      algorithms: [JWT_ALGORITHM],
+      algorithms: /** @type {import('jsonwebtoken').Algorithm[]} */ ([JWT_ALGORITHM]),
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
     },

@@ -339,7 +339,7 @@ export default function Content() {
                 (post.title ?? "").toLowerCase().includes(searchTerm.trim().toLowerCase());
               if (!isEditingThis && (!matchesStatus || !matchesSearch)) return null;
               return (
-              <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-gray-50 opacity-75" : ""}`}>
+              <Card key={post.id || `new-${index}`} className={`p-4 ${post.status === "archived" ? "bg-surface-soft" : ""}`}>
                 {isEditingThis ? (
                   <div className="space-y-4">
                     <div>
@@ -504,8 +504,8 @@ export default function Content() {
                       <div className="sm:hidden flex-shrink-0">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <MoreVertical className="h-4 w-4" />
+                            <Button variant="outline" size="sm" aria-label={`${t.contentPage.postActions}: ${post.title}`}>
+                              <MoreVertical className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">
@@ -551,7 +551,7 @@ export default function Content() {
                         new Date(post.publishedDate).toLocaleDateString(dateLocale)}
                       {post.author && <span className="ml-2">- {t.contentPage.by} {post.author}</span>}
                       {post.status === "archived" && (
-                        <span className="ml-2 text-xs font-semibold text-orange-600">
+                        <span className="ml-2 text-micro font-semibold text-ink">
                           ({t.contentPage.archived2})
                         </span>
                       )}

@@ -5,11 +5,13 @@ import {
   requireRole,
   sanitizeText,
   sanitizeHtml,
+  isHtmlTooLong,
   sanitizeInteger,
   MAX_INT_ID,
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
+import { getKindergartenSchoolYear } from '../shared/yearly-calendar-utils.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import {
   LINK_PREVIEW_CACHE_CONTROL,
@@ -225,6 +227,8 @@ function normalizeRegistrationDeadline(value) {
 // POST and PUT take the same event, and these checks used to be written out
 // twice, fifty lines each. Returns { values } ready for the columns, or
 // { error }: the body of the 400 to send.
+const EVENT_DESCRIPTION_MAX = 5000;
+
 function validateEventBody(body = {}) {
   const {
     title,
@@ -242,9 +246,13 @@ function validateEventBody(body = {}) {
     potluck,
   } = body;
 
+  if (isHtmlTooLong(description, EVENT_DESCRIPTION_MAX)) {
+    return { error: { error: 'Description is too long', code: 'FIELD_TOO_LARGE' } };
+  }
+
   const values = {
     title: sanitizeText(title, 200),
-    description: sanitizeHtml(description, 5000),
+    description: sanitizeHtml(description, EVENT_DESCRIPTION_MAX),
     date,
     time,
     location: sanitizeText(location, 200),
@@ -260,24 +268,24 @@ function validateEventBody(body = {}) {
   };
 
   if (!values.title || !date || !time) {
-    return { error: { error: 'Valid title, date, and time are required' } };
+    return { error: { error: 'Valid title, date, and time are required', code: 'EVENT_FIELDS_REQUIRED' } };
   }
   if (!isValidEventDate(date)) {
-    return { error: { error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12' } };
+    return { error: { error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12', code: 'INVALID_EVENT_DATE' } };
   }
   if (!isValidEventTime(time)) {
-    return { error: { error: 'Time must be written as HH:MM (24-hour), for example 17:00' } };
+    return { error: { error: 'Time must be written as HH:MM (24-hour), for example 17:00', code: 'INVALID_EVENT_TIME' } };
   }
   if (values.maxAttendees === undefined) {
     return {
-      error: { error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit` },
+      error: { error: `Max attendees must be a whole number from 0 to ${MAX_EVENT_ATTENDEES}, or empty for no limit`, code: 'INVALID_MAX_ATTENDEES' },
     };
   }
   if (values.registrationDeadline === undefined) {
-    return { error: { error: 'Valid registration deadline is required' } };
+    return { error: { error: 'Valid registration deadline is required', code: 'INVALID_REGISTRATION_DEADLINE' } };
   }
   if (!EVENT_TYPES.includes(type)) {
-    return { error: { error: `Invalid event type: ${type}`, allowed: EVENT_TYPES } };
+    return { error: { error: `Invalid event type: ${type}`, allowed: EVENT_TYPES, code: 'INVALID_EVENT_TYPE' } };
   }
   return { values };
 }
@@ -292,6 +300,17 @@ export function isRegistrationForeignKeyConflict(error) {
     && error?.constraint === 'event_registrations_event_id_fkey';
 }
 
+// The public list used to return every event ever held, and grows by a few
+// dozen a year. By default it starts on 1 August of the previous school year,
+// which covers everything the calendar shows for the current one (it reads the
+// adjacent years too). The month view can be paged further back; it then asks
+// for `?from=` the start of that school year's previous year.
+export function eventListStart(value, now = new Date()) {
+  if (value === undefined || value === '') return `${getKindergartenSchoolYear(now) - 1}-08-01`;
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  return Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ? null : value;
+}
+
 export default withApiHandler(async function handler(req, res) {
   const sql = getDb();
 
@@ -304,6 +323,9 @@ export default withApiHandler(async function handler(req, res) {
       return await respondWithLinkPreview(req, res, sql);
     }
 
+    const from = eventListStart(req.query.from);
+    if (!from) return res.status(400).json({ error: 'from must be a date (YYYY-MM-DD)' });
+
     const events = await sql`
       SELECT e.*,
              (
@@ -313,6 +335,7 @@ export default withApiHandler(async function handler(req, res) {
              ) AS derived_attendees
       FROM events e
       WHERE e.status IN ('active', 'cancelled')
+        AND e.date >= ${from}
       ORDER BY e.date ASC, e.time ASC
     `;
 
@@ -370,7 +393,7 @@ export default withApiHandler(async function handler(req, res) {
     `;
 
     if (updated.length === 0) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapEvent(updated[0]));
@@ -396,7 +419,7 @@ export default withApiHandler(async function handler(req, res) {
       `;
 
       if (cancelled.length === 0) {
-        return res.status(404).json({ error: 'Event not found' });
+        return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
       }
 
       return res.status(200).json(mapEvent(cancelled[0]));
@@ -448,7 +471,7 @@ export default withApiHandler(async function handler(req, res) {
 
     const state = deletion[0];
     if (!state?.eventExists) {
-      return res.status(404).json({ error: 'Event not found' });
+      return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
     }
 
     if (state.hasRegistrations) {

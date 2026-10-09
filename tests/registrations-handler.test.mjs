@@ -3,11 +3,11 @@
 // cap, a named child per photo slot, the day's slots as the photo limit, and
 // what the confirmation mail is allowed to repeat back.
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
-import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
+import { rateLimitDigest } from '../api/_shared/rate-limit.js';
 import { SIGNUP_ERROR_CODES } from '../shared/constants.js';
 
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
@@ -15,7 +15,7 @@ const sent = [];
 mock.method(nodemailer, 'createTransport', () => ({ close() {}, sendMail: async (message) => { sent.push(message); } }));
 const handler = await importHandler('api/registrations.js');
 
-const PUBLIC_MAIL_KEY = crypto.createHash('sha256').update('public-mail').digest('hex');
+const PUBLIC_MAIL_KEY = rateLimitDigest(['public-mail']);
 
 function eventRow(overrides = {}) {
   return {
@@ -27,7 +27,7 @@ function eventRow(overrides = {}) {
 
 // Answers the event lookup, the photo-slot snapshot and the signup statement
 // the way PostgreSQL would for a successful insert.
-function signupDatabase({ event = eventRow(), existing = [], rateCount = 1 } = {}) {
+function signupDatabase({ event = eventRow(), existing = [], rateCount = 1, registration = {} } = {}) {
   return useDatabase(scriptedSql({
     rateCount,
     respond(statement) {
@@ -39,6 +39,7 @@ function signupDatabase({ event = eventRow(), existing = [], rateCount = 1 } = {
           registration: {
             id: 1, event_id: event.id, name: 'Kari', email: 'kari@example.test', phone: '', attendee_count: 1,
             comments: 'Klikk https://evil.example/login for premie', language: 'no', children_names: null, cancel_token: 'c'.repeat(64),
+            ...registration,
           },
         }];
       }
@@ -133,25 +134,59 @@ test('a photo day with too few free slots refuses instead of booking a child wit
 
 // Mail goes out after the response (waitUntil), so let it settle first.
 test('the confirmation does not repeat the free-text comment to an unverified address', async (t) => {
+  await settle();
   sent.length = 0;
   signupDatabase();
   const res = await call(t, handler, signup({ comments: 'Klikk https://evil.example/login for premie' }));
-  await new Promise(setImmediate);
+  await settle();
   assert.equal(res.statusCode, 201);
   assert.equal(sent.length, 1);
   assert.equal(sent[0].to, 'kari@example.test');
   assert.doesNotMatch(sent[0].text, /evil\.example|premie/);
   assert.match(sent[0].text, /avmelding\?token=c{64}/);
+  // When the mail goes out, the link travels only in it, and the answer is
+  // an allow-list rather than the stored row.
+  assert.deepEqual(res.body, { id: 1, eventId: 7, attendeeCount: 1, confirmationEmail: true });
+  assert.equal(res.body.confirmationEmail, true);
+  assert.equal('cancelUrl' in res.body, false);
+  assert.equal('cancel_token' in res.body, false);
+});
+
+// The name is kept in the greeting, but only as plain words: anyone can sign
+// up with anyone's address, so a name must not carry a link or a paragraph.
+test('the confirmation repeats the name only as plain words', async (t) => {
+  await settle();
+  sent.length = 0;
+  const lure = 'Ola\n\nVIKTIG: https://evil.example/refusjon';
+  signupDatabase({ registration: { name: lure } });
+  const res = await call(t, handler, signup({ name: lure }));
+  await settle();
+  assert.equal(res.statusCode, 201);
+  assert.equal(sent.length, 1);
+  assert.doesNotMatch(sent[0].text, /evil\.example|\/refusjon/);
+  assert.match(sent[0].text, /Hei Ola VIKTIG httpsevilexamplerefusjon,/);
+
+  await settle();
+  sent.length = 0;
+  signupDatabase({ registration: { name: 'Anne-Marie Ødegård' } });
+  await call(t, handler, signup({ name: 'Anne-Marie Ødegård' }));
+  await settle();
+  assert.match(sent[0].text, /Hei Anne-Marie Ødegård,/);
 });
 
 test('past the daily public-mail cap the signup is kept but no mail is sent', async (t) => {
+  await settle();
   sent.length = 0;
   const sql = signupDatabase({ rateCount: (key) => (key === PUBLIC_MAIL_KEY ? 999 : 1) });
   const res = await call(t, handler, signup({}));
-  await new Promise(setImmediate);
+  await settle();
   assert.equal(res.statusCode, 201);
   assert.ok(signupStatement(sql), 'the registration is still stored');
   assert.equal(sent.length, 0);
+  // The mail held the only link to the signup, so the page gets it instead.
+  assert.equal(res.body.confirmationEmail, false);
+  assert.match(res.body.cancelUrl, /\/avmelding\?token=c{64}$/);
+  assert.equal('cancel_token' in res.body, false);
 });
 
 // With TURNSTILE_SECRET_KEY set, a signup must carry a token Cloudflare
@@ -239,7 +274,9 @@ test('every refusal names its reason with a code the signup form translates', as
 // missing from the list would reach parents as the generic message.
 test('the codes the API refuses a signup with are exactly the ones the form translates', () => {
   const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
-  const used = new Set([...source.matchAll(/refuseSignup\(res, \d{3}, '([A-Z_]+)'/g)].map((match) => match[1]));
+  // Refused in the handler, or by validateSignupBody / validateSignupForEvent.
+  const used = new Set([...source.matchAll(/refuseSignup\(res, \d{3}, '([A-Z_]+)'|\bcode: '([A-Z_]+)'|\brefuse\('([A-Z_]+)'/g)]
+    .map((match) => match[1] ?? match[2] ?? match[3]));
   assert.deepEqual([...used].sort(), [...SIGNUP_ERROR_CODES].sort());
 });
 
@@ -260,4 +297,79 @@ test('a potluck lists what everyone brings, never who brings it, to anyone who a
     assert.doesNotMatch(lookup.statement, /\b(name|email|phone|comments|children_names)\b/);
     assert.deepEqual(lookup.values, [7]);
   }
+});
+
+// MAINT-005. The signup's own checks, without a request or a database.
+test('a signup body is checked before anything is looked up', async () => {
+  const { validateSignupBody } = await import('../api/registrations.js');
+  const ok = validateSignupBody({ eventId: '7', name: ' Kari ', email: 'KARI@example.test', attendeeCount: 2, language: 'en' });
+  assert.deepEqual(
+    [ok.values.eventIdNum, ok.values.sanitizedName, ok.values.sanitizedEmail, ok.values.sanitizedAttendeeCount, ok.values.sanitizedLanguage],
+    [7, 'Kari', 'kari@example.test', 2, 'en'],
+  );
+  assert.equal(validateSignupBody({ eventId: '7', name: 'Kari', email: 'kari@example.test', language: 'de' }).values.sanitizedLanguage, 'no');
+  for (const [body, code] of [
+    [{ name: 'Kari', email: 'kari@example.test' }, 'INVALID_SIGNUP'],
+    [{ eventId: '7', email: 'kari@example.test' }, 'INVALID_SIGNUP'],
+    [{ eventId: '7', name: 'Kari', email: 'not an address' }, 'INVALID_SIGNUP'],
+    [{ eventId: '7.5', name: 'Kari', email: 'kari@example.test' }, 'INVALID_SIGNUP'],
+    [{ eventId: '7', name: 'Kari', email: 'kari@example.test', attendeeCount: 0 }, 'ATTENDEES_OUT_OF_RANGE'],
+  ]) assert.equal(validateSignupBody(body).error?.code, code, JSON.stringify(body));
+});
+
+test('the event decides whether a signup is open and what it must name', async () => {
+  const { validateSignupForEvent } = await import('../api/registrations.js');
+  const values = (count, language = 'no') => ({ sanitizedAttendeeCount: count, sanitizedLanguage: language });
+  const now = '2026-06-01T12:00:00.000Z';
+  const check = (event, count, body = {}) => validateSignupForEvent({ type: 'event', potluck: false, ...event }, values(count), body, now);
+
+  assert.equal(check({ no_signup: true }, 1).error.code, 'SIGNUP_CLOSED');
+  assert.equal(check({ vigilo_signup: true }, 1).error.code, 'SIGNUP_CLOSED');
+  assert.equal(check({ registration_deadline: '2026-05-31T12:00:00.000Z' }, 1).error.code, 'DEADLINE_PASSED');
+  assert.deepEqual(check({}, 1).values, { sanitizedChildrenNames: null, sanitizedFoodContribution: null });
+
+  // Everyone besides the registrant is named; on a photo event, every child.
+  assert.equal(check({}, 2).error.code, 'ATTENDEE_NAMES_REQUIRED');
+  assert.equal(check({}, 2, { childrenNames: '["Ola"]' }).values.sanitizedChildrenNames, '["Ola"]');
+  assert.equal(check({ type: 'foto' }, 2, { childrenNames: '["Ola"]' }).error.code, 'CHILD_NAMES_REQUIRED');
+  assert.equal(check({ type: 'foto' }, 1, { childrenNames: '["Ola"]' }).values.sanitizedChildrenNames, '["Ola"]');
+
+  // Food is asked for on a potluck only, and dropped elsewhere.
+  assert.equal(check({ potluck: true }, 1).error.code, 'FOOD_CONTRIBUTION_REQUIRED');
+  assert.equal(check({ potluck: true }, 1, { foodContribution: 'Kake' }).values.sanitizedFoodContribution, 'Kake');
+  assert.equal(check({}, 1, { foodContribution: 'Kake' }).values.sanitizedFoodContribution, null);
+  assert.equal(validateSignupForEvent({ no_signup: true }, values(1, 'en')).error.message, 'Registration is not available for this event');
+});
+
+// TEST-003. The council's view of a signup list, and removing a signup.
+test('the council sees the list, everyone else sees only the count', async (t) => {
+  const row = { id: 3, eventId: 7, name: 'Kari', email: 'kari@example.test', phone: '90000000', attendeeCount: 2 };
+  const database = () => useDatabase(scriptedSql({
+    respond: (statement) => (statement.includes('SUM(attendee_count)') ? [{ count: 2 }] : statement.startsWith('SELECT id, event_id') ? [row] : []),
+  }));
+  database();
+  const council = await call(t, handler, { query: { eventId: '7', view: 'council' }, as: 'member' });
+  assert.deepEqual([council.statusCode, council.body], [200, [row]]);
+
+  for (const as of [null, 'staff']) {
+    database();
+    const res = await call(t, handler, { query: { eventId: '7' }, as });
+    assert.deepEqual([res.statusCode, res.body], [200, { count: 2 }], String(as));
+  }
+  // Asked for by name without a council session: a 401, not the count.
+  database();
+  assert.equal((await call(t, handler, { query: { eventId: '7', view: 'council' } })).statusCode, 401);
+});
+
+test('a council member removes a signup, and a missing one is a 404', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('WITH deleted AS') ? [{ id: 5, event_id: 7, attendee_count: 2, eventUpdated: true }] : []) }));
+  const res = await call(t, handler, { method: 'DELETE', query: { id: '5' }, as: 'member' });
+  assert.deepEqual([res.statusCode, res.body], [200, { success: true }]);
+  assert.deepEqual(sql.writes().map(({ values }) => values), [[5]], 'one statement removes the row and releases its seats');
+
+  useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, { method: 'DELETE', query: { id: '5' }, as: 'member' })).statusCode, 404);
+  const refused = useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, { method: 'DELETE', query: { id: 'x' }, as: 'member' })).statusCode, 400);
+  assert.deepEqual(refused.writes(), []);
 });

@@ -178,7 +178,7 @@ export default function CalendarViews() {
     // Keyed on the link and the data; the helpers are recreated every render.
   }, [sharedId, isLoading, entries]);
 
-  const editor = useCalendarEditor({ schoolYear, month: monthCursor });
+  const editor = useCalendarEditor({ schoolYear, month: monthCursor, yearlyEntries });
   const view = mode;
 
   const modes = [

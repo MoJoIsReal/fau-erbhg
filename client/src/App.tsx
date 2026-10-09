@@ -7,8 +7,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { MEDIA_SHARE_ROLES } from "@shared/constants";
 
-// Lazy load route components for code splitting
-const Home = lazy(() => import("@/pages/home"));
+// The landing page is part of the main bundle: as a lazy route its code, and
+// the hero image it names, were only discovered after main had loaded and run,
+// one more round trip before the first meaningful paint. It is about 3 kB.
+import Home from "@/pages/home";
+
+// Lazy load the other route components for code splitting
 const CalendarPage = lazy(() => import("@/pages/calendar"));
 // The yearly calendar is no longer a public tab. It stays as the editor
 // surface for the printable årskalender — drag-and-drop month layout and the

@@ -32,10 +32,14 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // `view=council` asks for the list by name, so a lapsed session gets a 401
+  // (and the sign-in prompt) instead of the public count, which is not a list.
+  const registrationsKey = `/api/registrations?eventId=${event.id}&view=council`;
   const registrationsQuery = useQuery<EventRegistration[]>({
-    queryKey: [`/api/registrations?eventId=${event.id}`],
+    queryKey: [registrationsKey],
   });
-  const { data: registrations = [], isLoading } = registrationsQuery;
+  const { isLoading } = registrationsQuery;
+  const registrations = Array.isArray(registrationsQuery.data) ? registrationsQuery.data : [];
 
   // Parents who cancelled through the link in their email. Their seats are
   // already released, so they are not part of the counts above.
@@ -49,13 +53,13 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
       apiRequest("DELETE", `/api/registrations?id=${registrationId}`),
     onMutate: async (registrationId: number) => {
       // Cancel outgoing refetches
-      await queryClient.cancelQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
+      await queryClient.cancelQueries({ queryKey: [registrationsKey] });
       
       // Snapshot the previous value
-      const previousRegistrations = queryClient.getQueryData([`/api/registrations?eventId=${event.id}`]);
+      const previousRegistrations = queryClient.getQueryData([registrationsKey]);
       
       // Optimistically update to new value
-      queryClient.setQueryData([`/api/registrations?eventId=${event.id}`], (old: EventRegistration[] | undefined) => {
+      queryClient.setQueryData([registrationsKey], (old: EventRegistration[] | undefined) => {
         return old?.filter(reg => reg.id !== registrationId) || [];
       });
       
@@ -92,7 +96,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     onError: (err, registrationId, context) => {
       // Rollback on error
       if (context?.previousRegistrations) {
-        queryClient.setQueryData([`/api/registrations?eventId=${event.id}`], context.previousRegistrations);
+        queryClient.setQueryData([registrationsKey], context.previousRegistrations);
       }
       if (context?.previousEvents) {
         queryClient.setQueryData(["/api/events"], context.previousEvents);
@@ -106,7 +110,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
     // Resync from the server whichever way it went, so neither cache can be
     // left holding an optimistic value.
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}`] });
+      queryClient.invalidateQueries({ queryKey: [registrationsKey] });
       queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}&cancelled=1`] });
       queryClient.invalidateQueries({ queryKey: ["/api/events"] });
     },

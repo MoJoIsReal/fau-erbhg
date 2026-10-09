@@ -4,7 +4,7 @@ import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import { CONTACT_REPLY_MAX_LENGTH, contactReplyEmail } from './_shared/contact-emails.js';
 import { reportProviderError } from './_shared/provider-errors.js';
-import { generateTemporaryPassword } from './_shared/password-policy.js';
+import { generateTemporaryPassword, TEMPORARY_PASSWORD_DAYS, temporaryPasswordExpiry } from './_shared/password-policy.js';
 import {
   withApiHandler,
   requireCsrf,
@@ -12,6 +12,7 @@ import {
   requireRole,
   sanitizeText,
   sanitizeHtml,
+  isHtmlTooLong,
   sanitizeEmail,
   sanitizeInteger,
   MAX_INT_ID,
@@ -192,7 +193,7 @@ async function handleBoardMembers(req, res, sql) {
     const sanitizedSortOrder = sanitizeInteger(sortOrder, 0, 1000) ?? 0;
 
     if (!sanitizedName || !sanitizedRole) {
-      return res.status(400).json({ error: 'Valid name and role are required' });
+      return res.status(400).json({ error: 'Valid name and role are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
@@ -215,7 +216,7 @@ async function handleBoardMembers(req, res, sql) {
     const sanitizedSortOrder = sanitizeInteger(sortOrder, 0, 1000) ?? 0;
 
     if (!sanitizedName || !sanitizedRole) {
-      return res.status(400).json({ error: 'Valid name and role are required' });
+      return res.status(400).json({ error: 'Valid name and role are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
@@ -229,7 +230,7 @@ async function handleBoardMembers(req, res, sql) {
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Board member not found' });
+      return res.status(404).json({ error: 'Board member not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapBoardMember(result[0]));
@@ -250,7 +251,7 @@ async function handleBoardMembers(req, res, sql) {
     `;
 
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Board member not found' });
+      return res.status(404).json({ error: 'Board member not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json({ message: 'Board member deleted successfully' });
@@ -267,6 +268,8 @@ export function blogSearchPattern(value) {
 }
 
 // Handle Blog Posts operations
+const BLOG_CONTENT_MAX = 50000;
+
 async function handleBlogPosts(req, res, sql) {
   // GET - Public access to view published blog posts
   if (req.method === 'GET') {
@@ -341,12 +344,15 @@ async function handleBlogPosts(req, res, sql) {
     const { title, content, publishedDate, author, category, notifyNewsletter } = req.body;
 
     const sanitizedTitle = sanitizeText(title, 200);
-    const sanitizedContent = sanitizeHtml(content, 50000);
+    if (isHtmlTooLong(content, BLOG_CONTENT_MAX)) {
+      return res.status(400).json({ error: 'Content is too long', code: 'FIELD_TOO_LARGE' });
+    }
+    const sanitizedContent = sanitizeHtml(content, BLOG_CONTENT_MAX);
     const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
     if (!sanitizedTitle || !sanitizedContent) {
-      return res.status(400).json({ error: 'Valid title and content are required' });
+      return res.status(400).json({ error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' });
     }
 
     const pubDate = publishedDate || now;
@@ -367,13 +373,16 @@ async function handleBlogPosts(req, res, sql) {
     const { title, content, status, publishedDate, author, showOnHomepage, category, notifyNewsletter } = req.body;
 
     const sanitizedTitle = sanitizeText(title, 200);
-    const sanitizedContent = sanitizeHtml(content, 50000);
+    if (isHtmlTooLong(content, BLOG_CONTENT_MAX)) {
+      return res.status(400).json({ error: 'Content is too long', code: 'FIELD_TOO_LARGE' });
+    }
+    const sanitizedContent = sanitizeHtml(content, BLOG_CONTENT_MAX);
     const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
     const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
     if (!sanitizedTitle || !sanitizedContent) {
-      return res.status(400).json({ error: 'Valid title and content are required' });
+      return res.status(400).json({ error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
@@ -392,7 +401,7 @@ async function handleBlogPosts(req, res, sql) {
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Blog post not found' });
+      return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapBlogPost(result[0]));
@@ -410,7 +419,7 @@ async function handleBlogPosts(req, res, sql) {
     `;
 
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Blog post not found' });
+      return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json({ message: 'Blog post deleted successfully' });
@@ -431,7 +440,7 @@ async function handleKindergartenInfo(req, res, sql) {
     `;
 
     if (info.length === 0) {
-      return res.status(404).json({ error: 'Kindergarten info not found' });
+      return res.status(404).json({ error: 'Kindergarten info not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapKindergartenInfo(info[0]));
@@ -461,10 +470,11 @@ async function handleKindergartenInfo(req, res, sql) {
 
     if (!sanitizedContactEmail || !sanitizedAddress || !sanitizedOpeningHours ||
         sanitizedNumberOfChildren === null || !sanitizedOwner || !sanitizedDescription) {
-      return res.status(400).json({ error: 'All required fields must be valid' });
+      return res.status(400).json({ error: 'All required fields must be valid', code: 'REQUIRED_FIELDS' });
     }
 
-    // Update the first (and only) row
+    // There should be one row. If a second ever appears, update the one GET
+    // shows (the newest), or a save would seem to revert.
     const result = await sql`
       UPDATE kindergarten_info
       SET contact_email = ${sanitizedContactEmail},
@@ -476,12 +486,12 @@ async function handleKindergartenInfo(req, res, sql) {
           styrer_name = ${sanitizedStyrerName},
           styrer_email = ${sanitizedStyrerEmail},
           updated_at = ${now}
-      WHERE id = (SELECT id FROM kindergarten_info ORDER BY id LIMIT 1)
+      WHERE id = (SELECT id FROM kindergarten_info ORDER BY id DESC LIMIT 1)
       RETURNING *
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Kindergarten info not found' });
+      return res.status(404).json({ error: 'Kindergarten info not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapKindergartenInfo(result[0]));
@@ -545,7 +555,7 @@ async function handleContactMessages(req, res, sql) {
         `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ error: 'Message not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json(mapContactMessage(result[0]));
@@ -560,7 +570,7 @@ async function handleContactMessages(req, res, sql) {
 
     const reply = sanitizeText(req.body?.message, CONTACT_REPLY_MAX_LENGTH);
     if (!reply) {
-      return res.status(400).json({ error: 'Reply message is required' });
+      return res.status(400).json({ error: 'Reply message is required', code: 'REPLY_REQUIRED' });
     }
 
     const rows = await sql`
@@ -570,7 +580,7 @@ async function handleContactMessages(req, res, sql) {
     `;
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ error: 'Message not found', code: 'NOT_FOUND' });
     }
 
     const original = mapContactMessage(rows[0]);
@@ -578,11 +588,11 @@ async function handleContactMessages(req, res, sql) {
 
     // Anonymous inquiries carry no address, so there is nobody to answer.
     if (!recipient) {
-      return res.status(400).json({ error: 'This inquiry has no reply address' });
+      return res.status(400).json({ error: 'This inquiry has no reply address', code: 'NO_REPLY_ADDRESS' });
     }
 
     if (!isEmailConfigured()) {
-      return res.status(503).json({ error: 'Email is not configured' });
+      return res.status(503).json({ error: 'Email is not configured', code: 'EMAIL_NOT_CONFIGURED' });
     }
 
     const { subject, text } = contactReplyEmail(original, reply);
@@ -594,7 +604,7 @@ async function handleContactMessages(req, res, sql) {
       await sendEmail({ to: recipient, subject, text });
     } catch (emailError) {
       reportProviderError('Failed to send contact reply', emailError);
-      return res.status(502).json({ error: 'Could not send the reply email' });
+      return res.status(502).json({ error: 'Could not send the reply email', code: 'REPLY_SEND_FAILED' });
     }
 
     const updated = await sql`
@@ -622,13 +632,41 @@ async function handleContactMessages(req, res, sql) {
     `;
 
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Message not found' });
+      return res.status(404).json({ error: 'Message not found', code: 'NOT_FOUND' });
     }
 
     return res.status(200).json({ message: 'Contact message deleted successfully' });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
+}
+
+// The mail that carries a temporary password: for a new account, or a new
+// password the admin sent because the first one expired or was lost.
+function accountMail({ username, name, role, temporaryPassword, reissued = false }) {
+  return {
+    to: username,
+    subject: reissued ? 'Nytt midlertidig passord for FAU Erdal Barnehage' : 'Konto opprettet for FAU Erdal Barnehage',
+    text: [
+      `Hei ${name},`,
+      '',
+      reissued
+        ? 'Du har fått et nytt midlertidig passord til FAU Erdal Barnehage sin nettside. Det gamle virker ikke lenger.'
+        : `Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside.`,
+      `Nettside: ${publicBaseUrl()}`,
+      `Rolle: ${roleLabel(role)}`,
+      '',
+      roleDescription(role),
+      '',
+      `Brukernavn: ${username}`,
+      `Midlertidig passord: ${temporaryPassword}`,
+      '',
+      `Det midlertidige passordet virker i ${TEMPORARY_PASSWORD_DAYS} dager. Du blir bedt om å endre det første gang du logger inn. Passord må også oppdateres minst én gang i året.`,
+      '',
+      'Vennlig hilsen',
+      'FAU Erdal Barnehage',
+    ].join('\n'),
+  };
 }
 
 // Handle managed users (FAU members and kindergarten staff)
@@ -654,10 +692,10 @@ async function handleUsers(req, res, sql) {
     const role = [ROLES.member, ROLES.staff].includes(req.body?.role) ? req.body.role : null;
 
     if (!username || !name || !role) {
-      return res.status(400).json({ error: 'username, name and role are required' });
+      return res.status(400).json({ error: 'username, name and role are required', code: 'REQUIRED_FIELDS' });
     }
     if (!isEmailConfigured()) {
-      return res.status(500).json({ error: 'Email is not configured; cannot send login details' });
+      return res.status(500).json({ error: 'Email is not configured; cannot send login details', code: 'EMAIL_NOT_CONFIGURED' });
     }
 
     // The lookup spares a bcrypt hash in the usual case; ON CONFLICT covers
@@ -666,50 +704,55 @@ async function handleUsers(req, res, sql) {
     // a 500 — instead of this 400.
     const existing = await sql`SELECT id FROM users WHERE username = ${username} LIMIT 1`;
     if (existing.length > 0) {
-      return res.status(400).json({ error: 'Brukernavnet er allerede i bruk' });
+      return res.status(400).json({ error: 'Username is already in use', code: 'USERNAME_TAKEN' });
     }
 
     const temporaryPassword = generateTemporaryPassword();
     const hashed = await bcrypt.hash(temporaryPassword, 10);
     const now = new Date().toISOString();
     const created = await sql`
-      INSERT INTO users (username, password, name, role, must_change_password, password_changed_at, created_at)
-      VALUES (${username}, ${hashed}, ${name}, ${role}, true, ${null}, ${now})
+      INSERT INTO users (username, password, name, role, must_change_password, password_changed_at, temp_password_expires_at, created_at)
+      VALUES (${username}, ${hashed}, ${name}, ${role}, true, ${null}, ${temporaryPasswordExpiry()}, ${now})
       ON CONFLICT (username) DO NOTHING
       RETURNING id, username, name, role, created_at
     `;
     if (created.length === 0) {
-      return res.status(400).json({ error: 'Brukernavnet er allerede i bruk' });
+      return res.status(400).json({ error: 'Username is already in use', code: 'USERNAME_TAKEN' });
     }
 
     try {
-      await sendEmail({
-        to: username,
-        subject: 'Konto opprettet for FAU Erdal Barnehage',
-        text: [
-          `Hei ${name},`,
-          '',
-          `Det er opprettet en konto for deg på FAU Erdal Barnehage sin nettside.`,
-          `Nettside: ${publicBaseUrl()}`,
-          `Rolle: ${roleLabel(role)}`,
-          '',
-          roleDescription(role),
-          '',
-          `Brukernavn: ${username}`,
-          `Midlertidig passord: ${temporaryPassword}`,
-          '',
-          'Du blir bedt om å endre passordet første gang du logger inn. Passord må også oppdateres minst én gang i året.',
-          '',
-          'Vennlig hilsen',
-          'FAU Erdal Barnehage',
-        ].join('\n'),
-      });
+      await sendEmail(accountMail({ username, name, role, temporaryPassword }));
     } catch (error) {
       await sql`DELETE FROM users WHERE id = ${created[0].id}`;
       throw error;
     }
 
     return res.status(201).json(mapUser(created[0]));
+  }
+
+  // PATCH: a new temporary password, for an account whose first one expired
+  // or was lost. Every session the account had is signed out.
+  if (req.method === 'PATCH') {
+    const id = requireIntId(req, res);
+    if (!id) return;
+    if (!isEmailConfigured()) {
+      return res.status(500).json({ error: 'Email is not configured; cannot send login details', code: 'EMAIL_NOT_CONFIGURED' });
+    }
+    const temporaryPassword = generateTemporaryPassword();
+    const hashed = await bcrypt.hash(temporaryPassword, 10);
+    const updated = await sql`
+      UPDATE users
+      SET password = ${hashed}, must_change_password = true, password_changed_at = ${null},
+          temp_password_expires_at = ${temporaryPasswordExpiry()}, token_version = token_version + 1
+      WHERE id = ${id} AND role IN (${ROLES.member}, ${ROLES.staff})
+      RETURNING id, username, name, role, created_at
+    `;
+    if (updated.length === 0) {
+      return res.status(404).json({ error: 'User not found', code: 'NOT_FOUND' });
+    }
+    const account = updated[0];
+    await sendEmail(accountMail({ username: account.username, name: account.name, role: account.role, temporaryPassword, reissued: true }));
+    return res.status(200).json(mapUser(account));
   }
 
   if (req.method === 'DELETE') {
@@ -719,7 +762,7 @@ async function handleUsers(req, res, sql) {
       DELETE FROM users WHERE id = ${id} AND role IN (${ROLES.member}, ${ROLES.staff}) RETURNING id
     `;
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(404).json({ error: 'User not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json({ success: true });
   }
@@ -757,7 +800,7 @@ async function handleNewsletterSubscribers(req, res, sql) {
       DELETE FROM newsletter_subscribers WHERE id = ${id} RETURNING id
     `;
     if (deleted.length === 0) {
-      return res.status(404).json({ error: 'Subscriber not found' });
+      return res.status(404).json({ error: 'Subscriber not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json({ success: true });
   }

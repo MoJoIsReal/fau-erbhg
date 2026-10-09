@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { lazy, Suspense, useState, type ReactNode } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FileSpreadsheet, Plus, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,15 +17,20 @@ import { useToast } from "@/hooks/use-toast";
 import { EditorSurface } from "@/components/site/cards";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { apiRequest, getApiErrorBody, getApiErrorMessage } from "@/lib/queryClient";
+import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import type { YearlyCalendarEntryType } from "@shared/yearly-calendar-utils";
 import type { CalendarEntry, YearlyCalendarKind } from "@shared/calendar-entries";
-import EventCreationModal from "@/components/event-creation-modal";
-import EventRegistrationsModal from "@/components/event-registrations-modal";
-import YearlyCalendarEntryModal, { type EntryDraft } from "@/components/yearly-calendar-entry-modal";
-import YearlyCalendarImportModal from "@/components/yearly-calendar-import-modal";
+import type { EntryDraft } from "@/components/yearly-calendar-entry-modal";
 import AttendeeTooltip from "@/components/attendee-tooltip";
+
+// The editor modals carry the rich-text editor (TipTap) and the import tool,
+// about 130 kB gzipped. /kalender is the main public page, so they are loaded
+// only once someone who may edit is signed in, never for a visitor.
+const EventCreationModal = lazy(() => import("@/components/event-creation-modal"));
+const EventRegistrationsModal = lazy(() => import("@/components/event-registrations-modal"));
+const YearlyCalendarEntryModal = lazy(() => import("@/components/yearly-calendar-entry-modal"));
+const YearlyCalendarImportModal = lazy(() => import("@/components/yearly-calendar-import-modal"));
 
 type CreationTarget =
   | { kind: "event"; event: Event | null }
@@ -60,7 +65,12 @@ export type CalendarEditor = {
  * so the picker is where that split belongs. Both branches then open the
  * existing modal unchanged.
  */
-export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; month: { year: number; month: number } }): CalendarEditor {
+export function useCalendarEditor({ schoolYear, month, yearlyEntries: loadedEntries }: {
+  schoolYear: number;
+  month: { year: number; month: number };
+  /** The rows the calendar already read (this school year and its neighbours). */
+  yearlyEntries: YearlyCalendarEntry[];
+}): CalendarEditor {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { toast } = useToast();
@@ -77,9 +87,7 @@ export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; m
   const [busy, setBusy] = useState<"template" | null>(null);
 
   // Excel uses raw rows for the school year containing the displayed month.
-  const { data: yearlyEntries = [] } = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`],
-  });
+  const yearlyEntries = loadedEntries.filter((entry) => entry.schoolYear === schoolYear);
 
   const cancelMutation = useMutation({
     mutationFn: (id: number) => apiRequest("PATCH", `/api/events?id=${id}&action=cancel`),
@@ -111,7 +119,7 @@ export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; m
       }
       toast({
         title: t.events.couldNotDelete,
-        description: getApiErrorMessage(error, t.events.errorOccurredWhileDeleting),
+        description: apiErrorText(error, t, t.events.errorOccurredWhileDeleting),
         variant: "destructive",
       });
     },
@@ -226,7 +234,7 @@ export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; m
     );
   };
 
-  const modals = (
+  const modals = !canEditYearly ? null : (
     <>
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
         <DialogContent className="sm:max-w-lg">
@@ -267,32 +275,34 @@ export function useCalendarEditor({ schoolYear, month }: { schoolYear: number; m
         </DialogContent>
       </Dialog>
 
-      <EventCreationModal
-        isOpen={creating?.kind === "event"}
-        onClose={() => setCreating(null)}
-        event={creating?.kind === "event" ? creating.event : null}
-      />
-
-      {creating?.kind === "yearly" && (
-        <YearlyCalendarEntryModal
-          isOpen
+      <Suspense fallback={null}>
+        <EventCreationModal
+          isOpen={creating?.kind === "event"}
           onClose={() => setCreating(null)}
-          existing={creating.existing}
-          initial={creating.initial}
+          event={creating?.kind === "event" ? creating.event : null}
         />
-      )}
 
-      <EventRegistrationsModal
-        event={registrationsFor}
-        isOpen={registrationsFor !== null}
-        onClose={() => setRegistrationsFor(null)}
-      />
+        {creating?.kind === "yearly" && (
+          <YearlyCalendarEntryModal
+            isOpen
+            onClose={() => setCreating(null)}
+            existing={creating.existing}
+            initial={creating.initial}
+          />
+        )}
 
-      <YearlyCalendarImportModal
-        isOpen={importOpen}
-        onClose={() => setImportOpen(false)}
-        schoolYear={schoolYear}
-      />
+        <EventRegistrationsModal
+          event={registrationsFor}
+          isOpen={registrationsFor !== null}
+          onClose={() => setRegistrationsFor(null)}
+        />
+
+        <YearlyCalendarImportModal
+          isOpen={importOpen}
+          onClose={() => setImportOpen(false)}
+          schoolYear={schoolYear}
+        />
+      </Suspense>
 
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
         <AlertDialogContent>

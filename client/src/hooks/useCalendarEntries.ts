@@ -4,6 +4,7 @@ import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntry } from "@shared/calendar-entries";
 import { mergeCalendarEntries } from "@shared/calendar-entries";
 import { getKindergartenSchoolYear } from "@/lib/kindergarten-year";
+import { apiRequest } from "@/lib/queryClient";
 
 export type UseCalendarEntriesResult = {
   entries: CalendarEntry[];
@@ -25,27 +26,27 @@ export type UseCalendarEntriesResult = {
  * them from the same cache rather than refetching.
  */
 export function useCalendarEntries(schoolYear = getKindergartenSchoolYear(new Date())): UseCalendarEntriesResult {
-  const eventsQuery = useQuery<Event[]>({ queryKey: ["/api/events"] });
+  // `/api/events` starts at the previous school year by default, which covers
+  // the current year's calendar. Paged further back, ask for more under a
+  // second key; `["/api/events"]` invalidations still reach it by prefix.
+  const from = schoolYear < getKindergartenSchoolYear(new Date()) ? `${schoolYear - 1}-08-01` : null;
+  const eventsQuery = useQuery<Event[]>(
+    from
+      ? {
+          queryKey: ["/api/events", { from }],
+          queryFn: () => apiRequest("GET", `/api/events?from=${from}`).then((res) => res.json()),
+        }
+      : { queryKey: ["/api/events"] },
+  );
 
-  // Adjacent school years cover grid days and week bands crossing August.
-  const previousYearQuery = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear - 1}`],
-  });
-  const currentYearQuery = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear}`],
-  });
-  const nextYearQuery = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${schoolYear + 1}`],
+  // Adjacent school years cover grid days and week bands crossing August,
+  // read in one call.
+  const yearlyQuery = useQuery<YearlyCalendarEntry[]>({
+    queryKey: [`/api/yearly-calendar?fromSchoolYear=${schoolYear - 1}&toSchoolYear=${schoolYear + 1}`],
   });
 
   const events = eventsQuery.data;
-  const currentYearEntries = currentYearQuery.data;
-  const nextYearEntries = nextYearQuery.data;
-
-  const yearlyEntries = useMemo(
-    () => [...(previousYearQuery.data ?? []), ...(currentYearEntries ?? []), ...(nextYearEntries ?? [])],
-    [previousYearQuery.data, currentYearEntries, nextYearEntries],
-  );
+  const yearlyEntries = useMemo(() => yearlyQuery.data ?? [], [yearlyQuery.data]);
   const entries = useMemo(
     () =>
       mergeCalendarEntries({
@@ -59,11 +60,11 @@ export function useCalendarEntries(schoolYear = getKindergartenSchoolYear(new Da
     entries,
     yearlyEntries,
     events: events ?? [],
-    exportsReady: eventsQuery.isSuccess && previousYearQuery.isSuccess && currentYearQuery.isSuccess && nextYearQuery.isSuccess,
-    hasDataError: eventsQuery.isError || previousYearQuery.isError || currentYearQuery.isError || nextYearQuery.isError,
-    isLoading: eventsQuery.isLoading || previousYearQuery.isLoading || currentYearQuery.isLoading || nextYearQuery.isLoading,
-    // A missing school year is not a failure worth blanking the page for —
-    // only give up when every source is unavailable.
-    isError: eventsQuery.isError && currentYearQuery.isError && nextYearQuery.isError,
+    exportsReady: eventsQuery.isSuccess && yearlyQuery.isSuccess,
+    hasDataError: eventsQuery.isError || yearlyQuery.isError,
+    isLoading: eventsQuery.isLoading || yearlyQuery.isLoading,
+    // Either source alone still makes a useful calendar; only give up when
+    // both are unavailable.
+    isError: eventsQuery.isError && yearlyQuery.isError,
   };
 }

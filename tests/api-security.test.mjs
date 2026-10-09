@@ -181,6 +181,25 @@ test('revoked token version and missing account are rejected', async () => {
   assert.equal(await parseAuthToken(request({ token: tokenFor() }), userSql(null)), null);
 });
 
+// Only a bad token means "not signed in". A database that cannot be reached
+// used to answer 401 too, so an outage looked like every council member being
+// signed out, with nothing in the error log.
+test('a failing user lookup is an error, not a signed-out caller', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const down = async () => { throw new Error('Connection terminated unexpectedly'); };
+  await assert.rejects(parseAuthToken(request({ token: tokenFor() }), down), /Connection terminated/);
+  const res = mockResponse();
+  await assert.rejects(requireRole(request({ token: tokenFor() }), res, ADMIN_ONLY, down), /Connection terminated/);
+  assert.notEqual(res.statusCode, 401, 'no 401 written on the way out');
+
+  // A token that does not verify is still just "not signed in", and never
+  // reaches the database.
+  let asked = false;
+  const unused = async () => { asked = true; return []; };
+  assert.equal(await parseAuthToken(request({ token: 'not-a-jwt' }), unused), null);
+  assert.equal(asked, false);
+});
+
 test('password-change-required principal is blocked before role authorization', async () => {
   const res = mockResponse();
   const user = await requireRole(

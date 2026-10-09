@@ -1,3 +1,5 @@
+import { API_ERROR_CODES, type ApiErrorCode } from "@shared/constants";
+import type { Translations } from "@/lib/i18n";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 export type ApiErrorBody = {
@@ -10,15 +12,23 @@ export class ApiError extends Error {
   status: number;
   body: ApiErrorBody | string | null;
   responseText: string;
+  /** The server's X-Request-Id: the id our logs and Vercel's carry for it. */
+  requestId: string | null;
 
-  constructor(status: number, body: ApiErrorBody | string | null, responseText: string, statusText: string) {
+  constructor(status: number, body: ApiErrorBody | string | null, responseText: string, statusText: string, requestId: string | null = null) {
     const message = getApiErrorMessageFromBody(body) || responseText || statusText || `Request failed with ${status}`;
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.body = body;
     this.responseText = responseText;
+    this.requestId = requestId;
   }
+}
+
+/** The request id of a failed API call, for a user to quote when reporting it. */
+export function apiErrorRequestId(error: unknown): string | null {
+  return error instanceof ApiError ? error.requestId : null;
 }
 
 function getApiErrorMessageFromBody(body: ApiErrorBody | string | null): string | null {
@@ -35,14 +45,16 @@ export function getApiErrorBody(error: unknown): ApiErrorBody | null {
   return null;
 }
 
-export function getApiErrorMessage(error: unknown, fallback = "An unexpected error occurred"): string {
-  if (error instanceof ApiError) {
-    return error.message || fallback;
-  }
-  if (error instanceof Error) {
-    return error.message || fallback;
-  }
-  return fallback;
+// What to tell the user about a failed request. A refusal the user can run
+// into carries a `code` the API names in API_ERROR_CODES, shown translated;
+// anything else gets the caller's own translated `fallback`. The `error` text
+// in the body is never shown: it is English (once Norwegian only), so a parent
+// using the site in Norwegian used to read "Invalid credentials".
+export function apiErrorText(error: unknown, t: Translations, fallback: string): string {
+  const code = getApiErrorBody(error)?.code;
+  return typeof code === "string" && (API_ERROR_CODES as readonly string[]).includes(code)
+    ? t.apiErrors[code as ApiErrorCode]
+    : fallback;
 }
 
 // Both cookies live exactly 2 hours. When they expire, every council endpoint
@@ -76,7 +88,7 @@ async function throwIfResNotOk(res: Response, recoverSession = true) {
       }
     }
 
-    throw new ApiError(res.status, body, text, res.statusText);
+    throw new ApiError(res.status, body, text, res.statusText, res.headers?.get?.("X-Request-Id") ?? null);
   }
 }
 
@@ -170,3 +182,17 @@ export const queryClient = new QueryClient({
     },
   },
 });
+
+/**
+ * After a signup or a cancellation: refresh the seat counts (`/api/events`)
+ * and every registration list of that event (`…?eventId=7&food=1`,
+ * `…&view=council`, `…&cancelled=1`), whatever view a key asks for.
+ */
+export function invalidateEventRegistrations(eventId: number) {
+  const prefix = `/api/registrations?eventId=${eventId}`;
+  void queryClient.invalidateQueries({ queryKey: ["/api/events"] });
+  void queryClient.invalidateQueries({
+    predicate: ({ queryKey }) =>
+      typeof queryKey[0] === "string" && (queryKey[0] === prefix || queryKey[0].startsWith(`${prefix}&`)),
+  });
+}

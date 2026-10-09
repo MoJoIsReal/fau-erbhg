@@ -11,7 +11,7 @@ import { getDb } from './database.js';
 import { isPasswordChangeRequired } from './password-policy.js';
 import { getJwtConfig } from './jwt-config.js';
 import { YOUTUBE_EMBED_HOST, youtubeEmbedSrc } from '../../shared/video-embed.js';
-import { getRequestId, logEvent, requestFields, setRequestActor } from './log.js';
+import { getRequestId, getRequestPath, logEvent, requestActor, requestFields, requestTargetId, setRequestActor } from './log.js';
 
 function appendVaryHeader(res, value) {
   const current = res.getHeader?.('Vary');
@@ -95,9 +95,45 @@ export function handleCorsPreFlight(req, res) {
  * @param {(req: Object, res: Object) => Promise<any>} handler
  * @returns {(req: Object, res: Object) => Promise<any>}
  */
+// The id a POST created, read off the JSON it answers with, for the audit row.
+const CREATED_ID = Symbol.for('fau.response.createdId');
+
+/**
+ * One audit_log row (migration 0024) for a change a signed-in user made: who,
+ * which route and action, and the id it acted on or created. Ids only, never
+ * content. A failure here must not fail a change that has already happened,
+ * so it is logged and swallowed.
+ * @param {Object} req
+ * @param {Object} res
+ * @param {number} status
+ */
+async function recordAudit(req, res, status) {
+  const actor = requestActor(req);
+  if (!actor || !Number.isInteger(actor.userId)) return;
+  const text = (value) => (typeof value === 'string' && value ? value.slice(0, 100) : null);
+  try {
+    const sql = getDb();
+    await sql`
+      INSERT INTO audit_log (created_at, user_id, role, method, path, action, resource, target_id, status, request_id)
+      VALUES (${new Date().toISOString()}, ${actor.userId}, ${String(actor.role)}, ${String(req.method)},
+              ${getRequestPath(req) ?? ''}, ${text(req.query?.action)}, ${text(req.query?.resource)},
+              ${requestTargetId(req) ?? res[CREATED_ID] ?? null}, ${status}, ${getRequestId(req)})
+    `;
+  } catch (error) {
+    logEvent('warn', 'audit.write_failed', { ...requestFields(req), message: error?.message });
+  }
+}
+
 export function withApiHandler(handler) {
   return async function wrappedHandler(req, res) {
     const startedAt = Date.now();
+    if (typeof res.json === 'function') {
+      const json = res.json.bind(res);
+      res.json = (body) => {
+        if (Number.isInteger(body?.id)) res[CREATED_ID] = body.id;
+        return json(body);
+      };
+    }
     applySecurityHeaders(res, req.headers.origin);
 
     // Echoed so a parent reporting a problem can quote one id that matches both
@@ -126,9 +162,11 @@ export function withApiHandler(handler) {
         // stay unlogged: they are the bulk of the traffic and carry no change.
         logEvent('info', 'api.mutation', {
           ...requestFields(req),
+          createdId: res[CREATED_ID],
           status,
           durationMs: Date.now() - startedAt,
         });
+        await recordAudit(req, res, status);
       }
       return result;
     } catch (error) {
@@ -165,7 +203,7 @@ export async function handleError(res, error, statusCode = 500, req = null, star
   // instance freezes the moment this response is written, so an unawaited
   // capture frequently never reached Sentry at all.
   if (process.env.NODE_ENV === 'production' && statusCode >= 500) {
-    await Sentry.captureException(error);
+    await Sentry.captureException(error, requestFields(req));
   }
 
   // Internal error details only ever reach a local developer.
@@ -287,7 +325,8 @@ export function requireCsrf(req, res) {
 /**
  * Parse and validate JWT token from request (cookies or Authorization header)
  * @param {Object} req - Request object
- * @returns {Object|null} - Decoded token payload or null
+ * @returns {Promise<Object|null>} - Decoded token payload, or null when not signed in
+ * @throws when the session secret is missing or the user lookup fails
  */
 export async function parseAuthToken(req, sqlClient = null) {
   // First try to get token from HttpOnly cookie
@@ -306,49 +345,56 @@ export async function parseAuthToken(req, sqlClient = null) {
     return null;
   }
 
+  // Only a token that fails verification means "not signed in". A missing
+  // SESSION_SECRET or a database that cannot be reached is an outage: it used
+  // to be caught here too and answered 401, so during a Neon incident every
+  // council member looked signed out and nothing reached the error log or
+  // Sentry. Those now throw on to withApiHandler, which answers 500 and
+  // reports them.
+  const jwtConfig = getJwtConfig();
+  let decoded;
   try {
-    const jwtConfig = getJwtConfig();
-    const decoded = jwt.verify(token, jwtConfig.secret, jwtConfig.verifyOptions);
-    if (!Number.isInteger(decoded.tokenVersion)) {
-      return null;
-    }
-
-    const sql = sqlClient || getDb();
-    const users = await sql`
-      SELECT username, name, role, token_version as "tokenVersion",
-             must_change_password as "mustChangePassword",
-             password_changed_at as "passwordChangedAt"
-      FROM users
-      WHERE id = ${decoded.userId}
-      LIMIT 1
-    `;
-    const user = users[0];
-    if (!user || user.tokenVersion !== decoded.tokenVersion) {
-      return null;
-    }
-
-    return {
-      ...decoded,
-      username: user.username,
-      name: user.name,
-      role: user.role,
-      mustChangePassword: user.mustChangePassword,
-      passwordChangedAt: user.passwordChangedAt,
-      passwordChangeRequired: isPasswordChangeRequired(user),
-    };
+    decoded = jwt.verify(token, jwtConfig.secret, jwtConfig.verifyOptions);
   } catch (error) {
     if (error.name !== 'TokenExpiredError') {
       console.error('Token validation error:', redactSensitiveText(error.message));
     }
     return null;
   }
+  if (!Number.isInteger(decoded.tokenVersion)) {
+    return null;
+  }
+
+  const sql = sqlClient || getDb();
+  const users = await sql`
+    SELECT username, name, role, token_version as "tokenVersion",
+           must_change_password as "mustChangePassword",
+           password_changed_at as "passwordChangedAt"
+    FROM users
+    WHERE id = ${decoded.userId}
+    LIMIT 1
+  `;
+  const user = users[0];
+  if (!user || user.tokenVersion !== decoded.tokenVersion) {
+    return null;
+  }
+
+  return {
+    ...decoded,
+    username: user.username,
+    name: user.name,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+    passwordChangedAt: user.passwordChangedAt,
+    passwordChangeRequired: isPasswordChangeRequired(user),
+  };
 }
 
 /**
  * Require authentication for API endpoint
  * @param {Object} req - Request object
  * @param {Object} res - Response object
- * @returns {Object|null} - User object if authenticated, null otherwise (also sends 401 response)
+ * @returns {Promise<Object|null>} - User object if authenticated, null otherwise (also sends 401 response)
  */
 export async function requireAuth(req, res, sqlClient = null, options = {}) {
   const user = await parseAuthToken(req, sqlClient);
@@ -378,7 +424,7 @@ export async function requireAuth(req, res, sqlClient = null, options = {}) {
  * @param {Object} req
  * @param {Object} res
  * @param {string[]} allowedRoles - Role names from shared/constants.ts (COUNCIL_ROLES, ADMIN_ONLY, etc.)
- * @returns {Object|null}
+ * @returns {Promise<Object|null>}
  */
 export async function requireRole(req, res, allowedRoles, sqlClient = null, options = {}) {
   const user = await requireAuth(req, res, sqlClient, options);
@@ -506,11 +552,27 @@ export function sanitizeText(text, maxLength = 1000) {
 }
 
 /**
- * Sanitize HTML content (allows basic formatting but prevents XSS)
- * @param {string} html - HTML content to sanitize
- * @param {number} maxLength - Maximum allowed length (default: 10000)
- * @returns {string} - Sanitized HTML
+ * A submitted name, fit to repeat in mail sent to an address nobody has
+ * verified. The public forms accept any recipient, so whatever the name holds
+ * goes out from FAU's own Gmail: a name like "Klikk https://…" would make the
+ * site a phishing relay. Only letters (any script), combining marks, spaces,
+ * hyphens and apostrophes survive, which keeps "Anne-Marie O'Neil" and drops
+ * the dots, slashes, digits and line breaks a link or a second paragraph needs.
+ * @param {unknown} value
+ * @param {number} [maxLength]
+ * @returns {string} '' when nothing usable is left
  */
+export function nameForMail(value, maxLength = 100) {
+  if (typeof value !== 'string') return '';
+  return value
+    .slice(0, maxLength * SANITIZE_INPUT_FACTOR)
+    .replace(/\s+/g, ' ')
+    .replace(/[^\p{L}\p{M} '’-]/gu, '')
+    .replace(/ {2,}/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
 function isCloudinaryImageSrc(src) {
   try {
     const url = new URL(src);
@@ -524,6 +586,12 @@ function isCloudinaryImageSrc(src) {
 // permissions YouTube's player needs, and nothing else.
 const IFRAME_ALLOW = 'accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share';
 
+/**
+ * Sanitize HTML content (allows basic formatting but prevents XSS)
+ * @param {string} html - HTML content to sanitize
+ * @param {number} [maxLength] - Maximum allowed length (default: 10000)
+ * @returns {string} - Sanitized HTML
+ */
 export function sanitizeHtml(html, maxLength = 10000) {
   if (!html || typeof html !== 'string') return '';
 
@@ -584,8 +652,22 @@ export function sanitizeHtml(html, maxLength = 10000) {
     disallowedTagsMode: 'discard',
     enforceHtmlBoundary: true
   })
-    .trim()
-    .substring(0, maxLength);
+    // Not cut again here: sanitizing lengthens text (`&` becomes `&amp;`, a
+    // link gains target and rel), and cutting the result to maxLength used
+    // to end stored HTML in the middle of a tag. The input slice above
+    // bounds the work; a handler refuses an over-long input outright
+    // (isHtmlTooLong) rather than silently storing less than was sent.
+    .trim();
+}
+
+/**
+ * True when rich text from an editor is longer than its field allows, so the
+ * handler can refuse it (FIELD_TOO_LARGE) instead of storing a truncated copy.
+ * @param {unknown} value
+ * @param {number} maxLength
+ */
+export function isHtmlTooLong(value, maxLength) {
+  return typeof value === 'string' && value.length > maxLength;
 }
 
 /**

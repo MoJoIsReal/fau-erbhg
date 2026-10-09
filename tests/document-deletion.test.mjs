@@ -19,7 +19,7 @@ function fixture(t, { type = 'image', extension = 'pdf', result = 'ok', failure,
   const id = publicId ?? `fau-documents/example${type === 'raw' ? `.${extension}` : ''}`;
   let row = { id: 7, filename: `example.${extension}`, mime_type: extension === 'pdf' ? 'application/pdf' : 'image/png',
     cloudinary_public_id: id,
-    cloudinary_url: url ?? `https://res.cloudinary.com/test/${type}/upload/v1/fau-documents/example.${extension}` };
+    cloudinary_url: url === null ? null : url ?? `https://res.cloudinary.com/test/${type}/upload/v1/fau-documents/example.${extension}` };
   const effects = [];
   useDatabase(scriptedSql({
     respond(statement, values) {
@@ -109,4 +109,31 @@ test('the public list does not publish who uploaded a document', async (t) => {
   assert.doesNotMatch(sql.calls[0].statement, /uploaded_by/);
   // TRACE-005: editor images are filtered before the LIMIT, not after it.
   assert.match(sql.calls[0].statement, /WHERE category <> 'editor-image' ORDER BY uploaded_at DESC LIMIT 500$/);
+});
+
+// Nothing at the provider can be addressed without a URL, so the row simply
+// goes; it used to throw on `new URL(null)` and stay undeletable.
+test('a document without a URL is deleted without asking the provider', async (t) => {
+  const f = fixture(t, { url: null, publicId: null });
+  const res = await f.run();
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(f.effects, ['database-delete']);
+  assert.equal(f.row(), null);
+});
+
+// TEST-003. A download is a redirect to the stored file, or a 404 that says so.
+test('a download redirects to the stored file, and a missing one is a 404', async (t) => {
+  const url = 'https://res.cloudinary.com/test/raw/upload/v1/fau-documents/referat.pdf';
+  const database = (rows) => useDatabase(scriptedSql({ respond: () => rows }));
+  database([{ id: 7, cloudinary_url: url }]);
+  const res = await call(t, handler, { query: { action: 'download', id: '7' } });
+  assert.deepEqual([res.statusCode, res.headers.location], [302, url]);
+
+  database([]);
+  assert.deepEqual((await call(t, handler, { query: { action: 'download', id: '7' } })).body.code, 'NOT_FOUND');
+  database([{ id: 7, cloudinary_url: null }]);
+  assert.equal((await call(t, handler, { query: { action: 'download', id: '7' } })).statusCode, 404);
+  const refused = useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, { query: { action: 'download', id: '7.5' } })).statusCode, 400);
+  assert.deepEqual(refused.calls, []);
 });

@@ -21,8 +21,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
-import { insertContactMessageSchema } from "@shared/schema";
+import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
+import { contactFormBaseSchema } from "@/lib/form-schemas";
 import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
 import {
   GraduationCap,
@@ -49,7 +49,7 @@ import { SectionHeader, Surface } from "@/components/site/section";
 import { InfoBanner } from "@/components/site/banners";
 import { ILLUSTRATION_CONTACT } from "@/components/site/illustrations";
 
-type FormData = z.infer<typeof insertContactMessageSchema> & {
+type FormData = z.infer<typeof contactFormBaseSchema> & {
   subject: string;
   website?: string;
 };
@@ -95,7 +95,7 @@ export default function Contact() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
-  const formSchema = insertContactMessageSchema.extend({
+  const formSchema = contactFormBaseSchema.extend({
     subject: z.string().min(1, t.contact.selectSubject),
     website: z.string().optional(),
   });
@@ -182,7 +182,7 @@ export default function Contact() {
       }
       toast({
         title: t.contact.error,
-        description: error.message || t.contact.errorDesc,
+        description: apiErrorText(error, t, t.contact.errorDesc),
         variant: "destructive",
       });
     },

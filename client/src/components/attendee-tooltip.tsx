@@ -24,10 +24,13 @@ export default function AttendeeTooltip({
 }: AttendeeTooltipProps) {
   const { language, t } = useLanguage();
 
-  const { data: registrations = [] } = useQuery<EventRegistration[]>({
-    queryKey: [`/api/registrations?eventId=${eventId}`],
+  // Council only; `view=council` makes a lapsed session a 401, not the
+  // public count (which is not a list).
+  const { data } = useQuery<EventRegistration[]>({
+    queryKey: [`/api/registrations?eventId=${eventId}&view=council`],
     enabled: attendeeCount > 0,
   });
+  const registrations = Array.isArray(data) ? data : [];
 
   const getTooltipContent = () => {
     if (attendeeCount === 0) {

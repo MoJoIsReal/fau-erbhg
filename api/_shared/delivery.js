@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 
 export const DELIVERY_CONCURRENCY = 5;
+// How long a claimed delivery or reminder is held before another run may take
+// it back: longer than any run (30 s), short enough to retry the same night.
 export const DELIVERY_LEASE_MINUTES = 10;
 
 // The abort callback must stop the underlying provider work, not just abandon

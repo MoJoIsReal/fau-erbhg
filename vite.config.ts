@@ -5,6 +5,11 @@ import path from "path";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  // The commit Vercel builds, so a browser error event names its deploy
+  // (Sentry's `release`), as the server's events do. Empty outside Vercel.
+  define: {
+    "import.meta.env.VITE_RELEASE": JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA ?? ""),
+  },
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

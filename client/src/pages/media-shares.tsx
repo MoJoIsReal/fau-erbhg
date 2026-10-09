@@ -59,7 +59,7 @@ import {
   MEDIA_DESCRIPTION_MAX,
   MEDIA_MAX_EXTENSION_DAYS,
   MEDIA_MAX_INITIAL_DAYS,
-  MEDIA_PIN_PATTERN,
+  MEDIA_NEW_PIN_PATTERN,
   MEDIA_TITLE_MAX,
   mediaKind,
   normalizeMediaMime,
@@ -173,7 +173,7 @@ function CreateShare({ maxFileBytes }: { maxFileBytes: number }) {
     title: z.string().trim().min(1, t.mediaAdmin.titleLabel).max(MEDIA_TITLE_MAX),
     description: z.string().max(MEDIA_DESCRIPTION_MAX),
     expiresInDays: z.string(),
-    pin: z.string().refine((pin) => pin === "" || MEDIA_PIN_PATTERN.test(pin), t.mediaAdmin.pinInvalid),
+    pin: z.string().refine((pin) => pin === "" || MEDIA_NEW_PIN_PATTERN.test(pin), t.mediaAdmin.pinInvalid),
   }), [t]);
   type Values = z.infer<typeof schema>;
   const form = useForm<Values>({

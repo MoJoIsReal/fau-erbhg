@@ -26,19 +26,19 @@ import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import { formatDate, formatFileSize } from "@/lib/i18n";
 import PageHero from "@/components/site/page-hero";
 import { ILLUSTRATION_DOCUMENTS } from "@/components/site/illustrations";
 import { Surface, EmptyState } from "@/components/site/section";
 import { FilterChip } from "@/components/site/controls";
 import { EditorSurface } from "@/components/site/cards";
-import type { Document } from "@shared/schema";
+import type { PublicDocument } from "@shared/schema";
 
 // Images uploaded from inside the rich-text editor are stored as documents
-// under the "editor-image" category with a raw Cloudinary filename. They are
-// not archive documents, so they never appear here; these three categories
-// are the whole public list.
+// under the "editor-image" category, and the API leaves them out. These three
+// categories are the filter chips; the upload API accepts no others, but an
+// older row filed elsewhere still shows under "all", so it can be deleted.
 const CATEGORY_IDS = ["protokoll", "vedtekter", "budsjett"] as const;
 type CategoryId = (typeof CATEGORY_IDS)[number];
 
@@ -91,7 +91,7 @@ export default function Files() {
     data: allDocuments = [],
     isLoading,
     error,
-  } = useQuery<Document[]>({
+  } = useQuery<PublicDocument[]>({
     queryKey: ["/api/documents"],
   });
 
@@ -116,12 +116,11 @@ export default function Files() {
     },
   });
 
-  // Newest first, and only the three archive categories. Sorted explicitly
-  // rather than trusting the order the API happens to return.
+  // Newest first. Sorted explicitly rather than trusting the order the API
+  // happens to return.
   const documents = useMemo(
     () =>
       allDocuments
-        .filter((doc) => (CATEGORY_IDS as readonly string[]).includes(doc.category))
         .slice()
         .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()),
     [allDocuments],
@@ -132,7 +131,7 @@ export default function Files() {
   const countFor = (id: CategoryId) => documents.filter((doc) => doc.category === id).length;
   const categoryName = (id: string) => categories.find((item) => item.id === id)?.name ?? id;
 
-  const deleteButton = (doc: Document) => (
+  const deleteButton = (doc: PublicDocument) => (
     <AlertDialog>
       <AlertDialogTrigger asChild>
         <Button
@@ -231,7 +230,7 @@ export default function Files() {
             isError
             icon={<FileText className="h-5 w-5" aria-hidden="true" />}
             title={t.documents.error}
-            description={error.message}
+            description={apiErrorText(error, t, t.apiErrors.generic)}
           />
         ) : shown.length === 0 ? (
           <EmptyState

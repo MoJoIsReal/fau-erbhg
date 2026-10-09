@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { importBundle } from './helpers.mjs';
 
-const { queryClient, apiRequest, getQueryFn } = await importBundle({
+const { queryClient, apiRequest, getQueryFn, invalidateEventRegistrations } = await importBundle({
   entryPoints: ['client/src/lib/queryClient.ts'], platform: 'browser', define: { 'import.meta.env.DEV': 'false' },
 });
 
@@ -35,4 +35,27 @@ test('HTTP failure and invalid JSON become query errors, never empty successful 
     assert.equal(queryClient.getQueryData(['/fixture']), undefined);
     queryClient.clear();
   }
+});
+
+// A signup or cancel changes the seat count and every attendee view of that
+// event, and nothing about another event that happens to share a digit.
+test('a signup or cancel marks every view of that event stale, and only that event', () => {
+  const keys = [
+    ['/api/events'], ['/api/registrations?eventId=7&food=1'], ['/api/registrations?eventId=7&view=council'],
+    ['/api/registrations?eventId=7&cancelled=1'], ['/api/registrations?eventId=70&food=1'], ['/api/documents'],
+  ];
+  for (const key of keys) queryClient.setQueryData(key, []);
+  invalidateEventRegistrations(7);
+  const stale = keys.filter((key) => queryClient.getQueryState(key).isInvalidated).map((key) => key[0]);
+  assert.deepEqual(stale, keys.slice(0, 4).map((key) => key[0]));
+  queryClient.clear();
+});
+
+test('a failed request keeps the id the server answered with', async (t) => {
+  t.mock.method(globalThis, 'fetch', async () => new Response('{"error":"Internal server error"}', {
+    status: 500, headers: { 'X-Request-Id': 'arn1::iad1::abc12-1759912345678' },
+  }));
+  const error = await apiRequest('GET', '/api/documents').catch((caught) => caught);
+  assert.equal(error.requestId, 'arn1::iad1::abc12-1759912345678');
+  queryClient.clear();
 });

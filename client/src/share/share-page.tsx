@@ -275,7 +275,7 @@ function ShareContent({ share, onExpired, urlsExpired }: {
                   aria-label={t.mediaShare.openPhoto.replace("{n}", String(index + 1)).replace("{total}", String(images.length))}
                 >
                   <img
-                    src={file.url}
+                    src={file.previewUrl ?? file.url}
                     alt=""
                     loading={index < 6 ? "eager" : "lazy"}
                     decoding="async"

@@ -236,14 +236,14 @@ export function matchesFileSignature(mimeType, bytes) {
 /** Delete one share's objects, abort its unfinished uploads, then its rows. */
 export async function purgeShare(sql, shareId) {
   const files = await sql`
-    SELECT object_key, upload_id, status FROM media_files WHERE share_id = ${shareId}
+    SELECT object_key, preview_key, upload_id, status FROM media_files WHERE share_id = ${shareId}
   `;
   for (const file of files) {
     if (file.status === 'uploading' && file.upload_id) {
       await abortMultipartUpload(file.object_key, file.upload_id);
     }
   }
-  await deleteObjects(files.map((file) => file.object_key));
+  await deleteObjects(files.flatMap((file) => [file.object_key, file.preview_key].filter(Boolean)));
   await sql`DELETE FROM media_shares WHERE id = ${shareId}`;
   return files.length;
 }

@@ -23,7 +23,23 @@ function getSentryEndpoint(dsn) {
   }
 }
 
-function toSentryEvent(error) {
+// Tags that tie an event to the request (its id is the one the user saw and
+// the one in the log line) and the route. Kept only when the value looks like
+// an id or a path, the same rule log.js uses, so nothing a caller typed into
+// `?action=` becomes a searchable tag.
+const TAG_KEYS = ['requestId', 'method', 'path', 'action', 'resource', 'role', 'targetId'];
+const TAG_SHAPE = /^[A-Za-z0-9:._/-]{1,200}$/;
+
+function sentryTags(context = {}) {
+  const tags = {};
+  for (const key of TAG_KEYS) {
+    const value = context[key] == null ? '' : String(context[key]);
+    if (TAG_SHAPE.test(value)) tags[key] = value;
+  }
+  return tags;
+}
+
+export function toSentryEvent(error, context) {
   const now = new Date().toISOString();
   return {
     event_id: crypto.randomUUID().replace(/-/g, ''),
@@ -32,6 +48,9 @@ function toSentryEvent(error) {
     level: 'error',
     server_name: process.env.VERCEL_REGION || 'vercel-serverless',
     environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'production',
+    // The deploy, so an event can be tied to the commit that shipped it.
+    release: process.env.VERCEL_GIT_COMMIT_SHA || undefined,
+    tags: sentryTags(context),
     exception: {
       values: [
         {
@@ -52,7 +71,7 @@ function toSentryEvent(error) {
   };
 }
 
-async function sendSentryEvent(error) {
+async function sendSentryEvent(error, context) {
   const dsn = process.env.SENTRY_DSN;
   if (!dsn || typeof fetch !== 'function') return;
 
@@ -60,7 +79,7 @@ async function sendSentryEvent(error) {
   if (!endpoint) return;
 
   const sentAt = new Date().toISOString();
-  const event = toSentryEvent(error);
+  const event = toSentryEvent(error, context);
   const envelope = [
     JSON.stringify({ dsn, sent_at: sentAt }),
     JSON.stringify({ type: 'event' }),
@@ -85,11 +104,12 @@ const Sentry = {
    * timeout above has expired. It never rejects, so an `await` here can never
    * turn a handled 500 into an unhandled one.
    * @param {Error} error
+   * @param {Object} [context] - requestFields(req), sent as tags
    * @returns {Promise<void>}
    */
-  captureException(error) {
+  captureException(error, context) {
     if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
-      return sendSentryEvent(error);
+      return sendSentryEvent(error, context);
     }
     return Promise.resolve();
   },

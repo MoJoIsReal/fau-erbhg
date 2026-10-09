@@ -5,16 +5,24 @@ boundaries in [architecture.md](./architecture.md).
 
 ## Runtime and verification
 
-The React SPA and the nine Vercel functions (eight top-level handlers and one
-cron handler) are one deployment. There is no separate Node server. The project
-requires Node **22.x**, matching `package.json` and `.github/workflows/ci.yml`.
+The React SPA and the ten Vercel functions (nine top-level handlers and one
+cron handler, of the Hobby plan's twelve) are one deployment. There is no
+separate Node server. The project requires Node **22.x**, matching
+`package.json` and `.github/workflows/ci.yml`.
+
+**Keep the functions in the database's region.** Every handler talks to Neon
+over HTTPS, one round trip per SQL statement, and a request runs up to about
+six of them in sequence (a public signup does). The function region (Vercel →
+Project → Settings → Functions) and the Neon project's region were checked on
+2026-10-08 and are the same. If either is ever moved, move the other with it: a
+transatlantic gap adds roughly 80–100 ms to every statement.
 
 ```bash
 npm ci
 npm run verify
 ```
 
-`verify` runs frontend TypeScript, the backend diagnostic ratchet, the i18n
+`verify` runs frontend TypeScript, the backend type gate, the i18n
 ratchet, the offline `node:test` suites and the frontend production build.
 The separate CI PostgreSQL job runs `npm run test:integration`; see
 [database-testing.md](./database-testing.md). It uses no production credentials.
@@ -61,17 +69,21 @@ secrets or capability tokens while troubleshooting.
 The current table/type declaration is [`shared/schema.ts`](../shared/schema.ts).
 Handlers use parameterized Neon SQL, not Drizzle's query builder.
 
-For a **new isolated database**, explicitly configure its `DATABASE_URL`, use
-`npm run db:push` to create the declared schema, then apply applicable SQL files
-in numeric order according to [`migrations/README.md`](../migrations/README.md).
-The SQL files also contain constraints, indexes and data repairs absent from the
-Drizzle declaration. `db:push` does not create a numbered migration file.
+For a **new isolated database**, apply
+[`tests/integration/baseline.sql`](../tests/integration/baseline.sql) (the base
+tables no migration creates), then every SQL file in numeric order according to
+[`migrations/README.md`](../migrations/README.md) — exactly what the CI
+integration job does. There is no `db:push` script any more: pushing the Drizzle
+declaration reconciled a database to `shared/schema.ts`, and at the time that
+dropped indexes and checks only the migrations created, among them the unique
+`(event_id, lower(email))` index that stops duplicate signups.
 
 For an **existing deployment**, review and apply only outstanding numbered SQL
 migrations through the Neon SQL editor before the dependent code is deployed.
-Do not use `db:push` as a production migration generator. Never edit or renumber
-an applied migration. New schema changes require both the shared declaration
-and a new migration. Review existing data and arrange recovery before destructive
+Never edit or renumber an applied migration. New schema changes require both
+the shared declaration and a new migration; `npm run test:integration` compares
+the database the migrations build with the declaration and fails when they
+disagree. Review existing data and arrange recovery before destructive
 changes; test migrations on an isolated database first.
 
 Create the initial administrator using a reviewed bootstrap procedure with a
@@ -156,17 +168,66 @@ page (Innstillinger → Nyhetsbrev) shows which subscribers' mail failed and how
 much is waiting for another try; deleting a failing subscriber removes the
 banner.
 
-Use Vercel build/function logs and request IDs to investigate failures. Backend
+**Housekeeping that left personal data behind.** When the morning run could not
+delete an expired private media share from R2 (`mediaPurgeFailed`), or found
+rows whose date the privacy retention cannot read and so never deletes
+(`unparseableDates`), its `cron.run` line is written at `warn` with
+`"housekeepingProblems":true`, and backend Sentry gets one event titled
+`Housekeeping problems in the reminders run`. Add a second alert matching that
+title (or widen the mail alert to `problems in the`). Unreadable dates are fixed
+in the data: find them with
+`SELECT id, date FROM events WHERE date !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$'` and
+`SELECT id, created_at FROM contact_messages WHERE created_at !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}'`.
+A morning stage that fails outright still writes its `cron.run` line, at
+`error`, with `stagesFailed` naming it; the run answers 500 and Sentry gets
+`Morning stage(s) failed: …`.
+
+**Who changed what.** Runtime logs on the Hobby plan are kept for an hour, so
+every successful change by a signed-in user also writes a row to `audit_log`
+(migration 0024): account id and role, method, path, `action`/`resource`, the
+id acted on or created, status and request id. No content is copied. Rows are
+deleted after 12 months by the morning run (`auditLogDeleted`). In the Neon
+SQL editor:
+`SELECT created_at, user_id, role, method, path, action, resource, target_id FROM audit_log ORDER BY id DESC LIMIT 50;`
+A failed audit write never fails the change; it logs `audit.write_failed`.
+
+Use Vercel build/function logs and request IDs to investigate failures. A page
+that could not load its data shows the request id as "Feil-ID"; it is the
+`requestId` of our log lines and the `x-vercel-id` of Vercel's, and backend
+Sentry events carry it as a tag beside `path`, `action`, `resource`, `role` and
+`targetId`. Both tiers set Sentry's `release` to the deployed commit
+(`VERCEL_GIT_COMMIT_SHA`). Backend
 Sentry redacts sensitive text. Frontend Sentry scrubs capability-bearing data at
 the transport boundary and disables Session Replay; unsupported/binary envelopes
 are dropped. Vercel Analytics scrubs page URLs before transmission. Configure
 Sentry DSNs only if the project's CSP `connect-src` allows the ingest host.
+
+**The CSP is wider than the site needs, by decision (2026-10-08).** It still
+allows `https://browser.sentry-cdn.com` in `script-src` (Sentry is bundled),
+any `https:` image, `data:` in `connect-src`, and the Google Fonts hosts (the
+fonts are self-hosted since 2026-10-09). Narrowing it was reviewed and left for
+now, since a mistake there breaks the live site. Revisit it as one deliberate
+`vercel.json` change with a preview check, not piecemeal.
 
 For CORS issues, inspect the allowlist in `api/_shared/middleware.js`; never
 replace it with `*`. Upload problems should be checked against the MIME,
 extension, 10 MB limit and owned Cloudinary URL rules in
 `api/_shared/upload-validation.js`. Document deletion waits for provider
 confirmation before removing the database reference.
+
+## Dependency advisories
+
+Dependabot owns dependency bumps; don't hand-edit `package-lock.json` to clear
+an audit. When `npm audit --omit=dev` reports something, trace whether the
+vulnerable code is reachable from a request, record the call here, and let the
+Dependabot PR land the fix.
+
+- **source-map-js ≤ 1.2.1** (GHSA-68fv-2mgg-jv7q, high; event-loop denial of
+  service through crafted source-map sections). Pulled in at runtime only by
+  `postcss`, which `sanitize-html` uses to parse `style` attributes with
+  `{ map: false }`, so no source map is ever read from user input. Not
+  reachable; fixed in 1.2.2, which arrives with the next Dependabot lockfile
+  bump. Triaged 2026-10-08.
 
 ## Outstanding release checks
 
@@ -199,6 +260,26 @@ on the release/PR. Remove completed items from this list.
   deploying (event saves write `events.potluck`), then create a Foreldrefest
   with "Kurvfest" ticked on a preview, sign up, and check the food answer in the
   registration list and the Excel export.
+
+- [ ] Apply `0022_media_previews.sql`, `0023_temporary_password_expiry.sql` and
+  `0024_audit_log.sql` **before** deploying: login reads
+  `users.temp_password_expires_at` and media uploads write
+  `media_files.preview_key`, so without them those requests fail (without
+  0024, every change logs `audit.write_failed` and the morning run fails its
+  `auditLogDeleted` stage). `0021_registration_iso_registered_at.sql` is safe
+  before or after.
+
+- [ ] With a screen reader (VoiceOver on iOS and NVDA or VoiceOver on
+  desktop), in both languages: a failed login, a refused password change and
+  a calendar entry saved without a title each announce an error next to the
+  field; a month-grid chip reads its category and "avlyst" when cancelled.
+- [ ] On a preview: sign up for an event, then cancel through the emailed link;
+  the seat count on /kalender changes at once both times, without a reload.
+- [ ] Run Lighthouse (mobile) on `/` before and after this release, and confirm
+  in the network panel that no request goes to fonts.googleapis.com or
+  fonts.gstatic.com.
+- [ ] As an admin, send a user a new temporary password from Innstillinger,
+  and check that `audit_log` has rows for it and for a deleted test post.
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.

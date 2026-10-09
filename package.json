@@ -14,7 +14,6 @@
     "test": "node --test --experimental-test-module-mocks tests/*.test.mjs",
     "test:integration": "node --test --test-concurrency=1 tests/integration/*.test.mjs",
     "verify": "npm run check && npm test && npm run build",
-    "db:push": "drizzle-kit push",
     "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {

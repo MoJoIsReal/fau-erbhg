@@ -21,7 +21,7 @@ function dayKey(date: string): string {
  * yearly-calendar entries parents should see (closed days always; day events
  * when flagged for the homepage/parents).
  *
- * Shared by the homepage and the footer so both render from the same three
+ * Shared by the homepage and the footer so both render from the same two
  * queries (TanStack Query dedupes on the identical keys) instead of each
  * maintaining its own copy of the filtering rules.
  */
@@ -33,17 +33,13 @@ export function useUpcomingItems() {
   // Fetch the current and next school year so the list stays correct around
   // the August transition — the kindergarten year starts in August.
   const currentSchoolYear = getKindergartenSchoolYear(new Date());
-  const currentYearQuery = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear}`],
-  });
-  const nextYearQuery = useQuery<YearlyCalendarEntry[]>({
-    queryKey: [`/api/yearly-calendar?schoolYear=${currentSchoolYear + 1}`],
+  const yearlyQuery = useQuery<YearlyCalendarEntry[]>({
+    queryKey: [`/api/yearly-calendar?fromSchoolYear=${currentSchoolYear}&toSchoolYear=${currentSchoolYear + 1}`],
   });
 
   const { data: events = [] } = eventsQuery;
-  const { data: currentYearEntries = [] } = currentYearQuery;
-  const { data: nextYearEntries = [] } = nextYearQuery;
-  const queries = [eventsQuery, currentYearQuery, nextYearQuery];
+  const { data: yearlyEntries = [] } = yearlyQuery;
+  const queries = [eventsQuery, yearlyQuery];
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -62,7 +58,7 @@ export function useUpcomingItems() {
   // lost: the yearly-calendar tab still shows every row.
   const daysWithEvent = new Set(eventItems.map((item) => dayKey(item.date)));
 
-  const yearlyItems: UpcomingItem[] = [...currentYearEntries, ...nextYearEntries]
+  const yearlyItems: UpcomingItem[] = yearlyEntries
     .filter((entry) => {
       if (!entry.date || new Date(entry.date).getTime() < todayMs) return false;
       // "Closed" days (planleggingsdag, ferie etc.) always surface so parents
@@ -85,6 +81,7 @@ export function useUpcomingItems() {
   return {
     items,
     isError: queries.some(query => query.isError),
+    error: queries.find(query => query.error)?.error,
     isPending: queries.some(query => query.isPending),
     isFetching: queries.some(query => query.isFetching),
     refetch: () => Promise.all(queries.map(query => query.refetch())),

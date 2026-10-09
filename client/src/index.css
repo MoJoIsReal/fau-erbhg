@@ -1,10 +1,49 @@
 /* Manrope is the guide's primary face; Inter is its first fallback and is
-   named in --font-ui for machines that already have it. The webfont itself is
-   requested from client/index.html, not with an @import here, so it is not
-   queued behind this stylesheet. */
+   named in --font-ui for machines that already have it. */
 
 @import "tailwindcss";
 @config "../../tailwind.config.ts";
+
+/* Both faces are served from our own origin (client/public/fonts): Google
+   Fonts saw every visitor's IP address, and its stylesheet blocked the first
+   paint. Each file is a variable font covering every weight the type scale
+   uses; latin holds æ, ø and å, and latin-ext is only fetched for a name that
+   needs it. index.html preloads the Manrope latin file. */
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope-latin.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Manrope";
+  src: url("/fonts/manrope-latin-ext.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: "Caveat";
+  src: url("/fonts/caveat-latin.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Caveat";
+  src: url("/fonts/caveat-latin-ext.woff2") format("woff2");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
 
 /* ============================================================
    DESIGN TOKENS — FAU Erdal Barnehage UI Design & Style Guide 1.1
@@ -70,11 +109,13 @@
   /* The guide's --color-muted is 4.30:1 on white and 3.99:1 on sand, below
      the 4.5:1 the same guide requires of normal text. It stays as specified
      for icons, rules and decorative marks; metadata *text* uses this
-     minimally darkened sibling (4.8:1 on sand, 5.1:1 on surface). */
-  --color-text-muted: #62706B;
+     minimally darkened sibling. Its weakest pair is the peach hero
+     (Kontakt): 4.73:1 there, 5.2:1 on sand, 5.5:1 on surface. #62706B, the
+     first darkening, was 4.39:1 on peach. */
+  --color-text-muted: #5D6B66;
   /* The metadata tone. Dark mode splits muted and subtle further apart;
      light mode reuses one value for both. */
-  --color-subtle: #62706B;
+  --color-subtle: #5D6B66;
 
   /* --- Calendar categories (guide §7) ---
      `dot` is the guide's published hue, darkened only where it failed the

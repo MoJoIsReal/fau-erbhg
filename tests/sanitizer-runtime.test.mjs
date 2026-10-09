@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
-import {
+import { isHtmlTooLong,
   sanitizeEmail,
   sanitizeHtml,
   sanitizeInteger,
@@ -226,4 +226,18 @@ test('sanitizeInteger takes whole numbers in range from numbers and numeric stri
   for (const value of ['1.5', 2.5, '0', '11', 'abc', '', '  ', null, undefined, true, [5], {}, NaN, Infinity]) {
     assert.equal(sanitizeInteger(value, 1, 10), null, JSON.stringify(value));
   }
+});
+
+// Sanitizing lengthens text (`&` becomes `&amp;`, links gain target and rel),
+// and the result used to be cut to maxLength afterwards: stored HTML could end
+// inside a tag, losing its last link or paragraph without anyone knowing.
+test('sanitized HTML is never cut mid-tag', () => {
+  const link = `<p>${'Les mer '.repeat(600)}<a href="https://example.test/${'x'.repeat(40)}">her</a></p>`;
+  const out = sanitizeHtml(link, 5000);
+  assert.ok(out.length > 0);
+  assert.equal((out.match(/</g) ?? []).length, (out.match(/>/g) ?? []).length, 'every tag is closed');
+  assert.match(out, /<\/p>$/);
+  assert.equal(sanitizeHtml('&'.repeat(4000), 5000), '&amp;'.repeat(4000), 'escaping is not truncated');
+  assert.equal(isHtmlTooLong('x'.repeat(5001), 5000), true);
+  assert.equal(isHtmlTooLong('x'.repeat(5000), 5000), false);
 });

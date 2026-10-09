@@ -164,6 +164,12 @@ so a reminder never goes out after the day it is about.
 
 The broadcast runs from Vercel Cron at 19:00 UTC (≈21:00 Oslo); the 07:00 UTC
 run of the same handler does registration reminders and GDPR retention cleanup.
+One evening run sends at most 300 deliveries and stops at its deadline. As its
+last stage, the morning run sends what that left pending for items dated today
+(`broadcastNewsletter(…, { queue: false })`: it claims, sends and stamps, but
+queues nothing new), because tonight's run would skip them as past. Its counts
+go out as a second `cron.run` line with `task: "newsletter"` and
+`followUp: true`, so what it still leaves raises the newsletter's alert.
 Both schedules live in `vercel.json`, are fixed UTC, and do **not** follow
 Norwegian DST. `/api/cron/*` requires the `CRON_SECRET` bearer token in every
 environment, compared in constant time; without the secret it refuses everyone.
@@ -184,7 +190,10 @@ newsletter `failed`, `abandoned` or `remaining`, reminder `failed` or `deferred`
 or a newsletter run that could not send at all — the line is written at `warn`
 with `mailProblems: true`, and one error-tracker event is raised under the fixed
 title "Mail delivery problems in the … run" for the alert in
-[DEPLOYMENT.md](./DEPLOYMENT.md). The admin's settings page (Nyhetsbrev) shows
+[DEPLOYMENT.md](./DEPLOYMENT.md). Housekeeping that left personal data behind
+(an expired media share R2 would not delete, rows retention cannot date) is
+flagged the same way as `housekeepingProblems: true` under "Housekeeping
+problems in the reminders run". The admin's settings page (Nyhetsbrev) shows
 each subscriber's waiting and failed deliveries.
 
 Cron sending stops at an absolute 23-second deadline, leaving seven seconds of

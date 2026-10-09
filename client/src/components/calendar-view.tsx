@@ -462,6 +462,13 @@ export default function CalendarView({
                                   aria-hidden="true"
                                 />
                                 {entry.title}
+                                {/* The dot and the strike-through say these to
+                                    the eye; this says them to a screen reader. */}
+                                <span className="sr-only">
+                                  {" "}
+                                  — {{ ...t.calendar.kinds, ...t.entryEditor.categories }[entry.displayKind]}
+                                  {entry.cancelled ? `, ${t.events.cancelled2}` : ""}
+                                </span>
                               </span>
                             </button>
                           ))}

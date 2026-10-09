@@ -27,13 +27,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntryKind, CalendarDayKind } from "@shared/calendar-entries";
 import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarDisplayKindForEntry } from "@shared/calendar-entries";
+import { FormError } from "@/components/site/form-error";
 import { resolveYearlyCalendarPlacement } from "@shared/yearly-calendar-placement";
 import { supportsYearlyCalendarNewsletter } from "@shared/yearly-calendar-utils";
 import { plainTextToHtml } from "@shared/html-text";
@@ -117,9 +118,15 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
   const [color, setColor] = useState<string>("");
   const [showOnHomepage, setShowOnHomepage] = useState<boolean>(false);
   const [notifyNewsletter, setNotifyNewsletter] = useState<boolean>(false);
+  // Errors stay next to what they are about until it is edited or the entry
+  // is saved again: set once Save has been pressed, and from the server.
+  const [attempted, setAttempted] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
+    setAttempted(false);
+    setSaveError(null);
     const seed: any = existing ?? initial ?? {};
     setEntryType((seed.entryType as EntryDraft["entryType"]) || "week_event");
     setCategory(calendarDisplayKind(calendarDisplayKindForEntry(seed)));
@@ -180,14 +187,17 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
       toast({ title: t.yearlyCalendar.modal.success });
       onClose();
     },
-    onError: (err: any) => {
-      toast({
-        title: t.yearlyCalendar.modal.error,
-        description: err?.message ?? "",
-        variant: "destructive",
-      });
+    onError: (err: unknown) => {
+      setSaveError(apiErrorText(err, t, t.apiErrors.generic));
     },
   });
+
+  const titleError = attempted && !title.trim() ? t.yearlyCalendar.modal.titleRequired : null;
+  const save = () => {
+    setAttempted(true);
+    setSaveError(null);
+    if (title.trim() && placement) saveMutation.mutate();
+  };
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -201,12 +211,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
       queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/yearly-calendar?") });
       onClose();
     },
-    onError: (err: any) => {
-      toast({
-        title: t.yearlyCalendar.modal.error,
-        description: err?.message ?? "",
-        variant: "destructive",
-      });
+    onError: (err: unknown) => {
+      setSaveError(apiErrorText(err, t, t.apiErrors.generic));
     },
   });
 
@@ -229,6 +235,8 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
       <EditorDialog title={isEditing ? t.yearlyCalendar.modal.editTitle : t.yearlyCalendar.modal.addTitle}
         description={t.entryEditor.intro} footer={
+        <>
+        {saveError && <div className="mb-3"><FormError id="entry-save-error">{saveError}</FormError></div>}
         <DialogFooter className="flex-row items-center justify-between gap-2 sm:justify-between">
           {isEditing ? (
             <AlertDialog>
@@ -266,19 +274,22 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
             </Button>
             <Button
               type="button"
-              onClick={() => saveMutation.mutate()}
-              disabled={saveMutation.isPending || deleteMutation.isPending || !title.trim() || !placement}
+              onClick={save}
+              disabled={saveMutation.isPending || deleteMutation.isPending}
             >
               {saveMutation.isPending ? t.yearlyCalendar.modal.saving : t.yearlyCalendar.modal.save}
             </Button>
           </div>
         </DialogFooter>
+        </>
         }>
         <div className="space-y-8 [&_label]:text-small [&_label]:text-copy [&_input]:text-body [&_textarea]:text-body">
           <EditorSection title={t.entryEditor.content}>
           <div>
             <Label htmlFor="entry-title">{t.yearlyCalendar.modal.title}</Label>
-            <Input id="entry-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} />
+            <Input id="entry-title" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200}
+              aria-invalid={titleError ? true : undefined} aria-describedby={titleError ? "entry-title-error" : undefined} />
+            <FormError id="entry-title-error">{titleError}</FormError>
           </div>
 
           <div>
@@ -445,7 +456,9 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
           )}
 
 
-          {!placement && <p className="text-small text-subtle">{t.calendarWorkspace.placementError}</p>}
+          {!placement && (attempted
+            ? <FormError id="entry-placement-error">{t.calendarWorkspace.placementError}</FormError>
+            : <p className="text-small text-subtle">{t.calendarWorkspace.placementError}</p>)}
           </EditorSection>
           <EditorSection title={t.entryEditor.publishing}>
             {entryType === "day_event" && (

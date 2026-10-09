@@ -42,6 +42,11 @@ export const EVENT_TYPES = [
   'other',
 ];
 
+// Document categories the upload API accepts: the three archive sections of
+// the documents page, and images uploaded from inside the rich-text editor
+// (stored as documents, never listed).
+export const DOCUMENT_CATEGORIES = Object.freeze(['protokoll', 'vedtekter', 'budsjett', 'editor-image']);
+
 // Largest capacity an event can be given. The events API refuses anything
 // above it rather than saving it as unlimited, and the event form checks the
 // same limit so the council sees the reason before submitting.
@@ -73,4 +78,40 @@ export const SIGNUP_ERROR_CODES = Object.freeze([
   'FOOD_CONTRIBUTION_REQUIRED',
   'EVENT_FULL',
   'ALREADY_REGISTERED',
+]);
+
+// Why the API refused a request, for everything but a public signup (which has
+// SIGNUP_ERROR_CODES). Handlers answer a refusal a user can actually run into
+// with one of these as `code`, and the client shows its translation
+// (apiErrorText in client/src/lib/queryClient.ts) — never the `error` text,
+// which is English (or once, Norwegian only) and meant for logs and scripts.
+export const API_ERROR_CODES = Object.freeze([
+  'RATE_LIMITED',
+  'REQUIRED_FIELDS',
+  'NOT_FOUND',
+  'INVALID_CREDENTIALS',
+  'CURRENT_PASSWORD_INCORRECT',
+  'PASSWORD_TOO_SHORT',
+  'PASSWORD_UNCHANGED',
+  'FIELD_TOO_LARGE',
+  'INVALID_EMAIL',
+  'NAME_AND_EMAIL_REQUIRED',
+  'MESSAGE_REQUIRED',
+  'EVENT_FIELDS_REQUIRED',
+  'INVALID_EVENT_DATE',
+  'INVALID_EVENT_TIME',
+  'INVALID_MAX_ATTENDEES',
+  'INVALID_REGISTRATION_DEADLINE',
+  'INVALID_EVENT_TYPE',
+  'TITLE_REQUIRED',
+  'UPLOAD_TYPE_NOT_ALLOWED',
+  'UPLOAD_TOO_LARGE',
+  'UPLOAD_NOT_VERIFIED',
+  'USERNAME_TAKEN',
+  'EMAIL_NOT_CONFIGURED',
+  'REPLY_REQUIRED',
+  'NO_REPLY_ADDRESS',
+  'REPLY_SEND_FAILED',
+  'ENTRY_FIELDS_REQUIRED',
+  'TEMP_PASSWORD_EXPIRED',
 ]);

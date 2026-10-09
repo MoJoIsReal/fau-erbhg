@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,8 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, getApiErrorBody } from "@/lib/queryClient";
-import { insertEventRegistrationSchema } from "@shared/schema";
+import { apiRequest, getApiErrorBody, invalidateEventRegistrations } from "@/lib/queryClient";
+import { registrationFormBaseSchema } from "@/lib/form-schemas";
 import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -24,7 +24,7 @@ import {
 } from "@/components/turnstile-widget";
 import { z } from "zod";
 
-const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
+const formSchema = registrationFormBaseSchema.extend({
   attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(MAX_ATTENDEES_PER_REGISTRATION, `Maksimalt ${MAX_ATTENDEES_PER_REGISTRATION} deltakere`),
   childrenNames: z.string().optional().nullable(),
   foodContribution: z.string().max(200).optional().nullable(),
@@ -41,7 +41,6 @@ interface EventRegistrationModalProps {
 
 export default function EventRegistrationModal({ event, isOpen, onClose }: EventRegistrationModalProps) {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const { language, t } = useLanguage();
   const isFotoEvent = event?.type === "foto";
   const asksFood = event?.potluck === true;
@@ -95,22 +94,37 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const namesError = form.formState.errors.childrenNames?.message;
 
   const mutation = useMutation({
-    mutationFn: (data: FormData) => {
+    mutationFn: async (data: FormData): Promise<{ confirmationEmail?: boolean; cancelUrl?: string }> => {
       if (!event) throw new Error("Ingen arrangement valgt");
-      return apiRequest("POST", `/api/registrations`, { ...data, eventId: event.id, language, turnstileToken });
+      const res = await apiRequest("POST", `/api/registrations`, { ...data, eventId: event.id, language, turnstileToken });
+      return res.json();
     },
     // A Turnstile token is single-use, whatever the outcome.
     onSettled: () => turnstileRef.current?.reset(),
-    onSuccess: () => {
-      toast({
-        title: t.modals.eventRegistration.success,
-        description: t.modals.eventRegistration.successDesc,
-      });
+    onSuccess: (result) => {
+      // No confirmation mail today (the day's mail budget is spent): the link
+      // it would have carried is shown here instead, and stays until closed.
+      if (result?.cancelUrl) {
+        toast({
+          title: t.modals.eventRegistration.success,
+          description: (
+            <span>
+              {t.modals.eventRegistration.noMailDesc}{" "}
+              <a href={result.cancelUrl} className="font-semibold underline">{t.modals.eventRegistration.noMailLink}</a>
+            </span>
+          ),
+          duration: Infinity,
+        });
+      } else {
+        toast({
+          title: t.modals.eventRegistration.success,
+          description: t.modals.eventRegistration.successDesc,
+        });
+      }
       form.reset();
       onClose();
-      // Refresh events to show updated attendee count
-      queryClient.invalidateQueries({ queryKey: ["/api/events"] });
-      if (event) queryClient.invalidateQueries({ queryKey: [`/api/registrations?eventId=${event.id}&food=1`] });
+      // Refresh the seat count and every list of this event's attendees.
+      if (event) invalidateEventRegistrations(event.id);
     },
     onError: (error: unknown) => {
       const body = getApiErrorBody(error);
@@ -172,10 +186,11 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         }
       }
       if (missingNames.length > 0) {
-        toast({
-          title: t.events.missingNames,
-          description: t.modals.eventRegistration.errors.CHILD_NAMES_REQUIRED,
-          variant: "destructive"
+        // Shown next to the fields (and announced), not in a toast that is
+        // gone after a few seconds.
+        form.setError("childrenNames", {
+          type: "manual",
+          message: t.modals.eventRegistration.errors.CHILD_NAMES_REQUIRED,
         });
         return;
       }
@@ -241,14 +256,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             }
           </DialogTitle>
           <DialogDescription className="text-sm text-muted-foreground mt-1">
-            {isFotoEvent
-              ? (language === 'no'
-                ? 'Oppgi antall barn som skal fotograferes og fornavn på hvert barn.'
-                : 'Enter the number of children to be photographed and the first name of each child.')
-              : (language === 'no'
-                ? 'Fyll ut skjemaet nedenfor for å melde deg på arrangementet.'
-                : 'Fill out the form below to register for the event.')
-            }
+            {isFotoEvent ? t.events.signupIntroPhoto : t.events.signupIntro}
           </DialogDescription>
         </div>
 
@@ -275,9 +283,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{isFotoEvent ? (t.events.parentGuardianName) : 'Fullt navn *'}</FormLabel>
+                  <FormLabel>{isFotoEvent ? t.events.parentGuardianName : t.events.signupFullName}</FormLabel>
                   <FormControl>
-                    <Input placeholder={isFotoEvent ? (t.events.parentGuardianName2) : 'Ditt navn'} {...field} />
+                    <Input autoComplete="name" placeholder={isFotoEvent ? t.events.parentGuardianName2 : t.events.signupFullNamePlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -289,9 +297,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>E-post *</FormLabel>
+                  <FormLabel>{t.events.signupEmail}</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="din.epost@example.com" {...field} />
+                    <Input type="email" autoComplete="email" placeholder={t.events.signupEmailPlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -303,9 +311,9 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               name="phone"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Telefon</FormLabel>
+                  <FormLabel>{t.events.signupPhone}</FormLabel>
                   <FormControl>
-                    <Input type="tel" placeholder={PHONE_PLACEHOLDER} {...field} value={field.value || ""} />
+                    <Input type="tel" autoComplete="tel" placeholder={PHONE_PLACEHOLDER} {...field} value={field.value || ""} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -347,20 +355,33 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
 
             {/* Dynamic child name fields for foto events */}
             {isFotoEvent && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium text-copy">
+              <fieldset className="space-y-3">
+                <legend className={`text-sm font-medium ${namesError ? "text-destructive" : "text-copy"}`}>
                   {t.events.childrenSFirstNames}
-                </p>
-                {Array.from({ length: attendeeCount || 1 }, (_, i) => (
-                  <div key={i}>
-                    <Input
-                      placeholder={language === 'no' ? `Barn ${i + 1} - fornavn` : `Child ${i + 1} - first name`}
-                      value={getChildrenNamesArray()[i] || ""}
-                      onChange={(e) => setChildName(i, e.target.value)}
-                    />
-                  </div>
-                ))}
-              </div>
+                </legend>
+                {Array.from({ length: attendeeCount || 1 }, (_, i) => {
+                  const value = getChildrenNamesArray()[i] || "";
+                  return (
+                    <div key={i} className="space-y-2">
+                      <Label htmlFor={`child-name-${i}`}>
+                        {t.events.childFirstName.replace("{n}", String(i + 1))}
+                      </Label>
+                      <Input
+                        id={`child-name-${i}`}
+                        autoComplete="off"
+                        maxLength={100}
+                        value={value}
+                        aria-invalid={Boolean(namesError) && !value.trim()}
+                        aria-describedby={namesError ? "child-names-error" : undefined}
+                        onChange={(e) => setChildName(i, e.target.value)}
+                      />
+                    </div>
+                  );
+                })}
+                {namesError && (
+                  <p id="child-names-error" role="alert" className="text-sm font-medium text-destructive">{namesError}</p>
+                )}
+              </fieldset>
             )}
 
             {/* Everyone else on a multi-person signup, by name */}
@@ -428,11 +449,11 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               name="comments"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Kommentarer</FormLabel>
+                  <FormLabel>{t.events.signupComments}</FormLabel>
                   <FormControl>
                     <Textarea
                       rows={3}
-                      placeholder="Eventuelle allergier, spørsmål eller kommentarer..."
+                      placeholder={t.events.signupCommentsPlaceholder}
                       {...field}
                       value={field.value || ""}
                     />
@@ -445,7 +466,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
             {event.maxAttendees != null && (
               <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-900/70 rounded-lg">
                 <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  <strong>Plasser igjen:</strong> {event.maxAttendees - (event.currentAttendees ?? 0)} av {event.maxAttendees}
+                  <strong>{t.events.seatsLeftLabel}</strong>{" "}
+                  {t.events.seatsLeftValue
+                    .replace("{left}", String(event.maxAttendees - (event.currentAttendees ?? 0)))
+                    .replace("{max}", String(event.maxAttendees))}
                 </p>
               </div>
             )}

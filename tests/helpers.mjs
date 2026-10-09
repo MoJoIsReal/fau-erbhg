@@ -93,6 +93,8 @@ export function scriptedSql({ respond = () => [], rateCount = 1, identities = {}
       const count = typeof rateCount === 'function' ? rateCount(values[0]) : rateCount;
       return [{ count, retryAfter: 60 }];
     }
+    // withApiHandler's audit row after a signed-in change (migration 0024).
+    if (statement.startsWith('INSERT INTO audit_log')) return [];
     if (/^SELECT username, name, role, token_version/.test(statement)) {
       const role = Object.keys(USERS).find((name) => USERS[name].id === values[0]);
       return role ? [identity(role, identities[role])] : [];
@@ -100,11 +102,16 @@ export function scriptedSql({ respond = () => [], rateCount = 1, identities = {}
     return (await respond(statement, values)) ?? [];
   };
   sql.calls = calls;
-  // Statements that changed data, rate-limit bookkeeping excluded.
+  // The Neon client runs a batch as one transaction. Here each statement has
+  // already run as it was built, in order, so the batch just collects them.
+  sql.transaction = async (queries) => Promise.all(queries);
+  // Statements that changed data, rate-limit and audit bookkeeping excluded.
   sql.writes = () => calls.filter(({ statement }) => {
     const match = statement.match(WRITE);
-    return match && match[2] !== 'api_rate_limits';
+    return match && match[2] !== 'api_rate_limits' && match[2] !== 'audit_log';
   });
+  // The audit rows, read back as { column: value }.
+  sql.audits = () => calls.filter(({ statement }) => statement.startsWith('INSERT INTO audit_log')).map(fields);
   return sql;
 }
 
@@ -158,6 +165,13 @@ export function request({ method = 'GET', url = '/api/test', query = {}, body = 
       ...headers,
     },
   };
+}
+
+// Mail goes out after the response (waitUntil), behind a few awaited
+// statements. Let every pending callback run before looking at what was sent,
+// including mail a previous test left in flight.
+export async function settle() {
+  for (let round = 0; round < 50; round += 1) await new Promise(setImmediate);
 }
 
 const quieted = new WeakSet();

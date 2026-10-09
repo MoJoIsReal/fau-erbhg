@@ -3,10 +3,20 @@
 // Each encodes a regression that shipped once. Don't pin copy, class names or
 // anything `npm run check` already enforces here.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+
+// Every .ts/.tsx under client/src except the shadcn primitives in ui/.
+function clientSources(dir = 'client/src', found = []) {
+  for (const entry of readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true })) {
+    const path = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) { if (entry.name !== 'ui') clientSources(path, found); }
+    else if (/\.tsx?$/.test(entry.name)) found.push(path);
+  }
+  return found;
+}
 
 test('event editing invalidates the query the calendar reads and explains refused deletes', () => {
   const editorTools = read('client/src/components/calendar-editor-tools.tsx');
@@ -23,10 +33,15 @@ test('event editing invalidates the query the calendar reads and explains refuse
 
 // The default queryFn fetches the key's first segment, so a key like
 // ['/api/events', id, 'registrations'] silently fetched the events list.
-test('the attendee tooltip fetches the registrations endpoint', () => {
+// The plain ?eventId= answer is the public count, not a list: a council page
+// that asked for it would get `{count}` the moment its session lapsed.
+test('the council attendee views ask for the council list', () => {
   const tooltip = read('client/src/components/attendee-tooltip.tsx');
-  assert.match(tooltip, /queryKey:\s*\[`\/api\/registrations\?eventId=\$\{eventId\}`\]/);
+  assert.match(tooltip, /queryKey:\s*\[`\/api\/registrations\?eventId=\$\{eventId\}&view=council`\]/);
   assert.equal(tooltip.includes('queryKey: ["/api/events", eventId, "registrations"]'), false);
+  const view = read('client/src/components/event-registrations-view.tsx');
+  assert.match(view, /`\/api\/registrations\?eventId=\$\{event\.id\}&view=council`/);
+  assert.doesNotMatch(view, /`\/api\/registrations\?eventId=\$\{event\.id\}`/);
 });
 
 test('the messages route admits the same roles the API does', () => {
@@ -38,7 +53,7 @@ test('the messages route admits the same roles the API does', () => {
 
 test('upcoming items come from one shared hook with the calendar dedupe rules', () => {
   const hook = read('client/src/hooks/useUpcomingItems.ts');
-  assert.match(hook, /\/api\/yearly-calendar\?schoolYear=/);
+  assert.match(hook, /\/api\/yearly-calendar\?fromSchoolYear=\$\{currentSchoolYear\}&toSchoolYear=/);
   assert.match(hook, /entry\.entryType === "closed"/);
   assert.match(hook, /daysWithEvent\.has\(dayKey\(entry\.date\)\)/);
   assert.match(read('client/src/pages/home.tsx'), /useUpcomingItems\(\)/);
@@ -96,6 +111,45 @@ test('icon-only controls have accessible names and toggles expose their state', 
   assert.match(editor, /aria-pressed=\{editor\.isActive\('bold'\)\}/);
 });
 
+// A button whose only content is an icon is announced as "button" and nothing
+// else. The guard used to list the files it checked, so a new one in another
+// file (the post-actions menu on /innhold) went unnamed.
+test('every icon-only button has an accessible name', () => {
+  const closeOf = (source, start) => {
+    let depth = 0;
+    for (let i = start; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') depth--;
+      else if (source[i] === '>' && depth === 0) return i;
+    }
+    return -1;
+  };
+  const unnamed = [];
+  for (const path of clientSources().filter((file) => file.endsWith('.tsx'))) {
+    const source = read(path);
+    for (const match of source.matchAll(/<Button\b/g)) {
+      const end = closeOf(source, match.index);
+      const tag = source.slice(match.index, end + 1);
+      const close = source.indexOf('</Button>', end);
+      if (end < 0 || tag.endsWith('/>') || close < 0) continue;
+      const content = source.slice(end + 1, close)
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+        .replace(/<[A-Z]\w*\b(?:[^<>{}]|\{[^{}]*\})*\/>/g, '')
+        .trim();
+      if (content === '' && !/aria-label(ledby)?=/.test(tag)) unnamed.push(`${path}:${source.slice(0, match.index).split('\n').length}`);
+    }
+  }
+  assert.deepEqual(unnamed, []);
+});
+
+// createInsertSchema needs Drizzle's table objects at runtime, which put
+// drizzle-orm's pg-core (about 67 kB gzipped) on the signup and contact pages.
+// The forms use client/src/lib/form-schemas.ts; schema.ts gives types only.
+test('the browser imports only types from shared/schema', () => {
+  const valueImports = clientSources().filter((path) => /^import (?!type )[^;]*from "@shared\/schema";/m.test(read(path)));
+  assert.deepEqual(valueImports, []);
+});
+
 // Four crops per scene: wide and narrow, day and night. A missing one silently
 // falls back to centre-cropping the other.
 test('every illustration ships all four crops and dark mode swaps rather than dims', () => {
@@ -110,4 +164,47 @@ test('every illustration ships all four crops and dark mode swaps rather than di
   assert.match(artwork, /const art = isDark \? illustration\.dark : illustration\.light;/);
   assert.match(artwork, /<source media=\{NARROW\}/);
   assert.equal(/grayscale|brightness\(|saturate\(|\bfilter:|mix-blend|opacity-\d/.test(artwork), false);
+});
+
+// /kalender is the main public page. A static import of an editor modal pulls
+// the rich-text editor (TipTap, ~130 kB gzipped) into every visitor's load,
+// which is what the calendar shipped until the modals were made lazy.
+test('the public calendar loads the editor modals lazily', () => {
+  const modals = ['event-creation-modal', 'event-registrations-modal', 'yearly-calendar-entry-modal', 'yearly-calendar-import-modal'];
+  for (const file of ['client/src/components/calendar-editor-tools.tsx', 'client/src/components/calendar-views.tsx', 'client/src/components/calendar-view.tsx', 'client/src/pages/calendar.tsx']) {
+    const source = read(file);
+    for (const modal of modals) {
+      const staticImport = new RegExp(`^import (?!type )[^;]*from "@/components/${modal}";`, 'm');
+      assert.doesNotMatch(source, staticImport, `${file} imports ${modal} statically`);
+    }
+  }
+});
+
+// The `error` text in an API body is English (once Norwegian only) and meant
+// for logs; a toast showing it gave a Norwegian parent "Invalid credentials".
+// What a user reads comes from apiErrorText: a translated `code`, or the
+// caller's own translated fallback.
+test('no page shows the raw error text from an API response', () => {
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true })) {
+      const path = `${dir}/${entry.name}`;
+      if (entry.isDirectory()) { if (entry.name !== 'ui') walk(path); continue; }
+      if (!/\.tsx$/.test(entry.name)) continue;
+      read(path).split('\n').forEach((line, index) => {
+        if (/description[:=]\s*\{?\s*(error|err)\??\.message|getApiErrorMessage\(/.test(line)) offenders.push(`${path}:${index + 1}`);
+      });
+    }
+  };
+  walk('client/src');
+  assert.deepEqual(offenders, []);
+});
+
+// Mail scanners open the links in a message, some running the page's scripts.
+// A newsletter page that confirmed or unsubscribed on load let a scanner
+// unsubscribe a parent, or confirm an address someone else had typed in.
+test('the newsletter link page acts only on a click', () => {
+  const page = read('client/src/pages/newsletter.tsx');
+  assert.doesNotMatch(page, /useEffect\(/, 'no request from an effect');
+  assert.match(page, /onClick: act/);
 });

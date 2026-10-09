@@ -16,12 +16,11 @@ and an admin area for council members. React SPA on Vercel + Neon PostgreSQL.
 ```bash
 npm ci             # install (required before any check/test/build)
 npm run dev        # Vite dev server on http://localhost:5000 (frontend only)
-npm run check      # tsc --noEmit + the i18n ratchet (scripts/check-i18n.mjs)
+npm run check      # tsc --noEmit + the backend type gate + the i18n ratchet
 npm test           # every offline suite in tests/ (node:test)
 npm run build      # production frontend build (Vite → dist/public)
 npm run verify     # check + offline tests + build (CI's verify job)
 npm run test:integration # isolated PostgreSQL gate; see docs/database-testing.md
-npm run db:push    # push shared/schema.ts to the DB (needs DATABASE_URL)
 ```
 
 There is **no local backend**. `api/*.js` only executes on Vercel (or under
@@ -62,8 +61,10 @@ authenticate, validate, run SQL and shape the response themselves.
 
 **Handler shape.** Every route is `export default withApiHandler(async function
 handler(req, res) {…})`. `withApiHandler` applies security headers, handles CORS
-preflight and funnels throws into `handleError`. Throw structured errors; don't
-write your own try/catch envelope.
+preflight and funnels throws into `handleError`, which answers 500. Write an
+expected refusal yourself (`res.status(4xx).json({ error, code })`) and let
+anything unexpected throw; don't write your own try/catch envelope around a
+handler, which logs the same 500 twice.
 
 **Query-param routing.** The Vercel Hobby plan caps this project at 12
 functions and 10 are used, so several handlers multiplex resources:
@@ -207,22 +208,42 @@ sends credentials.
 **i18n is enforced.** Every user-facing string goes in `client/src/lib/i18n.ts`
 so the typed `Translations` interface forces both languages. Inline
 `language === 'no' ? … : …` copy is capped by a ratchet in
-`scripts/check-i18n.mjs` (`BUDGET`, currently 31) that `npm run check` runs —
+`scripts/check-i18n.mjs` (`BUDGET`, currently 30) that `npm run check` runs —
 the number may fall, never rise. Locale ids and date-fns locales are the
 legitimate inline cases.
 
-**Forms.** React Hook Form + `zodResolver`, using the `insertXSchema` exports
-from `shared/schema.ts` where one exists.
+**Backend types are gated.** `api/` and `shared/*.js` are type-checked with
+`checkJs` by `scripts/check-backend-types.mjs` (part of `npm run check`): an
+undefined name always fails, and every other diagnostic must match its
+`BASELINE` by file, code and message. Fix a new diagnostic; never add it to
+the baseline. Remove an entry once it is fixed.
 
-**Dates.** Most date columns are `text` holding ISO strings, deliberately, to
-avoid timezone drift; `api_rate_limits` is the exception (`timestamptz`). Write
-them as `new Date().toISOString()`, never `NOW()`: into a `text` column that
-stores PostgreSQL's own format, which the browser then has to parse.
+**Forms.** React Hook Form + `zodResolver`, built on the plain zod schemas in
+`client/src/lib/form-schemas.ts`. They mirror the `insertXSchema` exports of
+`shared/schema.ts` field by field (`tests/form-schemas.test.mjs` checks it);
+the browser imports only types from `schema.ts`, because the insert schemas
+bring drizzle-orm into the bundle.
 
-**Errors.** Server: throw with a status, let `handleError` respond and redact.
-Client: `useToast()` — never `alert()`. A form that reacts to a particular
-refusal keys off the body's `code` (`SIGNUP_ERROR_CODES` in `shared/constants.js`,
-`TURNSTILE_FAILED`) and shows its translation; it never matches the `error` text.
+**Dates.** The rule follows the column type in `shared/schema.ts`. Most date
+columns are `text` holding ISO strings, deliberately, to avoid timezone drift:
+write them as `new Date().toISOString()`, never `NOW()`, which stores
+PostgreSQL's own format into `text` for the browser to parse. The machinery
+columns are `timestamptz` and correctly use `NOW()` and intervals:
+`api_rate_limits.reset_at/updated_at`, `newsletter_deliveries`'
+`next_attempt_at/claimed_at/sent_at/created_at/updated_at`,
+`event_registrations.reminder_claimed_at`,
+`event_registration_cancellations.cancelled_at` and
+`photo_event_slots.created_at`.
+
+**Errors.** Server: a refusal is written as `res.status(4xx).json({ error, code })`;
+anything unexpected is thrown and `withApiHandler` answers 500, redacted and
+reported (`handleError` does not read a status off the error). A failing
+provider call that must not fail the request goes through `reportProviderError`.
+Client: `useToast()` — never `alert()`. A refusal a user can run into carries
+a `code` from `API_ERROR_CODES` (or `SIGNUP_ERROR_CODES`, `MEDIA_ERROR_CODES`,
+`TURNSTILE_FAILED`), and the client shows its translation through
+`apiErrorText(error, t, fallback)`; it never shows or matches the `error` text.
+A new code goes in the list and in `t.apiErrors` for both languages.
 
 **Auth model.** JWT in an HttpOnly `jwt` cookie (`Authorization: Bearer` still
 accepted as a fallback), plus a double-submit `csrf-token` cookie. Guard with
@@ -308,7 +329,9 @@ request logic. Never point automated tests at the production Neon database.
   structure and re-apply those token values; do not add markup or props here.
 - `migrations/*.sql` — append a new numbered file; never edit or renumber an
   applied one. Schema changes need **both** `shared/schema.ts` and a migration
-  (see `migrations/README.md`).
+  (see `migrations/README.md`); `npm run test:integration` fails when the two
+  disagree. There is no `db:push`: the migrations are the only way a schema
+  reaches a database, and `tests/integration/baseline.sql` is frozen.
 - `package-lock.json`, `attached_assets/`, `dist/` — don't hand-edit; Dependabot
   owns dependency bumps.
 - `.env*`, secrets, production Vercel/Neon/Cloudinary config — never commit

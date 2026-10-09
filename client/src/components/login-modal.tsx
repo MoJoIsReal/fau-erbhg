@@ -7,6 +7,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { apiErrorText } from "@/lib/queryClient";
+import { FormError } from '@/components/site/form-error';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -16,6 +18,8 @@ interface LoginModalProps {
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  // Shown under the form until the user edits a field or tries again.
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { t } = useLanguage();
@@ -41,22 +45,19 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       setUsername('');
       setPassword('');
     },
-    onError: (error: any) => {
-      toast({
-        title: t.modals.login.error,
-        description: error.message || t.modals.login.invalidCredentials,
-        variant: "destructive",
-      });
+    onError: (failure: unknown) => {
+      setError(apiErrorText(failure, t, t.modals.login.invalidCredentials));
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     loginMutation.mutate({ username, password });
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={() => { setError(null); onClose(); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-h3 font-bold tracking-tight text-ink">
@@ -71,11 +72,14 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </Label>
             <Input
               id="username"
+              autoComplete="username"
               type="email"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => { setUsername(e.target.value); setError(null); }}
               placeholder=""
               required
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "login-error" : undefined}
             />
           </div>
           
@@ -85,12 +89,17 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
             </Label>
             <Input
               id="password"
+              autoComplete="current-password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
               required
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "login-error" : undefined}
             />
           </div>
+
+          <FormError id="login-error">{error}</FormError>
           
           <div className="flex gap-3 pt-4">
             <Button

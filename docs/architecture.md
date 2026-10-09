@@ -5,7 +5,8 @@ in [DEPLOYMENT.md](./DEPLOYMENT.md); database verification is described in
 [database-testing.md](./database-testing.md).
 
 The bilingual React 19 SPA uses Wouter, TanStack Query and React Hook Form/Zod.
-It calls eight top-level Vercel handlers plus one scheduled handler. Handlers
+It calls nine top-level Vercel handlers plus one scheduled handler: ten of
+the Hobby plan's twelve functions. Handlers
 perform authentication, validation, parameterized Neon SQL and response mapping
 directly. There is no second backend, ORM query layer or generic repository tier.
 
@@ -32,7 +33,11 @@ budget. `auth?action=…` handles login/session/password operations;
 and `update-food` handle the "Din påmelding" page behind the emailed link
 (cancelling, and changing a potluck's food answer); `contact?action=newsletter-…` handles subscriptions.
 `secure-settings?resource=…` multiplexes content, contact messages and settings.
-Authorization remains enforced by the handler.
+`media?action=…` handles private media sharing: the admin's create, upload,
+publish and extend steps, and the viewer's `view`/`list` behind a share link
+(see [mediedeling.md](./mediedeling.md)). `events?format=ics|preview` serves
+the calendar feed and shared-link previews. Authorization remains enforced by
+the handler.
 
 What a visitor may read about a signup is deliberately narrow:
 `registrations?eventId=…` answers anyone outside the council with the attendee
@@ -40,7 +45,9 @@ count only, and `registrations?eventId=…&food=1` lists the dishes promised for
 a potluck (`events.potluck`), so the next person can bring something else —
 the dish text alone, never who brings it. The signup form says that the food
 answer is shown to others. Names, contact details and comments stay
-council-only.
+council-only. The council pages ask for the list with `&view=council`, which
+requires a council session, so a lapsed session gets a 401 and the sign-in
+prompt rather than the public count.
 
 Admins manage users, settings, board information and subscribers. Members also
 manage events, registrations, documents, blog posts, calendar and contact
@@ -49,8 +56,10 @@ cookie (Bearer fallback), token-version revocation and a password-change policy;
 non-GET session mutations also require a double-submit CSRF token.
 
 Login is limited per (IP, account), per IP, and per account across IPs. The
-account-wide limit counts only failed passwords and is checked without being
-bumped, so a guesser rotating IPs is stopped after 20 failures an hour. A
+account-wide limit counts only failed passwords: an unknown browser's attempt
+is counted before the password check (so a concurrent burst cannot all read
+the same count) and cleared again on success, and a guesser rotating IPs is
+stopped after 20 failures an hour. A
 browser that has signed in to the account before carries an HttpOnly
 `login-device` cookie (a signed token for `/api/auth`, 180 days, its own
 audience so it can never pass as a session) that gets it past that account

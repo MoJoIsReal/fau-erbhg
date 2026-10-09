@@ -1,8 +1,23 @@
 // api/secure-settings.js through the handler harness: the wire shape of every
 // read, the query options the pages depend on, and input the handler refuses.
 import assert from 'node:assert/strict';
-import test from 'node:test';
-import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import test, { mock } from 'node:test';
+import nodemailer from 'nodemailer';
+import { call, fields, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+
+// Mail is captured, and a test can make the provider refuse it. Each event is
+// also logged in `timeline`, next to the statements, to check what came first.
+const sent = [];
+let refuseMail = false;
+const timeline = [];
+mock.method(nodemailer, 'createTransport', () => ({
+  close() {},
+  async sendMail(message) {
+    timeline.push('mail');
+    if (refuseMail) throw new Error('535 Authentication failed');
+    sent.push(message);
+  },
+}));
 
 const handler = await importHandler('api/secure-settings.js');
 
@@ -179,7 +194,7 @@ test('a user created twice at once is a 400 and sends no login mail', async (t) 
     as: 'admin',
   });
   assert.equal(res.statusCode, 400);
-  assert.deepEqual(res.body, { error: 'Brukernavnet er allerede i bruk' });
+  assert.deepEqual(res.body, { error: 'Username is already in use', code: 'USERNAME_TAKEN' });
   assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO users')).statement, /ON CONFLICT \(username\) DO NOTHING/);
   assert.equal(sql.calls.filter(({ statement }) => statement.startsWith('DELETE FROM users')).length, 0);
 });
@@ -187,4 +202,215 @@ test('a user created twice at once is a 400 and sends no login mail', async (t) 
 test('the unused staff-users alias is gone', async (t) => {
   const { res } = await read(t, { resource: 'staff-users' }, 'admin');
   assert.equal(res.statusCode, 400);
+});
+
+// The write paths had no behavioural test: dropping the role filter on users
+// DELETE, or marking a reply sent before Gmail accepted it, passed CI.
+
+const asAdmin = (method, resource, { query = {}, body } = {}) =>
+  ({ method, query: { resource, ...query }, body, as: 'admin' });
+const statementsOf = (sql, prefix) => sql.calls.filter(({ statement }) => statement.startsWith(prefix));
+
+test('deleting a user can only ever remove a member or staff account', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('DELETE FROM users') ? [{ id: 5 }] : []) }));
+  const res = await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '5' } }));
+  assert.equal(res.statusCode, 200);
+  const [remove] = statementsOf(sql, 'DELETE FROM users');
+  assert.match(remove.statement, /WHERE id = \? AND role IN \(\?, \?\)/);
+  assert.deepEqual(remove.values, [5, 'member', 'staff'], 'an admin account is never in the set');
+
+  // An admin's id (or one already gone) matches nothing: a 404, not a success.
+  useDatabase(scriptedSql());
+  const admin = await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '1' } }));
+  assert.deepEqual([admin.statusCode, admin.body.code], [404, 'NOT_FOUND']);
+});
+
+// OBS-003. Runtime logs are kept an hour on this plan, so "who deleted that
+// account last week?" needs a row. Ids only: who, where, and on what.
+test('a change by a signed-in user leaves an audit row naming its target', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('DELETE FROM users') ? [{ id: 5 }] : []) }));
+  const res = await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '5' } }));
+  assert.equal(res.statusCode, 200);
+  const [audit] = sql.audits();
+  assert.deepEqual(
+    { user: audit.user_id, role: audit.role, method: audit.method, resource: audit.resource, target: audit.target_id, status: audit.status },
+    { user: 1, role: 'admin', method: 'DELETE', resource: 'users', target: 5, status: 200 },
+  );
+  assert.match(audit.created_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+  const line = console.log.mock.calls.map(({ arguments: [text] }) => { try { return JSON.parse(text); } catch { return null; } })
+    .find((entry) => entry?.event === 'api.mutation');
+  assert.equal(line.targetId, 5, 'the log line names the target too');
+
+  // A POST names the row it created, read off its answer.
+  const created = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('INSERT INTO fau_board_members') ? [{ id: 12, name: 'Kari', role: 'Leder', sort_order: 0 }] : []) }));
+  await call(t, handler, asAdmin('POST', 'board-members', { body: { name: 'Kari', role: 'Leder' } }));
+  assert.equal(created.audits()[0].target_id, 12);
+
+  // A refusal changed nothing, and a read is not a change.
+  const refused = useDatabase(scriptedSql());
+  await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '1' } }));
+  await call(t, handler, { method: 'GET', query: { resource: 'users' }, as: 'admin' });
+  assert.deepEqual(refused.audits(), []);
+});
+
+test('a failed audit write never fails a change that already happened', async (t) => {
+  const sql = scriptedSql({ respond: (statement) => (statement.startsWith('DELETE FROM users') ? [{ id: 5 }] : []) });
+  const failing = Object.assign(async (strings, ...values) => {
+    if (strings.join('?').includes('INSERT INTO audit_log')) throw new Error('relation "audit_log" does not exist');
+    return sql(strings, ...values);
+  }, sql);
+  useDatabase(failing);
+  const res = await call(t, handler, asAdmin('DELETE', 'users', { query: { id: '5' } }));
+  assert.equal(res.statusCode, 200);
+  assert.ok(console.error.mock.calls.some(({ arguments: [text] }) => String(text).includes('audit.write_failed')));
+});
+
+function inquiryDatabase(row) {
+  return useDatabase(scriptedSql({
+    respond(statement) {
+      timeline.push(statement.split(' ').slice(0, 2).join(' '));
+      if (statement.startsWith('SELECT * FROM contact_messages')) return row ? [row] : [];
+      if (statement.startsWith('UPDATE contact_messages')) return [{ ...row, status: 'responded' }];
+      return [];
+    },
+  }));
+}
+const reply = (message, id = '7') => ({ method: 'POST', query: { resource: 'contact-messages', id }, body: { message }, as: 'member' });
+
+test('a reply is marked as sent only after the mail went out', async (t) => {
+  process.env.GMAIL_USER = 'fau@example.test';
+  process.env.GMAIL_APP_PASSWORD = 'test-only-password';
+  t.after(() => { delete process.env.GMAIL_USER; delete process.env.GMAIL_APP_PASSWORD; refuseMail = false; });
+
+  sent.length = 0; timeline.length = 0;
+  let sql = inquiryDatabase(ROWS.contact_messages);
+  let res = await call(t, handler, reply('Takk, vi ser på det.'));
+  assert.equal(res.statusCode, 200);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, 'ola@example.test');
+  assert.ok(timeline.indexOf('mail') < timeline.indexOf('UPDATE contact_messages'), 'mail first, then the status');
+  assert.equal(fields(statementsOf(sql, 'UPDATE contact_messages')[0]).response_message, 'Takk, vi ser på det.');
+
+  // Gmail refuses: the inquiry stays unanswered in the list.
+  refuseMail = true; sent.length = 0;
+  sql = inquiryDatabase(ROWS.contact_messages);
+  res = await call(t, handler, reply('Takk, vi ser på det.'));
+  assert.deepEqual([res.statusCode, res.body.code], [502, 'REPLY_SEND_FAILED']);
+  assert.deepEqual(statementsOf(sql, 'UPDATE contact_messages'), []);
+  refuseMail = false;
+
+  // Nobody to answer, nothing to say, or nothing to answer: refused, no mail.
+  for (const [row, message, status, code] of [
+    [{ ...ROWS.contact_messages, email: null, subject: 'anonymous' }, 'Svar', 400, 'NO_REPLY_ADDRESS'],
+    [ROWS.contact_messages, '   ', 400, 'REPLY_REQUIRED'],
+    [null, 'Svar', 404, 'NOT_FOUND'],
+  ]) {
+    sent.length = 0;
+    sql = inquiryDatabase(row);
+    res = await call(t, handler, reply(message));
+    assert.deepEqual([res.statusCode, res.body.code], [status, code]);
+    assert.equal(sent.length, 0);
+    assert.deepEqual(statementsOf(sql, 'UPDATE contact_messages'), []);
+  }
+});
+
+test('a reply cannot go out without mail configured', async (t) => {
+  delete process.env.GMAIL_USER;
+  sent.length = 0;
+  const sql = inquiryDatabase(ROWS.contact_messages);
+  const res = await call(t, handler, reply('Svar'));
+  assert.deepEqual([res.statusCode, res.body.code], [503, 'EMAIL_NOT_CONFIGURED']);
+  assert.deepEqual(statementsOf(sql, 'UPDATE contact_messages'), []);
+});
+
+// notify_newsletter has three states on update: leave it, set it, clear it.
+// An editor that does not send the flag must not switch a post's newsletter
+// off (or on) as a side effect.
+test('updating a post keeps, sets or clears its newsletter flag, and sanitizes the content', async (t) => {
+  for (const [notifyNewsletter, stored] of [[undefined, null], [true, true], [false, false]]) {
+    const sql = useDatabase(database());
+    const res = await call(t, handler, {
+      method: 'PUT', query: { resource: 'blog-posts', id: '4' }, as: 'member',
+      body: { title: 'Dugnad', content: '<p>Hei</p><script>alert(1)</script><img src=x onerror=alert(1)>', notifyNewsletter },
+    });
+    assert.equal(res.statusCode, 200, String(notifyNewsletter));
+    const [update] = statementsOf(sql, 'UPDATE blog_posts');
+    assert.match(update.statement, /notify_newsletter = COALESCE\(\?::boolean, notify_newsletter\)/);
+    assert.ok(update.values.includes(stored), `${notifyNewsletter} → ${stored}`);
+    const content = update.values.find((value) => typeof value === 'string' && value.startsWith('<p>'));
+    assert.doesNotMatch(content, /<script|onerror/);
+  }
+
+  const sql = useDatabase(database());
+  const res = await call(t, handler, { method: 'PUT', query: { resource: 'blog-posts', id: '4' }, as: 'member', body: { title: '', content: '<p>x</p>' } });
+  assert.deepEqual([res.statusCode, res.body.code], [400, 'REQUIRED_FIELDS']);
+  assert.deepEqual(statementsOf(sql, 'UPDATE blog_posts'), []);
+});
+
+test('board members and kindergarten info refuse incomplete input and store it sanitized', async (t) => {
+  let sql = useDatabase(database());
+  let res = await call(t, handler, asAdmin('POST', 'board-members', { body: { name: '<b>Kari</b>', role: 'Leder' } }));
+  assert.equal(res.statusCode, 201);
+  const insert = fields(statementsOf(sql, 'INSERT INTO fau_board_members')[0]);
+  assert.equal(insert.name, 'bKari/b', 'tags stripped');
+  assert.equal(insert.role, 'Leder');
+
+  for (const body of [{ name: '', role: 'Leder' }, { name: 'Kari', role: '' }]) {
+    sql = useDatabase(database());
+    res = await call(t, handler, asAdmin('POST', 'board-members', { body }));
+    assert.deepEqual([res.statusCode, res.body.code], [400, 'REQUIRED_FIELDS']);
+    assert.deepEqual(statementsOf(sql, 'INSERT INTO fau_board_members'), []);
+  }
+
+  sql = useDatabase(database());
+  res = await call(t, handler, asAdmin('PUT', 'kindergarten-info', { body: { contactEmail: 'not-an-address' } }));
+  assert.deepEqual([res.statusCode, res.body.code], [400, 'REQUIRED_FIELDS']);
+  assert.deepEqual(statementsOf(sql, 'UPDATE kindergarten_info'), []);
+});
+
+// A temporary password works for seven days, and an admin can send a new one.
+test('users get a temporary password that expires, and an admin can send a new one', async (t) => {
+  process.env.GMAIL_USER = 'fau@example.test';
+  process.env.GMAIL_APP_PASSWORD = 'test-only-password';
+  t.after(() => { delete process.env.GMAIL_USER; delete process.env.GMAIL_APP_PASSWORD; });
+
+  sent.length = 0;
+  let sql = useDatabase(scriptedSql({
+    respond: (statement) => (statement.startsWith('INSERT INTO users') ? [{ id: 8, username: 'new@example.test', name: 'New', role: 'staff', created_at: '2026-10-08T00:00:00.000Z' }] : []),
+  }));
+  let res = await call(t, handler, asAdmin('POST', 'users', { body: { username: 'new@example.test', name: 'New', role: 'staff' } }));
+  assert.equal(res.statusCode, 201);
+  // The INSERT writes must_change_password as a literal, so read the bound
+  // values rather than pairing them with the column list.
+  const [insert] = statementsOf(sql, 'INSERT INTO users');
+  const latest = Math.max(...insert.values.filter((value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)).map(Date.parse));
+  const days = (latest - Date.now()) / (24 * 60 * 60 * 1000);
+  assert.ok(days > 6.99 && days <= 7, `expires in seven days (${days})`);
+  assert.match(sent.at(-1).text, /virker i 7 dager/);
+
+  sent.length = 0;
+  sql = useDatabase(scriptedSql({
+    respond: (statement) => (statement.startsWith('UPDATE users') ? [{ id: 8, username: 'new@example.test', name: 'New', role: 'staff', created_at: '2026-10-08T00:00:00.000Z' }] : []),
+  }));
+  res = await call(t, handler, asAdmin('PATCH', 'users', { query: { id: '8' } }));
+  assert.equal(res.statusCode, 200);
+  const [reset] = statementsOf(sql, 'UPDATE users');
+  assert.match(reset.statement, /must_change_password = true.*token_version = token_version \+ 1 WHERE id = \? AND role IN \(\?, \?\)/);
+  assert.deepEqual(reset.values.slice(-3), [8, 'member', 'staff'], 'never an admin account');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, 'new@example.test');
+  const password = sent[0].text.match(/Midlertidig passord: (\S+)/)[1];
+  assert.ok(await (await import('bcryptjs')).default.compare(password, reset.values[0]), 'the mailed password is the stored one');
+
+  useDatabase(scriptedSql());
+  res = await call(t, handler, asAdmin('PATCH', 'users', { query: { id: '1' } }));
+  assert.deepEqual([res.statusCode, res.body.code], [404, 'NOT_FOUND']);
+});
+
+// Over-long rich text is refused, not stored cut short.
+test('a post longer than the field allows is refused, not truncated', async (t) => {
+  const sql = useDatabase(database());
+  const res = await call(t, handler, { method: 'POST', query: { resource: 'blog-posts' }, as: 'member', body: { title: 'Lang', content: `<p>${'x'.repeat(50_001)}</p>` } });
+  assert.deepEqual([res.statusCode, res.body.code], [400, 'FIELD_TOO_LARGE']);
+  assert.deepEqual(statementsOf(sql, 'INSERT INTO blog_posts'), []);
 });

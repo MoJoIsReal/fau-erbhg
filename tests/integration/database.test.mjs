@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { before, test } from 'node:test';
-import { database, initialize, literal, productionStatement } from './postgres-fixture.mjs';
+import { database, initialize, literal, productionStatement, declaredSchema } from './postgres-fixture.mjs';
 
 const sql = database();
 before(async () => { await initialize(sql); });
@@ -56,6 +56,62 @@ test('simultaneous final-seat and duplicate requests preserve exact capacity', a
   }
 });
 
+// TEST-003. A council member removing a signup gives its seats back; the
+// counter is what the capacity check in the signup statement reads.
+test('removing a signup from the council list releases its seats', async () => {
+  const id = await event('event', 2);
+  await sql(await signup(id, 'first@example.test'));
+  await sql(await signup(id, 'second@example.test'));
+  const seats = async () => (await sql(`SELECT current_attendees FROM events WHERE id = ${id};`))[0].current_attendees;
+  const third = async () => (await sql(`SELECT count(*) AS count FROM event_registrations WHERE event_id = ${id} AND email = 'third@example.test';`))[0].count;
+  assert.equal(await seats(), '2');
+  await sql(await signup(id, 'third@example.test'));
+  assert.equal(await third(), '0', 'full');
+
+  const [first] = await sql(`SELECT id FROM event_registrations WHERE event_id = ${id} AND email = 'first@example.test';`);
+  const removed = await sql(await productionStatement(registrationFile, 'SELECT d.id, d.event_id, d.attendee_count,', { id: Number(first.id) }));
+  assert.deepEqual(removed.map((row) => row.eventUpdated), ['t']);
+  assert.equal(await seats(), '1');
+  await sql(await signup(id, 'third@example.test'));
+  assert.equal(await third(), '1', 'the released seat can be taken');
+  await sql(`DELETE FROM event_registrations WHERE event_id = ${id}; DELETE FROM events WHERE id = ${id};`);
+});
+
+// Production's registered_at predates migration 0001 and is a `timestamp`
+// column, not the text column the migrations create; the first 0021 failed
+// there (SQLSTATE 42804). Replay that history, run 0021, and roll it back.
+test('0021 turns a timestamp registered_at into ISO text, and rewrites copied values', async () => {
+  const migration = await readFile(new URL('../../migrations/0021_registration_iso_registered_at.sql', import.meta.url), 'utf8');
+  const [row] = await sql(`BEGIN;
+    ALTER TABLE event_registrations ALTER COLUMN registered_at DROP DEFAULT;
+    ALTER TABLE event_registrations ALTER COLUMN registered_at TYPE timestamp
+      USING (registered_at::timestamptz AT TIME ZONE 'UTC');
+    ALTER TABLE event_registrations ALTER COLUMN registered_at SET DEFAULT now();
+    INSERT INTO events (id, title, description, date, time, location, type) VALUES (990021, 'T', '', '2099-01-01', '12:00', 'T', 'event');
+    INSERT INTO event_registrations (event_id, name, email, registered_at) VALUES (990021, 'A', 'a0021@example.test', '2026-09-24 11:56:00.123456');
+    INSERT INTO event_registration_cancellations (event_id, registration_id, name, email, registered_at) VALUES
+      (990021, 1, 'B', 'b@example.test', '2026-09-24 11:56:00.123456'),
+      (990021, 2, 'C', 'c@example.test', '2026-09-24 13:56:00.5+02'),
+      (990021, 3, 'D', 'd@example.test', '2026-09-24T11:56:00.000Z');
+    ${migration}
+    ${migration}
+    INSERT INTO event_registrations (event_id, name, email) VALUES (990021, 'E', 'e0021@example.test');
+    SELECT
+      (SELECT data_type FROM information_schema.columns WHERE table_name = 'event_registrations' AND column_name = 'registered_at') AS type,
+      (SELECT registered_at FROM event_registrations WHERE email = 'a0021@example.test') AS converted,
+      (SELECT string_agg(registered_at, ',' ORDER BY name) FROM event_registration_cancellations WHERE event_id = 990021) AS copies,
+      (SELECT registered_at ~ '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$' FROM event_registrations WHERE email = 'e0021@example.test') AS default_is_iso;
+    ROLLBACK;`);
+  assert.deepEqual(row, {
+    type: 'text',
+    converted: '2026-09-24T11:56:00.123Z',
+    copies: '2026-09-24T11:56:00.123Z,2026-09-24T11:56:00.500Z,2026-09-24T11:56:00.000Z',
+    default_is_iso: 't',
+  });
+  const [after] = await sql("SELECT data_type FROM information_schema.columns WHERE table_name = 'event_registrations' AND column_name = 'registered_at';");
+  assert.equal(after.data_type, 'text', 'rolled back');
+});
+
 test('photo slot collision rolls back the loser; a fresh allocation succeeds', async () => {
   const id = await event('foto');
   const outcomes = await race(id, await Promise.all(['a', 'b'].map(name => signup(id, `${name}@example.test`, ['12:00']))));
@@ -88,7 +144,7 @@ test('concurrent delivery claims are exclusive, expired leases recover, subscrib
   const [subscriber] = await sql("INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status) VALUES ('delivery@example.test', 'test-token', NOW()::text, 'active') RETURNING id;");
   await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date)
     SELECT 'event', n, ${subscriber.id}, 'Test', '2099-09-24' FROM generate_series(1,6) n;`);
-  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3 });
+  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
   const results = await Promise.all([sql(`BEGIN; ${claim}; DO $$ BEGIN PERFORM pg_sleep(0.3); END $$; COMMIT;`), sql(claim)]);
   const ids = results.flat().map(row => row.id);
   assert.equal(ids.length, 6);
@@ -103,16 +159,28 @@ test('concurrent delivery claims are exclusive, expired leases recover, subscrib
 });
 
 test('privacy and delivery retention enforce the six/twelve-month and ninety-day windows', async () => {
-  const dates = await sql("SELECT (CURRENT_DATE-INTERVAL '7 months')::date AS old, (CURRENT_DATE-INTERVAL '5 months')::date AS recent;");
+  const dates = await sql("SELECT (CURRENT_DATE-INTERVAL '7 months')::date::text AS old, (CURRENT_DATE-INTERVAL '5 months')::date::text AS recent, (CURRENT_DATE-INTERVAL '6 months')::date::text AS cutoff;");
   const old = await event('event', 10, dates[0].old), recent = await event('event', 10, dates[0].recent);
-  for (const id of [old, recent]) {
+  // Dates the events handler once accepted. A cast on either used to throw and
+  // take the whole retention delete down with it, every morning.
+  const notADate = await event('event', 10, 'neste fredag'), impossible = await event('event', 10, '2020-02-31');
+  for (const id of [old, recent, notADate, impossible]) {
     await sql(`INSERT INTO event_registrations (event_id,name,email) VALUES (${id},'Test','retention@example.test');
       INSERT INTO event_registration_cancellations (event_id,registration_id,name,email) VALUES (${id},1,'Test','cancelled@example.test');`);
   }
-  await sql("INSERT INTO contact_messages (name,email,subject,message,created_at) VALUES ('Test','old@example.test','Test','Test',(NOW()-INTERVAL '13 months')::text), ('Test','recent@example.test','Test','Test',(NOW()-INTERVAL '11 months')::text);");
+  await sql("INSERT INTO contact_messages (name,email,subject,message,created_at) VALUES ('Test','old@example.test','Test','Test',(NOW()-INTERVAL '13 months')::text), ('Test','recent@example.test','Test','Test',(NOW()-INTERVAL '11 months')::text), ('Test','legacy@example.test','Test','Test','ukjent');");
+  const contactCutoff = new Date();
+  contactCutoff.setUTCMonth(contactCutoff.getUTCMonth() - 12);
+  const bindings = { contactCutoff, eventCutoff: dates[0].cutoff };
   for (const marker of ['DELETE FROM contact_messages', 'DELETE FROM event_registrations r\n', 'DELETE FROM event_registration_cancellations c']) {
-    await sql(await productionStatement(cronFile, marker));
+    await sql(await productionStatement(cronFile, marker, bindings));
   }
+  assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${notADate};`)).length, 1, 'skipped, not a failure');
+  assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${impossible};`)).length, 0, 'compared as text, never cast');
+  const [unparseable] = await sql(await productionStatement(cronFile, 'AS "contactMessages"'));
+  assert.deepEqual([Number(unparseable.contactMessages), Number(unparseable.events)], [1, 1]);
+  await sql(`DELETE FROM event_registrations WHERE event_id IN (${notADate},${impossible}); DELETE FROM event_registration_cancellations WHERE event_id IN (${notADate},${impossible});
+    DELETE FROM events WHERE id IN (${notADate},${impossible}); DELETE FROM contact_messages WHERE created_at = 'ukjent';`);
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${old};`)).length, 0);
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${recent};`)).length, 1);
   assert.equal((await sql(`SELECT * FROM event_registration_cancellations WHERE event_id=${old};`)).length, 0);
@@ -148,7 +216,7 @@ test('the delivery claim reports whether the queued item is still one to send', 
       ('event', ${active}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('event', ${cancelled}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('news', 999999, ${subscriber.id}, 'Deleted post', '2099-10-01');`);
-  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10 });
+  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
   const claimed = (await sql(claim)).filter(row => row.email === 'eligible@example.test');
   const eligible = Object.fromEntries(claimed.map(row => [`${row.itemType}:${row.itemId}`, row.sourceEligible]));
   assert.deepEqual(eligible, { [`event:${active}`]: 't', [`event:${cancelled}`]: 'f', 'news:999999': 'f' });
@@ -255,6 +323,7 @@ test('two sign-ups for the same new address at once both succeed, and an active 
 test('two admins creating the same user at once get one user and no error', async () => {
   const create = (hashed) => productionStatement('api/secure-settings.js', 'ON CONFLICT (username) DO NOTHING', {
     username: 'twice@example.test', hashed, name: 'Twice', role: 'member', now: new Date().toISOString(),
+    temporaryPasswordExpiry: () => new Date(Date.now() + 7 * 86400000).toISOString(),
   });
   const outcomes = await raceOnUniqueRow(
     "INSERT INTO users (username, password, name, role, created_at) VALUES ('twice@example.test', 'blocker', 'Blocker', 'member', NOW()::text)",
@@ -320,7 +389,7 @@ test('a reminder that has failed three times is not claimed again', async () => 
     (${id}, 'Tried twice', 'twice@example.test', 2),
     (${id}, 'Tried three times', 'thrice@example.test', 3);`);
   const claim = await productionStatement(cronFile, 'WITH due AS', {
-    targetDate: '2099-12-01', MAX_REMINDER_ATTEMPTS: 3, MAX_REMINDERS_PER_RUN: 100,
+    targetDate: '2099-12-01', MAX_REMINDER_ATTEMPTS: 3, MAX_REMINDERS_PER_RUN: 100, DELIVERY_LEASE_MINUTES: 10,
   });
   const claimed = await sql(claim);
   assert.deepEqual(claimed.map(row => [row.email, row.reminderAttempts]), [['twice@example.test', '3']]);
@@ -407,13 +476,84 @@ test('the storage quota is checked inside the insert, including files still uplo
   const id = await mediaShare({ status: 'draft' });
   await mediaObject(id, 600);
   await mediaObject(id, 300, 'uploading');
-  const insert = async (size) => sql(await productionStatement(mediaFile, 'INSERT INTO media_files', {
-    shareId: id, objectKey: `media/${id}/${size}`, kind: 'image', mimeType: 'image/jpeg', size,
-    width: null, height: null, position: 0, quotaBytes: 1000,
+  const insert = async (size, preview = 0) => sql(await productionStatement(mediaFile, 'INSERT INTO media_files', {
+    shareId: id, objectKey: `media/${id}/${size}-${preview}`, kind: 'image', mimeType: 'image/jpeg', size,
+    previewKey: preview ? `media/${id}/${size}-${preview}-small` : null, previewBytes: preview || null,
+    width: null, height: null, position: 0, quotaBytes: 1000, MEDIA_MAX_FILES_PER_SHARE: 200,
   }));
   assert.equal((await insert(101)).length, 0, '900 + 101 is over 1000');
-  assert.equal((await insert(100)).length, 1, '900 + 100 fits exactly');
-  assert.equal((await insert(1)).length, 0, 'and now it is full');
+  assert.equal((await insert(90, 11)).length, 0, 'a preview counts too: 900 + 90 + 11 is over 1000');
+  assert.equal((await insert(90, 10)).length, 1, '900 + 90 + 10 fits exactly');
+  assert.equal((await insert(1)).length, 0, 'and now it is full, previews included');
+});
+
+test('with two kindergarten info rows, a save lands on the row the page shows', async () => {
+  await sql('DELETE FROM kindergarten_info;');
+  await sql(`INSERT INTO kindergarten_info (contact_email, address, opening_hours, number_of_children, owner, description, updated_at)
+    VALUES ('old@example.test', 'Old', '7-17', 1, 'Owner', 'Old row', 'then'), ('new@example.test', 'New', '7-17', 2, 'Owner', 'New row', 'then');`);
+  const file = 'api/secure-settings.js';
+  await sql(await productionStatement(file, 'UPDATE kindergarten_info', {
+    sanitizedContactEmail: 'saved@example.test', sanitizedAddress: 'Saved', sanitizedOpeningHours: '7-17',
+    sanitizedNumberOfChildren: 3, sanitizedOwner: 'Owner', sanitizedDescription: 'Saved', sanitizedStyrerName: null,
+    sanitizedStyrerEmail: null, now: new Date().toISOString(),
+  }));
+  const [shown] = await sql(await productionStatement(file, 'FROM kindergarten_info\n      ORDER BY id DESC'));
+  assert.equal(shown.contact_email, 'saved@example.test');
+  await sql('DELETE FROM kindergarten_info;');
+});
+
+test('an audit row is written as the middleware writes it, and dropped after a year', async () => {
+  await sql('DELETE FROM audit_log;');
+  const req = { method: 'DELETE', url: '/api/secure-settings?resource=users&id=5', query: { resource: 'users', id: '5' }, headers: { 'x-vercel-id': 'arn1::abc' } };
+  const insert = await productionStatement('api/_shared/middleware.js', 'INSERT INTO audit_log', {
+    actor: { userId: 1, role: 'admin' }, req, res: {}, status: 200, CREATED_ID: Symbol('id'),
+    text: (value) => (typeof value === 'string' && value ? value : null),
+    getRequestPath: () => '/api/secure-settings', requestTargetId: () => 5, getRequestId: () => 'arn1::abc',
+  });
+  await sql(insert);
+  const [row] = await sql('SELECT user_id, role, method, path, action, resource, target_id, status, request_id FROM audit_log;');
+  assert.deepEqual(row, { user_id: '1', role: 'admin', method: 'DELETE', path: '/api/secure-settings', action: '', resource: 'users', target_id: '5', status: '200', request_id: 'arn1::abc' });
+
+  await sql(`INSERT INTO audit_log (created_at, user_id, role, method, path, status) VALUES ('${new Date(Date.now() - 366 * DAY).toISOString()}', 2, 'member', 'PUT', '/api/events', 200);`);
+  const purge = await productionStatement(cronFile, 'DELETE FROM audit_log', { cutoff: new Date(Date.now() - 365 * DAY).toISOString() });
+  assert.equal((await sql(purge)).length, 1, 'only the row older than a year');
+  assert.equal((await sql('SELECT count(*) AS count FROM audit_log;'))[0].count, '1');
+  await sql('DELETE FROM audit_log;');
+});
+
+// Each upload fits on its own, the two together do not. The first has inserted
+// but not committed when the second runs: without the advisory lock the second
+// INSERT's snapshot cannot see that row, and both land over the quota.
+test('two uploads at once cannot both take the last of the quota', async () => {
+  await sql('DELETE FROM media_shares;');
+  const id = await mediaShare({ status: 'draft' });
+  await mediaObject(id, 900);
+  const source = await readFile(new URL('../../' + mediaFile, import.meta.url), 'utf8');
+  const lockId = Number(source.match(/const MEDIA_UPLOAD_LOCK = ([\d_]+);/)[1].replaceAll('_', ''));
+  const lock = await productionStatement(mediaFile, 'pg_advisory_xact_lock', { MEDIA_UPLOAD_LOCK: lockId });
+  const upload = (name) => productionStatement(mediaFile, 'INSERT INTO media_files', {
+    shareId: id, objectKey: `media/${id}/${name}`, kind: 'image', mimeType: 'image/jpeg', size: 80,
+    previewKey: null, previewBytes: null, width: null, height: null, position: 0, quotaBytes: 1000,
+    MEDIA_MAX_FILES_PER_SHARE: 200,
+  });
+
+  const first = sql(`BEGIN; ${lock}; ${await upload('a')}; SELECT pg_sleep(1.5); COMMIT;`);
+  let held = false;
+  for (let attempt = 0; attempt < 100 && !held; attempt++) {
+    const [row] = await sql("SELECT count(*) AS count FROM pg_stat_activity WHERE usename='fau_test' AND wait_event='PgSleep';");
+    held = Number(row.count) > 0;
+  }
+  assert.ok(held, 'the first upload holds its uncommitted row');
+  const second = sql(`BEGIN; ${lock}; ${await upload('b')}; COMMIT;`);
+  let waiting = false;
+  for (let attempt = 0; attempt < 100 && !waiting; attempt++) {
+    const [row] = await sql("SELECT count(*) AS count FROM pg_stat_activity WHERE usename='fau_test' AND wait_event='advisory';");
+    waiting = Number(row.count) > 0;
+  }
+  assert.ok(waiting, 'the second upload waits on the lock');
+  await Promise.all([first, second]);
+  const [row] = await sql(`SELECT count(*) AS count, sum(size_bytes) AS total FROM media_files WHERE share_id = ${id};`);
+  assert.deepEqual(row, { count: '2', total: '980' }, 'the second upload saw the first and was refused');
 });
 
 test('a share summary counts only finished files and sums sizes past 2 GB', async () => {
@@ -439,4 +579,45 @@ test('the cron purges expired shares and day-old drafts, and nothing else', asyn
   }));
   assert.deepEqual(due.map((row) => Number(row.id)).sort((a, b) => a - b), [expired, staleDraft].sort((a, b) => a - b));
   assert.ok(!due.some((row) => Number(row.id) === active));
+});
+
+// The database the migrations build is what production has; shared/schema.ts
+// is what the types, the insert schemas and drizzle-kit believe. The fixture
+// used to build the base tables from schema.ts itself, so the two could never
+// disagree here, and a column added to schema.ts without a migration passed CI
+// and failed on Neon. It now builds from a frozen baseline plus the migrations,
+// and this compares the result with the declaration: tables, columns
+// (type, NOT NULL), indexes, unique and CHECK constraints.
+test('the migrated database matches what shared/schema.ts declares', async () => {
+  const declared = await declaredSchema();
+  const typeOf = (type) => ({ serial: 'integer', bigserial: 'bigint', timestamp: 'timestamp without time zone' }[type] ?? type);
+  const problems = [];
+  const live = {
+    columns: await sql("SELECT table_name, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'public';"),
+    indexes: await sql("SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname NOT LIKE '%_pkey';"),
+    constraints: await sql("SELECT conrelid::regclass::text AS table_name, conname, contype FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype IN ('u', 'c');"),
+  };
+  const tables = new Map(Object.values(declared.tables).map((table) => [table.name, table]));
+  const liveTables = new Set(live.columns.map((row) => row.table_name));
+  for (const name of liveTables) if (!tables.has(name)) problems.push(`table ${name} exists but is not declared`);
+  for (const [name, table] of tables) {
+    if (!liveTables.has(name)) { problems.push(`table ${name} is declared but no migration creates it`); continue; }
+    const columns = live.columns.filter((row) => row.table_name === name);
+    for (const column of Object.values(table.columns)) {
+      const row = columns.find((candidate) => candidate.column_name === column.name);
+      if (!row) { problems.push(`${name}.${column.name} is declared but no migration adds it`); continue; }
+      if (typeOf(column.type) !== row.data_type) problems.push(`${name}.${column.name} is ${row.data_type}, declared ${column.type}`);
+      if (Boolean(column.notNull) !== (row.is_nullable === 'NO')) problems.push(`${name}.${column.name} NOT NULL differs (declared ${Boolean(column.notNull)})`);
+    }
+    for (const row of columns) if (!table.columns[row.column_name]) problems.push(`${name}.${row.column_name} exists but is not declared`);
+    const declaredIndexes = new Set([...Object.keys(table.indexes), ...Object.keys(table.uniqueConstraints)]);
+    const liveIndexes = new Set(live.indexes.filter((row) => row.tablename === name).map((row) => row.indexname));
+    for (const index of declaredIndexes) if (!liveIndexes.has(index)) problems.push(`index ${index} is declared but no migration creates it`);
+    for (const index of liveIndexes) if (!declaredIndexes.has(index)) problems.push(`index ${index} exists but is not declared`);
+    const liveChecks = new Set(live.constraints.filter((row) => row.table_name === name && row.contype === 'c').map((row) => row.conname));
+    const declaredChecks = new Set(Object.keys(table.checkConstraints));
+    for (const check of declaredChecks) if (!liveChecks.has(check)) problems.push(`check ${check} is declared but no migration creates it`);
+    for (const check of liveChecks) if (!declaredChecks.has(check)) problems.push(`check ${check} exists but is not declared`);
+  }
+  assert.deepEqual(problems, []);
 });

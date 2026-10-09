@@ -14,10 +14,9 @@ import {
   checkRateLimit,
   clearRateLimit,
   identityRateLimitKey,
-  peekRateLimit,
   rateLimitKey,
 } from './_shared/rate-limit.js';
-import { isPasswordChangeRequired } from './_shared/password-policy.js';
+import { isPasswordChangeRequired, isTemporaryPasswordExpired } from './_shared/password-policy.js';
 import { getJwtConfig, JWT_ALGORITHM, JWT_ISSUER } from './_shared/jwt-config.js';
 
 // Consolidates login/logout/current-user/change-password onto one function
@@ -28,6 +27,7 @@ const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_IP_MAX_ATTEMPTS = 30;
 const LOGIN_ACCOUNT_MAX_FAILURES = 20;
 const LOGIN_DEVICE_MAX_ATTEMPTS = 10;
+const CHANGE_PASSWORD_MAX_ATTEMPTS = 5;
 const LOGIN_WINDOW_SECONDS = 15 * 60;
 const LOGIN_ACCOUNT_WINDOW_SECONDS = 60 * 60;
 const DUMMY_PASSWORD_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8b5Fzi/i8rYJO/8qZjU1BkJ1REsHiy';
@@ -121,7 +121,7 @@ async function handleLogin(req, res, sql) {
   // Strings only: an object or array password used to reach bcrypt and come
   // back as a 500, and a non-string username the rate-limit keys.
   if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
-    return res.status(400).json({ error: 'Username and password required' });
+    return res.status(400).json({ error: 'Username and password required', code: 'REQUIRED_FIELDS' });
   }
 
   let jwtConfig;
@@ -134,7 +134,8 @@ async function handleLogin(req, res, sql) {
   const loginRateLimitKey = rateLimitKey(req, 'login', username);
   const loginIpRateLimitKey = rateLimitKey(req, 'login-ip', '');
   // IP-agnostic, so a botnet rotating IPs can't spread its guesses past the
-  // per-(IP, account) limit. Counts failures only (recorded below).
+  // per-(IP, account) limit. Counts failures only: an unknown browser's
+  // attempt is reserved before the password check and cleared on success.
   const accountFailureKey = identityRateLimitKey('login-account', username);
   const device = knownDevice(req, username, jwtConfig);
   const limits = await Promise.all([
@@ -154,18 +155,36 @@ async function handleLogin(req, res, sql) {
         limit: LOGIN_DEVICE_MAX_ATTEMPTS,
         windowSeconds: LOGIN_WINDOW_SECONDS
       })
-      : peekRateLimit(sql, { key: accountFailureKey, limit: LOGIN_ACCOUNT_MAX_FAILURES }),
-  ]);
+      : null,
+  ].filter(Boolean));
   if (limits.some((limit) => !limit.allowed)) {
     res.setHeader('Retry-After', String(Math.max(...limits.map((limit) => limit.retryAfter))));
-    return res.status(429).json({ error: 'Too many login attempts. Try again later.' });
+    return res.status(429).json({ error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
+  }
+
+  // An unknown browser's attempt is counted against the account before the
+  // password is checked, so concurrent guesses from many IPs cannot all read
+  // the count before any of them has added to it. A success clears it below.
+  // Counted only once the per-IP limits have passed, so requests they refuse
+  // never run the account count up.
+  if (!device) {
+    const accountLimit = await checkRateLimit(sql, {
+      key: accountFailureKey,
+      limit: LOGIN_ACCOUNT_MAX_FAILURES,
+      windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
+    });
+    if (!accountLimit.allowed) {
+      res.setHeader('Retry-After', String(accountLimit.retryAfter));
+      return res.status(429).json({ error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
+    }
   }
 
   // Get user by username (email)
   const users = await sql`
     SELECT id, username, name, role, password, token_version as "tokenVersion",
            must_change_password as "mustChangePassword",
-           password_changed_at as "passwordChangedAt"
+           password_changed_at as "passwordChangedAt",
+           temp_password_expires_at as "tempPasswordExpiresAt"
     FROM users
     WHERE username = ${username}
   `;
@@ -176,12 +195,23 @@ async function handleLogin(req, res, sql) {
   const isValid = await bcryptjs.compare(password, user?.password || DUMMY_PASSWORD_HASH);
 
   if (!user || !isValid) {
-    await checkRateLimit(sql, {
-      key: accountFailureKey,
-      limit: LOGIN_ACCOUNT_MAX_FAILURES,
-      windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
-    });
-    return res.status(401).json({ error: 'Invalid credentials' });
+    // An unknown browser's failure was counted above. A known browser is held
+    // to its own attempt limit, so its failure can be recorded afterwards.
+    if (device) {
+      await checkRateLimit(sql, {
+        key: accountFailureKey,
+        limit: LOGIN_ACCOUNT_MAX_FAILURES,
+        windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
+      });
+    }
+    return res.status(401).json({ error: 'Invalid credentials', code: 'INVALID_CREDENTIALS' });
+  }
+
+  // The right temporary password, but its week is over: no session. Told
+  // apart from a wrong password only after the password matched, so it says
+  // nothing to someone guessing.
+  if (user.mustChangePassword && isTemporaryPasswordExpired(user)) {
+    return res.status(401).json({ error: 'Temporary password has expired', code: 'TEMP_PASSWORD_EXPIRED' });
   }
 
   // A success from an unknown browser means the account was not locked, so
@@ -210,7 +240,7 @@ async function handleLogin(req, res, sql) {
 
   return res.status(200).json({
     user: {
-      id: user.id,
+      userId: user.id,
       username: user.username,
       name: user.name,
       role: user.role,
@@ -264,13 +294,13 @@ async function handleChangePassword(req, res, sql, decoded) {
   const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
 
   if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Current password and new password are required' });
+    return res.status(400).json({ error: 'Current password and new password are required', code: 'REQUIRED_FIELDS' });
   }
   if (newPassword.length < 12) {
-    return res.status(400).json({ error: 'New password must be at least 12 characters' });
+    return res.status(400).json({ error: 'New password must be at least 12 characters', code: 'PASSWORD_TOO_SHORT' });
   }
   if (currentPassword === newPassword) {
-    return res.status(400).json({ error: 'New password must be different from current password' });
+    return res.status(400).json({ error: 'New password must be different from current password', code: 'PASSWORD_UNCHANGED' });
   }
   let jwtConfig;
   try {
@@ -290,10 +320,25 @@ async function handleChangePassword(req, res, sql, decoded) {
     return res.status(404).json({ error: 'User not found' });
   }
 
+  // A session (an unlocked shared computer, a stolen cookie) must not become
+  // an unthrottled oracle for the account's password: each attempt is counted
+  // before bcrypt, as on login, and a success clears the count.
+  const attemptKey = identityRateLimitKey('change-password', decoded.userId);
+  const attempts = await checkRateLimit(sql, {
+    key: attemptKey,
+    limit: CHANGE_PASSWORD_MAX_ATTEMPTS,
+    windowSeconds: LOGIN_WINDOW_SECONDS
+  });
+  if (!attempts.allowed) {
+    res.setHeader('Retry-After', String(attempts.retryAfter));
+    return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
+  }
+
   const passwordIsValid = await bcryptjs.compare(currentPassword, existingUser.password);
   if (!passwordIsValid) {
-    return res.status(400).json({ error: 'Current password is incorrect' });
+    return res.status(400).json({ error: 'Current password is incorrect', code: 'CURRENT_PASSWORD_INCORRECT' });
   }
+  await clearRateLimit(sql, attemptKey);
 
   const passwordHash = await bcryptjs.hash(newPassword, 10);
   const now = new Date().toISOString();
@@ -302,6 +347,7 @@ async function handleChangePassword(req, res, sql, decoded) {
     SET password = ${passwordHash},
         must_change_password = false,
         password_changed_at = ${now},
+        temp_password_expires_at = NULL,
         token_version = token_version + 1
     WHERE id = ${decoded.userId}
     RETURNING id, username, name, role, token_version as "tokenVersion",

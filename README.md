@@ -1,100 +1,70 @@
-﻿# FAU Erdal Barnehage - Digital Platform
+# FAU Erdal Barnehage
 
-A comprehensive digital platform for FAU Erdal Barnehage that enhances parent-school communication through robust and scalable digital infrastructure.
+The website of the parents' council (FAU) at Erdal kindergarten, in Norwegian
+and English: events and signups, a yearly calendar, news, documents, contact
+and newsletter, private photo sharing with parents, and an admin area for
+council members.
 
 ## Documentation
 
-- [`AGENTS.md`](AGENTS.md) — architecture, conventions, commands and boundaries
-  (also what AI coding agents load; `CLAUDE.md` imports it).
+- [`AGENTS.md`](AGENTS.md) — architecture, conventions, commands and safety
+  boundaries; the source of truth for how the code is organised (also what AI
+  coding agents load; `CLAUDE.md` imports it).
 - [`docs/design/style-guide.md`](docs/design/style-guide.md) — the UI Design &
   Style Guide 1.1; read it before any visual change.
-- [`docs/`](docs/README.md) — deployment guide, architecture reference,
+- [`docs/`](docs/README.md) — deployment, environment variables, architecture,
   subsystem rules, database testing and outstanding release checks.
 
-## Features
+## Stack
 
-- **Event Management**: Create, manage, and register for kindergarten events
-- **Document Management**: Secure file uploads with Cloudinary integration
-- **Contact System**: Anonymous and identified contact forms with email notifications
-- **Multilingual Support**: Norwegian and English language support
-- **Authentication**: Secure user authentication for council members
-- **Responsive Design**: Works on all devices
-
-## Technology Stack
-
-- **Frontend**: React 19 + TypeScript + Tailwind CSS
-- **Backend**: Vercel serverless functions + Neon PostgreSQL
-- **Database**: Neon PostgreSQL with Drizzle ORM
-- **File Storage**: Cloudinary
-- **Deployment**: Vercel
-
-## Quick Start for Vercel Deployment
-
-### 1. Environment Variables
-
-Set these environment variables in your Vercel dashboard:
-
-```
-DATABASE_URL=your_neon_database_url
-SESSION_SECRET=your_secure_session_secret
-CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-NODE_ENV=production
-```
-
-### 2. Deploy to Vercel
-
-1. Push your code to GitHub
-2. Connect your repository to Vercel
-3. Add the environment variables
-4. Deploy
-
-The `vercel.json` configuration is already set up for optimal deployment.
-
-## Security Features
-
-- Session-based authentication with secure cookies
-- CSRF protection with SameSite cookies
-- File upload validation and size limits
-- SQL injection protection with parameterized queries
-- XSS protection headers
-- Secure password hashing with bcrypt
+- **Frontend:** React 19, TypeScript, Tailwind CSS, TanStack Query, built with
+  Vite.
+- **Backend:** Vercel serverless functions in `api/*.js` (plain JavaScript, no
+  separate server), parameterized SQL through Neon's client.
+- **Database:** Neon PostgreSQL. The schema is changed only by the numbered SQL
+  files in `migrations/`, applied by hand; `shared/schema.ts` declares the same
+  tables for types and form validation, and CI checks that the two agree.
+- **Files:** Cloudinary for documents; Cloudflare R2 for private photo sharing.
+- **Mail:** Gmail (confirmations, contact, newsletter, reminders).
 
 ## Development
 
 ```bash
-npm install
-npm run dev
+npm ci             # install exactly what package-lock.json pins
+npm run dev        # the frontend on http://localhost:5000
+npm run check      # TypeScript, the backend type gate and the i18n ratchet
+npm test           # every offline suite in tests/ (node:test)
+npm run build      # production frontend build
+npm run verify     # check + test + build: the gate CI runs
 ```
 
-Local development runs the Vite frontend. API routes are implemented in `api/*.js`
-and run as Vercel serverless functions in production.
+`npm run dev` serves the frontend only; `api/*.js` runs on Vercel (or under
+`vercel dev`). The offline suites run the real handlers in-process against a
+scripted database and need no network or credentials. The SQL itself is tested
+against a disposable PostgreSQL by `npm run test:integration`; see
+[`docs/database-testing.md`](docs/database-testing.md). Never point a test at
+the production database.
 
-### Verification
+## Deployment
 
-```bash
-npm test           # Every offline suite in tests/ (node:test)
-npm run check      # TypeScript and bilingual-string checks
-npm run build      # Production frontend build
-npm run verify     # check + test + build (the same gate CI runs)
-```
+A push to `main` deploys to Vercel. Environment variables are listed in
+[`.env.example`](.env.example) and explained in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md), together with migrations, scheduled
+jobs, monitoring and rollback.
 
-The suites use Node's built-in test runner and need no database, network or
-credentials. Database concurrency and provider integration tests
-still require an isolated test environment; never point automated tests at the
-production Neon database.
+## Security, in short
 
-## Database Management
+- Council members sign in with a JWT in an `HttpOnly` cookie; every change
+  also needs a double-submit CSRF token (a readable `csrf-token` cookie echoed
+  as `X-CSRF-Token`). Passwords are bcrypt hashes, and temporary passwords
+  expire after seven days.
+- Every handler checks the role itself; route guards in the browser are a
+  convenience only.
+- SQL is always parameterized, input is sanitized server-side, and uploads are
+  checked by type, extension and size (10 MB) and must land in our own
+  Cloudinary account.
+- Public forms are rate-limited and protected by Cloudflare Turnstile; logs and
+  error reports are redacted of addresses, phone numbers and tokens.
 
-The database schema is managed through `shared/schema.ts` and Drizzle.
-
-## File Upload Limits
-
-- Maximum file size: 10 MB (`MAX_UPLOAD_SIZE_BYTES` in `api/_shared/upload-validation.js`)
-- Supported formats: PDF, Word (.doc, .docx), Excel (.xls, .xlsx), plain text (.txt), and images (.jpg, .jpeg, .png, .gif, .webp)
-- Files are securely stored in Cloudinary via a signed upload flow that verifies the resulting URL belongs to our `CLOUDINARY_CLOUD_NAME`.
-
-## Support
-
-For technical issues or questions, contact the development team.
+See `AGENTS.md` and [`docs/architecture.md`](docs/architecture.md) for the
+details.

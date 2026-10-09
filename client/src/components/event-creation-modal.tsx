@@ -15,8 +15,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TimeInput24h } from "@/components/time-input-24h";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { insertEventSchema, type Event } from "@shared/schema";
+import { apiErrorText, apiRequest } from "@/lib/queryClient";
+import type { Event } from "@shared/schema";
+import { eventFormBaseSchema } from "@/lib/form-schemas";
 import { MAX_EVENT_ATTENDEES } from "@shared/constants";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { validateAddress } from "@/lib/location-utils";
@@ -29,7 +30,7 @@ import RichTextEditor from "@/components/RichTextEditor";
 // Built per language so the capacity message is translated. The API enforces
 // the same MAX_EVENT_ATTENDEES limit; checking it here names the problem on the
 // field instead of in an English error toast after submitting.
-const createFormSchema = (maxAttendeesRange: string) => insertEventSchema.extend({
+const createFormSchema = (maxAttendeesRange: string) => eventFormBaseSchema.extend({
   maxAttendees: z.number({ error: maxAttendeesRange })
     .int(maxAttendeesRange)
     .min(1, maxAttendeesRange)
@@ -316,7 +317,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
     onError: (error: any) => {
       toast({
         title: t.entryEditor.error,
-        description: error.message || t.modals.eventCreation.errorDesc,
+        description: apiErrorText(error, t, t.modals.eventCreation.errorDesc),
         variant: "destructive"
       });
     }

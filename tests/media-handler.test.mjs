@@ -25,7 +25,7 @@ const UNAVAILABLE = { error: 'Not found', code: 'SHARE_UNAVAILABLE' };
 // are matched loosely, but the filters that matter — status, expiry — are
 // evaluated here rather than assumed, so a share past its expiry really is
 // invisible to the lookup.
-function mediaDb({ shares = [], files = [], rateCount = 1, rateRows = {} } = {}) {
+function mediaDb({ shares = [], files = [], rateCount = 1 } = {}) {
   const respond = (statement, values) => {
     if (statement.startsWith('SELECT id, title, description, pin_hash, expires_at FROM media_shares WHERE token_hash')) {
       const [hash, now] = values;
@@ -33,11 +33,7 @@ function mediaDb({ shares = [], files = [], rateCount = 1, rateRows = {} } = {})
       assert.match(statement, /expires_at > \?/);
       return shares.filter((share) => share.token_hash === hash && share.status === 'published' && share.expires_at > now);
     }
-    if (statement.startsWith('SELECT count, EXTRACT(EPOCH FROM (reset_at - NOW()))::int AS "retryAfter" FROM api_rate_limits')) {
-      const count = rateRows[values[0]];
-      return count === undefined ? [] : [{ count, retryAfter: 900 }];
-    }
-    if (statement.startsWith('SELECT id, kind, mime_type, object_key, width, height FROM media_files')) {
+    if (statement.startsWith('SELECT id, kind, mime_type, object_key, preview_key, width, height FROM media_files')) {
       return files.filter((file) => file.share_id === values[0] && file.status === 'ready');
     }
     return undefined;
@@ -168,6 +164,8 @@ test('a PIN share asks for the PIN, refuses a wrong one and counts the failure',
   assert.equal(res.body.files.length, 2);
   assert.match(res.body.grant, /^7\.\d+\.[A-Za-z0-9_-]+$/);
   assert.ok(sql.calls.some(({ statement }) => statement.startsWith('DELETE FROM api_rate_limits')), 'success clears the IP counter');
+  assert.ok(sql.calls.some(({ statement }) => statement.startsWith('UPDATE api_rate_limits SET count = GREATEST(count - 1, 0)')),
+    'and hands back the share-wide attempt, so parents opening it do not use up its failure budget');
 
   // The grant stands in for the PIN when the page asks for fresh URLs.
   useDatabase(mediaDb({ shares: [row], files: FILES }));
@@ -185,10 +183,47 @@ test('too many wrong PINs lock the share, even with the right PIN', async (t) =>
   const { token, row } = publishedShare({ pin_hash: await bcryptjs.hash('4321', 4) });
   const { identityRateLimitKey } = await import('../api/_shared/rate-limit.js');
   const shareKey = identityRateLimitKey('media-pin-share', 7);
-  useDatabase(mediaDb({ shares: [row], files: FILES, rateRows: { [shareKey]: 30 } }));
+  // 30 failures already counted; this attempt is the 31st.
+  const sql = useDatabase(mediaDb({ shares: [row], files: FILES, rateCount: (key) => (key === shareKey ? 31 : 1) }));
   const res = await view(t, { token, pin: '4321' });
   assert.deepEqual([res.statusCode, res.body.code], [429, 'PIN_LOCKED']);
   assert.ok(Number(res.headers['retry-after']) > 0);
+  assert.ok(sql.calls.some(({ statement }) => statement.startsWith('UPDATE api_rate_limits')),
+    'the IP attempt is handed back, since the PIN was never checked');
+});
+
+// A stand-in for the atomic upsert: each call adds one to its key and sees the
+// result, the way concurrent requests see PostgreSQL's row lock.
+function liveCounter() {
+  const counts = new Map();
+  return (key) => {
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+    return counts.get(key);
+  };
+}
+
+const fromIp = (ip) => ({ headers: { 'x-real-ip': ip } });
+const viewFrom = (t, ip, body) => call(t, handler, { method: 'POST', query: { action: 'view' }, body, csrf: false, ...fromIp(ip) });
+
+// Checking the count, then the PIN, then recording the failure let a burst of
+// concurrent guesses all read the same count: 120 per IP got a PIN checked.
+test('concurrent wrong PINs from one address stop at its limit', async (t) => {
+  const { token, row } = publishedShare({ pin_hash: await bcryptjs.hash('4321', 4) });
+  useDatabase(mediaDb({ shares: [row], files: FILES, rateCount: liveCounter() }));
+  const results = await Promise.all(Array.from({ length: 20 }, () => viewFrom(t, '203.0.113.20', { token, pin: '1111' })));
+  const codes = results.map((res) => res.body.code);
+  assert.equal(codes.filter((code) => code === 'PIN_INVALID').length, 5);
+  assert.equal(codes.filter((code) => code === 'PIN_LOCKED').length, 15);
+});
+
+test('concurrent wrong PINs spread over many addresses stop at the share limit', async (t) => {
+  const { token, row } = publishedShare({ pin_hash: await bcryptjs.hash('4321', 4) });
+  useDatabase(mediaDb({ shares: [row], files: FILES, rateCount: liveCounter() }));
+  const ips = Array.from({ length: 12 }, (_, index) => `198.51.100.${index + 1}`);
+  const results = await Promise.all(ips.flatMap((ip) => Array.from({ length: 5 }, () => viewFrom(t, ip, { token, pin: '1111' }))));
+  const codes = results.map((res) => res.body.code);
+  assert.equal(codes.filter((code) => code === 'PIN_INVALID').length, 30);
+  assert.equal(codes.filter((code) => code === 'PIN_LOCKED').length, 30);
 });
 
 test('the lookup itself is rate limited per IP', async (t) => {
@@ -257,7 +292,9 @@ test('create stores a draft with a hashed token, a sealed copy and a hashed PIN'
 test('create refuses a bad PIN, a missing title and a lifetime past 180 days', async (t) => {
   for (const body of [
     { title: 'x', pin: '12' },
-    { title: 'x', pin: 'abcd' },
+    { title: 'x', pin: '4321' },
+    { title: 'x', pin: '54321' },
+    { title: 'x', pin: 'abcdef' },
     { title: '' },
     { title: 'x', expiresInDays: 181 },
   ]) {
@@ -282,14 +319,28 @@ test('upload-init refuses other types, oversized files and uploads past the quot
   }
 
   // The quota check lives in the INSERT; no row back means it would not fit.
-  const sql = useDatabase(scriptedSql({ respond: (statement) => draft(statement) ?? [] }));
+  // It runs after an advisory lock in the same transaction, so a concurrent
+  // upload's row is counted (a statement's snapshot is taken when it starts).
+  const fileCount = (count) => (statement) => draft(statement)
+    ?? (statement.startsWith('SELECT COUNT(*)::int AS file_count') ? [{ file_count: count }] : []);
+  const sql = useDatabase(scriptedSql({ respond: fileCount(3) }));
   const res = await call(t, handler, {
     method: 'POST', query: { action: 'upload-init' }, body: { shareId: 1, mimeType: 'video/mp4', size: 5000 }, as: 'admin',
   });
   assert.deepEqual([res.statusCode, res.body.code], [507, 'STORAGE_QUOTA']);
+  const lock = sql.calls.findIndex(({ statement }) => statement.startsWith('SELECT pg_advisory_xact_lock'));
+  assert.ok(lock >= 0 && lock < sql.calls.findIndex(({ statement }) => statement.startsWith('INSERT INTO media_files')), 'the lock comes first');
+  assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO media_files')).statement, /AND \(SELECT COUNT\(\*\) FROM media_files WHERE share_id = \?\) < \?/);
+
+  // The file cap is checked the same way, and named when it was the reason.
+  useDatabase(scriptedSql({ respond: fileCount(200) }));
+  const full = await call(t, handler, {
+    method: 'POST', query: { action: 'upload-init' }, body: { shareId: 1, mimeType: 'video/mp4', size: 5000 }, as: 'admin',
+  });
+  assert.deepEqual([full.statusCode, full.body.code], [409, 'TOO_MANY_FILES']);
   const insert = sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO media_files'));
-  assert.match(insert.statement, /WHERE \(SELECT COALESCE\(SUM\(size_bytes\), 0\) FROM media_files\) \+ \? <= \?/);
-  assert.equal(insert.values.at(-1), 9 * 1024 ** 3);
+  assert.match(insert.statement, /WHERE \(SELECT COALESCE\(SUM\(size_bytes \+ COALESCE\(preview_bytes, 0\)\), 0\) FROM media_files\) \+ \? \+ \? <= \?/);
+  assert.deepEqual(insert.values.slice(-3), [9 * 1024 ** 3, 1, 200]);
 });
 
 test('upload-init only adds files to a draft', async (t) => {
@@ -382,7 +433,7 @@ test('upload-complete marks a verified file ready', async (t) => {
   const res = await call(t, handler, { method: 'POST', query: { action: 'upload-complete' }, body: { fileId: 44 }, as: 'admin' });
   assert.equal(res.statusCode, 200);
   const update = fields(sql.writes().at(-1));
-  assert.deepEqual(update, { status: 'ready', upload_id: null, id: 44 });
+  assert.deepEqual(update, { status: 'ready', upload_id: null, preview_key: null, preview_bytes: null, id: 44 });
 });
 
 test('a size mismatch is refused before any bytes are read', async (t) => {
@@ -400,7 +451,7 @@ test('publish starts the clock and returns the link; an empty draft cannot be pu
   let sql = useDatabase(scriptedSql({
     respond: (statement) => {
       if (statement.startsWith('SELECT id, status, lifetime_days')) return [share];
-      if (statement.startsWith('SELECT id, object_key, upload_id, status FROM media_files')) return [];
+      if (statement.startsWith('SELECT id, object_key, preview_key, upload_id, status FROM media_files')) return [];
       return undefined;
     },
   }));
@@ -412,7 +463,7 @@ test('publish starts the clock and returns the link; an empty draft cannot be pu
   sql = useDatabase(scriptedSql({
     respond: (statement) => {
       if (statement.startsWith('SELECT id, status, lifetime_days')) return [share];
-      if (statement.startsWith('SELECT id, object_key, upload_id, status FROM media_files')) {
+      if (statement.startsWith('SELECT id, object_key, preview_key, upload_id, status FROM media_files')) {
         return [{ id: 1, object_key: 'media/5/a', upload_id: null, status: 'ready' }, { id: 2, object_key: 'media/5/b', upload_id: 'u', status: 'uploading' }];
       }
       if (statement.startsWith('UPDATE media_shares')) return [{ id: 5 }];
@@ -463,7 +514,7 @@ test('revoke deletes the files from R2 first, then the rows', async (t) => {
   const sql = useDatabase(scriptedSql({
     respond: (statement) => {
       if (statement.startsWith('SELECT id FROM media_shares')) return [{ id: 9 }];
-      if (statement.startsWith('SELECT object_key, upload_id, status FROM media_files')) {
+      if (statement.startsWith('SELECT object_key, preview_key, upload_id, status FROM media_files')) {
         return [{ object_key: 'media/9/a', upload_id: null, status: 'ready' }, { object_key: 'media/9/b', upload_id: null, status: 'ready' }];
       }
       if (statement.startsWith('DELETE FROM media_shares')) order.push('DELETE media_shares');
@@ -512,7 +563,7 @@ test('the list reports storage use against the quota and marks expired shares', 
           { id: 2, title: 'B', description: null, status: 'published', has_pin: true, lifetime_days: 90, created_at: iso(now - DAY), published_at: iso(now - DAY), expires_at: iso(now + 89 * DAY), file_count: 1, total_bytes: '10' },
         ];
       }
-      if (statement.startsWith('SELECT COALESCE(SUM(size_bytes)')) return [{ used: '3010' }];
+      if (statement.startsWith('SELECT COALESCE(SUM(size_bytes + COALESCE(preview_bytes, 0))')) return [{ used: '3010' }];
       return undefined;
     },
   }));
@@ -585,4 +636,107 @@ test('an EU-jurisdiction bucket is reached on its own endpoint, and nothing else
   useDatabase(mediaDb({ shares: [row], files: FILES }));
   const res = await view(t, { token });
   assert.equal(new URL(res.body.files[0].url).host, '0123456789abcdef0123456789abcdef.eu.r2.cloudflarestorage.com');
+});
+
+// ---------------------------------------------------------------------------
+// Grid previews (MEDIA_PREVIEW_* in shared/media.js, migration 0022)
+
+const draftShare = (id) => (statement) => {
+  if (statement.startsWith('SELECT s.status')) return [{ status: 'draft', file_count: 0 }];
+  if (statement.startsWith('INSERT INTO media_files')) return [{ id }];
+  return undefined;
+};
+// The insert is INSERT … SELECT (the quota check rides on it), which fields()
+// does not read: pair its column list with the values in order.
+const insertOf = (sql) => {
+  const { statement, values } = sql.calls.find((call) => call.statement.startsWith('INSERT INTO media_files'));
+  const columns = statement.match(/^INSERT INTO media_files \(([^)]*)\) SELECT/)[1].split(',').map((column) => column.trim());
+  return Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+};
+
+test('a photo may bring a small preview, signed for its own type and size under its own key', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: draftShare(51) }));
+  const res = await call(t, handler, {
+    method: 'POST', query: { action: 'upload-init' }, as: 'admin',
+    body: { shareId: 1, mimeType: 'image/jpeg', size: 4_000_000, preview: { mimeType: 'image/webp', size: 48_000 } },
+  });
+  assert.equal(res.statusCode, 200);
+  const insert = insertOf(sql);
+  assert.match(insert.preview_key, /^media\/1\/[0-9a-f]{32}$/);
+  assert.notEqual(insert.preview_key, insert.object_key);
+  assert.equal(insert.preview_bytes, 48_000);
+  const url = new URL(res.body.previewUrl);
+  assert.equal(url.pathname, `/fau-media-test/${insert.preview_key}`);
+  assert.equal(url.searchParams.get('X-Amz-SignedHeaders'), 'content-length;content-type;host');
+
+  // Anything outside the rules is not stored, and the upload goes on without it.
+  for (const [mimeType, preview] of [
+    ['video/mp4', { mimeType: 'image/webp', size: 48_000 }],
+    ['image/jpeg', { mimeType: 'image/png', size: 48_000 }],
+    ['image/jpeg', { mimeType: 'image/webp', size: 600 * 1024 }],
+    ['image/jpeg', { mimeType: 'image/webp', size: 0 }],
+  ]) {
+    const plain = useDatabase(scriptedSql({ respond: draftShare(52) }));
+    const answer = await call(t, handler, { method: 'POST', query: { action: 'upload-init' }, as: 'admin', body: { shareId: 1, mimeType, size: 5000, preview } });
+    assert.equal(answer.statusCode, 200, JSON.stringify(preview));
+    assert.equal(answer.body.previewUrl, undefined, JSON.stringify(preview));
+    assert.deepEqual([insertOf(plain).preview_key, insertOf(plain).preview_bytes], [null, null]);
+  }
+});
+
+test('upload-complete keeps a verified preview and drops one that does not match, without failing', async (t) => {
+  const file = {
+    id: 46, share_id: 1, object_key: 'media/1/f00d', kind: 'image', mime_type: 'image/jpeg', size_bytes: '1000', upload_id: null,
+    preview_key: 'media/1/beefcafe', preview_bytes: 300,
+  };
+  const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe1, ...new Array(12).fill(0)]);
+  const webp = Uint8Array.from(Buffer.from('RIFF\0\0\0\0WEBPVP8 '));
+  for (const [previewHead, kept] of [
+    [{ ContentLength: 300, ContentType: 'image/webp' }, true],
+    [{ ContentLength: 299, ContentType: 'image/webp' }, false],
+    [{ ContentLength: 300, ContentType: 'image/png' }, false],
+  ]) {
+    const sent = stubR2(t, (name, input) => {
+      const isPreview = input.Key === file.preview_key;
+      if (name === 'HeadObjectCommand') return isPreview ? previewHead : { ContentLength: 1000, ContentType: 'image/jpeg' };
+      if (name === 'GetObjectCommand') return { Body: { transformToByteArray: async () => (isPreview ? webp : jpeg) } };
+      return {};
+    });
+    const sql = useDatabase(scriptedSql({ respond: (statement) => statement.startsWith('SELECT f.id, f.share_id') ? [file] : undefined }));
+    const res = await call(t, handler, { method: 'POST', query: { action: 'upload-complete' }, body: { fileId: 46 }, as: 'admin' });
+    assert.equal(res.statusCode, 200, JSON.stringify(previewHead));
+    assert.equal(res.body.file.preview, kept);
+    const update = fields(sql.writes().at(-1));
+    assert.deepEqual([update.status, update.preview_key, update.preview_bytes], kept ? ['ready', 'media/1/beefcafe', 300] : ['ready', null, null]);
+    const deleted = sent.filter(({ name }) => name === 'DeleteObjectsCommand').flatMap(({ input }) => input.Delete.Objects);
+    assert.deepEqual(deleted, kept ? [] : [{ Key: 'media/1/beefcafe' }], 'a rejected preview is removed from R2');
+    t.mock.restoreAll();
+  }
+});
+
+test('the share page gets a preview URL for photos that have one, and the original for everything', async (t) => {
+  const { token, row } = publishedShare();
+  const files = [{ ...FILES[0], preview_key: 'media/7/pppp' }, { ...FILES[1], preview_key: null }];
+  useDatabase(mediaDb({ shares: [row], files }));
+  const res = await view(t, { token });
+  assert.equal(res.statusCode, 200);
+  assert.equal(new URL(res.body.files[0].previewUrl).pathname, '/fau-media-test/media/7/pppp');
+  assert.equal(new URL(res.body.files[0].url).pathname, '/fau-media-test/media/7/aaaa', 'the original stays available');
+  assert.equal(res.body.files[1].previewUrl, null);
+});
+
+test('revoking a share deletes the previews along with the originals', async (t) => {
+  const sent = stubR2(t);
+  useDatabase(scriptedSql({
+    respond: (statement) => {
+      if (statement.startsWith('SELECT id FROM media_shares')) return [{ id: 9 }];
+      if (statement.startsWith('SELECT object_key, preview_key, upload_id, status FROM media_files')) {
+        return [{ object_key: 'media/9/a', preview_key: 'media/9/a-small', upload_id: null, status: 'ready' }, { object_key: 'media/9/b', preview_key: null, upload_id: null, status: 'ready' }];
+      }
+      return undefined;
+    },
+  }));
+  const res = await call(t, handler, { method: 'DELETE', query: { id: '9' }, as: 'admin' });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(sent[0].input.Delete.Objects, [{ Key: 'media/9/a' }, { Key: 'media/9/a-small' }, { Key: 'media/9/b' }]);
 });

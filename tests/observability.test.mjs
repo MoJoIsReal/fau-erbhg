@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import Sentry from '../api/_shared/sentry.js';
+import Sentry, { toSentryEvent } from '../api/_shared/sentry.js';
+import { reportProviderError } from '../api/_shared/provider-errors.js';
 import {
   getRequestId,
   getRequestPath,
@@ -15,7 +16,7 @@ function mockReq(overrides = {}) {
   return {
     method: 'GET',
     url: '/api/events',
-    headers: { 'x-vercel-id': 'arn1:iad1:abc123' },
+    headers: { 'x-vercel-id': 'arn1::iad1::5wq9b-1759912345678-2c4e6a8b0d1f' },
     query: {},
     ...overrides,
   };
@@ -51,7 +52,7 @@ test('a log line carries the request id, route and multiplexed resource', (t) =>
   assert.deepEqual(lines[0], {
     level: 'error',
     event: 'api.error',
-    requestId: 'arn1:iad1:abc123',
+    requestId: 'arn1::iad1::5wq9b-1759912345678-2c4e6a8b0d1f',
     method: 'PUT',
     path: '/api/secure-settings',
     resource: 'blog-posts',
@@ -109,7 +110,7 @@ test('an unauthenticated request logs without an actor rather than failing', (t)
 
   assert.equal(fields.userId, undefined);
   assert.equal(fields.role, undefined);
-  assert.equal(fields.requestId, 'arn1:iad1:abc123');
+  assert.equal(fields.requestId, 'arn1::iad1::5wq9b-1759912345678-2c4e6a8b0d1f');
 });
 
 test('a request with no platform id logs a null id rather than inventing one', (t) => {
@@ -127,7 +128,23 @@ test('the request id is echoed so a user can quote it', async (t) => {
 
   await withApiHandler(async (_req, response) => response.status(200).json({ ok: true }))(req, res);
 
-  assert.equal(res.getHeader('X-Request-Id'), 'arn1:iad1:abc123');
+  assert.equal(res.getHeader('X-Request-Id'), 'arn1::iad1::5wq9b-1759912345678-2c4e6a8b0d1f');
+});
+
+// A real Vercel id carries a run of digits, which the phone-number rule used
+// to redact: the id a parent quoted could not be found in the log.
+test('the logged request id is the one the response echoes', async (t) => {
+  const lines = captureLines(t);
+  const req = mockReq();
+  const res = mockResponse();
+  await withApiHandler(async (_req, response) => response.status(400).json({ error: 'no' }))(req, res);
+  assert.equal(lines.at(-1).requestId, res.getHeader('X-Request-Id'));
+
+  // Only id-shaped values are kept as they are; anything else is redacted.
+  const odd = logEvent('info', 'x', { requestId: 'kari@example.test', path: '/api/x 12345678', message: 'ring 912 34 567' });
+  assert.equal(odd.requestId, '[redacted-email]');
+  assert.match(odd.path, /redacted-phone/);
+  assert.match(odd.message, /redacted-phone/);
 });
 
 test('every non-2xx response produces exactly one attributable line', async (t) => {
@@ -238,4 +255,29 @@ test('well-formed cookies are still decoded', () => {
 
 test('no cookie header parses to an empty object', () => {
   assert.deepEqual(parseCookies({ headers: {} }), {});
+});
+
+// OBS-004. An event names its deploy and the request the user saw the id of.
+test('a server error event carries the release and the request as tags', (t) => {
+  const previous = process.env.VERCEL_GIT_COMMIT_SHA;
+  t.after(() => { if (previous === undefined) delete process.env.VERCEL_GIT_COMMIT_SHA; else process.env.VERCEL_GIT_COMMIT_SHA = previous; });
+  process.env.VERCEL_GIT_COMMIT_SHA = 'abc123def';
+  const req = mockReq({ method: 'DELETE', url: '/api/secure-settings?resource=users&id=5', query: { resource: 'users', id: '5', action: 'kari@example.test' } });
+  setRequestActor(req, { userId: 1, role: 'admin' });
+  const event = toSentryEvent(new Error('boom'), requestFields(req));
+  assert.equal(event.release, 'abc123def');
+  assert.deepEqual(event.tags, {
+    requestId: 'arn1::iad1::5wq9b-1759912345678-2c4e6a8b0d1f', method: 'DELETE', path: '/api/secure-settings',
+    resource: 'users', role: 'admin', targetId: '5',
+  }, 'an action that is not an id is left out rather than tagged');
+});
+
+test('a provider failure is one structured, redacted line', (t) => {
+  const lines = captureLines(t);
+  reportProviderError('Mail failed', Object.assign(new Error('Recipient child@example.test'), { code: 'EENVELOPE' }));
+  const line = lines.find((entry) => entry.event === 'provider.error');
+  assert.equal(line.level, 'error');
+  assert.equal(line.context, 'Mail failed');
+  assert.equal(line.code, 'EENVELOPE');
+  assert.doesNotMatch(JSON.stringify(line), /child@example/);
 });

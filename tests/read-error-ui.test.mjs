@@ -5,7 +5,7 @@ import { importBundle } from './helpers.mjs';
 // Real pages, hooks and query cache rendered together. Only browser storage
 // and network results are supplied by fixtures; no page component is mocked.
 globalThis.localStorage = { getItem: () => 'no' };
-const { render, copy } = await importBundle({ stdin: { resolveDir: process.cwd(), loader: 'tsx', contents: `
+const { render, copy, ApiError } = await importBundle({ stdin: { resolveDir: process.cwd(), loader: 'tsx', contents: `
   import React from 'react';
   import { renderToStaticMarkup } from 'react-dom/server';
   import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -17,11 +17,12 @@ const { render, copy } = await importBundle({ stdin: { resolveDir: process.cwd()
   import NewsPost from './client/src/pages/news-post';
   import Attendees from './client/src/components/event-registrations-view';
   import { translations } from './client/src/lib/i18n';
+  export { ApiError } from './client/src/lib/queryClient';
   export const copy = translations.no;
   export function render(name, status, data, overrides = {}) {
     const client = new QueryClient({defaultOptions:{queries:{queryFn:async()=>{throw new Error('unexpected fetch in static rendering')},retry:false, retryOnMount:false, staleTime:Infinity, gcTime:Infinity}}});
     const year = new Date().getFullYear() - (new Date().getMonth() < 7 ? 1 : 0);
-    for (const url of ['/api/registrations?eventId=1', '/api/registrations?eventId=1&cancelled=1', '/api/events', '/api/yearly-calendar?schoolYear='+year, '/api/yearly-calendar?schoolYear='+(year+1), '/api/documents', '/api/secure-settings?resource=contact-messages', '/api/secure-settings?resource=blog-posts&homepage=true&limit=3', '/api/secure-settings?resource=blog-posts&includeArchived=true', '/api/secure-settings?resource=blog-posts&id=42', '/api/secure-settings?resource=kindergarten-info']) {
+    for (const url of ['/api/registrations?eventId=1&view=council', '/api/registrations?eventId=1&cancelled=1', '/api/events', '/api/yearly-calendar?fromSchoolYear='+year+'&toSchoolYear='+(year+1), '/api/documents', '/api/secure-settings?resource=contact-messages', '/api/secure-settings?resource=blog-posts&homepage=true&limit=3', '/api/secure-settings?resource=blog-posts&includeArchived=true', '/api/secure-settings?resource=blog-posts&id=42', '/api/secure-settings?resource=kindergarten-info']) {
       const q = client.getQueryCache().build(client, {queryKey:[url]});
       q.setState({status, error:status==='error'?new Error('fixture failure'):null, data: data ?? (status==='success'?[]:undefined), dataUpdatedAt: data ? Date.now() : 0});
       if (overrides[url]) q.setState(overrides[url]);
@@ -43,6 +44,15 @@ for (const page of ['home', 'messages', 'admin', 'article', 'attendees']) {
   });
 }
 
+// The public answer for the same event is `{count}`, not a list. Whatever
+// reaches the council view, it must not take the whole page down with it.
+test('attendees: a non-list answer renders instead of throwing', () => {
+  const html = render('attendees', 'success', undefined, {
+    '/api/registrations?eventId=1&view=council': { status: 'success', error: null, data: { count: 3 }, dataUpdatedAt: Date.now() },
+  });
+  assert.ok(html.includes(copy.events.noRegistrationsYet));
+});
+
 test('successful empty article and inbox retain their real empty states', () => {
   assert.ok(render('article', 'success').includes(copy.newsPage.postNotFound));
   assert.ok(render('messages', 'success').includes(copy.messagesPage.noMessagesYet));
@@ -62,4 +72,13 @@ test('home keeps a valid event when a yearly-calendar source fails', () => {
   assert.ok(html.includes('Available future event'));
   assert.ok(html.includes(copy.dataState.staleHint));
   assert.ok(!html.includes(copy.home.noEvents));
+});
+
+// OBS-004. The id a parent can quote when reporting the problem: the one the
+// API echoed as X-Request-Id, which our log lines and Vercel's carry too.
+test('a failed read shows the request id the server answered with', () => {
+  const failure = { status: 'error', error: new ApiError(500, { error: 'Internal server error' }, '', 'Server Error', 'arn1::iad1::abc12-1759912345678'), data: undefined, dataUpdatedAt: 0 };
+  const html = render('article', 'error', undefined, { '/api/secure-settings?resource=blog-posts&id=42': failure });
+  assert.ok(html.includes(`${copy.dataState.errorId}: <span class="select-all break-all">arn1::iad1::abc12-1759912345678</span>`), html);
+  assert.ok(!render('article', 'error').includes(copy.dataState.errorId), 'no id, no line');
 });

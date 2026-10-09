@@ -1,9 +1,9 @@
-import type { SignupErrorCode } from "@shared/constants";
+import type { ApiErrorCode, SignupErrorCode } from "@shared/constants";
 
 export type Language = 'no' | 'en';
 
 export interface Translations {
-  dataState: { unavailable: string; staleHint: string; retry: string; loading: string };
+  dataState: { unavailable: string; staleHint: string; retry: string; loading: string; errorId: string };
   calendarWorkspace: {
     editHint: string;
     allEntries: string;
@@ -288,7 +288,6 @@ export interface Translations {
     noRegistrationsYet: string;
     loading: string;
     attendees2: string;
-    missingNames: string;
     registerPhotoSession: string;
     eventRegistration: string;
     parentGuardianName: string;
@@ -297,6 +296,19 @@ export interface Translations {
     child: string;
     children: string;
     childrenSFirstNames: string;
+    /** Labels of the public signup form. {n}, {left} and {max} are filled in. */
+    childFirstName: string;
+    signupFullName: string;
+    signupFullNamePlaceholder: string;
+    signupEmail: string;
+    signupEmailPlaceholder: string;
+    signupPhone: string;
+    signupComments: string;
+    signupCommentsPlaceholder: string;
+    seatsLeftLabel: string;
+    seatsLeftValue: string;
+    signupIntro: string;
+    signupIntroPhoto: string;
     register: string;
     full: string;
     attendees: string;
@@ -364,6 +376,13 @@ export interface Translations {
     successDesc: string;
     errorTitle: string;
     errorDesc: string;
+    /** Shown before anything happens: the page acts only on a click, so a mail scanner opening the link changes nothing. */
+    confirmReadyTitle: string;
+    confirmReadyDesc: string;
+    confirmButton: string;
+    unsubReadyTitle: string;
+    unsubReadyDesc: string;
+    unsubButton: string;
     confirmPendingTitle: string;
     confirmSuccessTitle: string;
     confirmSuccessDesc: string;
@@ -484,6 +503,7 @@ export interface Translations {
       error: string;
       mismatch: string;
       tooShort: string;
+      currentRequired: string;
     };
 
     eventCreation: {
@@ -522,6 +542,9 @@ export interface Translations {
     eventRegistration: {
       success: string;
       successDesc: string;
+      /** Shown instead of successDesc when no confirmation mail could be sent. */
+      noMailDesc: string;
+      noMailLink: string;
       error: string;
       errorDesc: string;
       /** One message per `code` the signup API refuses with. {max} and {email} are filled in. */
@@ -764,6 +787,7 @@ export interface Translations {
   };
   contentPage: {
     content: string;
+    postActions: string;
     error: string;
     titleContentRequired: string;
     saved: string;
@@ -936,6 +960,7 @@ export interface Translations {
       addTitle: string;
       editTitle: string;
       title: string;
+      titleRequired: string;
       description: string;
       weekNumber: string;
       weekNumberEnd: string;
@@ -1041,17 +1066,55 @@ export interface Translations {
       emailSent: string;
       successDelete: string;
       errorDelete: string;
+      resetPassword: string;
+      resetPasswordConfirm: string;
+      successReset: string;
+      errorReset: string;
     };
   };
+  /** One message per `code` the API refuses with (API_ERROR_CODES), and `generic` when there is none. */
+  apiErrors: Record<ApiErrorCode, string> & { generic: string };
 }
 
 export const translations: Record<Language, Translations> = {
   no: {
+    apiErrors: {
+      RATE_LIMITED: "For mange forsøk. Vent litt og prøv igjen.",
+      REQUIRED_FIELDS: "Fyll ut alle påkrevde felt.",
+      NOT_FOUND: "Fant den ikke – noen andre kan ha slettet den. Last siden på nytt.",
+      INVALID_CREDENTIALS: "Feil brukernavn eller passord.",
+      CURRENT_PASSWORD_INCORRECT: "Nåværende passord er feil.",
+      PASSWORD_TOO_SHORT: "Det nye passordet må ha minst 12 tegn.",
+      PASSWORD_UNCHANGED: "Det nye passordet må være forskjellig fra det nåværende.",
+      FIELD_TOO_LARGE: "Teksten er for lang.",
+      INVALID_EMAIL: "Skriv inn en gyldig e-postadresse.",
+      NAME_AND_EMAIL_REQUIRED: "Skriv inn navn og en gyldig e-postadresse, eller send henvendelsen anonymt.",
+      MESSAGE_REQUIRED: "Velg emne og skriv en melding.",
+      EVENT_FIELDS_REQUIRED: "Tittel, dato og klokkeslett må fylles ut.",
+      INVALID_EVENT_DATE: "Datoen må være en ekte dato.",
+      INVALID_EVENT_TIME: "Klokkeslett må skrives som TT:MM (24 timer).",
+      INVALID_MAX_ATTENDEES: "Maks antall deltakere må være et heltall, eller tomt for ingen grense.",
+      INVALID_REGISTRATION_DEADLINE: "Påmeldingsfristen er ikke gyldig.",
+      INVALID_EVENT_TYPE: "Ugyldig type arrangement.",
+      TITLE_REQUIRED: "Tittel må fylles ut.",
+      UPLOAD_TYPE_NOT_ALLOWED: "Denne filtypen er ikke tillatt.",
+      UPLOAD_TOO_LARGE: "Filen er større enn 10 MB.",
+      UPLOAD_NOT_VERIFIED: "Opplastingen kunne ikke bekreftes. Prøv igjen.",
+      USERNAME_TAKEN: "Brukernavnet er allerede i bruk.",
+      EMAIL_NOT_CONFIGURED: "E-post er ikke satt opp, så ingenting ble sendt.",
+      REPLY_REQUIRED: "Skriv et svar.",
+      NO_REPLY_ADDRESS: "Henvendelsen har ingen adresse å svare til.",
+      REPLY_SEND_FAILED: "Svaret kunne ikke sendes. Prøv igjen senere.",
+      ENTRY_FIELDS_REQUIRED: "Type, tittel, skoleår, år og måned må fylles ut.",
+      TEMP_PASSWORD_EXPIRED: "Det midlertidige passordet har utløpt. Be en administrator om å sende deg et nytt.",
+      generic: "Noe gikk galt. Prøv igjen.",
+    },
     dataState: {
       unavailable: "Opplysningene er ikke tilgjengelige akkurat nå",
       staleHint: "Prøv igjen. Opplysninger som fortsatt vises, kan være ufullstendige eller utdaterte.",
       retry: "Prøv igjen",
       loading: "Laster opplysninger …",
+      errorId: "Feil-ID",
     },
     calendarWorkspace: {
       editHint: "Velg en dato eller uke i måneden for å legge til. Endre dato eller uke i skjemaet for å flytte en oppføring.",
@@ -1341,7 +1404,6 @@ export const translations: Record<Language, Translations> = {
       noRegistrationsYet: "Ingen påmeldte ennå",
       loading: "Laster...",
       attendees2: "påmeldte",
-      missingNames: "Manglende navn",
       registerPhotoSession: "Påmelding til fotografering",
       eventRegistration: "Påmelding til arrangement",
       parentGuardianName: "Navn foresatt *",
@@ -1350,6 +1412,18 @@ export const translations: Record<Language, Translations> = {
       child: "barn",
       children: "barn",
       childrenSFirstNames: "Fornavn på barn",
+      childFirstName: "Barn {n} – fornavn",
+      signupFullName: "Fullt navn *",
+      signupFullNamePlaceholder: "Ditt navn",
+      signupEmail: "E-post *",
+      signupEmailPlaceholder: "din.epost@example.com",
+      signupPhone: "Telefon",
+      signupComments: "Kommentarer",
+      signupCommentsPlaceholder: "Eventuelle allergier, spørsmål eller kommentarer …",
+      seatsLeftLabel: "Plasser igjen:",
+      seatsLeftValue: "{left} av {max}",
+      signupIntro: "Fyll ut skjemaet nedenfor for å melde deg på arrangementet.",
+      signupIntroPhoto: "Oppgi antall barn som skal fotograferes og fornavn på hvert barn.",
       register: "Meld deg på",
       full: "Fullt",
       attendees: "påmeldte",
@@ -1414,6 +1488,12 @@ export const translations: Record<Language, Translations> = {
       successDesc: "Vi har sendt deg en bekreftelseslenke. Klikk på den for å fullføre påmeldingen.",
       errorTitle: "Noe gikk galt",
       errorDesc: "Kunne ikke fullføre påmeldingen. Prøv igjen senere.",
+      confirmReadyTitle: "Bekreft påmeldingen",
+      confirmReadyDesc: "Trykk på knappen for å bekrefte at du vil ha nyhetsbrevet fra FAU på e-post.",
+      confirmButton: "Bekreft påmelding",
+      unsubReadyTitle: "Meld deg av nyhetsbrevet",
+      unsubReadyDesc: "Trykk på knappen for å melde deg av. Du får ingen flere nyhetsbrev fra FAU etterpå.",
+      unsubButton: "Meld meg av",
       confirmPendingTitle: "Bekrefter påmelding...",
       confirmSuccessTitle: "Påmelding bekreftet!",
       confirmSuccessDesc: "Takk! Du vil nå motta påminnelser fra FAU Erdal Barnehage.",
@@ -1530,7 +1610,8 @@ export const translations: Record<Language, Translations> = {
         success: "Passordet er oppdatert",
         error: "Kunne ikke endre passord",
         mismatch: "Passordene er ikke like",
-        tooShort: "Passordet må være minst 12 tegn"
+        tooShort: "Passordet må være minst 12 tegn",
+        currentRequired: "Skriv inn passordet du har nå"
       },
 
       eventCreation: {
@@ -1569,6 +1650,8 @@ export const translations: Record<Language, Translations> = {
       eventRegistration: {
         success: "Påmelding vellykket!",
         successDesc: "Du er nå påmeldt arrangementet. Bekreftelsen på e-post har en lenke du kan bruke hvis du må melde deg av.",
+        noMailDesc: "Vi fikk ikke sendt bekreftelsen på e-post i dag. Ta vare på denne lenken – den trenger du hvis du vil endre eller melde deg av:",
+        noMailLink: "Din påmelding",
         error: "Feil ved påmelding",
         errorDesc: "Kunne ikke melde deg på. Prøv igjen senere.",
         errors: {
@@ -1720,8 +1803,8 @@ export const translations: Record<Language, Translations> = {
       lifetimeLabel: "Tilgjengelig i",
       days: "{n} dager",
       pinLabel: "PIN-kode (valgfritt)",
-      pinHelp: "4–8 sifre. Send PIN-koden i en annen kanal enn lenken.",
-      pinInvalid: "PIN-koden må være 4–8 sifre.",
+      pinHelp: "6–8 sifre. Send PIN-koden i en annen kanal enn lenken.",
+      pinInvalid: "PIN-koden må være 6–8 sifre.",
       filesLabel: "Filer",
       filesHelp: "Bilder (JPEG, PNG, WebP), video (MP4, MOV) og lyd (MP3, M4A, WAV), inntil {max} per fil. Posisjon og kameradata fjernes i nettleseren før opplasting.",
       chooseFiles: "Velg filer",
@@ -1822,6 +1905,7 @@ export const translations: Record<Language, Translations> = {
     },
     contentPage: {
       content: "Innhold",
+      postActions: "Flere valg for innlegget",
       error: "Feil",
       titleContentRequired: "Tittel og innhold er påkrevd",
       saved: "Lagret!",
@@ -1996,6 +2080,7 @@ export const translations: Record<Language, Translations> = {
         addTitle: "Ny oppføring",
         editTitle: "Rediger oppføring",
         title: "Tittel",
+        titleRequired: "Gi oppføringen en tittel",
         description: "Beskrivelse",
         weekNumber: "Fra uke",
         weekNumberEnd: "Til uke (valgfri)",
@@ -2100,16 +2185,52 @@ export const translations: Record<Language, Translations> = {
         errorCreate: "Kunne ikke opprette bruker",
         emailSent: "Innloggingsdetaljer er sendt på e-post",
         successDelete: "Bruker slettet",
-        errorDelete: "Kunne ikke slette brukeren"
+        errorDelete: "Kunne ikke slette brukeren",
+        resetPassword: "Send nytt passord",
+        resetPasswordConfirm: "Brukeren får et nytt midlertidig passord på e-post, gyldig i 7 dager. Det gamle passordet slutter å virke, og brukeren logges ut overalt.",
+        successReset: "Nytt passord er sendt på e-post",
+        errorReset: "Kunne ikke sende nytt passord"
       }
     }
   },
   en: {
+    apiErrors: {
+      RATE_LIMITED: "Too many attempts. Wait a little and try again.",
+      REQUIRED_FIELDS: "Fill in all required fields.",
+      NOT_FOUND: "Not found – someone else may have deleted it. Reload the page.",
+      INVALID_CREDENTIALS: "Wrong username or password.",
+      CURRENT_PASSWORD_INCORRECT: "The current password is wrong.",
+      PASSWORD_TOO_SHORT: "The new password must be at least 12 characters.",
+      PASSWORD_UNCHANGED: "The new password must differ from the current one.",
+      FIELD_TOO_LARGE: "The text is too long.",
+      INVALID_EMAIL: "Enter a valid email address.",
+      NAME_AND_EMAIL_REQUIRED: "Enter your name and a valid email address, or send the inquiry anonymously.",
+      MESSAGE_REQUIRED: "Choose a subject and write a message.",
+      EVENT_FIELDS_REQUIRED: "Title, date and time are required.",
+      INVALID_EVENT_DATE: "The date must be a real calendar date.",
+      INVALID_EVENT_TIME: "The time must be written as HH:MM (24-hour).",
+      INVALID_MAX_ATTENDEES: "Max attendees must be a whole number, or empty for no limit.",
+      INVALID_REGISTRATION_DEADLINE: "The registration deadline is not valid.",
+      INVALID_EVENT_TYPE: "Invalid event type.",
+      TITLE_REQUIRED: "A title is required.",
+      UPLOAD_TYPE_NOT_ALLOWED: "This file type is not allowed.",
+      UPLOAD_TOO_LARGE: "The file is larger than 10 MB.",
+      UPLOAD_NOT_VERIFIED: "The upload could not be verified. Try again.",
+      USERNAME_TAKEN: "That username is already in use.",
+      EMAIL_NOT_CONFIGURED: "Email is not set up, so nothing was sent.",
+      REPLY_REQUIRED: "Write a reply.",
+      NO_REPLY_ADDRESS: "This inquiry has no address to reply to.",
+      REPLY_SEND_FAILED: "The reply could not be sent. Try again later.",
+      ENTRY_FIELDS_REQUIRED: "Type, title, school year, year and month are required.",
+      TEMP_PASSWORD_EXPIRED: "The temporary password has expired. Ask an administrator to send you a new one.",
+      generic: "Something went wrong. Try again.",
+    },
     dataState: {
       unavailable: "Information is currently unavailable",
       staleHint: "Please try again. Any information still shown may be incomplete or out of date.",
       retry: "Try again",
       loading: "Loading information …",
+      errorId: "Error ID",
     },
     calendarWorkspace: {
       editHint: "Select a date or week in the month to add an entry. Change its date or week in the form to move it.",
@@ -2399,7 +2520,6 @@ export const translations: Record<Language, Translations> = {
       noRegistrationsYet: "No registrations yet",
       loading: "Loading...",
       attendees2: "attendees",
-      missingNames: "Missing names",
       registerPhotoSession: "Register for photo session",
       eventRegistration: "Event registration",
       parentGuardianName: "Parent/guardian name *",
@@ -2408,6 +2528,18 @@ export const translations: Record<Language, Translations> = {
       child: "child",
       children: "children",
       childrenSFirstNames: "Children\\'s first names",
+      childFirstName: "Child {n} – first name",
+      signupFullName: "Full name *",
+      signupFullNamePlaceholder: "Your name",
+      signupEmail: "Email *",
+      signupEmailPlaceholder: "your.email@example.com",
+      signupPhone: "Phone",
+      signupComments: "Comments",
+      signupCommentsPlaceholder: "Any allergies, questions or comments …",
+      seatsLeftLabel: "Places left:",
+      seatsLeftValue: "{left} of {max}",
+      signupIntro: "Fill out the form below to register for the event.",
+      signupIntroPhoto: "Enter the number of children to be photographed and the first name of each child.",
       register: "Register",
       full: "Full",
       attendees: "registered",
@@ -2472,6 +2604,12 @@ export const translations: Record<Language, Translations> = {
       successDesc: "We have sent you a confirmation link. Click it to complete your subscription.",
       errorTitle: "Something went wrong",
       errorDesc: "Could not complete the subscription. Please try again later.",
+      confirmReadyTitle: "Confirm your subscription",
+      confirmReadyDesc: "Press the button to confirm that you want the FAU newsletter by email.",
+      confirmButton: "Confirm subscription",
+      unsubReadyTitle: "Unsubscribe from the newsletter",
+      unsubReadyDesc: "Press the button to unsubscribe. You will receive no more newsletters from FAU.",
+      unsubButton: "Unsubscribe",
       confirmPendingTitle: "Confirming subscription...",
       confirmSuccessTitle: "Subscription confirmed!",
       confirmSuccessDesc: "Thank you! You will now receive reminders from FAU Erdal Kindergarten.",
@@ -2588,7 +2726,8 @@ export const translations: Record<Language, Translations> = {
         success: "Password updated",
         error: "Could not change password",
         mismatch: "Passwords do not match",
-        tooShort: "Password must be at least 12 characters"
+        tooShort: "Password must be at least 12 characters",
+        currentRequired: "Enter your current password"
       },
 
       eventCreation: {
@@ -2627,6 +2766,8 @@ export const translations: Record<Language, Translations> = {
       eventRegistration: {
         success: "Registration successful!",
         successDesc: "You are now registered for the event. The confirmation email has a link you can use if you need to cancel.",
+        noMailDesc: "We could not send the confirmation email today. Keep this link – you need it to change or cancel your signup:",
+        noMailLink: "Your signup",
         error: "Registration error",
         errorDesc: "Could not register you. Please try again later.",
         errors: {
@@ -2778,8 +2919,8 @@ export const translations: Record<Language, Translations> = {
       lifetimeLabel: "Available for",
       days: "{n} days",
       pinLabel: "PIN code (optional)",
-      pinHelp: "4–8 digits. Send the PIN through a different channel than the link.",
-      pinInvalid: "The PIN must be 4–8 digits.",
+      pinHelp: "6–8 digits. Send the PIN through a different channel than the link.",
+      pinInvalid: "The PIN must be 6–8 digits.",
       filesLabel: "Files",
       filesHelp: "Photos (JPEG, PNG, WebP), video (MP4, MOV) and audio (MP3, M4A, WAV), up to {max} per file. Location and camera data is removed in the browser before upload.",
       chooseFiles: "Choose files",
@@ -2880,6 +3021,7 @@ export const translations: Record<Language, Translations> = {
     },
     contentPage: {
       content: "Content",
+      postActions: "More actions for the post",
       error: "Error",
       titleContentRequired: "Title and content are required",
       saved: "Saved!",
@@ -3054,6 +3196,7 @@ export const translations: Record<Language, Translations> = {
         addTitle: "New entry",
         editTitle: "Edit entry",
         title: "Title",
+        titleRequired: "Give the entry a title",
         description: "Description",
         weekNumber: "From week",
         weekNumberEnd: "To week (optional)",
@@ -3158,7 +3301,11 @@ export const translations: Record<Language, Translations> = {
         errorCreate: "Could not create user",
         emailSent: "Login details were sent by email",
         successDelete: "User deleted",
-        errorDelete: "Could not delete the user"
+        errorDelete: "Could not delete the user",
+        resetPassword: "Send new password",
+        resetPasswordConfirm: "The user gets a new temporary password by email, valid for 7 days. The old password stops working and the user is signed out everywhere.",
+        successReset: "A new password was sent by email",
+        errorReset: "Could not send a new password"
       }
     }
   }

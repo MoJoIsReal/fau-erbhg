@@ -34,6 +34,7 @@ import { useCallback, useImperativeHandle, useRef, useState, type AriaAttributes
 import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { apiErrorText } from "@/lib/queryClient";
 
 interface RichTextEditorProps extends Pick<AriaAttributes, 'aria-label' | 'aria-labelledby' | 'aria-describedby' | 'aria-invalid'> {
   id?: string;
@@ -259,14 +260,13 @@ export default function RichTextEditor({ content, onChange, placeholder, id, ref
         mimeType: file.type,
       });
       const data = await metaRes.json();
-      return data.fileUrl || data.document?.cloudinary_url || null;
+      return data.fileUrl || data.document?.fileUrl || null;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
       console.error('Image upload failed:', error);
       toast({
         variant: 'destructive',
         title: t.contentPage.uploadFailed,
-        description: message || (t.contentPage.couldNotUploadImage),
+        description: apiErrorText(error, t, t.contentPage.couldNotUploadImage),
       });
       return null;
     }

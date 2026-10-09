@@ -1,6 +1,20 @@
 import crypto from 'crypto';
 
 export const PASSWORD_EXPIRY_DAYS = 365;
+// A temporary password travels in clear text by e-mail, so it works for a
+// week. After that the admin sends a new one (PATCH users in secure-settings).
+export const TEMPORARY_PASSWORD_DAYS = 7;
+
+export function temporaryPasswordExpiry(now = new Date()) {
+  return new Date(now.getTime() + TEMPORARY_PASSWORD_DAYS * 24 * 60 * 60 * 1000).toISOString();
+}
+
+/** True when the account still runs on a temporary password whose week is over. */
+export function isTemporaryPasswordExpired(user, now = new Date()) {
+  if (!user?.tempPasswordExpiresAt) return false;
+  const expiresAt = Date.parse(user.tempPasswordExpiresAt);
+  return Number.isFinite(expiresAt) && expiresAt <= now.getTime();
+}
 const PASSWORD_UPPERCASE = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const PASSWORD_LOWERCASE = 'abcdefghijkmnopqrstuvwxyz';
 const PASSWORD_DIGITS = '23456789';

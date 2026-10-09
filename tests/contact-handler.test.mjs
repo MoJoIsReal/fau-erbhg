@@ -2,10 +2,10 @@
 // write paths. Their protection is ordering: honeypot, size and rate limits
 // first, and nothing stored or revealed that the posture promises not to.
 import assert from 'node:assert/strict';
-import crypto from 'node:crypto';
 import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
-import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
+import { rateLimitDigest } from '../api/_shared/rate-limit.js';
 
 // Mail is configured, and every message is captured instead of sent.
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
@@ -68,6 +68,7 @@ test('a named inquiry needs a valid address and is stored sanitized', async (t) 
     subject: 'concern', name: 'Kari', email: ' Kari@Example.TEST ', message: 'Hei<script>alert(1)</script> der',
   }));
   assert.equal(res.statusCode, 201);
+  assert.deepEqual(res.body, { success: true }, 'the stored row is not echoed back');
   const [{ values: [name, email, , subject, message, createdAt] }] = inserts(sql);
   assert.deepEqual([name, email, subject], ['Kari', 'kari@example.test', 'concern']);
   assert.doesNotMatch(message, /<script/i);
@@ -78,18 +79,25 @@ test('a named inquiry needs a valid address and is stored sanitized', async (t) 
 // Mail goes out after the response (waitUntil), so let it settle first.
 test('the council hears about every inquiry; only a named sender gets a receipt', async (t) => {
   for (const [subject, recipients] of [['anonymous', ['fau@example.test']], ['general', ['fau@example.test', 'kari@example.test']]]) {
-    sent.length = 0;
+    await settle();
+    await settle();
+  sent.length = 0;
     useDatabase(scriptedSql({ respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }] }));
     await call(t, handler, submit({ subject, name: 'Kari', email: 'kari@example.test', message: 'Hei' }));
-    await new Promise(setImmediate);
+    await settle();
     assert.deepEqual(sent.map(({ to }) => to).sort(), recipients, subject);
     if (subject === 'anonymous') assert.doesNotMatch(sent[0].text, /Kari|kari@/, 'an anonymous tip names no one');
+    // The council reads the label, not the form's enum value.
+    const council = sent.find(({ to }) => to === 'fau@example.test');
+    const label = subject === 'anonymous' ? 'Anonym henvendelse' : 'Generell henvendelse';
+    assert.equal(council.subject, `Ny henvendelse: ${label}`);
+    assert.match(council.text, new RegExp(`Emne: ${label}`));
   }
 });
 
 // Double opt-in must not become a way to learn who is subscribed.
 test('subscribing answers the same for a new, pending or already active address', async (t) => {
-  const publicMail = crypto.createHash('sha256').update('public-mail').digest('hex');
+  const publicMail = rateLimitDigest(['public-mail']);
   const answers = [];
   for (const existing of [null, 'pending', 'unsubscribed', 'active']) {
     const sql = useDatabase(scriptedSql({
@@ -122,10 +130,20 @@ test('confirm and unsubscribe reject a malformed token before any lookup', async
   }
 });
 
-test('confirm activates only a pending subscription; unsubscribe never reveals a match', async (t) => {
+test('confirm activates a recent pending subscription; unsubscribe never reveals a match', async (t) => {
   const confirm = useDatabase(scriptedSql());
+  const before = Date.now();
   assert.equal((await call(t, handler, submit({ token: TOKEN }, { action: 'newsletter-confirm' }))).statusCode, 400);
-  assert.match(confirm.writes()[0].statement, /WHERE confirm_token = \? AND status = 'pending'/);
+  const [update] = confirm.writes();
+  // Pending and sent within the last seven days; or already active, so a
+  // second click on the same link is a success rather than an error.
+  assert.match(update.statement, /WHERE confirm_token = \? AND \(status = 'active' OR \(status = 'pending' AND created_at >= \?\)\)/);
+  const sentAfter = Date.parse(update.values.at(-1));
+  assert.ok(Math.abs(before - 7 * 24 * 60 * 60 * 1000 - sentAfter) < 5000, 'a link from more than seven days ago no longer works');
+  assert.match(update.statement, /confirmed_at = COALESCE\(confirmed_at, \?\)/, 'a repeat click keeps the first confirmation time');
+
+  useDatabase(scriptedSql({ respond: () => [{ id: 4 }] }));
+  assert.equal((await call(t, handler, submit({ token: TOKEN }, { action: 'newsletter-confirm' }))).statusCode, 200);
 
   for (const matched of [[], [{ id: 4 }]]) {
     useDatabase(scriptedSql({ respond: () => matched }));
@@ -137,14 +155,15 @@ test('confirm activates only a pending subscription; unsubscribe never reveals a
 // Every mail these forms trigger shares one daily Gmail quota with the
 // scheduled reminders; past the cap the inquiry is kept and mail is skipped.
 test('past the daily public-mail cap an inquiry is stored but no mail goes out', async (t) => {
+  await settle();
   sent.length = 0;
-  const cap = crypto.createHash('sha256').update('public-mail').digest('hex');
+  const cap = rateLimitDigest(['public-mail']);
   const sql = useDatabase(scriptedSql({
     rateCount: (key) => (key === cap ? 999 : 1),
     respond: () => [{ id: 1, created_at: '2026-05-04T09:00:00.000Z' }],
   }));
   const res = await call(t, handler, submit({ subject: 'general', name: 'Kari', email: 'kari@example.test', message: 'Hei' }));
-  await new Promise(setImmediate);
+  await settle();
   assert.equal(res.statusCode, 201);
   assert.equal(inserts(sql).length, 1);
   assert.deepEqual(sent, []);
@@ -185,4 +204,16 @@ test('with Turnstile on, the two forms need a valid token and the e-mailed links
     const res = await call(t, handler, submit({ token: TOKEN }, { action }));
     assert.equal(res.statusCode, 200, action);
   }
+});
+
+// One failure, one line. The handler used to wrap itself in its own
+// try/catch → handleError, and withApiHandler then logged the same 500 again.
+test('a database failure is logged once, as an error', async (t) => {
+  useDatabase(scriptedSql({ respond: () => { throw new Error('Connection terminated unexpectedly'); } }));
+  const res = await call(t, handler, submit({ subject: 'general', name: 'Kari', email: 'kari@example.test', message: 'Hei' }));
+  assert.equal(res.statusCode, 500);
+  const events = console.error.mock.calls
+    .map(({ arguments: [line] }) => { try { return JSON.parse(line).event; } catch { return null; } })
+    .filter(Boolean);
+  assert.deepEqual(events.filter((event) => event.startsWith('api.')), ['api.error']);
 });
