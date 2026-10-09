@@ -786,6 +786,7 @@ export interface Translations {
   };
   contentPage: {
     content: string;
+    postActions: string;
     error: string;
     titleContentRequired: string;
     saved: string;
@@ -1901,6 +1902,7 @@ export const translations: Record<Language, Translations> = {
     },
     contentPage: {
       content: "Innhold",
+      postActions: "Flere valg for innlegget",
       error: "Feil",
       titleContentRequired: "Tittel og innhold er påkrevd",
       saved: "Lagret!",
@@ -3014,6 +3016,7 @@ export const translations: Record<Language, Translations> = {
     },
     contentPage: {
       content: "Content",
+      postActions: "More actions for the post",
       error: "Error",
       titleContentRequired: "Title and content are required",
       saved: "Saved!",

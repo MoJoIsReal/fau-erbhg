@@ -504,8 +504,8 @@ export default function Content() {
                       <div className="sm:hidden flex-shrink-0">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <MoreVertical className="h-4 w-4" />
+                            <Button variant="outline" size="sm" aria-label={`${t.contentPage.postActions}: ${post.title}`}>
+                              <MoreVertical className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-48">

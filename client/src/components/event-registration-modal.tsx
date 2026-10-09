@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorBody, invalidateEventRegistrations } from "@/lib/queryClient";
-import { insertEventRegistrationSchema } from "@shared/schema";
+import { registrationFormBaseSchema } from "@/lib/form-schemas";
 import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -24,7 +24,7 @@ import {
 } from "@/components/turnstile-widget";
 import { z } from "zod";
 
-const formSchema = insertEventRegistrationSchema.omit({ eventId: true }).extend({
+const formSchema = registrationFormBaseSchema.extend({
   attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(MAX_ATTENDEES_PER_REGISTRATION, `Maksimalt ${MAX_ATTENDEES_PER_REGISTRATION} deltakere`),
   childrenNames: z.string().optional().nullable(),
   foodContribution: z.string().max(200).optional().nullable(),

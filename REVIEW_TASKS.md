@@ -1127,7 +1127,7 @@ None.
 ### Related findings
 MAINT-003
 
-## [ ] PERF-004 — Keep Drizzle out of the client bundle
+## [x] PERF-004 — Keep Drizzle out of the client bundle
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** M · **Area:** Performance
 ### Files
 `client/src/components/event-registration-modal.tsx` (:14), `client/src/pages/contact.tsx` (:25), `client/src/components/event-creation-modal.tsx` (:19), `shared/schema.ts`
@@ -1138,7 +1138,7 @@ MAINT-003
 ### Required change
 Write plain zod form schemas in a small shared module, keeping only `import type` from `schema.ts`. Add a key-parity test.
 ### Acceptance criteria
-- [ ] No `Pg*Builder` code in any chunk reachable from `main` or `contact`.
+- [x] No `Pg*Builder` code in any chunk reachable from `main` or `contact`.
 ### Verification
 `npm run build`; parity test.
 ### Dependencies
@@ -1185,7 +1185,7 @@ None.
 ### Related findings
 OBS-005
 
-## [ ] PERF-007 — Self-host fonts and preload the landing hero
+## [x] PERF-007 — Self-host fonts and preload the landing hero
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** Performance / Privacy
 ### Files
 `client/index.html` (:22-23), `client/src/App.tsx` (:11), `client/src/index.css`, `vercel.json` (CSP)
@@ -1196,7 +1196,7 @@ The Google Fonts stylesheet blocks rendering and sends visitor IPs to Google. Th
 ### Required change
 Self-host Manrope and Caveat as `/del` does, and import `Home` eagerly. Optionally preload the hero.
 ### Acceptance criteria
-- [ ] No request to fonts.googleapis.com.
+- [x] No request to fonts.googleapis.com.
 - [ ] Mobile LCP on `/` improves in Lighthouse.
 ### Verification
 `npm run build`; Lighthouse.
@@ -1399,7 +1399,7 @@ TRACE-003.
 ### Related findings
 A11Y-001
 
-## [ ] A11Y-005 — Name the icon-only post-actions button
+## [x] A11Y-005 — Name the icon-only post-actions button
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Accessibility
 ### Files
 `client/src/pages/content.tsx` (:506-509), `tests/client-invariants.test.mjs` (:80)
@@ -1410,7 +1410,7 @@ The button has no accessible name, and the existing guard only checks the files 
 ### Required change
 Add an `aria-label` from i18n, and widen the guard to all non-ui files.
 ### Acceptance criteria
-- [ ] The widened guard passes.
+- [x] The widened guard passes.
 ### Verification
 `client-invariants` suite.
 ### Dependencies

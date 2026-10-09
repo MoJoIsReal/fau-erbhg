@@ -47,7 +47,7 @@ const content: Record<"no" | "en", PrivacyText> = {
       },
       {
         title: "Tilgang og databehandlere",
-        body: "Kun autoriserte FAU-medlemmer har tilgang til admin-sidene. Appen bruker Vercel for hosting og anonym besøksstatistikk, Neon Postgres for database, Cloudinary for dokumentlagring, Cloudflare for sikkerhetssjekken på skjemaene og for lagring av delte bilder og videoer, Sentry for feilrapporter og Google (Gmail) for utsending av e-post. Disse opptrer som databehandlere på våre vegne. Skrifttypene på nettstedet lastes fra Google Fonts, som da ser IP-adressen din."
+        body: "Kun autoriserte FAU-medlemmer har tilgang til admin-sidene. Appen bruker Vercel for hosting og anonym besøksstatistikk, Neon Postgres for database, Cloudinary for dokumentlagring, Cloudflare for sikkerhetssjekken på skjemaene og for lagring av delte bilder og videoer, Sentry for feilrapporter og Google (Gmail) for utsending av e-post. Disse opptrer som databehandlere på våre vegne."
       },
       {
         title: "Sikkerhetssjekk på skjemaene",
@@ -106,7 +106,7 @@ const content: Record<"no" | "en", PrivacyText> = {
       },
       {
         title: "Access and processors",
-        body: "Only authorized FAU members can access the admin pages. The app uses Vercel for hosting and anonymous visit statistics, Neon Postgres for the database, Cloudinary for document storage, Cloudflare for the security check on forms and for storing shared photos and videos, Sentry for error reports and Google (Gmail) for sending email. These act as data processors on our behalf. The site's fonts are loaded from Google Fonts, which then sees your IP address."
+        body: "Only authorized FAU members can access the admin pages. The app uses Vercel for hosting and anonymous visit statistics, Neon Postgres for the database, Cloudinary for document storage, Cloudflare for the security check on forms and for storing shared photos and videos, Sentry for error reports and Google (Gmail) for sending email. These act as data processors on our behalf."
       },
       {
         title: "Security check on forms",

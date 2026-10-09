@@ -8,6 +8,16 @@ import test from 'node:test';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
+// Every .ts/.tsx under client/src except the shadcn primitives in ui/.
+function clientSources(dir = 'client/src', found = []) {
+  for (const entry of readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true })) {
+    const path = `${dir}/${entry.name}`;
+    if (entry.isDirectory()) { if (entry.name !== 'ui') clientSources(path, found); }
+    else if (/\.tsx?$/.test(entry.name)) found.push(path);
+  }
+  return found;
+}
+
 test('event editing invalidates the query the calendar reads and explains refused deletes', () => {
   const editorTools = read('client/src/components/calendar-editor-tools.tsx');
   const cancelBlock = editorTools.slice(
@@ -99,6 +109,45 @@ test('icon-only controls have accessible names and toggles expose their state', 
   const editor = read('client/src/components/RichTextEditor.tsx');
   assert.match(editor, /aria-label=\{toolbarLabels\.bold\}/);
   assert.match(editor, /aria-pressed=\{editor\.isActive\('bold'\)\}/);
+});
+
+// A button whose only content is an icon is announced as "button" and nothing
+// else. The guard used to list the files it checked, so a new one in another
+// file (the post-actions menu on /innhold) went unnamed.
+test('every icon-only button has an accessible name', () => {
+  const closeOf = (source, start) => {
+    let depth = 0;
+    for (let i = start; i < source.length; i++) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') depth--;
+      else if (source[i] === '>' && depth === 0) return i;
+    }
+    return -1;
+  };
+  const unnamed = [];
+  for (const path of clientSources().filter((file) => file.endsWith('.tsx'))) {
+    const source = read(path);
+    for (const match of source.matchAll(/<Button\b/g)) {
+      const end = closeOf(source, match.index);
+      const tag = source.slice(match.index, end + 1);
+      const close = source.indexOf('</Button>', end);
+      if (end < 0 || tag.endsWith('/>') || close < 0) continue;
+      const content = source.slice(end + 1, close)
+        .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+        .replace(/<[A-Z]\w*\b(?:[^<>{}]|\{[^{}]*\})*\/>/g, '')
+        .trim();
+      if (content === '' && !/aria-label(ledby)?=/.test(tag)) unnamed.push(`${path}:${source.slice(0, match.index).split('\n').length}`);
+    }
+  }
+  assert.deepEqual(unnamed, []);
+});
+
+// createInsertSchema needs Drizzle's table objects at runtime, which put
+// drizzle-orm's pg-core (about 67 kB gzipped) on the signup and contact pages.
+// The forms use client/src/lib/form-schemas.ts; schema.ts gives types only.
+test('the browser imports only types from shared/schema', () => {
+  const valueImports = clientSources().filter((path) => /^import (?!type )[^;]*from "@shared\/schema";/m.test(read(path)));
+  assert.deepEqual(valueImports, []);
 });
 
 // Four crops per scene: wide and narrow, day and night. A missing one silently
