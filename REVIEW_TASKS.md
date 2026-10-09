@@ -1285,7 +1285,7 @@ None.
 ### Related findings
 —
 
-## [ ] MAINT-005 — Extract signup validation and the registration mail templates
+## [x] MAINT-005 — Extract signup validation and the registration mail templates
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** M · **Area:** Maintainability
 ### Files
 `api/registrations.js` (:281-616, :661-767), new `api/_shared/registration-emails.js`, `tests/emails.test.mjs`
@@ -1296,7 +1296,7 @@ A 335-line inline POST branch and mail built by string concatenation make the mo
 ### Required change
 Add `validateSignupBody` and pure template functions, following `events.js` `validateEventBody` and `contact-emails.js`. Format dates with an explicit `timeZone: 'Europe/Oslo'`.
 ### Acceptance criteria
-- [ ] Templates are unit-tested in both languages, including the cancel link and photo slots.
+- [x] Templates are unit-tested in both languages, including the cancel link and photo slots.
 ### Verification
 `tests/emails.test.mjs`, `tests/registrations-handler.test.mjs`.
 ### Dependencies
@@ -1304,7 +1304,7 @@ None.
 ### Related findings
 SEC-003, TEST-003
 
-## [ ] TEST-003 — Add behavioural tests for council registration paths
+## [x] TEST-003 — Add behavioural tests for council registration paths
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Tests
 ### Files
 `tests/registrations-handler.test.mjs`, `tests/auth-handler.test.mjs`, `tests/document-deletion.test.mjs`
@@ -1315,7 +1315,7 @@ The council list, council DELETE (seat release), `auth?action=csrf` and `documen
 ### Required change
 Add handler-harness cases for these paths.
 ### Acceptance criteria
-- [ ] Removing the seat-release clause fails a behavioural test.
+- [x] Removing the seat-release clause fails a behavioural test.
 ### Verification
 The suites above.
 ### Dependencies

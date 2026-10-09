@@ -11,16 +11,15 @@ import {
   sanitizeInteger,
   findOversizedField,
   MAX_INT_ID,
-  nameForMail,
 } from './_shared/middleware.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
 import { checkRateLimit, rateLimitKey, reservePublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 import { reportProviderError } from './_shared/provider-errors.js';
+import { registrationConfirmationEmail } from './_shared/registration-emails.js';
 import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION } from '../shared/constants.js';
 import {
-  cancellationText,
   isCancelToken,
   isCancellationOpen,
   osloToday,
@@ -50,6 +49,75 @@ function normalizeAttendeeCount(value) {
 // language for any other caller.
 function refuseSignup(res, status, code, error, extra = {}) {
   return res.status(status).json({ code, error, ...extra });
+}
+
+// What a signup body must hold before anything is looked up. Pure, like
+// validateEventBody in events.js: { values } or { error: { code, message } },
+// every refusal a 400. The message is in the visitor's language where the
+// form can show it.
+export function validateSignupBody(body = {}) {
+  const sanitizedLanguage = ['no', 'en'].includes(body.language) ? body.language : 'no';
+  const values = {
+    eventIdNum: sanitizeInteger(body.eventId, 1, MAX_INT_ID),
+    sanitizedName: sanitizeText(body.name, 100),
+    sanitizedEmail: sanitizeEmail(body.email),
+    sanitizedPhone: sanitizePhone(body.phone),
+    sanitizedComments: body.comments ? sanitizeText(body.comments, 1000) : null,
+    sanitizedAttendeeCount: normalizeAttendeeCount(body.attendeeCount),
+    sanitizedLanguage,
+  };
+  if (!body.eventId || !values.sanitizedName || !values.sanitizedEmail) {
+    return { error: { code: 'INVALID_SIGNUP', message: 'Event ID, valid name and email are required' } };
+  }
+  if (values.eventIdNum === null) {
+    return { error: { code: 'INVALID_SIGNUP', message: 'Valid event ID required' } };
+  }
+  if (values.sanitizedAttendeeCount === null) {
+    return { error: { code: 'ATTENDEES_OUT_OF_RANGE', message: sanitizedLanguage === 'no'
+      ? `Antall deltakere må være fra 1 til ${MAX_ATTENDEES_PER_REGISTRATION}`
+      : `Number of attendees must be from 1 to ${MAX_ATTENDEES_PER_REGISTRATION}` } };
+  }
+  return { values };
+}
+
+// What the event itself asks of a signup: that it takes signups here and is
+// still open, a name for everyone booked, and the food on a potluck.
+export function validateSignupForEvent(event, { sanitizedAttendeeCount, sanitizedLanguage }, body = {}, nowIso = new Date().toISOString()) {
+  const no = sanitizedLanguage === 'no';
+  const refuse = (code, norwegian, english) => ({ error: { code, message: no ? norwegian : english } });
+  if (event.no_signup || event.vigilo_signup) {
+    return refuse('SIGNUP_CLOSED', 'Påmelding er ikke tillatt for dette arrangementet', 'Registration is not available for this event');
+  }
+  if (event.registration_deadline && event.registration_deadline < nowIso) {
+    return refuse('DEADLINE_PASSED', 'Påmeldingsfristen har gått ut', 'The registration deadline has passed');
+  }
+
+  // A photo booking names every child; any other signup names everyone it
+  // brings besides the registrant, who is already `name`. Both lists live in
+  // children_names, so the cancellation archive keeps them too.
+  const isPhotoEvent = event.type === 'foto';
+  const namesExpected = isPhotoEvent ? sanitizedAttendeeCount : sanitizedAttendeeCount - 1;
+  const sanitizedChildrenNames = namesExpected > 0 ? sanitizeChildrenNames(body.childrenNames, namesExpected) : null;
+  const namesGiven = sanitizedChildrenNames ? JSON.parse(sanitizedChildrenNames).length : 0;
+
+  // A photo booking is one slot per named child. Without a name for each,
+  // the registration used to be stored without any slot.
+  if (isPhotoEvent && namesGiven !== sanitizedAttendeeCount) {
+    return refuse('CHILD_NAMES_REQUIRED', 'Oppgi fornavn på hvert barn som skal fotograferes', 'Please give the first name of each child to be photographed');
+  }
+  if (!isPhotoEvent && namesGiven !== namesExpected) {
+    return refuse('ATTENDEE_NAMES_REQUIRED', 'Oppgi navnet på hver av de andre deltakerne', 'Please give the name of each of the other attendees');
+  }
+
+  // A potluck asks everyone what food they bring; any other event stores
+  // nothing, whatever the request carried.
+  const sanitizedFoodContribution = event.potluck
+    ? (sanitizeText(body.foodContribution, MAX_FOOD_CONTRIBUTION_LENGTH) || null)
+    : null;
+  if (event.potluck && !sanitizedFoodContribution) {
+    return refuse('FOOD_CONTRIBUTION_REQUIRED', 'Skriv hva du tar med av mat', 'Please say what food you will bring');
+  }
+  return { values: { sanitizedChildrenNames, sanitizedFoodContribution } };
 }
 
 export function isPhotoSlotConflict(error) {
@@ -287,7 +355,7 @@ export default withApiHandler(async function handler(req, res) {
 
   if (req.method === 'POST') {
     // Public access - Create new registration
-    const { eventId, name, email, phone, attendeeCount, comments, language, childrenNames, foodContribution } = req.body;
+    const { language } = req.body;
 
     // Public and unauthenticated: refuse an abusive body, then let the per-IP
     // limiter see the request, before spending anything on sanitization.
@@ -313,23 +381,12 @@ export default withApiHandler(async function handler(req, res) {
         : 'For mange påmeldinger fra denne enheten. Prøv igjen senere.');
     }
 
-    // Sanitize inputs
-    const sanitizedName = sanitizeText(name, 100);
-    const sanitizedEmail = sanitizeEmail(email);
-    const sanitizedPhone = sanitizePhone(phone);
-    const sanitizedComments = comments ? sanitizeText(comments, 1000) : null;
-    const sanitizedAttendeeCount = normalizeAttendeeCount(attendeeCount);
-    const sanitizedLanguage = ['no', 'en'].includes(language) ? language : 'no';
-
-    if (!eventId || !sanitizedName || !sanitizedEmail) {
-      return refuseSignup(res, 400, 'INVALID_SIGNUP', 'Event ID, valid name and email are required');
-    }
-
-    if (sanitizedAttendeeCount === null) {
-      return refuseSignup(res, 400, 'ATTENDEES_OUT_OF_RANGE', sanitizedLanguage === 'no'
-        ? `Antall deltakere må være fra 1 til ${MAX_ATTENDEES_PER_REGISTRATION}`
-        : `Number of attendees must be from 1 to ${MAX_ATTENDEES_PER_REGISTRATION}`);
-    }
+    const body = validateSignupBody(req.body);
+    if (body.error) return refuseSignup(res, 400, body.error.code, body.error.message);
+    const {
+      eventIdNum, sanitizedName, sanitizedEmail, sanitizedPhone, sanitizedComments,
+      sanitizedAttendeeCount, sanitizedLanguage,
+    } = body.values;
 
     // Check email domain against database blacklist
     const emailDomain = sanitizedEmail.split('@')[1]?.toLowerCase();
@@ -370,12 +427,6 @@ export default withApiHandler(async function handler(req, res) {
       }
     }
 
-    const eventIdNum = sanitizeInteger(eventId, 1, MAX_INT_ID);
-
-    if (eventIdNum === null) {
-      return refuseSignup(res, 400, 'INVALID_SIGNUP', 'Valid event ID required');
-    }
-
     // Per-(IP, event, email) limit: needs the sanitized address, so it runs
     // after sanitization. The per-IP limit at the top of this branch already
     // bounded the work an unthrottled caller could cause.
@@ -407,55 +458,10 @@ export default withApiHandler(async function handler(req, res) {
     }
 
     const event = events[0];
-    if (event.no_signup || event.vigilo_signup) {
-      return refuseSignup(res, 400, 'SIGNUP_CLOSED', sanitizedLanguage === 'no'
-        ? 'Påmelding er ikke tillatt for dette arrangementet'
-        : 'Registration is not available for this event');
-    }
-
-    if (event.registration_deadline && event.registration_deadline < nowIso) {
-      return refuseSignup(res, 400, 'DEADLINE_PASSED', sanitizedLanguage === 'no'
-        ? 'Påmeldingsfristen har gått ut'
-        : 'The registration deadline has passed');
-    }
-
+    const forEvent = validateSignupForEvent(event, body.values, req.body, nowIso);
+    if (forEvent.error) return refuseSignup(res, 400, forEvent.error.code, forEvent.error.message);
     const requestedAttendees = sanitizedAttendeeCount;
-
-    // A photo booking names every child; any other signup names everyone it
-    // brings besides the registrant, who is already `name`. Both lists live in
-    // children_names, so the cancellation archive keeps them too.
-    const isPhotoEvent = event.type === 'foto';
-    const namesExpected = isPhotoEvent ? requestedAttendees : requestedAttendees - 1;
-    const sanitizedChildrenNames = namesExpected > 0
-      ? sanitizeChildrenNames(childrenNames, namesExpected)
-      : null;
-    const namesGiven = sanitizedChildrenNames ? JSON.parse(sanitizedChildrenNames).length : 0;
-
-    // A photo booking is one slot per named child. Without a name for each,
-    // the registration used to be stored without any slot, so a photo
-    // registration must name every child it books for — which the form
-    // already requires.
-    if (isPhotoEvent && namesGiven !== requestedAttendees) {
-      return refuseSignup(res, 400, 'CHILD_NAMES_REQUIRED', sanitizedLanguage === 'no'
-        ? 'Oppgi fornavn på hvert barn som skal fotograferes'
-        : 'Please give the first name of each child to be photographed');
-    }
-    if (!isPhotoEvent && namesGiven !== namesExpected) {
-      return refuseSignup(res, 400, 'ATTENDEE_NAMES_REQUIRED', sanitizedLanguage === 'no'
-        ? 'Oppgi navnet på hver av de andre deltakerne'
-        : 'Please give the name of each of the other attendees');
-    }
-
-    // A potluck asks everyone what food they bring; any other event stores
-    // nothing, whatever the request carried.
-    const sanitizedFoodContribution = event.potluck
-      ? (sanitizeText(foodContribution, MAX_FOOD_CONTRIBUTION_LENGTH) || null)
-      : null;
-    if (event.potluck && !sanitizedFoodContribution) {
-      return refuseSignup(res, 400, 'FOOD_CONTRIBUTION_REQUIRED', sanitizedLanguage === 'no'
-        ? 'Skriv hva du tar med av mat'
-        : 'Please say what food you will bring');
-    }
+    const { sanitizedChildrenNames, sanitizedFoodContribution } = forEvent.values;
 
     // Last check before anything is written: by now the request is otherwise
     // valid, so Cloudflare is only asked about signups that would go through.
@@ -673,119 +679,12 @@ export default withApiHandler(async function handler(req, res) {
   return res.status(405).json({ error: 'Method not allowed' });
 });
 
-// The address is not verified before this goes out, so the mail carries only
-// what FAU wrote plus the names, reduced by nameForMail to plain words: the
-// free-text comment is not echoed back, or the form would send anyone's words
-// (and links) to anyone from FAU's account. Council members still see the
-// comment in the registrations list.
-async function sendEventConfirmationEmail(params) {
-  const { registration, event, language, photoSlots } = params;
-
+// The text lives in api/_shared/registration-emails.js, where it is tested.
+async function sendEventConfirmationEmail({ registration, event, language, photoSlots }) {
   if (!isEmailConfigured()) {
     console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
     throw new Error('Email configuration not available');
   }
-
-  const isNorwegian = language === 'no';
-  const locale = isNorwegian ? 'no-NO' : 'en-US';
-  // The address is not verified, so the names go out only as plain words.
-  const name = nameForMail(registration.name);
-
-  // Special email for foto events
-  if (event.type === 'foto' && photoSlots && registration.children_names) {
-    let childrenNames = [];
-    try {
-      childrenNames = JSON.parse(registration.children_names);
-    } catch {}
-    childrenNames = (Array.isArray(childrenNames) ? childrenNames : [])
-      .map((child, i) => nameForMail(child) || (isNorwegian ? `Barn ${i + 1}` : `Child ${i + 1}`));
-
-    const shortDate = new Date(event.date).toLocaleDateString(locale, {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
-
-    let fotoContent = '';
-    if (isNorwegian) {
-      fotoContent += name ? `Hei ${name}\n\n` : `Hei\n\n`;
-      fotoContent += `Ditt barn er nå påmeldt fotografering ${shortDate}\n\n`;
-      for (let i = 0; i < childrenNames.length; i++) {
-        fotoContent += `${childrenNames[i]} har fått tidspunkt ${photoSlots[i] || 'TBD'}\n`;
-      }
-      fotoContent += `\nDersom dere av en eller annen grunn ikke kan stille, vennligst meld dere av snarest mulig, slik at tiden kan gå til andre.\n`;
-      fotoContent += `${cancellationText({ language, cancelToken: registration.cancel_token, potluck: event.potluck })}\n\n`;
-      fotoContent += `Mvh\nFAU Erdal Barnehage`;
-    } else {
-      fotoContent += name ? `Hi ${name}\n\n` : `Hi\n\n`;
-      fotoContent += `Your child is now registered for photography on ${shortDate}\n\n`;
-      for (let i = 0; i < childrenNames.length; i++) {
-        fotoContent += `${childrenNames[i]} has been assigned time slot ${photoSlots[i] || 'TBD'}\n`;
-      }
-      fotoContent += `\nIf for any reason you cannot attend, please cancel as soon as possible so the slot can go to someone else.\n`;
-      fotoContent += `${cancellationText({ language, cancelToken: registration.cancel_token, potluck: event.potluck })}\n\n`;
-      fotoContent += `Best regards\nFAU Erdal Barnehage`;
-    }
-
-    const fotoSubject = isNorwegian
-      ? `Bekreftelse: Fotografering ${shortDate}`
-      : `Confirmation: Photography ${shortDate}`;
-
-    await sendEmail({ to: registration.email, subject: fotoSubject, text: fotoContent });
-    return;
-  }
-
-  const subject = isNorwegian
-    ? `Påmelding bekreftet: ${event.title}`
-    : `Registration confirmed: ${event.title}`;
-
-  const emailContent = isNorwegian ? `
-Hei${name ? ` ${name}` : ''},
-
-Din påmelding til "${event.title}" er bekreftet!
-
-Detaljer:
-- Navn: ${name}
-- E-post: ${registration.email}
-- Telefon: ${registration.phone || 'Ikke oppgitt'}
-- Antall deltakere: ${registration.attendee_count || 1}
-
-Arrangementsinformasjon:
-- Tittel: ${event.title}
-- Dato: ${new Date(event.date).toLocaleDateString('no-NO')}
-- Tid: ${event.time}
-- Sted: ${event.location}${event.custom_location ? ` (${event.custom_location})` : ''}
-
-Vi ser fram til å se deg!
-
-${cancellationText({ language, cancelToken: registration.cancel_token, potluck: event.potluck })}
-
-Med vennlig hilsen,
-FAU Erdal Barnehage
-` : `
-Hello${name ? ` ${name}` : ''},
-
-Your registration for "${event.title}" has been confirmed!
-
-Details:
-- Name: ${name}
-- Email: ${registration.email}
-- Phone: ${registration.phone || 'Not provided'}
-- Number of attendees: ${registration.attendee_count || 1}
-
-Event information:
-- Title: ${event.title}
-- Date: ${new Date(event.date).toLocaleDateString('en-US')}
-- Time: ${event.time}
-- Location: ${event.location}${event.custom_location ? ` (${event.custom_location})` : ''}
-
-We look forward to seeing you!
-
-${cancellationText({ language, cancelToken: registration.cancel_token, potluck: event.potluck })}
-
-Best regards,
-FAU Erdal Barnehage
-`;
-
-  await sendEmail({ to: registration.email, subject, text: emailContent });
+  const { subject, text } = registrationConfirmationEmail({ registration, event, language, photoSlots });
+  await sendEmail({ to: registration.email, subject, text });
 }

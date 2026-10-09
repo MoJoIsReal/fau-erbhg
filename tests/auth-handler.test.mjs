@@ -323,3 +323,14 @@ test('asking who is signed in without a session answers null, not an error', asy
   assert.equal(res.statusCode, 200);
   assert.equal(res.body, null);
 });
+
+// TEST-003. The token every form sends back starts here.
+test('asking for a CSRF token sets it as a readable, strict cookie and returns the same value', async (t) => {
+  useDatabase(scriptedSql());
+  const res = await call(t, handler, { query: { action: 'csrf' }, csrf: false });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.body.csrfToken, /^[a-f0-9]{32,}$/);
+  const [csrf] = cookies(res);
+  assert.match(csrf, new RegExp(`^csrf-token=${res.body.csrfToken}; Path=/; Max-Age=7200; SameSite=Strict`));
+  assert.doesNotMatch(csrf, /HttpOnly/, 'the client must be able to read it');
+});

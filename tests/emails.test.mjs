@@ -11,6 +11,7 @@ import {
   publicBaseUrl,
   reminderEmail,
 } from '../api/_shared/newsletter.js';
+import { registrationConfirmationEmail } from '../api/_shared/registration-emails.js';
 
 test('a council reply greets the sender and quotes their original message', () => {
   assert.equal(contactSubjectLabel('concern'), 'Bekymringsmelding');
@@ -131,4 +132,62 @@ test('an empty description or excerpt leaves no stray blank paragraph', () => {
   assert.doesNotMatch(reminder.text, /\n\n\n/);
   const news = newsPostEmail({ title: 'Nytt', excerpt: null, postId: 7, unsubscribeToken: 't' });
   assert.doesNotMatch(news.text, /\n\n\n/);
+});
+
+// MAINT-005. The most-sent mail, and the only place a parent's cancel link
+// travels. The comment field is never echoed: the address is unverified.
+const signupEvent = (overrides = {}) => ({
+  title: 'Sommerfest', date: '2026-06-12', time: '17:00', location: 'Barnehagen', custom_location: 'Uteområdet',
+  type: 'event', potluck: false, ...overrides,
+});
+const signupRow = (overrides = {}) => ({
+  name: 'Kari Nordmann', email: 'kari@example.test', phone: null, attendee_count: 2, comments: 'Se https://evil.example',
+  cancel_token: 'c'.repeat(64), children_names: null, ...overrides,
+});
+
+test('a signup confirmation names the event, its date and the cancel link, in both languages', () => {
+  const no = registrationConfirmationEmail({ registration: signupRow(), event: signupEvent(), language: 'no' });
+  assert.equal(no.subject, 'Påmelding bekreftet: Sommerfest');
+  assert.match(no.text, /Hei Kari Nordmann,/);
+  assert.match(no.text, /- Dato: 12\.6\.2026/);
+  assert.match(no.text, /- Sted: Barnehagen \(Uteområdet\)/);
+  assert.match(no.text, /- Telefon: Ikke oppgitt/);
+  assert.match(no.text, /\/avmelding\?token=c{64}/);
+  assert.doesNotMatch(no.text, /evil\.example/, 'the comment is not echoed');
+
+  const en = registrationConfirmationEmail({ registration: signupRow({ phone: '+47 900 00 000' }), event: signupEvent({ potluck: true }), language: 'en' });
+  assert.equal(en.subject, 'Registration confirmed: Sommerfest');
+  assert.match(en.text, /- Date: 12\/06\/2026/);
+  assert.match(en.text, /- Phone: \+47 900 00 000/);
+  assert.match(en.text, /Want to change what you bring.*\/avmelding\?token=c{64}/);
+});
+
+test('a photo confirmation pairs each child with their time, in both languages', () => {
+  const photo = {
+    registration: signupRow({ children_names: '["Ola","<b>Kari</b>"]' }),
+    event: signupEvent({ type: 'foto' }),
+    photoSlots: ['09:00', '09:05'],
+  };
+  const no = registrationConfirmationEmail({ ...photo, language: 'no' });
+  assert.equal(no.subject, 'Bekreftelse: Fotografering 12. juni 2026');
+  assert.match(no.text, /Ola har fått tidspunkt 09:00\n/);
+  assert.match(no.text, /har fått tidspunkt 09:05/);
+  assert.doesNotMatch(no.text, /<b>/, 'names go out as plain words');
+  assert.match(no.text, /\/avmelding\?token=c{64}/);
+
+  const en = registrationConfirmationEmail({ ...photo, language: 'en' });
+  assert.equal(en.subject, 'Confirmation: Photography 12 June 2026');
+  assert.match(en.text, /Ola has been assigned time slot 09:00/);
+});
+
+// The event date is a calendar day. Formatted in the runtime's own zone, a
+// function west of UTC wrote the day before.
+test('the event date is the same day wherever the mail is written', () => {
+  const previous = process.env.TZ;
+  try {
+    process.env.TZ = 'America/Los_Angeles';
+    assert.match(registrationConfirmationEmail({ registration: signupRow(), event: signupEvent(), language: 'no' }).text, /- Dato: 12\.6\.2026/);
+  } finally {
+    if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous;
+  }
 });

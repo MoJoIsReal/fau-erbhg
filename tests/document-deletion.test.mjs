@@ -120,3 +120,20 @@ test('a document without a URL is deleted without asking the provider', async (t
   assert.deepEqual(f.effects, ['database-delete']);
   assert.equal(f.row(), null);
 });
+
+// TEST-003. A download is a redirect to the stored file, or a 404 that says so.
+test('a download redirects to the stored file, and a missing one is a 404', async (t) => {
+  const url = 'https://res.cloudinary.com/test/raw/upload/v1/fau-documents/referat.pdf';
+  const database = (rows) => useDatabase(scriptedSql({ respond: () => rows }));
+  database([{ id: 7, cloudinary_url: url }]);
+  const res = await call(t, handler, { query: { action: 'download', id: '7' } });
+  assert.deepEqual([res.statusCode, res.headers.location], [302, url]);
+
+  database([]);
+  assert.deepEqual((await call(t, handler, { query: { action: 'download', id: '7' } })).body.code, 'NOT_FOUND');
+  database([{ id: 7, cloudinary_url: null }]);
+  assert.equal((await call(t, handler, { query: { action: 'download', id: '7' } })).statusCode, 404);
+  const refused = useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, { query: { action: 'download', id: '7.5' } })).statusCode, 400);
+  assert.deepEqual(refused.calls, []);
+});

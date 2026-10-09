@@ -56,6 +56,27 @@ test('simultaneous final-seat and duplicate requests preserve exact capacity', a
   }
 });
 
+// TEST-003. A council member removing a signup gives its seats back; the
+// counter is what the capacity check in the signup statement reads.
+test('removing a signup from the council list releases its seats', async () => {
+  const id = await event('event', 2);
+  await sql(await signup(id, 'first@example.test'));
+  await sql(await signup(id, 'second@example.test'));
+  const seats = async () => (await sql(`SELECT current_attendees FROM events WHERE id = ${id};`))[0].current_attendees;
+  const third = async () => (await sql(`SELECT count(*) AS count FROM event_registrations WHERE event_id = ${id} AND email = 'third@example.test';`))[0].count;
+  assert.equal(await seats(), '2');
+  await sql(await signup(id, 'third@example.test'));
+  assert.equal(await third(), '0', 'full');
+
+  const [first] = await sql(`SELECT id FROM event_registrations WHERE event_id = ${id} AND email = 'first@example.test';`);
+  const removed = await sql(await productionStatement(registrationFile, 'SELECT d.id, d.event_id, d.attendee_count,', { id: Number(first.id) }));
+  assert.deepEqual(removed.map((row) => row.eventUpdated), ['t']);
+  assert.equal(await seats(), '1');
+  await sql(await signup(id, 'third@example.test'));
+  assert.equal(await third(), '1', 'the released seat can be taken');
+  await sql(`DELETE FROM event_registrations WHERE event_id = ${id}; DELETE FROM events WHERE id = ${id};`);
+});
+
 test('photo slot collision rolls back the loser; a fresh allocation succeeds', async () => {
   const id = await event('foto');
   const outcomes = await race(id, await Promise.all(['a', 'b'].map(name => signup(id, `${name}@example.test`, ['12:00']))));
