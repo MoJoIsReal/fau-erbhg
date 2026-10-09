@@ -503,6 +503,7 @@ export interface Translations {
       error: string;
       mismatch: string;
       tooShort: string;
+      currentRequired: string;
     };
 
     eventCreation: {
@@ -959,6 +960,7 @@ export interface Translations {
       addTitle: string;
       editTitle: string;
       title: string;
+      titleRequired: string;
       description: string;
       weekNumber: string;
       weekNumberEnd: string;
@@ -1608,7 +1610,8 @@ export const translations: Record<Language, Translations> = {
         success: "Passordet er oppdatert",
         error: "Kunne ikke endre passord",
         mismatch: "Passordene er ikke like",
-        tooShort: "Passordet må være minst 12 tegn"
+        tooShort: "Passordet må være minst 12 tegn",
+        currentRequired: "Skriv inn passordet du har nå"
       },
 
       eventCreation: {
@@ -2077,6 +2080,7 @@ export const translations: Record<Language, Translations> = {
         addTitle: "Ny oppføring",
         editTitle: "Rediger oppføring",
         title: "Tittel",
+        titleRequired: "Gi oppføringen en tittel",
         description: "Beskrivelse",
         weekNumber: "Fra uke",
         weekNumberEnd: "Til uke (valgfri)",
@@ -2722,7 +2726,8 @@ export const translations: Record<Language, Translations> = {
         success: "Password updated",
         error: "Could not change password",
         mismatch: "Passwords do not match",
-        tooShort: "Password must be at least 12 characters"
+        tooShort: "Password must be at least 12 characters",
+        currentRequired: "Enter your current password"
       },
 
       eventCreation: {
@@ -3191,6 +3196,7 @@ export const translations: Record<Language, Translations> = {
         addTitle: "New entry",
         editTitle: "Edit entry",
         title: "Title",
+        titleRequired: "Give the entry a title",
         description: "Description",
         weekNumber: "From week",
         weekNumberEnd: "To week (optional)",

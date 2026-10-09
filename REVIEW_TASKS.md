@@ -1380,7 +1380,7 @@ None.
 ### Related findings
 —
 
-## [ ] A11Y-004 — Show form errors inline, not only in toasts
+## [~] A11Y-004 — Show form errors inline, not only in toasts
 **Priority:** P3 · **Severity:** Medium · **Confidence:** Possible · **Effort:** M · **Area:** Accessibility
 ### Files
 `client/src/components/password-change-modal.tsx`, `client/src/components/login-modal.tsx`, `client/src/components/yearly-calendar-entry-modal.tsx` (:183-209, :270), `client/src/pages/settings.tsx`, `client/src/pages/content.tsx`, `client/src/hooks/use-toast.ts` (:8)
@@ -1391,6 +1391,7 @@ Errors appear only in a 5-second, single-slot toast, with no `aria-invalid`. Sav
 ### Required change
 Show inline `role="alert"` messages tied to fields with `aria-describedby`, as `share-page.tsx:207-224` does.
 ### Acceptance criteria
+- Done for login, password change and the yearly-calendar entry modal (FormError, aria-invalid, aria-describedby). settings.tsx and content.tsx still report save errors in toasts.
 - [ ] Each form error persists next to its field and is announced.
 ### Verification
 A manual screen-reader pass.
@@ -1418,7 +1419,7 @@ None.
 ### Related findings
 —
 
-## [ ] A11Y-006 — Replace raw palette colours with tokens where contrast fails
+## [x] A11Y-006 — Replace raw palette colours with tokens where contrast fails
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** M · **Area:** Accessibility / Design system
 ### Files
 `client/src/pages/content.tsx` (:554), `client/src/components/yearly-calendar-import-modal.tsx` (:487), plus other raw palette utilities
@@ -1429,7 +1430,7 @@ The "(arkivert)" label measures about 3.6:1, and there are 127 raw palette utili
 ### Required change
 Fix the failing pair first, then migrate the raw utilities incrementally (read `docs/design/style-guide.md` first).
 ### Acceptance criteria
-- [ ] "(arkivert)" is at least 4.5:1 in both themes.
+- [x] "(arkivert)" is at least 4.5:1 in both themes.
 ### Verification
 A contrast check in both themes.
 ### Dependencies
@@ -1437,7 +1438,7 @@ None.
 ### Related findings
 A11Y-008
 
-## [ ] A11Y-007 — Give month-grid chips text for cancelled and category
+## [x] A11Y-007 — Give month-grid chips text for cancelled and category
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** S · **Area:** Accessibility
 ### Files
 `client/src/components/calendar-view.tsx` (:436-460)
@@ -1448,7 +1449,7 @@ Cancelled is shown only by strike-through, and the category only by a dot hidden
 ### Required change
 Add sr-only "cancelled" text and the category label inside the chip.
 ### Acceptance criteria
-- [ ] A screen reader announces both.
+- [x] A screen reader announces both.
 ### Verification
 A manual screen-reader pass.
 ### Dependencies
@@ -1456,7 +1457,7 @@ None.
 ### Related findings
 —
 
-## [ ] A11Y-008 — Fix the latent subtle-on-peach contrast pair
+## [x] A11Y-008 — Fix the latent subtle-on-peach contrast pair
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Accessibility / Tokens
 ### Files
 `client/src/index.css`, `client/src/components/site/page-hero.tsx` (:124)
@@ -1467,7 +1468,7 @@ None.
 ### Required change
 Darken the token for peach, or forbid the pair in `PageHero`.
 ### Acceptance criteria
-- [ ] Every text token is at least 4.5:1 on every surface it can appear on.
+- [x] Every text token is at least 4.5:1 on every surface it can appear on.
 ### Verification
 A contrast computation.
 ### Dependencies

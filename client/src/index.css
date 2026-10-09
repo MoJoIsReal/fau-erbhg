@@ -109,11 +109,13 @@
   /* The guide's --color-muted is 4.30:1 on white and 3.99:1 on sand, below
      the 4.5:1 the same guide requires of normal text. It stays as specified
      for icons, rules and decorative marks; metadata *text* uses this
-     minimally darkened sibling (4.8:1 on sand, 5.1:1 on surface). */
-  --color-text-muted: #62706B;
+     minimally darkened sibling. Its weakest pair is the peach hero
+     (Kontakt): 4.73:1 there, 5.2:1 on sand, 5.5:1 on surface. #62706B, the
+     first darkening, was 4.39:1 on peach. */
+  --color-text-muted: #5D6B66;
   /* The metadata tone. Dark mode splits muted and subtle further apart;
      light mode reuses one value for both. */
-  --color-subtle: #62706B;
+  --color-subtle: #5D6B66;
 
   /* --- Calendar categories (guide §7) ---
      `dot` is the guide's published hue, darkened only where it failed the
