@@ -8,6 +8,7 @@ import {
 import {
   confirmationEmail,
   newsPostEmail,
+  digestEmail,
   publicBaseUrl,
   reminderEmail,
 } from '../api/_shared/newsletter.js';
@@ -125,6 +126,24 @@ test('every broadcast carries an unsubscribe link, in both languages', () => {
   }
   assert.match(confirmationEmail({ language: 'en', confirmToken: 't' }).subject, /^Confirm/);
   assert.match(confirmationEmail({ confirmToken: 't' }).subject, /^Bekreft/);
+});
+
+test('a combined newsletter email lists every item once, in both languages', () => {
+  const items = [
+    { kind: 'reminder', title: 'Dugnad', description: '', dateText: '12. mai' },
+    { kind: 'news', title: 'Nytt', excerpt: null, postId: 7 },
+  ];
+  const no = digestEmail({ items, unsubscribeToken: 't' });
+  assert.equal(no.subject, 'Nytt fra FAU: Dugnad og 1 sak til');
+  assert.match(no.text, /Dugnad – 12\. mai/);
+  assert.match(no.text, /\/nyheter\/7/);
+  assert.match(no.text, /nyhetsbrev\?avmeld=t/);
+  assert.doesNotMatch(no.text, /\n\n\n\n/);
+  assert.match(no.text, /PÅMINNELSER\n\nDugnad – 12\. mai\n\n\nNYHETER\n\nNytt\n/);
+  const en = digestEmail({ items: [...items, { kind: 'news', title: 'Mer', excerpt: 'Kort', postId: 8 }], language: 'en', unsubscribeToken: 't' });
+  assert.equal(en.subject, 'News from FAU: Dugnad and 2 more');
+  assert.match(en.text, /Read the full post here: .*\/nyheter\/8/);
+  assert.match(en.text, /nyhetsbrev\?avmeld=t/);
 });
 
 test('an empty description or excerpt leaves no stray blank paragraph', () => {

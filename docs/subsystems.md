@@ -154,6 +154,16 @@ when there was nobody to send it to (no active subscriber), so it is not saved
 up for whoever subscribes months later. Stamps are ISO text, like every other
 date column.
 
+The outbox is one row per item per subscriber, but a run sends each subscriber
+**one email** for everything it claimed for them: a lone item goes out as the
+familiar reminder or news mail, two or more as a combined mail
+(`digestEmail`), reminders first. The claim locks whole subscribers
+(`newsletter_subscribers … FOR NO KEY UPDATE SKIP LOCKED`) and then their due
+rows, so the per-run cap never splits one subscriber's items across two mails
+and an overlapping run moves on to other subscribers. Every row in a combined
+mail gets the same outcome, except that each keeps its own attempt count; a
+row the run skips does not hold the rest back.
+
 A delivery row ends `sent`, `skipped` or `failed` (five unsuccessful sends).
 Those states are enforced by `newsletter_deliveries_status_check`, which lives
 only in the migrations (0008, widened by 0017) — a new state needs a migration,
@@ -164,7 +174,7 @@ so a reminder never goes out after the day it is about.
 
 The broadcast runs from Vercel Cron at 19:00 UTC (≈21:00 Oslo); the 07:00 UTC
 run of the same handler does registration reminders and GDPR retention cleanup.
-One evening run sends at most 300 deliveries and stops at its deadline. As its
+One evening run sends at most 300 emails (subscribers) and stops at its deadline. As its
 last stage, the morning run sends what that left pending for items dated today
 (`broadcastNewsletter(…, { queue: false })`: it claims, sends and stamps, but
 queues nothing new), because tonight's run would skip them as past. Its counts
