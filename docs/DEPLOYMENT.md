@@ -22,7 +22,7 @@ npm ci
 npm run verify
 ```
 
-`verify` runs frontend TypeScript, the backend diagnostic ratchet, the i18n
+`verify` runs frontend TypeScript, the backend type gate, the i18n
 ratchet, the offline `node:test` suites and the frontend production build.
 The separate CI PostgreSQL job runs `npm run test:integration`; see
 [database-testing.md](./database-testing.md). It uses no production credentials.

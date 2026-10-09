@@ -1244,7 +1244,7 @@ MAINT-002, OBS-002.
 ### Related findings
 —
 
-## [ ] MAINT-001 — Fingerprint backend type diagnostics instead of counting them
+## [x] MAINT-001 — Fingerprint backend type diagnostics instead of counting them
 **Priority:** P3 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Maintainability / Tooling
 ### Files
 `scripts/check-backend-types.mjs` (:31), `tsconfig.api.json`, `api/_shared/email.js` (:94, :119), `api/_shared/middleware.js` (:290, :351, :381, :507-519), `tests/backend-type-gate.test.mjs`
@@ -1255,7 +1255,7 @@ The gate only counts diagnostics. 27 of the 50 come from `schema.ts` under `stri
 ### Required change
 Fix the 14 JSDoc-caused diagnostics, keep `schema.ts` out of the api program, and store a fingerprint baseline (file + code + message).
 ### Acceptance criteria
-- [ ] Adding one diagnostic and removing another still fails the gate.
+- [x] Adding one diagnostic and removing another still fails the gate.
 ### Verification
 `npm run check`; backend-type-gate suite.
 ### Dependencies

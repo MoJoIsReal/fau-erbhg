@@ -253,9 +253,9 @@ function isDayEntryCoveredByEvent(entry, daysWithEvent) {
 /**
  * Build the subscribable calendar feed.
  *
- * @param {Object} input
- * @param {Array} input.events Signup events (mapEvent shape)
- * @param {Array} input.entries Dated yearly calendar entries (mapEntry shape)
+ * @param {Object} [input]
+ * @param {Array} [input.events] Signup events (mapEvent shape)
+ * @param {Array} [input.entries] Dated yearly calendar entries (mapEntry shape)
  * @param {string} [input.baseUrl] Public site origin, used for URL properties
  * @param {string} [input.language] "no" (default) or "en", for the few fixed labels
  * @param {string} [input.calendarName] X-WR-CALNAME value

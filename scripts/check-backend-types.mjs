@@ -17,8 +17,16 @@
 //
 //   * FATAL, always: the undefined-name codes. That is the bug class above and
 //     it is always a real defect, never a typing artifact.
-//   * Ratcheted: everything else, against OTHER_BUDGET. The number may fall,
-//     never rise — same contract as scripts/check-i18n.mjs.
+//   * Known: everything else must match BASELINE below, one entry per
+//     diagnostic, by file, code and message (not line, so an edit elsewhere in
+//     the file does not disturb it). A count let a new real error in while an
+//     unrelated one was fixed; a fingerprint does not. Fix an entry and remove
+//     it; never add one to make the check pass.
+//
+// shared/schema.ts is skipped: the .d.ts files import its types, which pulls
+// it into this program, and under its strict:false drizzle-zod's .omit()
+// types collapse into dozens of "true is not assignable to never". The root
+// `tsc` already checks schema.ts under strict, where it is clean.
 
 import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -26,9 +34,18 @@ import { createRequire } from 'node:module';
 // TS2304 "Cannot find name 'X'" / TS2552 "Cannot find name 'X'. Did you mean…"
 const FATAL_CODES = new Set(['TS2304', 'TS2552']);
 
-// Pre-existing signature/JSDoc diagnostics at the time this check was added.
-// Lower this whenever you clear some. Do not raise it.
-const OTHER_BUDGET = 41;
+// The diagnostics that remain, and why each is not a defect. The four below
+// are artifacts of strict:false: without strictNullChecks, TypeScript does not
+// narrow a union on an `ok: true | false` discriminant, so reading `.error`
+// after `if (!result.ok)` is reported although it is correct.
+const BASELINE = [
+  "api/yearly-calendar.js TS2339 Property 'error' does not exist on type 'ImportDecisionValidationResult'.",
+  "api/yearly-calendar.js TS2339 Property 'error' does not exist on type 'ImportDecisionValidationResult'.",
+  "api/yearly-calendar.js TS2339 Property 'errors' does not exist on type 'YearlyCalendarImportValidationResult'.",
+  "api/yearly-calendar.js TS2339 Property 'payload' does not exist on type 'YearlyCalendarImportValidationResult'.",
+];
+
+const IGNORED_FILES = new Set(['shared/schema.ts']);
 
 const DIAGNOSTIC = /^(\S.*?)\((\d+),(\d+)\): error (TS\d+): (.*)$/;
 
@@ -53,7 +70,8 @@ try {
 }
 
 const fatal = [];
-let other = 0;
+const found = [];
+let ignored = 0;
 const unexpected = [];
 
 for (const line of output.split('\n')) {
@@ -65,11 +83,13 @@ for (const line of output.split('\n')) {
     continue;
   }
   const [, file, lineNo, col, code, message] = match;
-  if (FATAL_CODES.has(code)) fatal.push(`  ${file}:${lineNo}:${col}  ${code}: ${message}`);
-  else other += 1;
+  const path = file.replaceAll('\\', '/');
+  if (FATAL_CODES.has(code)) fatal.push(`  ${path}:${lineNo}:${col}  ${code}: ${message}`);
+  else if (IGNORED_FILES.has(path)) ignored += 1;
+  else found.push({ fingerprint: `${path} ${code} ${message}`, where: `${path}:${lineNo}:${col}` });
 }
 
-if (unexpected.length || (failed && fatal.length + other === 0)) {
+if (unexpected.length || (failed && fatal.length + found.length + ignored === 0)) {
   console.error('backend types: unrecognized compiler failure or global diagnostic.');
   console.error(output.trim());
   process.exit(1);
@@ -83,16 +103,26 @@ if (fatal.length > 0) {
   process.exit(1);
 }
 
-if (other > OTHER_BUDGET) {
-  console.error(`\nbackend types: ${other} other diagnostics, budget is ${OTHER_BUDGET}.\n`);
-  console.error(output.trim());
-  console.error('\nFix the new diagnostic. Do not raise OTHER_BUDGET.\n');
+// Match each diagnostic against one unused baseline entry.
+const remaining = [...BASELINE];
+const unknown = [];
+for (const diagnostic of found) {
+  const index = remaining.indexOf(diagnostic.fingerprint);
+  if (index === -1) unknown.push(diagnostic);
+  else remaining.splice(index, 1);
+}
+
+if (unknown.length > 0) {
+  console.error(`\nbackend types: ${unknown.length} new diagnostic(s) in api/ or shared/.\n`);
+  for (const { where, fingerprint } of unknown) console.error(`  ${where}  ${fingerprint.slice(fingerprint.indexOf(' ') + 1)}`);
+  console.error('\nFix them. Do not add them to BASELINE in scripts/check-backend-types.mjs.\n');
   process.exit(1);
 }
 
-if (other < OTHER_BUDGET) {
-  console.log(`backend types: 0 undefined identifiers, ${other} other diagnostics (budget ${OTHER_BUDGET}).`);
-  console.log('Lower OTHER_BUDGET in scripts/check-backend-types.mjs to lock in the improvement.');
+if (remaining.length > 0) {
+  console.log(`backend types: 0 undefined identifiers, ${found.length} known diagnostic(s); ${remaining.length} baseline entr${remaining.length === 1 ? 'y is' : 'ies are'} fixed:`);
+  for (const fingerprint of remaining) console.log(`  ${fingerprint}`);
+  console.log('Remove them from BASELINE in scripts/check-backend-types.mjs to lock in the improvement.');
 } else {
-  console.log(`backend types: 0 undefined identifiers, ${other} other diagnostics, at budget.`);
+  console.log(`backend types: 0 undefined identifiers, ${found.length} known diagnostic(s), matching the baseline.`);
 }

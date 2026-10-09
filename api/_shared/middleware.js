@@ -394,7 +394,7 @@ export async function parseAuthToken(req, sqlClient = null) {
  * Require authentication for API endpoint
  * @param {Object} req - Request object
  * @param {Object} res - Response object
- * @returns {Object|null} - User object if authenticated, null otherwise (also sends 401 response)
+ * @returns {Promise<Object|null>} - User object if authenticated, null otherwise (also sends 401 response)
  */
 export async function requireAuth(req, res, sqlClient = null, options = {}) {
   const user = await parseAuthToken(req, sqlClient);
@@ -424,7 +424,7 @@ export async function requireAuth(req, res, sqlClient = null, options = {}) {
  * @param {Object} req
  * @param {Object} res
  * @param {string[]} allowedRoles - Role names from shared/constants.ts (COUNCIL_ROLES, ADMIN_ONLY, etc.)
- * @returns {Object|null}
+ * @returns {Promise<Object|null>}
  */
 export async function requireRole(req, res, allowedRoles, sqlClient = null, options = {}) {
   const user = await requireAuth(req, res, sqlClient, options);
@@ -573,12 +573,6 @@ export function nameForMail(value, maxLength = 100) {
     .slice(0, maxLength);
 }
 
-/**
- * Sanitize HTML content (allows basic formatting but prevents XSS)
- * @param {string} html - HTML content to sanitize
- * @param {number} maxLength - Maximum allowed length (default: 10000)
- * @returns {string} - Sanitized HTML
- */
 function isCloudinaryImageSrc(src) {
   try {
     const url = new URL(src);
@@ -592,6 +586,12 @@ function isCloudinaryImageSrc(src) {
 // permissions YouTube's player needs, and nothing else.
 const IFRAME_ALLOW = 'accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share';
 
+/**
+ * Sanitize HTML content (allows basic formatting but prevents XSS)
+ * @param {string} html - HTML content to sanitize
+ * @param {number} [maxLength] - Maximum allowed length (default: 10000)
+ * @returns {string} - Sanitized HTML
+ */
 export function sanitizeHtml(html, maxLength = 10000) {
   if (!html || typeof html !== 'string') return '';
 

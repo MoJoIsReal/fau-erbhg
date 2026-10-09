@@ -55,7 +55,7 @@ function osloTimestamp(value, language = 'no') {
  * @param {{ name?: string, subject: string, language?: string, receivedAt?: string }} params
  * @returns {{ subject: string, text: string }}
  */
-export function contactAcknowledgementEmail({ name, subject, language = 'no', receivedAt } = {}) {
+export function contactAcknowledgementEmail({ name, subject, language = 'no', receivedAt }) {
   const isNorwegian = language !== 'en';
   const received = osloTimestamp(receivedAt, isNorwegian ? 'no' : 'en');
   name = nameForMail(name);

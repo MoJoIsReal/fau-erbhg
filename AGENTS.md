@@ -16,7 +16,7 @@ and an admin area for council members. React SPA on Vercel + Neon PostgreSQL.
 ```bash
 npm ci             # install (required before any check/test/build)
 npm run dev        # Vite dev server on http://localhost:5000 (frontend only)
-npm run check      # tsc --noEmit + the i18n ratchet (scripts/check-i18n.mjs)
+npm run check      # tsc --noEmit + the backend type gate + the i18n ratchet
 npm test           # every offline suite in tests/ (node:test)
 npm run build      # production frontend build (Vite → dist/public)
 npm run verify     # check + offline tests + build (CI's verify job)
@@ -212,8 +212,17 @@ so the typed `Translations` interface forces both languages. Inline
 the number may fall, never rise. Locale ids and date-fns locales are the
 legitimate inline cases.
 
-**Forms.** React Hook Form + `zodResolver`, using the `insertXSchema` exports
-from `shared/schema.ts` where one exists.
+**Backend types are gated.** `api/` and `shared/*.js` are type-checked with
+`checkJs` by `scripts/check-backend-types.mjs` (part of `npm run check`): an
+undefined name always fails, and every other diagnostic must match its
+`BASELINE` by file, code and message. Fix a new diagnostic; never add it to
+the baseline. Remove an entry once it is fixed.
+
+**Forms.** React Hook Form + `zodResolver`, built on the plain zod schemas in
+`client/src/lib/form-schemas.ts`. They mirror the `insertXSchema` exports of
+`shared/schema.ts` field by field (`tests/form-schemas.test.mjs` checks it);
+the browser imports only types from `schema.ts`, because the insert schemas
+bring drizzle-orm into the bundle.
 
 **Dates.** Most date columns are `text` holding ISO strings, deliberately, to
 avoid timezone drift; `api_rate_limits` is the exception (`timestamptz`). Write
