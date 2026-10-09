@@ -88,7 +88,7 @@ test('concurrent delivery claims are exclusive, expired leases recover, subscrib
   const [subscriber] = await sql("INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status) VALUES ('delivery@example.test', 'test-token', NOW()::text, 'active') RETURNING id;");
   await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date)
     SELECT 'event', n, ${subscriber.id}, 'Test', '2099-09-24' FROM generate_series(1,6) n;`);
-  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3 });
+  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
   const results = await Promise.all([sql(`BEGIN; ${claim}; DO $$ BEGIN PERFORM pg_sleep(0.3); END $$; COMMIT;`), sql(claim)]);
   const ids = results.flat().map(row => row.id);
   assert.equal(ids.length, 6);
@@ -160,7 +160,7 @@ test('the delivery claim reports whether the queued item is still one to send', 
       ('event', ${active}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('event', ${cancelled}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('news', 999999, ${subscriber.id}, 'Deleted post', '2099-10-01');`);
-  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10 });
+  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
   const claimed = (await sql(claim)).filter(row => row.email === 'eligible@example.test');
   const eligible = Object.fromEntries(claimed.map(row => [`${row.itemType}:${row.itemId}`, row.sourceEligible]));
   assert.deepEqual(eligible, { [`event:${active}`]: 't', [`event:${cancelled}`]: 'f', 'news:999999': 'f' });
@@ -333,7 +333,7 @@ test('a reminder that has failed three times is not claimed again', async () => 
     (${id}, 'Tried twice', 'twice@example.test', 2),
     (${id}, 'Tried three times', 'thrice@example.test', 3);`);
   const claim = await productionStatement(cronFile, 'WITH due AS', {
-    targetDate: '2099-12-01', MAX_REMINDER_ATTEMPTS: 3, MAX_REMINDERS_PER_RUN: 100,
+    targetDate: '2099-12-01', MAX_REMINDER_ATTEMPTS: 3, MAX_REMINDERS_PER_RUN: 100, DELIVERY_LEASE_MINUTES: 10,
   });
   const claimed = await sql(claim);
   assert.deepEqual(claimed.map(row => [row.email, row.reminderAttempts]), [['twice@example.test', '3']]);

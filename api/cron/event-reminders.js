@@ -19,6 +19,7 @@ import { reportProviderError } from '../_shared/provider-errors.js';
 import { logEvent } from '../_shared/log.js';
 import {
   DELIVERY_CONCURRENCY,
+  DELIVERY_LEASE_MINUTES,
   deliveryMessageId,
   nextAttemptAt,
   runWithConcurrency,
@@ -282,7 +283,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
       WHERE event_date <= ${targetDate}
         AND (
           (status = 'pending' AND next_attempt_at <= NOW())
-          OR (status = 'processing' AND claimed_at < NOW() - INTERVAL '10 minutes')
+          OR (status = 'processing' AND claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
         )
       ORDER BY event_date, next_attempt_at, id
       FOR UPDATE SKIP LOCKED
@@ -677,7 +678,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
           AND e.date = ${targetDate}
           AND r.reminder_sent_at IS NULL
           AND r.reminder_attempts < ${MAX_REMINDER_ATTEMPTS}
-          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
+          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
         ORDER BY e.time ASC, r.id ASC
         FOR UPDATE OF r SKIP LOCKED
         LIMIT ${MAX_REMINDERS_PER_RUN}
@@ -688,7 +689,7 @@ export async function sendEventReminders(sql, targetDate, send = sendPooledEmail
         FROM due
         WHERE r.id = due.id
           AND r.reminder_sent_at IS NULL
-          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - INTERVAL '10 minutes')
+          AND (r.reminder_claimed_at IS NULL OR r.reminder_claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
         RETURNING r.id, r.reminder_attempts as "reminderAttempts"
       )
       SELECT due.*, claimed."reminderAttempts"

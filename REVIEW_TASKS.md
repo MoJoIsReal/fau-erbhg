@@ -1263,7 +1263,7 @@ None.
 ### Related findings
 —
 
-## [ ] MAINT-004 — Remove or wire up dead exports
+## [x] MAINT-004 — Remove or wire up dead exports
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Maintainability
 ### Files
 `api/_shared/delivery.js` (:4), `api/cron/event-reminders.js` (:256, :603, :614), `api/_shared/turnstile.js` (:44), `shared/media.js` (:92), `api/media.js`
@@ -1277,7 +1277,7 @@ Several exports have no callers or are disconnected:
 ### Required change
 Interpolate the lease constant, delete the unused function, and add a test pinning the media codes.
 ### Acceptance criteria
-- [ ] No exported symbol in `api/_shared` or `shared` is left without a caller.
+- [x] No exported symbol in `api/_shared` or `shared` is left without a caller.
 ### Verification
 `npm test`.
 ### Dependencies

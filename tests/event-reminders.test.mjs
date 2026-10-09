@@ -137,12 +137,13 @@ test('the claim only selects unsent rows whose lease has expired', async () => {
   const claim = calls.find(({ statement }) => statement.includes('WITH due AS'));
   assert.ok(claim, 'the run should issue the claim');
   assert.deepEqual(claim.values.slice(0, 1), ['2026-09-10'], 'the claim is scoped to the target date');
+  assert.equal(claim.values.filter((value) => value === 10).length, 2, 'the lease is DELIVERY_LEASE_MINUTES, in both halves');
   const [select, update] = claim.statement.split('claimed AS');
   for (const [half, text] of [['select', select], ['update', update]]) {
     assert.match(text, /reminder_sent_at IS NULL/, `the ${half} must skip already-sent rows`);
     assert.match(
       text,
-      /reminder_claimed_at IS NULL OR r\.reminder_claimed_at < NOW\(\) - INTERVAL '10 minutes'/,
+      /reminder_claimed_at IS NULL OR r\.reminder_claimed_at < NOW\(\) - \(\? \* INTERVAL '1 minute'\)/,
       `the ${half} must honour a live lease and reclaim an expired one`,
     );
   }

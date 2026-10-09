@@ -156,11 +156,16 @@ test('handler refusal codes and the client code lists agree', async () => {
   const files = ['auth', 'contact', 'documents', 'events', 'media', 'registrations', 'secure-settings', 'upload', 'yearly-calendar']
     .map((name) => `api/${name}.js`).concat(['api/_shared/upload-validation.js', 'api/_shared/middleware.js']);
   const used = new Set();
+  const usedByMedia = new Set();
   for (const file of files) {
-    for (const [, code] of read(file).matchAll(/\bcode: '([A-Z_]+)'/g)) {
+    // `code: 'X'` in a body, or media.js's refuse(res, status, 'X', …).
+    for (const [, literal, refused] of read(file).matchAll(/\bcode: '([A-Z_]+)'|\brefuse\(res, \d+, '([A-Z_]+)'/g)) {
+      const code = literal ?? refused;
       used.add(code);
+      if (file === 'api/media.js') usedByMedia.add(code);
       assert.ok(known.has(code), `${file} answers with code ${code}, which no client list translates`);
     }
   }
   for (const code of API_ERROR_CODES) assert.ok(used.has(code), `API_ERROR_CODES lists ${code}, but no handler sends it`);
+  for (const code of MEDIA_ERROR_CODES) assert.ok(usedByMedia.has(code), `MEDIA_ERROR_CODES lists ${code}, but media.js never sends it`);
 });
