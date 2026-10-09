@@ -5,7 +5,8 @@ in [DEPLOYMENT.md](./DEPLOYMENT.md); database verification is described in
 [database-testing.md](./database-testing.md).
 
 The bilingual React 19 SPA uses Wouter, TanStack Query and React Hook Form/Zod.
-It calls eight top-level Vercel handlers plus one scheduled handler. Handlers
+It calls nine top-level Vercel handlers plus one scheduled handler: ten of
+the Hobby plan's twelve functions. Handlers
 perform authentication, validation, parameterized Neon SQL and response mapping
 directly. There is no second backend, ORM query layer or generic repository tier.
 
@@ -32,7 +33,11 @@ budget. `auth?action=…` handles login/session/password operations;
 and `update-food` handle the "Din påmelding" page behind the emailed link
 (cancelling, and changing a potluck's food answer); `contact?action=newsletter-…` handles subscriptions.
 `secure-settings?resource=…` multiplexes content, contact messages and settings.
-Authorization remains enforced by the handler.
+`media?action=…` handles private media sharing: the admin's create, upload,
+publish and extend steps, and the viewer's `view`/`list` behind a share link
+(see [mediedeling.md](./mediedeling.md)). `events?format=ics|preview` serves
+the calendar feed and shared-link previews. Authorization remains enforced by
+the handler.
 
 What a visitor may read about a signup is deliberately narrow:
 `registrations?eventId=…` answers anyone outside the council with the attendee

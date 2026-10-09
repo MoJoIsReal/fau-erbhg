@@ -202,6 +202,13 @@ the transport boundary and disables Session Replay; unsupported/binary envelopes
 are dropped. Vercel Analytics scrubs page URLs before transmission. Configure
 Sentry DSNs only if the project's CSP `connect-src` allows the ingest host.
 
+**The CSP is wider than the site needs, by decision (2026-10-08).** It still
+allows `https://browser.sentry-cdn.com` in `script-src` (Sentry is bundled),
+any `https:` image, `data:` in `connect-src`, and the Google Fonts hosts (the
+fonts are self-hosted since 2026-10-09). Narrowing it was reviewed and left for
+now, since a mistake there breaks the live site. Revisit it as one deliberate
+`vercel.json` change with a preview check, not piecemeal.
+
 For CORS issues, inspect the allowlist in `api/_shared/middleware.js`; never
 replace it with `*`. Upload problems should be checked against the MIME,
 extension, 10 MB limit and owned Cloudinary URL rules in
@@ -261,6 +268,18 @@ on the release/PR. Remove completed items from this list.
   0024, every change logs `audit.write_failed` and the morning run fails its
   `auditLogDeleted` stage). `0021_registration_iso_registered_at.sql` is safe
   before or after.
+
+- [ ] With a screen reader (VoiceOver on iOS and NVDA or VoiceOver on
+  desktop), in both languages: a failed login, a refused password change and
+  a calendar entry saved without a title each announce an error next to the
+  field; a month-grid chip reads its category and "avlyst" when cancelled.
+- [ ] On a preview: sign up for an event, then cancel through the emailed link;
+  the seat count on /kalender changes at once both times, without a reload.
+- [ ] Run Lighthouse (mobile) on `/` before and after this release, and confirm
+  in the network panel that no request goes to fonts.googleapis.com or
+  fonts.gstatic.com.
+- [ ] As an admin, send a user a new temporary password from Innstillinger,
+  and check that `audit_log` has rows for it and for a deleted test post.
 
 These checks do not authorize production mutations or publication. Follow the
 deployment and migration procedures above when a release is requested.

@@ -224,10 +224,16 @@ the baseline. Remove an entry once it is fixed.
 the browser imports only types from `schema.ts`, because the insert schemas
 bring drizzle-orm into the bundle.
 
-**Dates.** Most date columns are `text` holding ISO strings, deliberately, to
-avoid timezone drift; `api_rate_limits` is the exception (`timestamptz`). Write
-them as `new Date().toISOString()`, never `NOW()`: into a `text` column that
-stores PostgreSQL's own format, which the browser then has to parse.
+**Dates.** The rule follows the column type in `shared/schema.ts`. Most date
+columns are `text` holding ISO strings, deliberately, to avoid timezone drift:
+write them as `new Date().toISOString()`, never `NOW()`, which stores
+PostgreSQL's own format into `text` for the browser to parse. The machinery
+columns are `timestamptz` and correctly use `NOW()` and intervals:
+`api_rate_limits.reset_at/updated_at`, `newsletter_deliveries`'
+`next_attempt_at/claimed_at/sent_at/created_at/updated_at`,
+`event_registrations.reminder_claimed_at`,
+`event_registration_cancellations.cancelled_at` and
+`photo_event_slots.created_at`.
 
 **Errors.** Server: a refusal is written as `res.status(4xx).json({ error, code })`;
 anything unexpected is thrown and `withApiHandler` answers 500, redacted and
