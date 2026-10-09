@@ -77,6 +77,41 @@ test('removing a signup from the council list releases its seats', async () => {
   await sql(`DELETE FROM event_registrations WHERE event_id = ${id}; DELETE FROM events WHERE id = ${id};`);
 });
 
+// Production's registered_at predates migration 0001 and is a `timestamp`
+// column, not the text column the migrations create; the first 0021 failed
+// there (SQLSTATE 42804). Replay that history, run 0021, and roll it back.
+test('0021 turns a timestamp registered_at into ISO text, and rewrites copied values', async () => {
+  const migration = await readFile(new URL('../../migrations/0021_registration_iso_registered_at.sql', import.meta.url), 'utf8');
+  const [row] = await sql(`BEGIN;
+    ALTER TABLE event_registrations ALTER COLUMN registered_at DROP DEFAULT;
+    ALTER TABLE event_registrations ALTER COLUMN registered_at TYPE timestamp
+      USING (registered_at::timestamptz AT TIME ZONE 'UTC');
+    ALTER TABLE event_registrations ALTER COLUMN registered_at SET DEFAULT now();
+    INSERT INTO events (id, title, description, date, time, location, type) VALUES (990021, 'T', '', '2099-01-01', '12:00', 'T', 'event');
+    INSERT INTO event_registrations (event_id, name, email, registered_at) VALUES (990021, 'A', 'a0021@example.test', '2026-09-24 11:56:00.123456');
+    INSERT INTO event_registration_cancellations (event_id, registration_id, name, email, registered_at) VALUES
+      (990021, 1, 'B', 'b@example.test', '2026-09-24 11:56:00.123456'),
+      (990021, 2, 'C', 'c@example.test', '2026-09-24 13:56:00.5+02'),
+      (990021, 3, 'D', 'd@example.test', '2026-09-24T11:56:00.000Z');
+    ${migration}
+    ${migration}
+    INSERT INTO event_registrations (event_id, name, email) VALUES (990021, 'E', 'e0021@example.test');
+    SELECT
+      (SELECT data_type FROM information_schema.columns WHERE table_name = 'event_registrations' AND column_name = 'registered_at') AS type,
+      (SELECT registered_at FROM event_registrations WHERE email = 'a0021@example.test') AS converted,
+      (SELECT string_agg(registered_at, ',' ORDER BY name) FROM event_registration_cancellations WHERE event_id = 990021) AS copies,
+      (SELECT registered_at ~ '^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$' FROM event_registrations WHERE email = 'e0021@example.test') AS default_is_iso;
+    ROLLBACK;`);
+  assert.deepEqual(row, {
+    type: 'text',
+    converted: '2026-09-24T11:56:00.123Z',
+    copies: '2026-09-24T11:56:00.123Z,2026-09-24T11:56:00.500Z,2026-09-24T11:56:00.000Z',
+    default_is_iso: 't',
+  });
+  const [after] = await sql("SELECT data_type FROM information_schema.columns WHERE table_name = 'event_registrations' AND column_name = 'registered_at';");
+  assert.equal(after.data_type, 'text', 'rolled back');
+});
+
 test('photo slot collision rolls back the loser; a fresh allocation succeeds', async () => {
   const id = await event('foto');
   const outcomes = await race(id, await Promise.all(['a', 'b'].map(name => signup(id, `${name}@example.test`, ['12:00']))));
