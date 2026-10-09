@@ -29,6 +29,7 @@ function delivery(overrides = {}) {
     description: '<p>Velkommen</p>',
     eventDate: '2026-09-10',
     attempts: 1,
+    subscriberId: 3,
     email: 'parent@example.test',
     language: 'no',
     subscriberStatus: 'active',
@@ -53,7 +54,7 @@ function scriptedSql(claimedDeliveries, remaining = 0) {
     const statement = strings.join('?').replace(/\s+/g, ' ').trim();
     calls.push({ statement, values });
     if (statement.includes('INSERT INTO newsletter_deliveries')) return [{ id: 99 }];
-    if (statement.includes('WITH candidates AS')) return claimedDeliveries;
+    if (statement.includes('WITH recipients AS')) return claimedDeliveries;
     if (statement.startsWith('SELECT COUNT(*)::int AS count')) return [{ count: remaining }];
     return [];
   };
@@ -168,7 +169,7 @@ test('the queued row carries no copy of the item body', async () => {
   assert.ok(insert, 'the run should queue due items');
   assert.match(insert.statement, /SELECT d\.item_type, d\.item_id, s\.id, d\.title, NULL::text/);
 
-  const claim = calls.find(({ statement }) => statement.includes('WITH candidates AS'));
+  const claim = calls.find(({ statement }) => statement.includes('WITH recipients AS'));
   assert.ok(claim, 'the run should claim a batch');
   for (const source of ['events ev', 'yearly_calendar_entries yc', 'blog_posts bp']) {
     assert.ok(
@@ -245,7 +246,7 @@ test('the claim window reaches deliveries left over from an earlier date', async
 
   await broadcastNewsletter(sql, '2026-09-10', async () => {});
 
-  const claim = calls.find(({ statement }) => statement.includes('WITH candidates AS'));
+  const claim = calls.find(({ statement }) => statement.includes('WITH recipients AS'));
   assert.ok(claim, 'the run should issue a claim query');
   assert.match(
     claim.statement,
@@ -297,7 +298,7 @@ test('a delivery is released rather than sent when the budget expires during its
   t.mock.method(Date, 'now', () => now);
   const delayedSql = async (strings, ...values) => {
     const rows = await sql(strings, ...values);
-    if (strings.join('').includes('WITH candidates AS')) now = 2000;
+    if (strings.join('').includes('WITH recipients AS')) now = 2000;
     return rows;
   };
   const result = await broadcastNewsletter(
@@ -370,8 +371,99 @@ test('the morning follow-up sends what last night left pending, and queues nothi
   const sent = [];
   const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); }, undefined, { queue: false });
   assert.equal(calls.some(({ statement }) => statement.includes('INSERT INTO newsletter_deliveries')), false, 'no fan-out');
-  assert.deepEqual(calls.find(({ statement }) => statement.includes('WITH candidates AS')).values[0], '2026-09-10');
+  assert.deepEqual(calls.find(({ statement }) => statement.includes('WITH recipients AS')).values[0], '2026-09-10');
   assert.deepEqual([result.queued, result.sent, sent.length], [0, 1, 1]);
   // The mail names the event's date, so a morning send still reads correctly.
   assert.match(sent[0].subject, /10\. september 2026/);
+});
+
+// Two posts flagged the same day used to arrive as two emails at the same
+// minute. Everything one subscriber has due now goes out as one.
+test("one subscriber's due items go out as a single email", async () => {
+  const { sql, calls } = scriptedSql([
+    delivery({ id: 31, itemType: 'news', itemId: 8, title: 'Flaskeinnsamling', description: '<p>Ta med flasker</p>' }),
+    delivery({ id: 32, itemType: 'news', itemId: 9, title: 'Kle deg i rødt', description: '<p>Rødt tøy</p>' }),
+    delivery({ id: 33, title: 'Foreldremøte' }),
+  ]);
+  const sent = [];
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); });
+
+  assert.equal(sent.length, 1);
+  assert.deepEqual([result.sent, result.emails, result.processed], [3, 1, 3]);
+  // The reminder is about tomorrow, so it leads the subject and the body.
+  assert.equal(sent[0].subject, 'Nytt fra FAU: Foreldremøte og 2 saker til');
+  const text = sent[0].text;
+  assert.ok(text.indexOf('Foreldremøte') < text.indexOf('Flaskeinnsamling'));
+  assert.ok(text.indexOf('Flaskeinnsamling') < text.indexOf('Kle deg i rødt'));
+  assert.match(text, /10\. september 2026/);
+  assert.match(text, /\/nyheter\/8/);
+  assert.match(text, /\/nyheter\/9/);
+  assert.match(text, /Ta med flasker/);
+  assert.equal((text.match(/avmeld=/g) || []).length, 1);
+  const marked = calls
+    .filter(({ statement }) => statement.includes("SET status = 'sent', sent_at = NOW()"))
+    .map(({ values }) => values[0]);
+  assert.deepEqual(marked.sort(), [31, 32, 33]);
+});
+
+test('each subscriber gets their own email', async () => {
+  const { sql } = scriptedSql([
+    delivery({ id: 41, itemType: 'news', itemId: 8 }),
+    delivery({ id: 42, itemType: 'news', itemId: 8, subscriberId: 4, email: 'other@example.test', language: 'en' }),
+    delivery({ id: 43, itemType: 'news', itemId: 9 }),
+  ]);
+  const sent = [];
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); });
+
+  assert.equal(result.emails, 2);
+  assert.deepEqual(sent.map(message => message.to).sort(), ['other@example.test', 'parent@example.test']);
+  // A lone item keeps its familiar subject.
+  assert.match(sent.find(message => message.to === 'other@example.test').subject, /^News from FAU: Foreldremøte$/);
+});
+
+test('a skipped row does not hold back the rest of the email', async () => {
+  const { sql, calls } = scriptedSql([
+    delivery({ id: 51, itemType: 'news', itemId: 8, sourceEligible: false }),
+    delivery({ id: 52, itemType: 'news', itemId: 9, title: 'Kle deg i rødt' }),
+  ]);
+  const sent = [];
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async (message) => { sent.push(message); });
+
+  assert.deepEqual(skippedIds(calls), [51]);
+  assert.equal(result.sent, 1);
+  assert.equal(sent[0].subject, 'Nytt fra FAU: Kle deg i rødt');
+});
+
+test('a failed combined email releases every row it carried', async (t) => {
+  t.mock.method(console, 'error', () => {});
+  const { sql, calls } = scriptedSql([
+    delivery({ id: 61, itemType: 'news', itemId: 8, attempts: 5 }),
+    delivery({ id: 62, itemType: 'news', itemId: 9, attempts: 2 }),
+  ], 1);
+
+  const result = await broadcastNewsletter(sql, '2026-09-10', async () => {
+    throw new Error('550 5.1.1 recipient does not exist');
+  });
+
+  const released = calls
+    .filter(({ statement }) => statement.includes('SET status = ?, claimed_at = NULL'))
+    .map(({ values }) => [values.at(-1), values[0]]);
+  // Each row keeps its own attempt count: one is retired, the other retried.
+  assert.deepEqual(released.sort(), [[61, 'failed'], [62, 'pending']]);
+  assert.deepEqual([result.failed, result.abandoned, result.emails], [2, 1, 0]);
+});
+
+// A row cap could cut one subscriber's items in two and send the rest as a
+// second email on a later run.
+test('the claim caps whole subscribers, not rows', async () => {
+  const { sql, calls } = scriptedSql([]);
+
+  await broadcastNewsletter(sql, '2026-09-10', async () => {});
+
+  const claim = calls.find(({ statement }) => statement.includes('WITH recipients AS')).statement;
+  assert.match(claim, /FROM newsletter_subscribers s .* LIMIT \? FOR NO KEY UPDATE SKIP LOCKED/);
+  assert.match(claim, /WHERE subscriber_id IN \(SELECT id FROM recipients\)/);
 });

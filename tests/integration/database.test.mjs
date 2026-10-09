@@ -140,21 +140,28 @@ test('concurrent cancellation releases once, preserves history and executes casc
   assert.equal((await sql(`SELECT * FROM event_registration_cancellations WHERE event_id=${id};`)).length, 0);
 });
 
-test('concurrent delivery claims are exclusive, expired leases recover, subscriber deletion cascades', async () => {
-  const [subscriber] = await sql("INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status) VALUES ('delivery@example.test', 'test-token', NOW()::text, 'active') RETURNING id;");
+test('concurrent delivery claims are exclusive, take whole subscribers, expired leases recover, subscriber deletion cascades', async () => {
+  const subscribers = await sql(`INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status)
+    SELECT 'delivery' || n || '@example.test', 'test-token-' || n, NOW()::text, 'active' FROM generate_series(1,6) n RETURNING id;`);
+  const subscriberIds = subscribers.map(row => row.id).join(',');
   await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date)
-    SELECT 'event', n, ${subscriber.id}, 'Test', '2099-09-24' FROM generate_series(1,6) n;`);
-  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
+    SELECT 'event', n, s.id, 'Test', '2099-09-24' FROM generate_series(1,2) n CROSS JOIN newsletter_subscribers s WHERE s.id IN (${subscriberIds});`);
+  // The cap counts emails: three subscribers, each with both of their rows.
+  const claim = await productionStatement(cronFile, 'WITH recipients AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
   const results = await Promise.all([sql(`BEGIN; ${claim}; DO $$ BEGIN PERFORM pg_sleep(0.3); END $$; COMMIT;`), sql(claim)]);
+  for (const rows of results) {
+    const perSubscriber = Object.values(Object.groupBy(rows, row => row.subscriberId));
+    assert.deepEqual(perSubscriber.map(group => group.length), [2, 2, 2]);
+  }
   const ids = results.flat().map(row => row.id);
-  assert.equal(ids.length, 6);
-  assert.equal(new Set(ids).size, 6);
+  assert.equal(ids.length, 12);
+  assert.equal(new Set(ids).size, 12);
   assert.equal((await sql(claim)).length, 0);
   await sql(`UPDATE newsletter_deliveries SET claimed_at=NOW()-INTERVAL '11 minutes' WHERE id=${ids[0]};`);
   const recovered = await sql(claim);
   assert.equal(recovered.length, 1);
   assert.equal(recovered[0].attempts, '2');
-  await sql(`DELETE FROM newsletter_subscribers WHERE id=${subscriber.id};`);
+  await sql(`DELETE FROM newsletter_subscribers WHERE id IN (${subscriberIds});`);
   assert.equal((await sql('SELECT * FROM newsletter_deliveries;')).length, 0);
 });
 
@@ -216,7 +223,7 @@ test('the delivery claim reports whether the queued item is still one to send', 
       ('event', ${active}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('event', ${cancelled}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('news', 999999, ${subscriber.id}, 'Deleted post', '2099-10-01');`);
-  const claim = await productionStatement(cronFile, 'WITH candidates AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
+  const claim = await productionStatement(cronFile, 'WITH recipients AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
   const claimed = (await sql(claim)).filter(row => row.email === 'eligible@example.test');
   const eligible = Object.fromEntries(claimed.map(row => [`${row.itemType}:${row.itemId}`, row.sourceEligible]));
   assert.deepEqual(eligible, { [`event:${active}`]: 't', [`event:${cancelled}`]: 'f', 'news:999999': 'f' });

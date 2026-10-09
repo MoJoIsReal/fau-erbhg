@@ -213,12 +213,12 @@ test('the morning run still runs retention after a provider failure', async () =
     'DELETE FROM newsletter_deliveries',
     'DELETE FROM audit_log',
     'WITH due AS',
-    'WITH candidates AS',
+    'WITH recipients AS',
   ].map((needle) => calls.findIndex(({ statement }) => statement.includes(needle)));
   assert.ok(order.every((index) => index >= 0), 'every morning task should run');
   assert.deepEqual([...order].sort((a, b) => a - b), order, 'retention and housekeeping before mail, newsletter overflow last');
   // The follow-up finishes the items dated today (the run's target is tomorrow).
-  assert.equal(calls.find(({ statement }) => statement.includes('WITH candidates AS')).values[0], '2026-09-09');
+  assert.equal(calls.find(({ statement }) => statement.includes('WITH recipients AS')).values[0], '2026-09-09');
   assert.equal(calls.some(({ statement }) => statement.includes('INSERT INTO newsletter_deliveries')), false);
   // The audit trail is kept for a year.
   const audit = calls.find(({ statement }) => statement.startsWith('DELETE FROM audit_log'));

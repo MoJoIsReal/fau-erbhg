@@ -10,6 +10,7 @@ import {
 } from '../_shared/email.js';
 import {
   NEWSLETTER_PENDING_PURGE_DAYS,
+  digestEmail,
   newsPostEmail,
   reminderEmail as newsletterReminderEmail,
 } from '../_shared/newsletter.js';
@@ -33,6 +34,8 @@ import { isR2Configured } from '../_shared/r2.js';
 // the real protection against being killed mid-batch is RUN_BUDGET_MS below,
 // which stops the loop while there is still time to finish cleanly.
 const MAX_REMINDERS_PER_RUN = 100;
+// Counted in emails, i.e. subscribers: everything one subscriber has due goes
+// out as a single message, so the claim takes whole subscribers at a time.
 const MAX_NEWSLETTER_EMAILS_PER_RUN = 300;
 
 // A reminder whose send fails is released and, when the batch was full,
@@ -203,8 +206,38 @@ function formatLongDate(dateStr, language) {
   });
 }
 
+// The message for one subscriber's claimed deliveries: the familiar single
+// reminder or news mail when there is one, a combined one when there are more.
+// Reminders lead, since they are about tomorrow; each kind keeps the claim's order.
+function newsletterEmail(group) {
+  const { language, unsubscribeToken } = group[0];
+  const items = group
+    .map(delivery => delivery.itemType === 'news'
+      ? {
+        kind: 'news',
+        title: delivery.title,
+        excerpt: truncatePlainText(htmlToPlainText(delivery.description), NEWS_EXCERPT_LENGTH),
+        postId: delivery.itemId,
+      }
+      : {
+        kind: 'reminder',
+        title: delivery.title,
+        description: htmlToPlainText(delivery.description),
+        dateText: formatLongDate(delivery.eventDate, language),
+      })
+    .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'reminder' ? -1 : 1));
+
+  if (items.length > 1) return digestEmail({ items, language, unsubscribeToken });
+  const [item] = items;
+  return item.kind === 'news'
+    ? newsPostEmail({ ...item, language, unsubscribeToken })
+    : newsletterReminderEmail({ ...item, language, unsubscribeToken });
+}
+
 // Fan out due items into a durable per-subscriber outbox, claim a bounded batch,
-// and only mark each delivery sent after Gmail accepts it. A crashed invocation
+// and only mark each delivery sent after Gmail accepts it. The outbox stays one
+// row per item per subscriber, but a subscriber's claimed rows are sent as one
+// email, so two posts flagged the same day arrive together. A crashed invocation
 // leaves processing rows reclaimable after the lease expires.
 // `queue: false` is the morning follow-up: it sends only what the evening run
 // already queued and left pending (past its per-run cap or its deadline), for
@@ -212,11 +245,11 @@ function formatLongDate(dateStr, language) {
 // night's run is not mailed the same morning.
 export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom(), { queue = true } = {}) {
   if (!isEmailConfigured()) {
-    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, abandoned: 0, remaining: 0, reason: 'email-not-configured' };
+    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, abandoned: 0, emails: 0, remaining: 0, reason: 'email-not-configured' };
   }
 
   if (Date.now() >= deadline) {
-    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, deferred: 0, abandoned: 0, remaining: null, reason: 'budget-exhausted' };
+    return { queued: 0, processed: 0, sent: 0, failed: 0, skipped: 0, deferred: 0, abandoned: 0, emails: 0, remaining: null, reason: 'budget-exhausted' };
   }
 
   const queued = !queue ? [] : await sql`
@@ -270,7 +303,27 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
   `;
 
   const deliveries = await sql`
-    WITH candidates AS (
+    WITH recipients AS (
+      -- The cap is on subscribers, not rows: a row cap could cut one
+      -- subscriber's items in two and send the rest as a second email. Locking
+      -- the subscriber rather than every due row lets an overlapping run move
+      -- on to the next subscribers instead of finding them all locked.
+      -- NO KEY: the fan-out's foreign key check still gets through.
+      SELECT s.id
+      FROM newsletter_subscribers s
+      WHERE EXISTS (
+        SELECT 1 FROM newsletter_deliveries d
+        WHERE d.subscriber_id = s.id
+          AND d.event_date <= ${targetDate}
+          AND (
+            (d.status = 'pending' AND d.next_attempt_at <= NOW())
+            OR (d.status = 'processing' AND d.claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
+          )
+      )
+      ORDER BY s.id
+      LIMIT ${MAX_NEWSLETTER_EMAILS_PER_RUN}
+      FOR NO KEY UPDATE SKIP LOCKED
+    ), candidates AS (
       SELECT id
       FROM newsletter_deliveries
       -- Less-than-or-equal, not equal. The cron fires once a day with targetDate =
@@ -280,14 +333,15 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
       -- and rows left 'processing' by a crashed run were stranded forever,
       -- which also blocked the source item from ever being stamped. event_date
       -- is ISO 'YYYY-MM-DD' text, so string ordering is date ordering.
-      WHERE event_date <= ${targetDate}
+      WHERE subscriber_id IN (SELECT id FROM recipients)
+        AND event_date <= ${targetDate}
         AND (
           (status = 'pending' AND next_attempt_at <= NOW())
           OR (status = 'processing' AND claimed_at < NOW() - (${DELIVERY_LEASE_MINUTES} * INTERVAL '1 minute'))
         )
-      ORDER BY event_date, next_attempt_at, id
+      -- Still locked row by row: this is what re-checks a row another run
+      -- claimed and committed while this statement waited.
       FOR UPDATE SKIP LOCKED
-      LIMIT ${MAX_NEWSLETTER_EMAILS_PER_RUN}
     ), claimed AS (
       UPDATE newsletter_deliveries d
       SET status = 'processing', claimed_at = NOW(), attempts = attempts + 1, updated_at = NOW()
@@ -310,7 +364,8 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
              WHEN 'news' THEN COALESCE(bp.status = 'published' AND bp.notify_newsletter, false)
              ELSE false
            END AS "sourceEligible",
-           c.attempts, s.email, s.language, s.status as "subscriberStatus",
+           c.attempts, c.subscriber_id as "subscriberId",
+           s.email, s.language, s.status as "subscriberStatus",
            s.unsubscribe_token as "unsubscribeToken"
     FROM claimed c
     LEFT JOIN newsletter_subscribers s ON s.id = c.subscriber_id
@@ -328,88 +383,98 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
   let skipped = 0;
   let deferred = 0;
   let abandoned = 0;
+  let emails = 0;
 
-  await runWithConcurrency(deliveries, DELIVERY_CONCURRENCY, async (delivery) => {
-    // Out of time: hand the row straight back as pending so it is picked up by
-    // the next run rather than left claimed when the platform kills us.
-    if (Date.now() >= deadline) {
-      await sql`
-        UPDATE newsletter_deliveries
-        SET status = 'pending', claimed_at = NULL, updated_at = NOW(), attempts = GREATEST(0, attempts - 1)
-        WHERE id = ${delivery.id} AND status = 'processing'
-      `;
-      deferred += 1;
-      return;
-    }
-
+  // Rows the run may still send, grouped into one email per subscriber. The
+  // rest are retired one by one, as before.
+  const groups = new Map();
+  const unsendable = [];
+  for (const delivery of deliveries) {
     // The claim takes anything due on or before tonight, so a reminder that
     // failed the evening before its event would otherwise be retried the
     // evening of it and on later nights. Only news rows carry the run date;
     // an event or calendar row dated before tonight's target is past.
     const past = delivery.itemType !== 'news' && delivery.eventDate < targetDate;
     if (delivery.subscriberStatus !== 'active' || !delivery.email || !delivery.sourceEligible || past) {
-      await sql`
-        UPDATE newsletter_deliveries
-        SET status = 'skipped', claimed_at = NULL, last_error = NULL, updated_at = NOW()
-        WHERE id = ${delivery.id} AND status = 'processing'
-      `;
-      skipped += 1;
+      unsendable.push(delivery);
+      continue;
+    }
+    const group = groups.get(delivery.subscriberId) || [];
+    group.push(delivery);
+    groups.set(delivery.subscriberId, group);
+  }
+
+  for (const delivery of unsendable) {
+    await sql`
+      UPDATE newsletter_deliveries
+      SET status = 'skipped', claimed_at = NULL, last_error = NULL, updated_at = NOW()
+      WHERE id = ${delivery.id} AND status = 'processing'
+    `;
+    skipped += 1;
+  }
+
+  await runWithConcurrency([...groups.values()], DELIVERY_CONCURRENCY, async (group) => {
+    // Out of time: hand the rows straight back as pending so they are picked up
+    // by the next run rather than left claimed when the platform kills us.
+    if (Date.now() >= deadline) {
+      for (const delivery of group) {
+        await sql`
+          UPDATE newsletter_deliveries
+          SET status = 'pending', claimed_at = NULL, updated_at = NOW(), attempts = GREATEST(0, attempts - 1)
+          WHERE id = ${delivery.id} AND status = 'processing'
+        `;
+        deferred += 1;
+      }
       return;
     }
 
     try {
-      const { subject, text } = delivery.itemType === 'news'
-        ? newsPostEmail({
-          title: delivery.title,
-          excerpt: truncatePlainText(htmlToPlainText(delivery.description), NEWS_EXCERPT_LENGTH),
-          postId: delivery.itemId,
-          language: delivery.language,
-          unsubscribeToken: delivery.unsubscribeToken,
-        })
-        : newsletterReminderEmail({
-          title: delivery.title,
-          description: htmlToPlainText(delivery.description),
-          dateText: formatLongDate(delivery.eventDate, delivery.language),
-          language: delivery.language,
-          unsubscribeToken: delivery.unsubscribeToken,
-        });
+      const { subject, text } = newsletterEmail(group);
+      // A lone delivery keeps the Message-ID it always had; a combined one is
+      // named after every row it carries.
+      const ids = group.map(delivery => delivery.id).sort((a, b) => a - b).join(',');
       await sendWithDeadline(send, {
-        to: delivery.email,
+        to: group[0].email,
         subject,
         text,
-        messageId: deliveryMessageId('newsletter', delivery.id),
+        messageId: deliveryMessageId('newsletter', ids),
       }, deadline, closePooledTransporter);
-      await sql`
-        UPDATE newsletter_deliveries
-        SET status = 'sent', sent_at = NOW(), claimed_at = NULL,
-            last_error = NULL, updated_at = NOW()
-        WHERE id = ${delivery.id} AND status = 'processing'
-      `;
-      sent += 1;
-    } catch (emailError) {
-      const retryAt = nextAttemptAt(delivery.attempts);
-      const safeError = redactSensitiveText(emailError?.message || String(emailError)).substring(0, 500);
-      // A deadline can race acceptance: keep that uncertain outcome retryable.
-      const exhausted = emailError?.code !== 'EMAIL_DEADLINE' && Number(delivery.attempts) >= MAX_DELIVERY_ATTEMPTS;
-      await sql`
-        UPDATE newsletter_deliveries
-        SET status = ${exhausted ? 'failed' : 'pending'},
-            claimed_at = NULL,
-            next_attempt_at = ${retryAt},
-            last_error = ${safeError},
-            updated_at = NOW()
-        WHERE id = ${delivery.id} AND status = 'processing'
-      `;
-      if (exhausted) {
-        abandoned += 1;
-        logEvent('warn', 'newsletter.delivery_abandoned', {
-          deliveryId: delivery.id,
-          itemType: delivery.itemType,
-          itemId: delivery.itemId,
-          attempts: Number(delivery.attempts),
-        });
+      for (const delivery of group) {
+        await sql`
+          UPDATE newsletter_deliveries
+          SET status = 'sent', sent_at = NOW(), claimed_at = NULL,
+              last_error = NULL, updated_at = NOW()
+          WHERE id = ${delivery.id} AND status = 'processing'
+        `;
+        sent += 1;
       }
-      failed += 1;
+      emails += 1;
+    } catch (emailError) {
+      const safeError = redactSensitiveText(emailError?.message || String(emailError)).substring(0, 500);
+      for (const delivery of group) {
+        const retryAt = nextAttemptAt(delivery.attempts);
+        // A deadline can race acceptance: keep that uncertain outcome retryable.
+        const exhausted = emailError?.code !== 'EMAIL_DEADLINE' && Number(delivery.attempts) >= MAX_DELIVERY_ATTEMPTS;
+        await sql`
+          UPDATE newsletter_deliveries
+          SET status = ${exhausted ? 'failed' : 'pending'},
+              claimed_at = NULL,
+              next_attempt_at = ${retryAt},
+              last_error = ${safeError},
+              updated_at = NOW()
+          WHERE id = ${delivery.id} AND status = 'processing'
+        `;
+        if (exhausted) {
+          abandoned += 1;
+          logEvent('warn', 'newsletter.delivery_abandoned', {
+            deliveryId: delivery.id,
+            itemType: delivery.itemType,
+            itemId: delivery.itemId,
+            attempts: Number(delivery.attempts),
+          });
+        }
+        failed += 1;
+      }
       reportProviderError('Failed to send newsletter delivery', emailError);
     }
   });
@@ -490,6 +555,7 @@ export async function broadcastNewsletter(sql, targetDate, send = sendPooledEmai
     skipped,
     deferred,
     abandoned,
+    emails,
     remaining: remainingRows[0]?.count || 0,
   };
 }

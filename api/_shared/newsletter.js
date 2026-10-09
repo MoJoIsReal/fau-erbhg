@@ -151,3 +151,72 @@ FAU Erdal Kindergarten
 You receive this email because you subscribed to our newsletter. Unsubscribe here: ${link}`,
   };
 }
+
+// One email for everything a subscriber has due in the same run. Without it a
+// parent got a separate mail per flagged post and reminder, all at the same
+// minute. Reminders come first, since they are about tomorrow; each news post
+// keeps its teaser and its own link. A single item still goes out as the
+// reminderEmail/newsPostEmail above.
+//   items: [{ kind: 'reminder', title, description, dateText }
+//          | { kind: 'news', title, excerpt, postId }]
+export function digestEmail({ items, language, unsubscribeToken }) {
+  const isNorwegian = language !== 'en';
+  const link = unsubscribeUrl(unsubscribeToken);
+  const reminders = items.filter(item => item.kind === 'reminder');
+  const news = items.filter(item => item.kind === 'news');
+  const first = reminders[0] || news[0];
+  const more = items.length - 1;
+  // One paragraph per item; an empty description or excerpt leaves no gap.
+  const paragraph = (lines) => lines.filter(Boolean).join('\n');
+
+  const sections = [];
+  if (reminders.length > 0) {
+    sections.push([
+      isNorwegian ? 'PÅMINNELSER' : 'REMINDERS',
+      ...reminders.map(item => paragraph([`${item.title} – ${item.dateText}`, item.description])),
+    ].join('\n\n'));
+  }
+  if (news.length > 0) {
+    sections.push([
+      isNorwegian ? 'NYHETER' : 'NEWS',
+      ...news.map(item => paragraph([
+        item.title,
+        item.excerpt,
+        `${isNorwegian ? 'Les hele saken her' : 'Read the full post here'}: ${publicBaseUrl()}/nyheter/${item.postId}`,
+      ])),
+    ].join('\n\n'));
+  }
+  const body = sections.join('\n\n\n');
+
+  if (isNorwegian) {
+    return {
+      subject: `Nytt fra FAU: ${first.title} og ${more} ${more === 1 ? 'sak' : 'saker'} til`,
+      text: `Hei,
+
+Her er det siste fra FAU Erdal Barnehage.
+
+${body}
+
+Med vennlig hilsen,
+FAU Erdal Barnehage
+
+—
+Du mottar denne e-posten fordi du er påmeldt nyhetsbrevet vårt. Meld deg av her: ${link}`,
+    };
+  }
+
+  return {
+    subject: `News from FAU: ${first.title} and ${more} more`,
+    text: `Hi,
+
+Here is the latest from FAU Erdal Kindergarten.
+
+${body}
+
+Best regards,
+FAU Erdal Kindergarten
+
+—
+You receive this email because you subscribed to our newsletter. Unsubscribe here: ${link}`,
+  };
+}
