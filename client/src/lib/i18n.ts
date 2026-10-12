@@ -892,6 +892,9 @@ export interface Translations {
     addMember: string;
     reorderHint: string;
     moveMember: string;
+    moveUp: string;
+    moveDown: string;
+    movedTo: string;
     unnamedMember: string;
     reorder: {
       instructions: string;
@@ -2010,8 +2013,11 @@ export const translations: Record<Language, Translations> = {
       removeMember: "Fjern medlem",
       addMember: "Legg til medlem",
       reorderHint:
-        "Dra i håndtaket til venstre for å endre rekkefølgen. Rekkefølgen lagres når du trykker «Lagre endringer», og er den samme som vises på nettsiden.",
+        "Dra i håndtaket til venstre, eller bruk pilknappene, for å endre rekkefølgen. Rekkefølgen lagres når du trykker «Lagre endringer», og er den samme som vises på nettsiden.",
       moveMember: "Endre rekkefølge: {name}",
+      moveUp: "Flytt opp: {name}",
+      moveDown: "Flytt ned: {name}",
+      movedTo: "{item} er nå nummer {position} av {count}.",
       unnamedMember: "medlem uten navn",
       reorder: {
         instructions:
@@ -3126,8 +3132,11 @@ export const translations: Record<Language, Translations> = {
       removeMember: "Remove member",
       addMember: "Add member",
       reorderHint:
-        "Drag the handle on the left to change the order. The order is saved when you press \u201cSave changes\u201d, and is the one shown on the website.",
+        "Drag the handle on the left, or use the arrow buttons, to change the order. The order is saved when you press \u201cSave changes\u201d, and is the one shown on the website.",
       moveMember: "Reorder: {name}",
+      moveUp: "Move up: {name}",
+      moveDown: "Move down: {name}",
+      movedTo: "{item} is now number {position} of {count}.",
       unnamedMember: "unnamed member",
       reorder: {
         instructions:

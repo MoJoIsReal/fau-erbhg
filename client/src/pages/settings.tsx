@@ -35,7 +35,7 @@ import {
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { useToast } from "@/hooks/use-toast";
-import { GripVertical, Loader2, Plus, Trash2, Save } from "lucide-react";
+import { ChevronDown, ChevronUp, GripVertical, Loader2, Plus, Trash2, Save } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { FauBoardMember } from "@shared/schema";
 import { apiErrorText, apiRequest } from "@/lib/queryClient";
@@ -91,6 +91,9 @@ interface BoardMemberRowProps {
   index: number;
   onChange: (uid: string, field: "name" | "role", value: string) => void;
   onRemove: (uid: string) => void;
+  onStep: (uid: string, step: -1 | 1) => void;
+  isFirst: boolean;
+  isLast: boolean;
   deleting: boolean;
 }
 
@@ -100,9 +103,19 @@ interface BoardMemberRowProps {
  * The row is both what you pick up and what you can drop on, so a drop reads
  * as "take this member's place" and the list needs no separate drop zone
  * between every pair of rows. Only the grip is a drag handle — the name field
- * has to stay a text field you can select inside of.
+ * has to stay a text field you can select inside of. The up/down buttons are
+ * the single-pointer alternative to dragging that WCAG 2.5.7 asks for.
  */
-function BoardMemberRow({ row, index, onChange, onRemove, deleting }: BoardMemberRowProps) {
+function BoardMemberRow({
+  row,
+  index,
+  onChange,
+  onRemove,
+  onStep,
+  isFirst,
+  isLast,
+  deleting,
+}: BoardMemberRowProps) {
   const { language, t } = useLanguage();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } =
     useDraggable({ id: row.uid });
@@ -132,12 +145,12 @@ function BoardMemberRow({ row, index, onChange, onRemove, deleting }: BoardMembe
         {...listeners}
         {...attributes}
         aria-label={fill(t.settings.moveMember, { name })}
-        className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-token text-subtle hover:bg-green-50 hover:text-brand active:cursor-grabbing dark:hover:bg-green-950/40"
+        className="flex h-11 w-11 shrink-0 cursor-grab touch-none items-center justify-center rounded-token text-subtle hover:bg-green-50 hover:text-brand active:cursor-grabbing dark:hover:bg-green-950/40"
       >
         <GripVertical className="h-4 w-4" aria-hidden="true" />
       </button>
 
-      <div className="col-span-2 min-w-0 sm:flex-1">
+      <div className="min-w-0 sm:flex-1">
         <Label htmlFor={`name-${index}`}>
           {t.settings.name}
         </Label>
@@ -167,6 +180,31 @@ function BoardMemberRow({ row, index, onChange, onRemove, deleting }: BoardMembe
             ))}
           </SelectContent>
         </Select>
+      </div>
+      {/* aria-disabled rather than disabled at the ends of the list: a
+          disabled button drops keyboard focus to the page when a press moves
+          the row to the top or bottom. */}
+      <div className="col-start-3 row-start-1 flex shrink-0 self-end">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => !isFirst && onStep(row.uid, -1)}
+          aria-disabled={isFirst}
+          aria-label={fill(t.settings.moveUp, { name })}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        >
+          <ChevronUp className="h-4 w-4" aria-hidden="true" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => !isLast && onStep(row.uid, 1)}
+          aria-disabled={isLast}
+          aria-label={fill(t.settings.moveDown, { name })}
+          className="aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+        >
+          <ChevronDown className="h-4 w-4" aria-hidden="true" />
+        </Button>
       </div>
       {row.id ? (
         <AlertDialog>
@@ -317,6 +355,23 @@ export default function Settings() {
       next.splice(to, 0, moved);
       return next;
     });
+  };
+
+  // The arrow buttons' path: one place at a time, announced, because the
+  // button keeps focus while its row moves under it.
+  const [reorderStatus, setReorderStatus] = useState("");
+  const stepMember = (uid: string, step: -1 | 1) => {
+    const from = members.findIndex((row) => row.uid === uid);
+    const to = from + step;
+    if (from === -1 || to < 0 || to >= members.length) return;
+    moveMember(uid, members[to].uid);
+    setReorderStatus(
+      fill(t.settings.movedTo, {
+        item: members[from].name?.trim() || t.settings.unnamedMember,
+        position: String(to + 1),
+        count: String(members.length),
+      }),
+    );
   };
 
   // A grip is a small target on a phone, so touch needs a short press rather
@@ -509,10 +564,10 @@ export default function Settings() {
           save models in a single scroll. */}
       <Tabs defaultValue="board">
         <TabsList className="mb-4 h-auto flex-wrap">
-          <TabsTrigger value="board">{t.settings.fauBoard}</TabsTrigger>
-          <TabsTrigger value="kindergarten">{t.settings.kindergarten}</TabsTrigger>
-          <TabsTrigger value="users">{t.settings.users}</TabsTrigger>
-          <TabsTrigger value="newsletter">{t.settings.newsletter}</TabsTrigger>
+          <TabsTrigger value="board" className="min-h-[44px]">{t.settings.fauBoard}</TabsTrigger>
+          <TabsTrigger value="kindergarten" className="min-h-[44px]">{t.settings.kindergarten}</TabsTrigger>
+          <TabsTrigger value="users" className="min-h-[44px]">{t.settings.users}</TabsTrigger>
+          <TabsTrigger value="newsletter" className="min-h-[44px]">{t.settings.newsletter}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="board">
@@ -530,9 +585,9 @@ export default function Settings() {
 
           <p className="text-sm text-subtle mb-4">{t.settings.reorderHint}</p>
 
-          {/* Name gets its own line on a phone, with the grip, role and delete
-              beside it below — two inputs plus two buttons never fit on one
-              row there. */}
+          {/* On a phone a row is two lines: grip, name and the up/down
+              buttons, then role and delete below — two inputs plus four
+              buttons never fit on one row there. */}
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -550,11 +605,17 @@ export default function Settings() {
                   index={index}
                   onChange={updateMember}
                   onRemove={removeMember}
+                  onStep={stepMember}
+                  isFirst={index === 0}
+                  isLast={index === members.length - 1}
                   deleting={deleteMutation.isPending}
                 />
               ))}
             </div>
           </DndContext>
+          <p className="sr-only" role="status">
+            {reorderStatus}
+          </p>
 
           <Button
             variant="outline"

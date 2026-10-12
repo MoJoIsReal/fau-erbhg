@@ -23,6 +23,7 @@ import type { YearlyCalendarEntryType } from "@shared/yearly-calendar-utils";
 import type { CalendarEntry, YearlyCalendarKind } from "@shared/calendar-entries";
 import type { EntryDraft } from "@/components/yearly-calendar-entry-modal";
 import AttendeeTooltip from "@/components/attendee-tooltip";
+import { returnFocus } from "@/lib/return-focus";
 
 // The editor modals carry the rich-text editor (TipTap) and the import tool,
 // about 130 kB gzipped. /kalender is the main public page, so they are loaded
@@ -237,7 +238,7 @@ export function useCalendarEditor({ schoolYear, month, yearlyEntries: loadedEntr
   const modals = !canEditYearly ? null : (
     <>
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent onCloseAutoFocus={returnFocus} className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>{t.calendar.newEntry}</DialogTitle>
           </DialogHeader>
@@ -305,7 +306,7 @@ export function useCalendarEditor({ schoolYear, month, yearlyEntries: loadedEntr
       </Suspense>
 
       <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={returnFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>
               {confirming?.action === "cancel" ? t.calendar.confirmCancelTitle : t.events.deleteEvent}

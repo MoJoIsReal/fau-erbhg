@@ -30,16 +30,17 @@ export default function CalendarPage() {
 
   return (
     <div>
-      {/* The calendar's own header band carries the visible heading, and it
-          changes with the view. The page keeps an h1 for the document
-          outline and for anyone arriving by screen reader. */}
-      <h1 className="sr-only">{t.calendar.title}</h1>
-
+      {/* The calendar's own header band (PageHero) is the page's h1, and it
+          changes with the view. Only the loading state needs a stand-in, so
+          the page never has two h1s. */}
       <Suspense
         fallback={
-          <div className="flex justify-center py-16" role="status" aria-live="polite">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
+          <>
+            <h1 className="sr-only">{t.calendar.title}</h1>
+            <div className="flex justify-center py-16" role="status" aria-live="polite">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          </>
         }
       >
         <CalendarViews />

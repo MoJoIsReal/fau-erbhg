@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { FormError } from "@/components/site/form-error";
+import { returnFocus } from "@/lib/return-focus";
 
 export default function PasswordChangeModal() {
   const { t } = useLanguage();
@@ -64,7 +65,7 @@ export default function PasswordChangeModal() {
 
   return (
     <Dialog open onOpenChange={() => undefined}>
-      <DialogContent
+      <DialogContent onCloseAutoFocus={returnFocus}
         className="sm:max-w-md"
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}

@@ -31,6 +31,7 @@ import type {
   YearlyCalendarEntryType,
   YearlyCalendarImportPayload,
 } from "@shared/yearly-calendar-utils";
+import { returnFocus } from "@/lib/return-focus";
 
 type Translation = ReturnType<typeof useTranslation>;
 type ValidationMessageKey = keyof Translation["yearlyCalendar"]["importModal"]["validation"];
@@ -551,7 +552,7 @@ export default function YearlyCalendarImportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => { if (!open && !isBusy) onClose(); }}>
-      <DialogContent className="max-h-[90vh] overflow-hidden p-0 sm:max-w-4xl">
+      <DialogContent onCloseAutoFocus={returnFocus} className="max-h-[90vh] overflow-hidden p-0 sm:max-w-4xl">
         <DialogHeader className="px-6 pt-6">
           <DialogTitle>{t.yearlyCalendar.importModal.title}</DialogTitle>
         </DialogHeader>

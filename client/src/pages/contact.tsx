@@ -248,7 +248,7 @@ export default function Contact() {
                     <FormLabel>{t.contact.subject} *</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger ref={field.ref}>
                           <SelectValue placeholder={t.contact.subjectPlaceholder} />
                         </SelectTrigger>
                       </FormControl>

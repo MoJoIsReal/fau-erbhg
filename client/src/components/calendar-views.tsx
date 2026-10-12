@@ -28,6 +28,7 @@ import { FilterChip, SegmentedControl } from "@/components/site/controls";
 import { InfoBanner } from "@/components/site/banners";
 import { EmptyState } from "@/components/site/section";
 import { ILLUSTRATION_CALENDAR } from "@/components/site/illustrations";
+import { returnFocus } from "@/lib/return-focus";
 
 // The grids are only paid for when someone switches to them.
 const CalendarView = lazy(() => import("@/components/calendar-view"));
@@ -365,7 +366,7 @@ export default function CalendarViews() {
           if (!open) closeEntry();
         }}
       >
-        <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-md">
+        <SheetContent onCloseAutoFocus={returnFocus} side="right" className="w-full overflow-y-auto p-0 sm:max-w-md">
           <SheetHeader className="sr-only">
             <SheetTitle>{selected?.title ?? t.calendar.detailEmpty}</SheetTitle>
           </SheetHeader>

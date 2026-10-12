@@ -11,6 +11,9 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import * as Sentry from "@sentry/react";
 import { reloadForStaleChunk } from "@/lib/stale-chunk";
 import { privateTelemetryTransport, scrubTelemetry } from "@/lib/telemetry-privacy";
+// Imported here, before any dialog can open, so its focus history starts with
+// the page rather than with the first lazily loaded dialog.
+import "@/lib/return-focus";
 
 // Initialize Sentry for error tracking in production
 if (import.meta.env.VITE_SENTRY_DSN) {

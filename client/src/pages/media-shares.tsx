@@ -64,6 +64,7 @@ import {
   mediaKind,
   normalizeMediaMime,
 } from "@shared/media";
+import { returnFocus } from "@/lib/return-focus";
 
 const LIST_KEY = ["/api/media?action=list"];
 const LIFETIME_CHOICES = [7, 14, 30, 60, MEDIA_DEFAULT_LIFETIME_DAYS, MEDIA_MAX_INITIAL_DAYS];
@@ -635,7 +636,7 @@ function ShareRow({ share }: { share: MediaShareSummary }) {
       </div>
 
       <Dialog open={extendOpen} onOpenChange={setExtendOpen}>
-        <DialogContent>
+        <DialogContent onCloseAutoFocus={returnFocus}>
           <DialogHeader>
             <DialogTitle>{t.mediaAdmin.extendTitle}</DialogTitle>
             <DialogDescription>
@@ -661,7 +662,7 @@ function ShareRow({ share }: { share: MediaShareSummary }) {
       </Dialog>
 
       <AlertDialog open={revokeOpen} onOpenChange={setRevokeOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={returnFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>{fill(t.mediaAdmin.revokeTitle, { title: share.title })}</AlertDialogTitle>
             <AlertDialogDescription>{t.mediaAdmin.revokeBody}</AlertDialogDescription>

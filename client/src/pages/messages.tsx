@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Mail, Clock, User, Phone, Trash2, Check, Archive, Loader2, Reply } from "lucide-react";
 import { apiErrorText, apiRequest } from "@/lib/queryClient";
+import { returnFocus } from "@/lib/return-focus";
 
 interface ContactMessage {
   id: number;
@@ -495,7 +496,7 @@ export default function Messages() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[560px]">
+        <DialogContent onCloseAutoFocus={returnFocus} className="sm:max-w-[560px]">
           <DialogHeader>
             <DialogTitle>{t.messagesPage.replyTitle}</DialogTitle>
             <DialogDescription className="break-words">

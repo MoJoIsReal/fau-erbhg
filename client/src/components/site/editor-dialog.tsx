@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { returnFocus } from "@/lib/return-focus";
 
 export function EditorDialog({ title, description, children, footer }: {
   title: string; description: string; children: ReactNode; footer: ReactNode;
 }) {
   return (
-    <DialogContent className="flex h-dvh max-h-dvh max-w-none flex-col gap-0 rounded-none border-hairline bg-sand p-0 shadow-panel sm:h-auto sm:max-h-[90dvh] sm:max-w-editor sm:rounded-card [&>button]:flex [&>button]:h-11 [&>button]:w-11 [&>button]:items-center [&>button]:justify-center">
+    <DialogContent onCloseAutoFocus={returnFocus} className="flex h-dvh max-h-dvh max-w-none flex-col gap-0 rounded-none border-hairline bg-sand p-0 shadow-panel sm:h-auto sm:max-h-[90dvh] sm:max-w-editor sm:rounded-card [&>button]:flex [&>button]:h-11 [&>button]:w-11 [&>button]:items-center [&>button]:justify-center">
       <header className="shrink-0 border-b border-hairline px-6 py-5 pr-16 sm:px-8 sm:pr-20">
         <DialogTitle className="text-h3 font-bold text-ink">{title}</DialogTitle>
         <DialogDescription className="mt-2 text-small text-subtle">{description}</DialogDescription>
