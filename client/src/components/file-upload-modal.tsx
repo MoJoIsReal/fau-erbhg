@@ -14,6 +14,7 @@ import { z } from "zod";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { apiErrorText, apiRequest } from "@/lib/queryClient";
 import { formatFileSize } from "@/lib/i18n";
+import { returnFocus } from "@/lib/return-focus";
 
 const MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 const ALLOWED_UPLOAD_EXTENSIONS = [
@@ -215,7 +216,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent onCloseAutoFocus={returnFocus} className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t.documents.uploadDocument}</DialogTitle>
           <DialogDescription>
@@ -233,7 +234,7 @@ export default function FileUploadModal({ isOpen, onClose }: FileUploadModalProp
                   <FormLabel>{t.documents.documentType} *</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger>
+                      <SelectTrigger ref={field.ref}>
                         <SelectValue placeholder={t.documents.selectType} />
                       </SelectTrigger>
                     </FormControl>

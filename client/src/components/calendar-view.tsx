@@ -230,12 +230,12 @@ export default function CalendarView({
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
-            <h3 className="min-w-0 flex-1 text-h4 font-bold capitalize text-ink">
+            <h2 className="min-w-0 flex-1 text-h4 font-bold capitalize text-ink">
               {formatDate(new Date(month.year, month.month - 1, 1), language, {
                 month: "long",
                 year: "numeric",
               })}
-            </h3>
+            </h2>
             <Button
               variant="ghost"
               size="icon"
@@ -499,7 +499,7 @@ export default function CalendarView({
       <div ref={detailRef} className="xl:sticky xl:top-24">
         {selected ? (
           <Surface className="p-5 sm:p-6" as="section" aria-live="polite">
-            <h3
+            <h2
               className={`text-h4 font-bold text-ink ${selected.kind === "day" ? "capitalize" : ""}`}
             >
               {selected.kind === "day"
@@ -510,7 +510,7 @@ export default function CalendarView({
                     year: "numeric",
                   })
                 : weekHeading(selected.weekYear, selected.week)}
-            </h3>
+            </h2>
 
             {onCreate && (
               <div className="mt-4">
@@ -555,13 +555,13 @@ export default function CalendarView({
                         <CalendarCategory kind={entry.displayKind} />
                       </span>
 
-                      <h4
+                      <h3
                         className={`text-h3 font-bold tracking-tight text-ink ${
                           entry.cancelled ? "line-through decoration-1" : ""
                         }`}
                       >
                         {entry.title}
-                      </h4>
+                      </h3>
                       {entry.cancelled && (
                         <StatusPill tone="warn">{t.events.cancelled2}</StatusPill>
                       )}

@@ -452,7 +452,7 @@ export default function Layout({ children }: LayoutProps) {
             <p>{t.footer.copyright}</p>
             <Link
               href="/personvern"
-              className="font-semibold text-copy hover:text-brand hover:underline"
+              className="inline-flex min-h-[44px] items-center font-semibold text-copy hover:text-brand hover:underline"
             >
               {t.footer.privacy}
             </Link>

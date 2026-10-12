@@ -102,7 +102,7 @@ export function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(option.id)}
             aria-pressed={active}
-            className={`inline-flex min-h-[40px] items-center gap-2 rounded-pill px-4 text-small font-semibold transition-colors duration-micro ease-guide ${
+            className={`inline-flex min-h-[44px] items-center gap-2 rounded-pill px-4 text-small font-semibold transition-colors duration-micro ease-guide ${
               active
                 ? "bg-brand text-primary-foreground"
                 : "text-subtle hover:bg-green-50 hover:text-ink"

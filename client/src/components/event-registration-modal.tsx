@@ -23,6 +23,7 @@ import {
   type TurnstileHandle,
 } from "@/components/turnstile-widget";
 import { z } from "zod";
+import { returnFocus } from "@/lib/return-focus";
 
 const formSchema = registrationFormBaseSchema.extend({
   attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(MAX_ATTENDEES_PER_REGISTRATION, `Maksimalt ${MAX_ATTENDEES_PER_REGISTRATION} deltakere`),
@@ -154,16 +155,16 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         .replace("{max}", String(MAX_ATTENDEES_PER_REGISTRATION))
         .replace("{email}", suggestion);
       if (code === "FOOD_CONTRIBUTION_REQUIRED") {
-        form.setError("foodContribution", { type: "manual", message });
+        form.setError("foodContribution", { type: "manual", message }, { shouldFocus: true });
         return;
       }
       if (code === "ATTENDEE_NAMES_REQUIRED") {
-        form.setError("childrenNames", { type: "manual", message });
+        form.setError("childrenNames", { type: "manual", message }, { shouldFocus: true });
         return;
       }
       // A problem with the address belongs under the address field.
       if (code === "EMAIL_REJECTED" || code === "ALREADY_REGISTERED" || (code === "EMAIL_TYPO" && suggestion)) {
-        form.setError("email", { type: "manual", message });
+        form.setError("email", { type: "manual", message }, { shouldFocus: true });
         return;
       }
       toast({
@@ -191,7 +192,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         form.setError("childrenNames", {
           type: "manual",
           message: t.modals.eventRegistration.errors.CHILD_NAMES_REQUIRED,
-        });
+        }, { shouldFocus: true });
         return;
       }
       // Trim the array to only the needed children
@@ -204,7 +205,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         form.setError("childrenNames", {
           type: "manual",
           message: t.modals.eventRegistration.errors.ATTENDEE_NAMES_REQUIRED,
-        });
+        }, { shouldFocus: true });
         return;
       }
       data.childrenNames = JSON.stringify(names);
@@ -217,7 +218,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         form.setError("foodContribution", {
           type: "manual",
           message: t.modals.eventRegistration.errors.FOOD_CONTRIBUTION_REQUIRED,
-        });
+        }, { shouldFocus: true });
         return;
       }
       data.foodContribution = food;
@@ -245,7 +246,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="flex flex-col gap-0 p-0 top-0 left-0 translate-x-0 translate-y-0 w-full max-w-none h-dvh max-h-dvh rounded-none sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:h-auto sm:max-h-[90dvh] sm:rounded-lg">
+      <DialogContent onCloseAutoFocus={returnFocus} className="flex flex-col gap-0 p-0 top-0 left-0 translate-x-0 translate-y-0 w-full max-w-none h-dvh max-h-dvh rounded-none sm:top-[50%] sm:left-[50%] sm:translate-x-[-50%] sm:translate-y-[-50%] sm:max-w-lg sm:h-auto sm:max-h-[90dvh] sm:rounded-lg">
 
         {/* Sticky header */}
         <div className="flex-shrink-0 px-4 pt-4 pb-3 pr-12 border-b border-border sm:px-6 sm:pt-6 sm:pb-4">
@@ -264,7 +265,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         <div className="flex-1 overflow-y-auto overscroll-contain">
           <div className="px-4 pt-3 pb-2 sm:px-6">
             <div className="p-3 bg-sand rounded-lg border border-hairline">
-              <h4 className="font-medium text-ink">{event.title}</h4>
+              <h3 className="font-medium text-ink">{event.title}</h3>
               <p className="text-sm text-subtle">
                 {new Date(event.date).toLocaleDateString(language === 'no' ? 'no-NO' : 'en-US', {
                   day: 'numeric',

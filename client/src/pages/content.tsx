@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { apiRequest } from "@/lib/queryClient";
 import type { FauBoardMember } from "@shared/schema";
+import { returnFocus } from "@/lib/return-focus";
 
 interface BlogPost {
   id?: number;
@@ -288,9 +289,9 @@ export default function Content() {
     <div className="mx-auto max-w-4xl">
       <Card className="p-6">
         <div className="mb-6">
-          <h2 className="text-xl font-semibold text-ink mb-2">
+          <h1 className="text-xl font-semibold text-ink mb-2">
             {t.contentPage.updatesPosts}
-          </h2>
+          </h1>
           <p className="text-sm text-subtle mb-4">
             {language === "no"
               ? "Administrer nyheter, tips og informasjon som vises på nettsiden. Arkiver gamle innlegg for å skjule dem."
@@ -464,9 +465,9 @@ export default function Content() {
                 ) : (
                   <div>
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-ink flex-1 pr-2">
+                      <h2 className="text-lg font-semibold text-ink flex-1 pr-2">
                         {post.title || (t.contentPage.noTitle)}
-                      </h3>
+                      </h2>
 
                       <div className="hidden sm:flex gap-2 flex-shrink-0">
                         <Button onClick={() => startEditingPost(index)} variant="outline" size="sm">
@@ -591,7 +592,7 @@ export default function Content() {
       {/* Shared confirm dialog for deleting from view mode (desktop buttons
           and the mobile action menu both set deleteCandidate). */}
       <AlertDialog open={deleteCandidate !== null} onOpenChange={(open) => { if (!open) setDeleteCandidate(null); }}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={returnFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t.contentPage.deletePost}</AlertDialogTitle>
             <AlertDialogDescription>

@@ -142,6 +142,30 @@ test('every icon-only button has an accessible name', () => {
   assert.deepEqual(unnamed, []);
 });
 
+// Radix returns focus to a dialog's Trigger on close. A dialog opened from
+// state has none, so closing it dropped keyboard focus to <body> (WCAG 2.4.3)
+// until each one passed onCloseAutoFocus={returnFocus}.
+test('every dialog opened from state hands focus back when it closes', () => {
+  assert.match(read('client/src/components/site/editor-dialog.tsx'), /onCloseAutoFocus=\{returnFocus\}/);
+  const missing = [];
+  for (const path of clientSources().filter((file) => file.endsWith('.tsx'))) {
+    const source = read(path);
+    for (const match of source.matchAll(/<(AlertDialog|Dialog|Sheet)\b([^>]*)>/g)) {
+      const [, kind, attributes] = match;
+      if (!/\bopen\b/.test(attributes)) continue;
+      const rest = source.slice(match.index + match[0].length);
+      const content = rest.search(new RegExp(`<(${kind}Content|EditorDialog)\\b`));
+      const trigger = rest.search(new RegExp(`<${kind}Trigger\\b`));
+      if (content < 0 || (trigger >= 0 && trigger < content)) continue;
+      const tag = rest.slice(content, rest.indexOf('>', content));
+      if (!tag.startsWith('<EditorDialog') && !/onCloseAutoFocus=/.test(tag)) {
+        missing.push(`${path}:${source.slice(0, match.index).split('\n').length}`);
+      }
+    }
+  }
+  assert.deepEqual(missing, []);
+});
+
 // createInsertSchema needs Drizzle's table objects at runtime, which put
 // drizzle-orm's pg-core (about 67 kB gzipped) on the signup and contact pages.
 // The forms use client/src/lib/form-schemas.ts; schema.ts gives types only.

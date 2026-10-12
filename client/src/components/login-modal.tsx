@@ -9,6 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { apiErrorText } from "@/lib/queryClient";
 import { FormError } from '@/components/site/form-error';
+import { returnFocus } from '@/lib/return-focus';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -58,7 +59,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={() => { setError(null); onClose(); }}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent onCloseAutoFocus={returnFocus} className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-center text-h3 font-bold tracking-tight text-ink">
             {t.modals.login.title}

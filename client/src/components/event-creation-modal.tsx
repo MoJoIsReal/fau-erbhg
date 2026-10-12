@@ -453,7 +453,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                     <FormLabel>{t.modals.eventCreation.locationLabel}</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger ref={field.ref}>
                           <SelectValue placeholder={t.modals.eventCreation.locationPlaceholder} />
                         </SelectTrigger>
                       </FormControl>

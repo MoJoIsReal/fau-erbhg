@@ -366,6 +366,16 @@
 
   html {
     -webkit-text-size-adjust: 100%;
+    /* The site header is sticky, so anything scrolled into view for focus —
+       Shift+Tab, a failed form submit, an in-page link — would otherwise land
+       underneath it (WCAG 2.4.11). */
+    scroll-padding-top: calc(var(--header-height-mobile) + 1rem);
+  }
+
+  @media (min-width: 1024px) {
+    html {
+      scroll-padding-top: calc(var(--header-height) + 1rem);
+    }
   }
 
   body {

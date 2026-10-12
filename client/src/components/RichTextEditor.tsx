@@ -35,6 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { apiErrorText } from "@/lib/queryClient";
+import { returnFocus } from '@/lib/return-focus';
 
 interface RichTextEditorProps extends Pick<AriaAttributes, 'aria-label' | 'aria-labelledby' | 'aria-describedby' | 'aria-invalid'> {
   id?: string;
@@ -557,7 +558,7 @@ export default function RichTextEditor({ content, onChange, placeholder, id, ref
       />
 
       <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent onCloseAutoFocus={returnFocus} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t.contentPage.addLink}</DialogTitle>
           </DialogHeader>
@@ -592,7 +593,7 @@ export default function RichTextEditor({ content, onChange, placeholder, id, ref
       </Dialog>
 
       <Dialog open={videoDialogOpen} onOpenChange={setVideoDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent onCloseAutoFocus={returnFocus} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t.contentPage.addVideo}</DialogTitle>
           </DialogHeader>

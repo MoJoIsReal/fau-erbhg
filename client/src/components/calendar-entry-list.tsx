@@ -80,7 +80,9 @@ function DayRow({
           <button
             type="button"
             onClick={() => onSelect(entry)}
-            className="inline-flex max-w-full items-baseline gap-2 text-left"
+            // The title is one line of text (~28px); the pseudo-element pads
+            // the hit area to the guide's 44px without moving the row (§15).
+            className="relative inline-flex max-w-full items-baseline gap-2 text-left before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-['']"
           >
             <span
               className={`text-body-lg font-semibold text-ink hover:text-brand hover:underline ${
@@ -182,7 +184,7 @@ export default function CalendarEntryList({
         <button
           type="button"
           onClick={onShowEarlier}
-          className="text-small font-semibold text-subtle underline-offset-4 hover:text-brand hover:underline"
+          className="inline-flex min-h-[44px] items-center text-small font-semibold text-subtle underline-offset-4 hover:text-brand hover:underline"
         >
           {t.calendar.showEarlier}
         </button>
@@ -225,9 +227,9 @@ export default function CalendarEntryList({
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <h3 id={headingId} className="text-h4 font-bold text-ink">
+                  <h2 id={headingId} className="text-h4 font-bold text-ink">
                     {range}
-                  </h3>
+                  </h2>
                   {isNow && <StatusPill tone="now">{t.calendar.thisWeek}</StatusPill>}
                 </div>
 
