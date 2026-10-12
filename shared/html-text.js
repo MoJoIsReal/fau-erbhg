@@ -20,9 +20,44 @@ function stripTags(value) {
   return current;
 }
 
-export function htmlToPlainText(html) {
+// Decode every entity in a single pass. Decoding &amp; first and &lt; after
+// turned "&amp;lt;" — an author writing the literal text "&lt;" — into "<",
+// unescaping it a second time.
+function decodeEntities(value) {
+  return value.replace(/&(nbsp|amp|lt|gt);/gi, (match, name) => NAMED_ENTITIES[name.toLowerCase()] ?? match);
+}
+
+// The inner part stops at the next <a or </a, so an unclosed anchor costs one
+// scan to the next one rather than a scan to the end of the body.
+const ANCHOR = /<a\b[^>]*?\shref\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>([^<]*(?:<(?!\/?a\b)[^<]*)*)<\/a\s*>/gi;
+const LINK_SCHEME = /^(https?:\/\/|mailto:|tel:)/i;
+
+function comparableAddress(value) {
+  return value.replace(LINK_SCHEME, '').replace(/\/$/, '').toLowerCase();
+}
+
+// "Les mer her" means nothing in a calendar app or a plain-text email unless
+// the address comes along, so spell it out after the link text. A link whose
+// text already is the address is left as it is. Both parts stay entity-encoded
+// here; htmlToPlainText decodes them once, with the rest of the body.
+function spellOutLinks(html) {
+  return html.replace(ANCHOR, (match, doubleQuoted, singleQuoted, inner) => {
+    const href = (doubleQuoted ?? singleQuoted).trim();
+    if (!LINK_SCHEME.test(href) || /[\s<>]/.test(href)) return inner;
+
+    const address = /^https?:/i.test(href) ? href : href.replace(LINK_SCHEME, '');
+    const label = decodeEntities(stripTags(inner)).trim();
+    if (!label || comparableAddress(label) === comparableAddress(decodeEntities(address))) return address;
+    return `${inner} (${address})`;
+  });
+}
+
+// `links: true` keeps each link's address, for a destination where the reader
+// has no other way to follow it: the calendar feed and the reminder email.
+export function htmlToPlainText(html, { links = false } = {}) {
   if (!html) return '';
-  const withLineBreaks = String(html)
+  const source = links ? spellOutLinks(String(html)) : String(html);
+  const withLineBreaks = source
     .replace(/<\s*br\s*\/?>/gi, '\n')
     .replace(/<\/\s*p\s*>/gi, '\n\n')
     .replace(/<\/\s*(li|h[1-3])\s*>/gi, '\n')
@@ -30,11 +65,7 @@ export function htmlToPlainText(html) {
     // before stripping the complete tags.
     .replace(/<[^>]*$/, '');
 
-  return stripTags(withLineBreaks)
-    // Decode every entity in a single pass. Decoding &amp; first and &lt;
-    // after turned "&amp;lt;" — an author writing the literal text "&lt;" —
-    // into "<", unescaping it a second time.
-    .replace(/&(nbsp|amp|lt|gt);/gi, (match, name) => NAMED_ENTITIES[name.toLowerCase()] ?? match)
+  return decodeEntities(stripTags(withLineBreaks))
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

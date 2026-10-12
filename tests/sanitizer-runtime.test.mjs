@@ -138,6 +138,22 @@ test('htmlToPlainText decodes each entity exactly once', () => {
   assert.equal(htmlToPlainText('Tekst med &lt;tag&gt;'), 'Tekst med <tag>');
 });
 
+// A calendar app or a plain-text email has no markup to keep a link in, so
+// "Les mer her" arrived there with nothing to open.
+test('htmlToPlainText keeps link addresses only when asked to', () => {
+  const html = '<p><a href="https://example.no/a?x=1&amp;y=2" target="_blank" rel="noopener noreferrer">Les <strong>mer</strong></a></p>';
+  assert.equal(htmlToPlainText(html), 'Les mer');
+  assert.equal(htmlToPlainText(html, { links: true }), 'Les mer (https://example.no/a?x=1&y=2)');
+  // Link text that already is the address is not repeated.
+  assert.equal(htmlToPlainText('<a href="https://example.no/">example.no</a>', { links: true }), 'https://example.no/');
+  assert.equal(htmlToPlainText('<a href="mailto:fau@example.no">fau@example.no</a>', { links: true }), 'fau@example.no');
+  assert.equal(htmlToPlainText('<a href="tel:+4712345678">Ring oss</a>', { links: true }), 'Ring oss (+4712345678)');
+  // An address the sanitizer would not have kept is not spelled out.
+  assert.equal(htmlToPlainText('<a href="javascript:alert(1)">Klikk</a>', { links: true }), 'Klikk');
+  // The address is decoded once, like the rest of the body.
+  assert.equal(htmlToPlainText('<a href="https://example.no/?q=&amp;lt;">Søk</a>', { links: true }), 'Søk (https://example.no/?q=&lt;)');
+});
+
 // A yearly calendar description written in the old plain textarea opens in
 // the rich text editor with its line breaks, and escaped rather than parsed.
 test('plainTextToHtml keeps line breaks of plain text and leaves markup alone', () => {

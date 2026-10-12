@@ -70,7 +70,10 @@ every subscriber's calendar duplicate the entry.** Week-based yearly entries hav
 no date and are deliberately left out. Like the site, the feed drops a
 `day_event` on a day that also has a signup event (the event wins; `closed` and
 `internt` entries stay). Cancelled events stay in the feed with
-`STATUS:CANCELLED` so subscribers see the cancellation.
+`STATUS:CANCELLED` so subscribers see the cancellation. A link in a
+description keeps its address as `text (https://…)` (`htmlToPlainText(…, {
+links: true })`), since a calendar app has no markup to carry it; the
+newsletter reminder email does the same.
 
 A signup event's `time` must be `HH:MM` — that is the only shape
 `toIcsLocalDateTime` can render, and an event it cannot render is dropped from
