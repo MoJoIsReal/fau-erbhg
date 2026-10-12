@@ -70,6 +70,18 @@ test('event HTML description is flattened and the location includes the custom p
   assert.equal(feedLines.includes('LOCATION:Barnehagen (Storsalen)'), true);
 });
 
+test('a link in a description keeps its address in the feed', () => {
+  const description = '<p>Les mer: <a href="https://example.no/rod-dag" target="_blank" rel="noopener noreferrer">Foreldreopprøret</a></p>';
+  const feed = buildCalendarFeed({
+    events: [signupEvent({ description })],
+    entries: [{ id: 7, title: 'Rød dag', entryType: 'day_event', date: '2026-11-11', description }],
+    now: NOW,
+  });
+  const unfolded = feed.replace(/\r\n /g, '');
+
+  assert.equal(unfolded.split('Les mer: Foreldreopprøret (https://example.no/rod-dag)').length - 1, 2);
+});
+
 test('dated yearly entries become all-day events that do not block the day', () => {
   const feed = buildCalendarFeed({
     entries: [{ id: 5, title: 'Planleggingsdag', entryType: 'closed', date: '2026-04-02' }],

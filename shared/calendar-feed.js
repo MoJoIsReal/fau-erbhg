@@ -158,7 +158,7 @@ function eventLink(event, baseUrl) {
 }
 
 function eventDescription(event, baseUrl) {
-  const text = htmlToPlainText(event.description);
+  const text = htmlToPlainText(event.description, { links: true });
   if (!baseUrl) return text;
   const link = eventLink(event, baseUrl);
   return text ? `${text}\n\n${link}` : link;
@@ -222,7 +222,7 @@ function yearlyEntryLines(entry, { dtstamp, baseUrl, language }) {
 
   lines.push(`SUMMARY:${escapeIcsText(summary)}`);
 
-  const description = htmlToPlainText(entry.description);
+  const description = htmlToPlainText(entry.description, { links: true });
   if (description) lines.push(`DESCRIPTION:${escapeIcsText(description)}`);
   if (baseUrl) lines.push(`URL:${baseUrl}${calendarEntryPath(yearlyEntryId(entry.id))}`);
   // A timed entry is a genuine commitment, so leave it as busy. An all-day

@@ -222,7 +222,7 @@ function newsletterEmail(group) {
       : {
         kind: 'reminder',
         title: delivery.title,
-        description: htmlToPlainText(delivery.description),
+        description: htmlToPlainText(delivery.description, { links: true }),
         dateText: formatLongDate(delivery.eventDate, language),
       })
     .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === 'reminder' ? -1 : 1));
