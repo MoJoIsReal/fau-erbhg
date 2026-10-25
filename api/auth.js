@@ -15,13 +15,18 @@ import {
   clearRateLimit,
   identityRateLimitKey,
   rateLimitKey,
+  sendPublicMail,
 } from './_shared/rate-limit.js';
 import { isPasswordChangeRequired, isTemporaryPasswordExpired } from './_shared/password-policy.js';
 import { getJwtConfig, JWT_ALGORITHM, JWT_ISSUER } from './_shared/jwt-config.js';
+import { isEmailConfigured, sendEmail } from './_shared/email.js';
+import { publicBaseUrl } from './_shared/newsletter.js';
+import { reportProviderError } from './_shared/provider-errors.js';
 
-// Consolidates login/logout/current-user/change-password onto one function
-// (?action=csrf|login|logout|change-password, default GET = current user) to
-// stay within the Vercel Hobby serverless-function budget.
+// Consolidates login/logout/current-user/change-password/password reset onto
+// one function (?action=csrf|login|logout|change-password|forgot-password|
+// reset-password, default GET = current user) to stay within the Vercel Hobby
+// serverless-function budget.
 
 const LOGIN_MAX_ATTEMPTS = 5;
 const LOGIN_IP_MAX_ATTEMPTS = 30;
@@ -45,6 +50,23 @@ const DUMMY_PASSWORD_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8b5Fzi/i8rYJO/8qZjU1B
 const DEVICE_COOKIE = 'login-device';
 const DEVICE_AUDIENCE = 'fau-erdal-barnehage-device';
 const DEVICE_MAX_AGE_SECONDS = 180 * 24 * 60 * 60;
+
+// Self-service password reset. The mailed link carries a signed token naming
+// the account and its token_version, which every password change, admin
+// re-issue and logout bumps: the link works once, for an hour, and dies as
+// soon as anything else changes the account's credentials. Nothing is stored.
+const RESET_AUDIENCE = 'fau-erdal-barnehage-password-reset';
+const RESET_MAX_AGE_SECONDS = 60 * 60;
+const RESET_REQUEST_IP_MAX_ATTEMPTS = 5;
+const RESET_REQUEST_ACCOUNT_MAX_ATTEMPTS = 3;
+const RESET_IP_MAX_ATTEMPTS = 10;
+const MIN_PASSWORD_LENGTH = 12;
+
+// Accounts are stored with the address lowercased (sanitizeEmail), so the
+// address typed at login is compared the same way.
+function normalizeUsername(username) {
+  return username.trim().toLowerCase();
+}
 
 // The cookie names the account by a digest, not the address.
 function accountDigest(username) {
@@ -179,14 +201,15 @@ async function handleLogin(req, res, sql) {
     }
   }
 
-  // Get user by username (email)
+  // Get user by username (email). Case and surrounding spaces are not part
+  // of an address: "Ola@Example.no " from a phone keyboard is the same account.
   const users = await sql`
     SELECT id, username, name, role, password, token_version as "tokenVersion",
            must_change_password as "mustChangePassword",
            password_changed_at as "passwordChangedAt",
            temp_password_expires_at as "tempPasswordExpiresAt"
     FROM users
-    WHERE username = ${username}
+    WHERE lower(username) = ${normalizeUsername(username)}
   `;
 
   const user = users[0];
@@ -296,7 +319,7 @@ async function handleChangePassword(req, res, sql, decoded) {
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: 'Current password and new password are required', code: 'REQUIRED_FIELDS' });
   }
-  if (newPassword.length < 12) {
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
     return res.status(400).json({ error: 'New password must be at least 12 characters', code: 'PASSWORD_TOO_SHORT' });
   }
   if (currentPassword === newPassword) {
@@ -381,6 +404,193 @@ async function handleChangePassword(req, res, sql, decoded) {
   });
 }
 
+// The mail with the reset link. Norwegian only, like the account mail.
+function resetMail({ username, name, token }) {
+  return {
+    to: username,
+    subject: 'Nytt passord for FAU Erdal Barnehage',
+    text: [
+      `Hei ${name},`,
+      '',
+      'Noen (forhåpentligvis du) ba om å lage nytt passord til FAU Erdal Barnehage sin nettside.',
+      'Åpne lenken for å velge et nytt passord:',
+      '',
+      // In the fragment, so the token never reaches a server log or a Referer.
+      `${publicBaseUrl()}/nytt-passord#${token}`,
+      '',
+      `Lenken virker i ${RESET_MAX_AGE_SECONDS / 60} minutter og kan brukes én gang. Har du ikke bedt om dette, kan du se bort fra e-posten. Passordet ditt er uendret.`,
+      '',
+      'Vennlig hilsen',
+      'FAU Erdal Barnehage',
+    ].join('\n'),
+  };
+}
+
+// POST /api/auth?action=forgot-password  { username }
+// Always the same answer whether or not the address has an account, so the
+// form tells nobody who sits on the council. Nothing about the account
+// changes until the link is used, so asking cannot lock anyone out.
+async function handleForgotPassword(req, res, sql) {
+  if (!requireCsrf(req, res)) return;
+
+  const username = typeof req.body?.username === 'string' ? normalizeUsername(req.body.username) : '';
+  if (!username) {
+    return res.status(400).json({ error: 'Username required', code: 'REQUIRED_FIELDS' });
+  }
+  if (!isEmailConfigured()) {
+    return res.status(500).json({ error: 'Email is not configured', code: 'EMAIL_NOT_CONFIGURED' });
+  }
+
+  let jwtConfig;
+  try {
+    jwtConfig = getJwtConfig();
+  } catch {
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  // Counted per address whether or not it has an account, so a refusal
+  // says nothing about it either.
+  const limits = await Promise.all([
+    checkRateLimit(sql, {
+      key: rateLimitKey(req, 'password-reset-request-ip', ''),
+      limit: RESET_REQUEST_IP_MAX_ATTEMPTS,
+      windowSeconds: LOGIN_WINDOW_SECONDS
+    }),
+    checkRateLimit(sql, {
+      key: identityRateLimitKey('password-reset-request', username),
+      limit: RESET_REQUEST_ACCOUNT_MAX_ATTEMPTS,
+      windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
+    }),
+  ]);
+  if (limits.some((limit) => !limit.allowed)) {
+    res.setHeader('Retry-After', String(Math.max(...limits.map((limit) => limit.retryAfter))));
+    return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
+  }
+
+  const users = await sql`
+    SELECT id, username, name, token_version as "tokenVersion"
+    FROM users
+    WHERE lower(username) = ${username}
+    LIMIT 1
+  `;
+  const user = users[0];
+  if (user) {
+    const token = jwt.sign({ tv: user.tokenVersion }, jwtConfig.secret, {
+      algorithm: JWT_ALGORITHM,
+      issuer: JWT_ISSUER,
+      audience: RESET_AUDIENCE,
+      subject: String(user.id),
+      expiresIn: RESET_MAX_AGE_SECONDS,
+    });
+    try {
+      // Within the shared daily mail budget, so a caller cycling through the
+      // members' addresses cannot spend the quota the newsletter needs.
+      await sendPublicMail(sql, 'password-reset', () => sendEmail(resetMail({ username: user.username, name: user.name, token })));
+    } catch (error) {
+      // Reported, not answered: a failure only an existing account can
+      // produce would tell the caller the address is a member's.
+      reportProviderError('password-reset.mail', error);
+    }
+  }
+
+  return res.status(200).json({ success: true });
+}
+
+// POST /api/auth?action=reset-password  { token, newPassword }
+async function handleResetPassword(req, res, sql) {
+  if (!requireCsrf(req, res)) return;
+
+  const token = typeof req.body?.token === 'string' ? req.body.token : '';
+  const newPassword = typeof req.body?.newPassword === 'string' ? req.body.newPassword : '';
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required', code: 'REQUIRED_FIELDS' });
+  }
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    return res.status(400).json({ error: 'New password must be at least 12 characters', code: 'PASSWORD_TOO_SHORT' });
+  }
+
+  let jwtConfig;
+  try {
+    jwtConfig = getJwtConfig();
+  } catch {
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+
+  const limit = await checkRateLimit(sql, {
+    key: rateLimitKey(req, 'password-reset-ip', ''),
+    limit: RESET_IP_MAX_ATTEMPTS,
+    windowSeconds: LOGIN_WINDOW_SECONDS
+  });
+  if (!limit.allowed) {
+    res.setHeader('Retry-After', String(limit.retryAfter));
+    return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
+  }
+
+  let claims;
+  try {
+    claims = jwt.verify(token, jwtConfig.secret, {
+      algorithms: [JWT_ALGORITHM],
+      issuer: JWT_ISSUER,
+      audience: RESET_AUDIENCE,
+    });
+  } catch {
+    claims = null;
+  }
+  const userId = typeof claims === 'object' && claims ? Number(claims.sub) : NaN;
+  const tokenVersion = typeof claims === 'object' && claims ? claims.tv : undefined;
+  if (!Number.isSafeInteger(userId) || userId <= 0 || !Number.isSafeInteger(tokenVersion)) {
+    return res.status(400).json({ error: 'Reset link is invalid or expired', code: 'RESET_LINK_INVALID' });
+  }
+
+  // The token_version match makes the link single-use: the first reset bumps
+  // it, and so does any other password change or logout in the meantime.
+  const passwordHash = await bcryptjs.hash(newPassword, 10);
+  const now = new Date().toISOString();
+  const updatedRows = await sql`
+    UPDATE users
+    SET password = ${passwordHash},
+        must_change_password = false,
+        password_changed_at = ${now},
+        temp_password_expires_at = NULL,
+        token_version = token_version + 1
+    WHERE id = ${userId} AND token_version = ${tokenVersion}
+    RETURNING id, username, name, role, token_version as "tokenVersion"
+  `;
+  const updatedUser = updatedRows[0];
+  if (!updatedUser) {
+    return res.status(400).json({ error: 'Reset link is invalid or expired', code: 'RESET_LINK_INVALID' });
+  }
+
+  // Whoever holds the mailbox has proved more than a password would, so any
+  // lock built up by guesses elsewhere is lifted along with the old password.
+  await clearRateLimit(sql, identityRateLimitKey('login-account', updatedUser.username));
+
+  const sessionToken = jwt.sign(
+    {
+      userId: updatedUser.id,
+      username: updatedUser.username,
+      role: updatedUser.role,
+      tokenVersion: updatedUser.tokenVersion,
+    },
+    jwtConfig.secret,
+    jwtConfig.signOptions,
+  );
+  const csrfToken = generateCsrfToken();
+  setAuthCookies(res, sessionToken, csrfToken);
+  setDeviceCookie(res, updatedUser.username, jwtConfig);
+
+  return res.status(200).json({
+    user: {
+      userId: updatedUser.id,
+      username: updatedUser.username,
+      name: updatedUser.name,
+      role: updatedUser.role,
+      passwordChangeRequired: false,
+    },
+    csrfToken,
+  });
+}
+
 // GET /api/auth (default) or ?action=me
 async function handleMe(req, res, sql, decoded) {
   const users = await sql`
@@ -440,6 +650,14 @@ export default withApiHandler(async function handler(req, res) {
     const decoded = await parseAuthToken(req, sql);
     if (!decoded) return res.status(401).json({ error: 'Unauthorized' });
     return handleChangePassword(req, res, sql, decoded);
+  }
+
+  if (action === 'forgot-password') {
+    return handleForgotPassword(req, res, sql);
+  }
+
+  if (action === 'reset-password') {
+    return handleResetPassword(req, res, sql);
   }
 
   return res.status(400).json({ error: 'Invalid action' });

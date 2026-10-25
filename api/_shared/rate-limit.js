@@ -143,7 +143,8 @@ export async function clearRateLimit(sql, key) {
 // link a parent has to their signup. Every other kind shares a smaller pool,
 // so a burst of contact or newsletter submissions can use at most part of
 // the day and never starve confirmations; the receipt to whoever filled in
-// the contact form, the mail that matters least, has the smallest share.
+// the contact form, the mail that matters least, has the smallest share, and
+// password-reset links (only ever to a council member) a small one of their own.
 //
 // A refused mail is logged, never an error for the request: its data is
 // already stored. The first refusal of the day is also reported, so someone
@@ -152,7 +153,7 @@ export const PUBLIC_MAIL_DAILY_LIMIT = 200;
 const PUBLIC_MAIL_WINDOW_SECONDS = 24 * 60 * 60;
 const PRIORITY_MAIL_KINDS = new Set(['registration-confirmation']);
 export const PUBLIC_MAIL_OTHER_DAILY_LIMIT = 100;
-const PUBLIC_MAIL_KIND_LIMITS = { 'contact-acknowledgement': 40 };
+const PUBLIC_MAIL_KIND_LIMITS = { 'contact-acknowledgement': 40, 'password-reset': 30 };
 
 async function takeMailBudget(sql, key, limit) {
   const result = await checkRateLimit(sql, { key, limit, windowSeconds: PUBLIC_MAIL_WINDOW_SECONDS });

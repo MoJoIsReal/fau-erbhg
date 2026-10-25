@@ -91,6 +91,11 @@ bcrypt hash generated using the installed `bcryptjs`, never a plaintext stored
 password. Set `must_change_password=true` for an initial/reset password. Existing
 users change their password through the application's password-change screen
 (`/api/auth?action=change-password`); administrative resets use the user controls.
+A user who has forgotten the password, or whose temporary password expired,
+uses «Glemt passord?» in the login dialog: it mails a one-hour, single-use link
+to `/nytt-passord` (`forgot-password` / `reset-password`), signed with
+`SESSION_SECRET` and tied to the account's `token_version`, so it needs no
+table and dies with any other password change or logout.
 Password changes revoke older sessions through `token_version`.
 
 ## Scheduled mail and retention

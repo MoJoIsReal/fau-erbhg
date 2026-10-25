@@ -68,7 +68,7 @@ handler, which logs the same 500 twice.
 
 **Query-param routing.** The Vercel Hobby plan caps this project at 12
 functions and 10 are used, so several handlers multiplex resources:
-`api/auth.js?action=csrf|login|logout|me|change-password`,
+`api/auth.js?action=csrf|login|logout|me|change-password|forgot-password|reset-password`,
 `api/documents.js?action=download`,
 `api/registrations.js?action=cancel-lookup|cancel|update-food`,
 `api/contact.js?action=newsletter-subscribe|newsletter-confirm|newsletter-unsubscribe`,

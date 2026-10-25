@@ -28,6 +28,7 @@ const Messages = lazy(() => import("@/pages/messages"));
 const Privacy = lazy(() => import("@/pages/privacy"));
 const Newsletter = lazy(() => import("@/pages/newsletter"));
 const RegistrationCancel = lazy(() => import("@/pages/registration-cancel"));
+const ResetPassword = lazy(() => import("@/pages/reset-password"));
 // Private media shares (docs/mediedeling.md). The page parents open, /del,
 // is not a route here: it is its own entry point, client/del.html.
 const MediaShares = lazy(() => import("@/pages/media-shares"));
@@ -174,6 +175,7 @@ function Router() {
           <Route path="/nyhetsbrev" component={Newsletter} />
           <Route path="/newsletter" component={Newsletter} />
           <Route path="/avmelding" component={RegistrationCancel} />
+          <Route path="/nytt-passord" component={ResetPassword} />
           <Route>
             <NotFound />
           </Route>

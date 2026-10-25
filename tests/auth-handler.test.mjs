@@ -1,10 +1,18 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import test, { mock } from 'node:test';
 import bcryptjs from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { call, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
+import nodemailer from 'nodemailer';
+import { call, fields, importHandler, scriptedSql, useDatabase } from './helpers.mjs';
 import { identityRateLimitKey, rateLimitKey } from '../api/_shared/rate-limit.js';
 import { getJwtConfig } from '../api/_shared/jwt-config.js';
+
+// The reset mails are captured.
+const sent = [];
+mock.method(nodemailer, 'createTransport', () => ({
+  close() {},
+  async sendMail(message) { sent.push(message); },
+}));
 
 const handler = await importHandler('api/auth.js');
 
@@ -15,7 +23,7 @@ const CLIENT = { headers: { 'x-real-ip': '203.0.113.20' } };
 
 function accounts(respond = () => []) {
   return (statement, values) => {
-    if (statement.includes('FROM users WHERE username = ?')) {
+    if (statement.includes('FROM users WHERE lower(username) = ?')) {
       return values[0] === USERNAME
         ? [{ id: 2, username: USERNAME, name: 'Member', role: 'member', password: HASH, tokenVersion: 4,
           mustChangePassword: false, passwordChangedAt: new Date().toISOString() }]
@@ -292,7 +300,7 @@ test('guessing the current password through change-password is rate limited', as
 // still gets no session, and the answer says why (only once it matched).
 test('an expired temporary password gets no session', async (t) => {
   const temporary = (tempPasswordExpiresAt) => (statement) => (
-    statement.includes('FROM users WHERE username = ?')
+    statement.includes('FROM users WHERE lower(username) = ?')
       ? [{ id: 2, username: USERNAME, name: 'Member', role: 'member', password: HASH, tokenVersion: 4,
         mustChangePassword: true, passwordChangedAt: null, tempPasswordExpiresAt }]
       : []);
@@ -333,4 +341,116 @@ test('asking for a CSRF token sets it as a readable, strict cookie and returns t
   const [csrf] = cookies(res);
   assert.match(csrf, new RegExp(`^csrf-token=${res.body.csrfToken}; Path=/; Max-Age=7200; SameSite=Strict`));
   assert.doesNotMatch(csrf, /HttpOnly/, 'the client must be able to read it');
+});
+
+// Accounts are stored lowercased; a phone keyboard that capitalises the first
+// letter, or leaves a trailing space, must not turn the right address wrong.
+test('the address at login is matched without regard to case or surrounding spaces', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: accounts() }));
+  const res = await call(t, handler, login({ username: '  Member@Example.TEST ', password: PASSWORD }));
+  assert.equal(res.statusCode, 200);
+  const lookup = sql.calls.find(({ statement }) => statement.includes('FROM users WHERE lower(username) = ?'));
+  assert.equal(lookup.values[0], USERNAME);
+});
+
+const RESET_AUDIENCE = 'fau-erdal-barnehage-password-reset';
+const forgot = (username) => ({ method: 'POST', query: { action: 'forgot-password' }, body: { username } });
+const reset = (body) => ({ method: 'POST', query: { action: 'reset-password' }, body });
+
+function withMail(t) {
+  process.env.GMAIL_USER = 'fau@example.test';
+  process.env.GMAIL_APP_PASSWORD = 'test-only-password';
+  sent.length = 0;
+  t.after(() => { delete process.env.GMAIL_USER; delete process.env.GMAIL_APP_PASSWORD; });
+}
+
+function resetToken({ sub = '2', tv = 4, audience = RESET_AUDIENCE, expiresIn = 3600 } = {}) {
+  const { secret } = getJwtConfig();
+  return jwt.sign({ tv }, secret, { algorithm: 'HS256', issuer: 'fau-erdal-barnehage', audience, subject: sub, expiresIn });
+}
+
+// The answer is the same with or without an account, and asking changes
+// nothing about the account: only the mailbox owner can act on it.
+test('asking for a reset link mails one to an existing account only, and answers the same either way', async (t) => {
+  withMail(t);
+  const unknown = useDatabase(scriptedSql({ respond: accounts() }));
+  const none = await call(t, handler, forgot('nobody@example.test'));
+  assert.deepEqual(none.body, { success: true });
+  assert.equal(sent.length, 0);
+  assert.deepEqual(unknown.writes(), []);
+
+  const known = useDatabase(scriptedSql({ respond: accounts() }));
+  const some = await call(t, handler, forgot(' Member@example.test'));
+  assert.deepEqual([some.statusCode, some.body], [none.statusCode, none.body]);
+  assert.deepEqual(known.writes(), []);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].to, USERNAME);
+  const link = sent[0].text.match(/\/nytt-passord#(\S+)/);
+  assert.ok(link, 'the token travels in the fragment');
+  const claims = jwt.verify(link[1], getJwtConfig().secret, { audience: RESET_AUDIENCE });
+  assert.deepEqual([claims.sub, claims.tv], ['2', 4]);
+  assert.throws(() => jwt.verify(link[1], getJwtConfig().secret, getJwtConfig().verifyOptions), 'never a session token');
+});
+
+test('reset-link requests are limited per address and need the CSRF pair', async (t) => {
+  withMail(t);
+  useDatabase(scriptedSql({ respond: accounts(), rateCount: 4 }));
+  const limited = await call(t, handler, forgot(USERNAME));
+  assert.deepEqual([limited.statusCode, limited.body.code], [429, 'RATE_LIMITED']);
+
+  const sql = useDatabase(scriptedSql({ respond: accounts() }));
+  const res = await call(t, handler, { ...forgot(USERNAME), csrf: false });
+  assert.equal(res.statusCode, 403);
+  assert.deepEqual(sql.calls, []);
+  assert.equal(sent.length, 0);
+});
+
+function resettable(updated = true) {
+  return useDatabase(scriptedSql({
+    respond: (statement) => (statement.startsWith('UPDATE users') && updated
+      ? [{ id: 2, username: USERNAME, name: 'Member', role: 'member', tokenVersion: 5 }]
+      : []),
+  }));
+}
+
+test('a valid reset link sets the new password once and signs the user in', async (t) => {
+  const sql = resettable();
+  const res = await call(t, handler, reset({ token: resetToken(), newPassword: 'a much longer passphrase' }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.user.passwordChangeRequired, false);
+  const [update] = sql.writes();
+  assert.match(update.statement, /must_change_password = false,.*temp_password_expires_at = NULL,.*token_version = token_version \+ 1 WHERE id = \? AND token_version = \?/);
+  const written = fields(update);
+  assert.deepEqual([written.id, written.token_version], [2, 4]);
+  assert.ok(await bcryptjs.compare('a much longer passphrase', written.password));
+  assert.ok(cookies(res).some((cookie) => cookie.startsWith('jwt=')));
+  assert.ok(sql.calls.some(({ statement, values }) => statement.startsWith('DELETE FROM api_rate_limits')
+    && values[0] === identityRateLimitKey('login-account', USERNAME)), 'lifts the account lock');
+});
+
+test('a used, expired, forged or session token resets nothing', async (t) => {
+  const { secret, signOptions } = getJwtConfig();
+  const used = resettable(false);
+  const again = await call(t, handler, reset({ token: resetToken(), newPassword: 'a much longer passphrase' }));
+  assert.deepEqual([again.statusCode, again.body.code], [400, 'RESET_LINK_INVALID']);
+  assert.deepEqual(cookies(again), []);
+  assert.equal(used.writes().length, 1, 'the version check is the UPDATE itself');
+
+  for (const token of [
+    resetToken({ expiresIn: -10 }),
+    resetToken({ audience: 'fau-erdal-barnehage-web' }),
+    jwt.sign({ tv: 4 }, 'x'.repeat(40), { algorithm: 'HS256', issuer: 'fau-erdal-barnehage', audience: RESET_AUDIENCE, subject: '2' }),
+    jwt.sign({ userId: 2, tokenVersion: 4 }, secret, signOptions),
+    'not-a-token',
+  ]) {
+    const sql = resettable();
+    const res = await call(t, handler, reset({ token, newPassword: 'a much longer passphrase' }));
+    assert.deepEqual([res.statusCode, res.body.code], [400, 'RESET_LINK_INVALID']);
+    assert.deepEqual(sql.writes(), []);
+  }
+
+  const sql = resettable();
+  const short = await call(t, handler, reset({ token: resetToken(), newPassword: 'short' }));
+  assert.deepEqual([short.statusCode, short.body.code], [400, 'PASSWORD_TOO_SHORT']);
+  assert.deepEqual(sql.writes(), []);
 });
