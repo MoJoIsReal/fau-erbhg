@@ -410,6 +410,18 @@ export interface Translations {
       deliveryFailedTag: string;
     };
   };
+  // Choosing a new password from the emailed reset link (/nytt-passord)
+  passwordReset: {
+    navTitle: string;
+    title: string;
+    subtitle: string;
+    save: string;
+    saving: string;
+    successTitle: string;
+    successDesc: string;
+    missingTitle: string;
+    missingDesc: string;
+  };
   // Self-service cancellation of an event registration (/avmelding)
   registrationCancel: {
     navTitle: string;
@@ -490,6 +502,13 @@ export interface Translations {
       successDesc: string;
       error: string;
       invalidCredentials: string;
+      forgotLink: string;
+      forgotTitle: string;
+      forgotDescription: string;
+      forgotSend: string;
+      forgotSending: string;
+      forgotSent: string;
+      backToLogin: string;
     };
     passwordChange: {
       title: string;
@@ -1109,7 +1128,8 @@ export const translations: Record<Language, Translations> = {
       NO_REPLY_ADDRESS: "Henvendelsen har ingen adresse å svare til.",
       REPLY_SEND_FAILED: "Svaret kunne ikke sendes. Prøv igjen senere.",
       ENTRY_FIELDS_REQUIRED: "Type, tittel, skoleår, år og måned må fylles ut.",
-      TEMP_PASSWORD_EXPIRED: "Det midlertidige passordet har utløpt. Be en administrator om å sende deg et nytt.",
+      TEMP_PASSWORD_EXPIRED: "Det midlertidige passordet har utløpt. Trykk «Glemt passord?» for å velge et nytt.",
+      RESET_LINK_INVALID: "Lenken er brukt, utløpt eller ugyldig. Be om en ny med «Glemt passord?» når du logger inn.",
       generic: "Noe gikk galt. Prøv igjen.",
     },
     dataState: {
@@ -1524,6 +1544,17 @@ export const translations: Record<Language, Translations> = {
         deliveryFailedTag: "Levering feilet"
       }
     },
+    passwordReset: {
+      navTitle: "Nytt passord",
+      title: "Velg nytt passord",
+      subtitle: "Passordet må ha minst 12 tegn.",
+      save: "Lagre og logg inn",
+      saving: "Lagrer...",
+      successTitle: "Passordet er endret",
+      successDesc: "Du er nå logget inn.",
+      missingTitle: "Lenken mangler",
+      missingDesc: "Åpne lenken fra e-posten på nytt, eller be om en ny med «Glemt passord?» når du logger inn.",
+    },
     registrationCancel: {
       navTitle: "Din påmelding",
       title: "Din påmelding",
@@ -1600,7 +1631,14 @@ export const translations: Record<Language, Translations> = {
         success: "Innlogging vellykket",
         successDesc: "Du er nå logget inn som FAU-medlem",
         error: "Innlogging feilet",
-        invalidCredentials: "Ugyldig brukernavn eller passord"
+        invalidCredentials: "Ugyldig brukernavn eller passord",
+        forgotLink: "Glemt passord?",
+        forgotTitle: "Glemt passord",
+        forgotDescription: "Skriv inn e-postadressen du logger inn med, så sender vi deg en lenke for å velge nytt passord.",
+        forgotSend: "Send lenke",
+        forgotSending: "Sender...",
+        forgotSent: "Hvis adressen hører til en konto, er en lenke på vei. Den virker i en time. Sjekk også søppelpost.",
+        backToLogin: "Tilbake til innlogging"
       },
       passwordChange: {
         title: "Endre passord",
@@ -2228,7 +2266,8 @@ export const translations: Record<Language, Translations> = {
       NO_REPLY_ADDRESS: "This inquiry has no address to reply to.",
       REPLY_SEND_FAILED: "The reply could not be sent. Try again later.",
       ENTRY_FIELDS_REQUIRED: "Type, title, school year, year and month are required.",
-      TEMP_PASSWORD_EXPIRED: "The temporary password has expired. Ask an administrator to send you a new one.",
+      TEMP_PASSWORD_EXPIRED: "The temporary password has expired. Use “Forgot password?” to choose a new one.",
+      RESET_LINK_INVALID: "The link has been used, has expired or is invalid. Ask for a new one with “Forgot password?” when you log in.",
       generic: "Something went wrong. Try again.",
     },
     dataState: {
@@ -2643,6 +2682,17 @@ export const translations: Record<Language, Translations> = {
         deliveryFailedTag: "Delivery failed"
       }
     },
+    passwordReset: {
+      navTitle: "New password",
+      title: "Choose a new password",
+      subtitle: "The password must be at least 12 characters.",
+      save: "Save and log in",
+      saving: "Saving...",
+      successTitle: "Your password is changed",
+      successDesc: "You are now logged in.",
+      missingTitle: "The link is incomplete",
+      missingDesc: "Open the link from the email again, or ask for a new one with “Forgot password?” when you log in.",
+    },
     registrationCancel: {
       navTitle: "Your registration",
       title: "Your registration",
@@ -2719,7 +2769,14 @@ export const translations: Record<Language, Translations> = {
         success: "Login successful",
         successDesc: "You are now logged in as a council member",
         error: "Login failed",
-        invalidCredentials: "Invalid username or password"
+        invalidCredentials: "Invalid username or password",
+        forgotLink: "Forgot password?",
+        forgotTitle: "Forgot password",
+        forgotDescription: "Enter the email address you log in with, and we will send you a link to choose a new password.",
+        forgotSend: "Send link",
+        forgotSending: "Sending...",
+        forgotSent: "If the address belongs to an account, a link is on its way. It works for one hour. Check your spam folder too.",
+        backToLogin: "Back to login"
       },
       passwordChange: {
         title: "Change password",
