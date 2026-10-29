@@ -91,6 +91,15 @@ export function validateSignupForEvent(event, { sanitizedAttendeeCount, sanitize
   if (event.registration_deadline && event.registration_deadline < nowIso) {
     return refuse('DEADLINE_PASSED', 'Påmeldingsfristen har gått ut', 'The registration deadline has passed');
   }
+  return validateSignupAnswers(event, { sanitizedAttendeeCount, sanitizedLanguage }, body);
+}
+
+// The names and the food a signup of this size owes the event. The council's
+// edit of an existing signup answers to the same rules, without the
+// signup-is-open checks above.
+export function validateSignupAnswers(event, { sanitizedAttendeeCount, sanitizedLanguage }, body = {}) {
+  const no = sanitizedLanguage === 'no';
+  const refuse = (code, norwegian, english) => ({ error: { code, message: no ? norwegian : english } });
 
   // A photo booking names every child; any other signup names everyone it
   // brings besides the registrant, who is already `name`. Both lists live in
@@ -636,6 +645,102 @@ export default withApiHandler(async function handler(req, res) {
       attendeeCount: created.attendee_count,
       confirmationEmail: mailQueued,
       ...(mailQueued ? {} : { cancelUrl: registrationCancelUrl(created.cancel_token) }),
+    });
+  }
+
+  // The council changes a signup a parent asked them to change: how many come,
+  // the names of the others and, on a potluck, the food. The answers follow
+  // the signup's own rules, and a larger signup still has to fit the event.
+  // A photo booking is not edited here: its children hold reserved slots.
+  if (req.method === 'PATCH') {
+    const user = await requireRole(req, res, COUNCIL_ROLES, sql);
+    if (!user) return;
+    if (!requireCsrf(req, res)) return;
+
+    const id = sanitizeInteger(req.query.id, 1, MAX_INT_ID);
+    if (id === null) {
+      return res.status(400).json({ error: 'Valid registration ID required' });
+    }
+    const oversizedField = findOversizedField(req.body);
+    if (oversizedField) {
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+    }
+    const attendeeCount = normalizeAttendeeCount(req.body?.attendeeCount);
+    if (attendeeCount === null) {
+      return refuseSignup(res, 400, 'ATTENDEES_OUT_OF_RANGE', `Number of attendees must be from 1 to ${MAX_ATTENDEES_PER_REGISTRATION}`);
+    }
+
+    const found = await sql`
+      SELECT e.type, e.potluck
+      FROM event_registrations r
+      JOIN events e ON e.id = r.event_id
+      WHERE r.id = ${id}
+    `;
+    if (found.length === 0) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    if (found[0].type === 'foto') {
+      return res.status(400).json({ error: 'A photo booking cannot be edited' });
+    }
+    const answers = validateSignupAnswers(found[0], { sanitizedAttendeeCount: attendeeCount, sanitizedLanguage: 'en' }, req.body);
+    if (answers.error) return refuseSignup(res, 400, answers.error.code, answers.error.message);
+    const { sanitizedChildrenNames, sanitizedFoodContribution } = answers.values;
+
+    // One statement, so the seat count moves by exactly the difference. The
+    // event row is locked like a signup's, and only a larger signup is held
+    // to the capacity: a smaller one always fits.
+    const result = await sql`
+      WITH existing AS (
+        SELECT id, event_id, attendee_count
+        FROM event_registrations
+        WHERE id = ${id}
+        FOR UPDATE
+      ), target_event AS (
+        SELECT e.id, e.max_attendees, e.current_attendees
+        FROM events e
+        JOIN existing x ON x.event_id = e.id
+        FOR UPDATE OF e
+      ), capacity_available AS (
+        SELECT EXISTS (
+          SELECT 1 FROM target_event t, existing x
+          WHERE t.max_attendees IS NULL
+             OR ${attendeeCount} <= COALESCE(x.attendee_count, 1)
+             OR COALESCE(t.current_attendees, 0) - COALESCE(x.attendee_count, 1) + ${attendeeCount} <= t.max_attendees
+        ) AS ok
+      ), updated AS (
+        UPDATE event_registrations r
+        SET attendee_count = ${attendeeCount},
+            children_names = ${sanitizedChildrenNames ?? null},
+            food_contribution = ${sanitizedFoodContribution ?? null}
+        FROM existing x
+        WHERE r.id = x.id
+          AND (SELECT ok FROM capacity_available)
+        RETURNING r.id, x.attendee_count AS "previousCount"
+      ), updated_event AS (
+        UPDATE events e
+        SET current_attendees = GREATEST(0, COALESCE(e.current_attendees, 0) - COALESCE(u."previousCount", 1) + ${attendeeCount})
+        FROM updated u, existing x
+        WHERE e.id = x.event_id
+        RETURNING e.id
+      )
+      SELECT
+        (SELECT COUNT(*)::int FROM existing) AS "found",
+        (SELECT ok FROM capacity_available) AS "capacityAvailable",
+        (SELECT GREATEST(0, max_attendees - COALESCE(current_attendees, 0)) FROM target_event) AS "available",
+        (SELECT COUNT(*)::int FROM updated) AS "updated"
+    `;
+    const state = result[0];
+    if (!state?.found) {
+      return res.status(404).json({ error: 'Registration not found' });
+    }
+    if (!state.updated) {
+      return refuseSignup(res, 400, 'EVENT_FULL', 'Event is at capacity', { available: state.available || 0 });
+    }
+    return res.status(200).json({
+      id,
+      attendeeCount,
+      childrenNames: sanitizedChildrenNames ?? null,
+      foodContribution: sanitizedFoodContribution ?? null,
     });
   }
 

@@ -22,6 +22,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Event, EventRegistration, EventRegistrationCancellation } from "@shared/schema";
 import { resolvePhotoSlotsForRegistration } from "@shared/photo-slots";
+import RegistrationEditDialog from "@/components/registration-edit-dialog";
 
 interface EventRegistrationsViewProps {
   event: Event;
@@ -257,6 +258,7 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                     </div>
                     <div className="flex items-center space-x-2 shrink-0">
                       <span className="text-sm text-subtle">#{index + 1}</span>
+                      {!isFotoEvent && <RegistrationEditDialog event={event} registration={registration} />}
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button

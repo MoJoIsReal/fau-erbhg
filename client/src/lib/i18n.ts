@@ -249,6 +249,13 @@ export interface Translations {
     people: string;
     deleteRegistration: string;
     deleteRegistration2: string;
+    editRegistration: string;
+    /** {name} is the registrant's name. */
+    editRegistrationDesc: string;
+    numberOfAttendees: string;
+    saveRegistration: string;
+    registrationUpdated: string;
+    couldNotUpdateRegistration: string;
     childrenTimeSlots: string;
     comment: string;
     foodContribution: string;
@@ -1389,6 +1396,12 @@ export const translations: Record<Language, Translations> = {
       people: "personer",
       deleteRegistration: "Slett påmelding",
       deleteRegistration2: "Slett påmelding?",
+      editRegistration: "Endre påmelding",
+      editRegistrationDesc: "Endre påmeldingen til {name}, for eksempel når deltakeren har bedt om det.",
+      numberOfAttendees: "Antall deltakere",
+      saveRegistration: "Lagre endringer",
+      registrationUpdated: "Påmeldingen er endret",
+      couldNotUpdateRegistration: "Kunne ikke lagre endringene. Prøv igjen.",
       childrenTimeSlots: "Barn og tidspunkt",
       comment: "Kommentar:",
       foodContribution: "Tar med",
@@ -2527,6 +2540,12 @@ export const translations: Record<Language, Translations> = {
       people: "people",
       deleteRegistration: "Delete registration",
       deleteRegistration2: "Delete registration?",
+      editRegistration: "Edit registration",
+      editRegistrationDesc: "Change the registration for {name}, for example when they have asked you to.",
+      numberOfAttendees: "Number of attendees",
+      saveRegistration: "Save changes",
+      registrationUpdated: "Registration updated",
+      couldNotUpdateRegistration: "Could not save the changes. Please try again.",
       childrenTimeSlots: "Children and time slots",
       comment: "Comment:",
       foodContribution: "Bringing",

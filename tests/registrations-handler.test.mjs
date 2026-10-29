@@ -373,3 +373,61 @@ test('a council member removes a signup, and a missing one is a 404', async (t) 
   assert.equal((await call(t, handler, { method: 'DELETE', query: { id: 'x' }, as: 'member' })).statusCode, 400);
   assert.deepEqual(refused.writes(), []);
 });
+
+// A parent asks the council to change their signup (fewer people, other food):
+// the edit answers to the signup's own rules and moves the seat count by the
+// difference in the same statement.
+test('a council member edits a signup by the signup rules', async (t) => {
+  const editDatabase = ({ event = { type: 'arrangement', potluck: true }, outcome = { found: 1, capacityAvailable: true, available: 3, updated: 1 } } = {}) =>
+    useDatabase(scriptedSql({
+      respond(statement) {
+        if (statement.startsWith('SELECT e.type, e.potluck')) return event ? [event] : [];
+        if (statement.startsWith('WITH existing AS')) return [outcome];
+        return [];
+      },
+    }));
+  const edit = (body, id = '5') => ({ method: 'PATCH', query: { id }, body, as: 'member' });
+  const editStatement = (sql) => sql.calls.find(({ statement }) => statement.startsWith('WITH existing AS'));
+
+  let sql = editDatabase();
+  let res = await call(t, handler, edit({ attendeeCount: 1, childrenNames: '["Fredrik"]', foodContribution: '  Vårruller ' }));
+  assert.deepEqual([res.statusCode, res.body], [200, { id: 5, attendeeCount: 1, childrenNames: null, foodContribution: 'Vårruller' }]);
+  assert.ok(editStatement(sql).values.includes('Vårruller'));
+
+  sql = editDatabase();
+  res = await call(t, handler, edit({ attendeeCount: 2, foodContribution: 'Chips' }));
+  assert.deepEqual([res.statusCode, res.body.code], [400, 'ATTENDEE_NAMES_REQUIRED']);
+  assert.equal(editStatement(sql), undefined);
+
+  sql = editDatabase();
+  res = await call(t, handler, edit({ attendeeCount: 1, foodContribution: ' ' }));
+  assert.deepEqual([res.statusCode, res.body.code], [400, 'FOOD_CONTRIBUTION_REQUIRED']);
+  assert.equal(editStatement(sql), undefined);
+
+  for (const attendeeCount of [0, 11, 2.5]) {
+    sql = editDatabase();
+    res = await call(t, handler, edit({ attendeeCount, foodContribution: 'Kake' }));
+    assert.deepEqual([res.statusCode, res.body.code], [400, 'ATTENDEES_OUT_OF_RANGE'], String(attendeeCount));
+    assert.deepEqual(sql.calls.filter(({ statement }) => !statement.startsWith('SELECT username')), []);
+  }
+
+  // Not a potluck: no food is stored, whatever the request carried.
+  sql = editDatabase({ event: { type: 'dugnad', potluck: false } });
+  res = await call(t, handler, edit({ attendeeCount: 1, foodContribution: 'Kake' }));
+  assert.equal(res.body.foodContribution, null);
+
+  sql = editDatabase({ event: { type: 'foto', potluck: false } });
+  assert.equal((await call(t, handler, edit({ attendeeCount: 1 }))).statusCode, 400);
+  assert.equal(editStatement(sql), undefined);
+
+  editDatabase({ event: null });
+  assert.equal((await call(t, handler, edit({ attendeeCount: 1, foodContribution: 'Kake' }))).statusCode, 404);
+
+  editDatabase({ outcome: { found: 1, capacityAvailable: false, available: 0, updated: 0 } });
+  res = await call(t, handler, edit({ attendeeCount: 3, childrenNames: '["A","B"]', foodContribution: 'Kake' }));
+  assert.deepEqual([res.statusCode, res.body.code, res.body.available], [400, 'EVENT_FULL', 0]);
+
+  sql = editDatabase();
+  assert.equal((await call(t, handler, edit({ attendeeCount: 1 }, 'x'))).statusCode, 400);
+  assert.deepEqual(sql.writes(), []);
+});
