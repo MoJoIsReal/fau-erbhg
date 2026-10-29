@@ -77,6 +77,28 @@ test('removing a signup from the council list releases its seats', async () => {
   await sql(`DELETE FROM event_registrations WHERE event_id = ${id}; DELETE FROM events WHERE id = ${id};`);
 });
 
+// A council edit moves the seat count by the difference, and a larger signup
+// still has to fit: the counter stays what the signup statement reads.
+test('editing a signup from the council list moves its seats by the difference', async () => {
+  const id = await event('event', 3);
+  await sql(await signup(id, 'edit@example.test'));
+  const [row] = await sql(`SELECT id FROM event_registrations WHERE event_id = ${id};`);
+  const edit = (attendeeCount, sanitizedChildrenNames = null) => productionStatement(registrationFile, 'WITH existing AS', {
+    id: Number(row.id), attendeeCount, sanitizedChildrenNames, sanitizedFoodContribution: 'Vårruller',
+  });
+  const state = async () => (await sql(`SELECT e.current_attendees AS seats, r.attendee_count AS count, r.food_contribution AS food
+    FROM events e JOIN event_registrations r ON r.event_id = e.id WHERE e.id = ${id};`))[0];
+
+  assert.deepEqual((await sql(await edit(3, '["A","B"]')))[0].updated, '1');
+  assert.deepEqual(await state(), { seats: '3', count: '3', food: 'Vårruller' });
+  const [refused] = await sql(await edit(4, '["A","B","C"]'));
+  assert.deepEqual([refused.updated, refused.capacityAvailable], ['0', 'f']);
+  assert.equal((await state()).seats, '3', 'a refused edit changes nothing');
+  await sql(await edit(1));
+  assert.deepEqual(await state(), { seats: '1', count: '1', food: 'Vårruller' });
+  await sql(`DELETE FROM event_registrations WHERE event_id = ${id}; DELETE FROM events WHERE id = ${id};`);
+});
+
 // Production's registered_at predates migration 0001 and is a `timestamp`
 // column, not the text column the migrations create; the first 0021 failed
 // there (SQLSTATE 42804). Replay that history, run 0021, and roll it back.
