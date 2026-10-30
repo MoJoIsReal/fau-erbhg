@@ -153,6 +153,8 @@ export default function RegistrationCancel() {
     title: copy.navTitle,
     description: copy.subtitle,
     path: "/avmelding",
+    // Only useful from the link in an email; nothing here for a search.
+    noindex: true,
   });
 
   const [state, setState] = useState<State>({ kind: "loading" });

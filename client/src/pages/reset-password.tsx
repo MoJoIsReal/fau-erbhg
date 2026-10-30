@@ -48,6 +48,8 @@ export default function ResetPassword() {
     title: copy.navTitle,
     description: copy.subtitle,
     path: "/nytt-passord",
+    // Only useful from the link in an email; nothing here for a search.
+    noindex: true,
   });
 
   const resetMutation = useMutation({

@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import SafeHtml from "@/components/safe-html";
 import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { usePageMeta } from "@/hooks/usePageMeta";
+import { BASE_URL, usePageMeta } from "@/hooks/usePageMeta";
+import { articleJsonLd, newsPostPath, plainDescription } from "@shared/structured-data";
 import { EmptyState } from "@/components/site/section";
 import { StatusPill } from "@/components/site/controls";
 
@@ -43,11 +44,11 @@ export default function NewsPost() {
 
   usePageMeta({
     title: post?.title ?? t.newsPage.post,
-    description:
-      language === "no"
-        ? "Nyheter og informasjon fra FAU Erdal Barnehage."
-        : "News and information from FAU Erdal Kindergarten.",
-    path: `/nyheter/${params?.id ?? ""}`,
+    description: (post && plainDescription(post.content)) || t.seo.newsPostDescription,
+    path: newsPostPath(params?.id ?? ""),
+    // A post that does not exist (or no longer does) is a soft 404.
+    noindex: !isLoading && !post,
+    jsonLd: post ? articleJsonLd(post, BASE_URL) : null,
   });
 
   if (isLoading) {

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { usePageMeta } from "@/hooks/usePageMeta";
 import { MEDIA_SHARE_ROLES } from "@shared/constants";
 
 // The landing page is part of the main bundle: as a lazy route its code, and
@@ -55,6 +56,9 @@ function PageLoader() {
 // 404: give the reader a way back rather than a dead end.
 function NotFound() {
   const { t } = useLanguage();
+  // The server answers 200 for every route, so this is how a crawler learns
+  // the page does not exist (a "soft 404" otherwise).
+  usePageMeta({ title: t.common.pageNotFound, description: t.common.pageNotFoundBody, noindex: true });
   return (
     <div className="flex min-h-[50vh] w-full items-center justify-center">
       <div className="text-center">

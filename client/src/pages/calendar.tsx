@@ -1,7 +1,10 @@
 import { lazy, Suspense } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import type { Event } from "@shared/schema";
+import { upcomingEventsJsonLd } from "@shared/structured-data";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { usePageMeta } from "@/hooks/usePageMeta";
+import { BASE_URL, usePageMeta } from "@/hooks/usePageMeta";
 
 // Heavy enough to be worth splitting: the month grid, the year strip and the
 // editor modals all hang off it.
@@ -17,15 +20,16 @@ const CalendarViews = lazy(() => import("@/components/calendar-views"));
  * old division reduced to what it always was: two groups of filter chips.
  */
 export default function CalendarPage() {
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
+  // The same key the calendar views read, so this is not a second request.
+  const { data: events } = useQuery<Event[]>({ queryKey: ["/api/events"] });
 
   usePageMeta({
-    title: t.calendar.title,
-    description:
-      language === "no"
-        ? "Samlet kalender for Erdal Barnehage, uke for uke: arrangementer og møter du kan melde deg på, ukens varmmat, temauker og planleggingsdager."
-        : "One calendar for Erdal Kindergarten, week by week: events and meetings you can sign up for, weekly hot meals, theme weeks and planning days.",
+    title: t.seo.calendarTitle,
+    description: t.seo.calendarDescription,
     path: "/kalender",
+    // The events still ahead, so a search can show their date and place.
+    jsonLd: upcomingEventsJsonLd(events, BASE_URL),
   });
 
   return (

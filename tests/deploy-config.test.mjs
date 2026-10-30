@@ -297,7 +297,19 @@ test('the sitemap lists only canonical addresses, and index.html names none', ()
     .map(([, path]) => path);
   assert.ok(sitemapPaths.includes('/kalender'), 'the calendar is the site\'s main page');
   assert.deepEqual(sitemapPaths.filter((path) => !canonicalPaths.has(path)), []);
-  assert.doesNotMatch(read('client/index.html'), /rel="canonical"/);
+  assert.doesNotMatch(read('client/index.html'), /rel="canonical"|property="og:url"/);
+});
+
+// The news sitemap is built from the database. Every link in the chain fails
+// silently: a missing rewrite serves index.html as the sitemap, a missing
+// robots line means nobody asks for it.
+test('the news sitemap is rewritten to the handler that builds it, and robots.txt names it', () => {
+  const index = vercelConfig.rewrites.findIndex((rule) => rule.source === '/sitemap-nyheter.xml');
+  const spa = vercelConfig.rewrites.findIndex((rule) => rule.destination === '/index.html');
+  assert.ok(index >= 0 && index < spa, 'the sitemap rewrite must come before the SPA fallback');
+  assert.equal(vercelConfig.rewrites[index].destination, '/api/secure-settings?resource=blog-posts&format=sitemap');
+  assert.match(read('api/secure-settings.js'), /req\.query\.format === 'sitemap'/);
+  assert.match(read('client/public/robots.txt'), /^Sitemap: https:\/\/www\.erdal-bhg\.no\/sitemap-nyheter\.xml$/m);
 });
 
 test('the admin page may upload straight to R2', () => {

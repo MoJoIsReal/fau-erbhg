@@ -39,6 +39,10 @@
       "destination": "/api/events?format=preview&vis=:vis"
     },
     {
+      "source": "/sitemap-nyheter.xml",
+      "destination": "/api/secure-settings?resource=blog-posts&format=sitemap"
+    },
+    {
       "source": "/del",
       "destination": "/del.html"
     },

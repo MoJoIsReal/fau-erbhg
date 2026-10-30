@@ -591,6 +591,20 @@ export interface Translations {
     copyright: string;
   };
   // Common
+  // <title> and meta description: what a search result shows. Written for
+  // the searches parents make (FAU, Erdal barnehage, Askøy, foreldremøte,
+  // dugnad), not the page heading, which can stay short.
+  seo: {
+    homeTitle: string;
+    homeDescription: string;
+    calendarTitle: string;
+    calendarDescription: string;
+    contactTitle: string;
+    contactDescription: string;
+    filesDescription: string;
+    privacyDescription: string;
+    newsPostDescription: string;
+  };
   common: {
     pageNotFound: string;
     pageNotFoundBody: string;
@@ -1739,6 +1753,17 @@ export const translations: Record<Language, Translations> = {
       privacy: "Personvern",
       copyright: "© 2025 FAU Erdal Barnehage. Alle rettigheter reservert."
     },
+    seo: {
+      homeTitle: "FAU Erdal Barnehage – foreldrenes arbeidsutvalg på Askøy",
+      homeDescription: "FAU er foreldrenes arbeidsutvalg i Erdal barnehage på Askøy. Kalender med arrangementer, foreldremøter og dugnad, nyheter, dokumenter og kontakt.",
+      calendarTitle: "Kalender – arrangementer og møter i Erdal barnehage",
+      calendarDescription: "Samlet kalender for Erdal barnehage på Askøy: arrangementer og foreldremøter du kan melde deg på, dugnad, ukens varmmat, temauker og planleggingsdager.",
+      contactTitle: "Kontakt FAU",
+      contactDescription: "Ta kontakt med FAU Erdal Barnehage. Send en henvendelse, tilbakemelding eller anonym beskjed til foreldrenes arbeidsutvalg.",
+      filesDescription: "Referater fra FAU-møter, vedtekter, budsjett og andre dokumenter fra FAU Erdal Barnehage – til å lese eller laste ned.",
+      privacyDescription: "Slik behandler FAU Erdal Barnehage personopplysninger: hva vi lagrer, hvorfor, lagringstid og dine rettigheter.",
+      newsPostDescription: "Nyheter og informasjon fra FAU Erdal Barnehage.",
+    },
     common: {
       pageNotFound: "Siden finnes ikke",
       pageNotFoundBody: "Lenken kan være utdatert, eller siden kan ha blitt flyttet.",
@@ -2882,6 +2907,17 @@ export const translations: Record<Language, Translations> = {
       meals: "Food and meals in kindergarten",
       privacy: "Privacy",
       copyright: "© 2025 FAU Erdal Kindergarten. All rights reserved."
+    },
+    seo: {
+      homeTitle: "FAU Erdal Barnehage – the parents' committee at Erdal kindergarten, Askøy",
+      homeDescription: "FAU is the parents' committee at Erdal kindergarten in Askøy, Norway. A calendar of events, parent meetings and work days, news, documents and contact.",
+      calendarTitle: "Calendar – events and meetings at Erdal kindergarten",
+      calendarDescription: "One calendar for Erdal kindergarten in Askøy: events and parent meetings you can sign up for, work days, weekly hot meals, theme weeks and planning days.",
+      contactTitle: "Contact FAU",
+      contactDescription: "Get in touch with FAU Erdal Kindergarten. Send a message, feedback or an anonymous note to the parents' committee.",
+      filesDescription: "Minutes from FAU meetings, statutes, budget and other documents from FAU Erdal Kindergarten, to read or download.",
+      privacyDescription: "How FAU Erdal Kindergarten handles personal data: what we store, why, retention and your rights.",
+      newsPostDescription: "News and information from FAU Erdal Kindergarten.",
     },
     common: {
       pageNotFound: "Page not found",
