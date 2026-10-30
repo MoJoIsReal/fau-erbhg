@@ -134,15 +134,12 @@ const content: Record<"no" | "en", PrivacyText> = {
 };
 
 export default function Privacy() {
-  const { language } = useLanguage();
+  const { language, t } = useLanguage();
   const text = content[language];
 
   usePageMeta({
     title: text.title,
-    description:
-      language === "no"
-        ? "Slik behandler FAU Erdal Barnehage personopplysninger: hva vi lagrer, hvorfor, lagringstid og dine rettigheter."
-        : "How FAU Erdal Kindergarten handles personal data: what we store, why, retention and your rights.",
+    description: t.seo.privacyDescription,
     path: "/personvern",
   });
 

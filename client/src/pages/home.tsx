@@ -83,11 +83,8 @@ export default function Home() {
   const { language, t } = useLanguage();
 
   usePageMeta({
-    title: t.home.home,
-    description:
-      language === "no"
-        ? "FAU Erdal Barnehage – foreldrenes arbeidsutvalg. Arrangementer, nyheter, dokumenter og kontakt."
-        : "FAU Erdal Kindergarten – the parents' committee. Events, news, documents and contact.",
+    title: t.seo.homeTitle,
+    description: t.seo.homeDescription,
     path: "/",
   });
 

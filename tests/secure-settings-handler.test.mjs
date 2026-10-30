@@ -177,6 +177,19 @@ test('the homepage asks for its own posts only', async (t) => {
   assert.equal(unfiltered.values.includes(true), false, 'the news page is not filtered');
 });
 
+// /sitemap-nyheter.xml is rewritten here. It lists published posts only, is
+// cached at the edge (the /api no-store rule matches the pre-rewrite path, so
+// it never reaches this response), and is XML, not the JSON list.
+test('the news sitemap lists published posts as XML', async (t) => {
+  const { res, sql } = await read(t, { resource: 'blog-posts', format: 'sitemap' });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.headers['content-type'], /^application\/xml/);
+  assert.match(res.headers['cache-control'], /s-maxage=\d+/);
+  assert.match(res.body, /<loc>https:\/\/www\.erdal-bhg\.no\/nyheter\/4<\/loc>\n {4}<lastmod>2026-09-01<\/lastmod>/);
+  const select = sql.calls.find(({ statement }) => statement.includes('FROM blog_posts'));
+  assert.match(select.statement, /WHERE status = 'published'/);
+});
+
 // SEC-006. Two admins creating the same user at once both passed the lookup;
 // the second INSERT was a unique violation and a 500.
 test('a user created twice at once is a 400 and sends no login mail', async (t) => {

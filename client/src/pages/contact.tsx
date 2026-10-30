@@ -83,11 +83,8 @@ export default function Contact() {
   const { toast } = useToast();
   const { language, t } = useLanguage();
   usePageMeta({
-    title: language === "no" ? "Kontakt" : "Contact",
-    description:
-      language === "no"
-        ? "Ta kontakt med FAU Erdal Barnehage. Send en henvendelse, tilbakemelding eller anonym beskjed."
-        : "Get in touch with FAU Erdal Kindergarten. Send a message, feedback or an anonymous note.",
+    title: t.seo.contactTitle,
+    description: t.seo.contactDescription,
     path: "/contact",
   });
   const [isAnonymous, setIsAnonymous] = useState(false);

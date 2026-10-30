@@ -7,8 +7,9 @@ Allow: /
 Disallow: /del
 Disallow: /admin
 
-# Sitemap location
+# Sitemaps: the pages, and every published news post (built from the database)
 Sitemap: https://www.erdal-bhg.no/sitemap.xml
+Sitemap: https://www.erdal-bhg.no/sitemap-nyheter.xml
 
 # Crawl delay (be nice to servers)
 Crawl-delay: 1

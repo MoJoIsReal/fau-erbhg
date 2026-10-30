@@ -18,6 +18,7 @@ import {
   MAX_INT_ID,
 } from './_shared/middleware.js';
 import { ADMIN_ONLY, COUNCIL_ROLES, ROLES } from '../shared/constants.js';
+import { newsSitemapXml } from '../shared/structured-data.js';
 
 // The DB is snake_case and the API contract is camelCase; AGENTS.md makes one
 // map*(row) per resource the single definition of the wire shape. This handler
@@ -270,9 +271,30 @@ export function blogSearchPattern(value) {
 // Handle Blog Posts operations
 const BLOG_CONTENT_MAX = 50000;
 
+// The news sitemap changes when a post is published or edited, a few times a
+// month, and is read by crawlers only: an hour at the edge costs nothing.
+export const NEWS_SITEMAP_CACHE_CONTROL = 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400';
+
 async function handleBlogPosts(req, res, sql) {
   // GET - Public access to view published blog posts
   if (req.method === 'GET') {
+    // /sitemap-nyheter.xml, rewritten here by vercel.json: every published
+    // post, so a new one is found without waiting for a crawler to reach it
+    // through the news list. Header rules match the pre-rewrite path, so the
+    // /api no-store rule does not apply and the cache header is set here.
+    if (req.query.format === 'sitemap') {
+      const posts = await sql`
+        SELECT id, published_date, updated_at
+        FROM blog_posts
+        WHERE status = 'published'
+        ORDER BY published_date DESC
+        LIMIT 5000
+      `;
+      res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+      res.setHeader('Cache-Control', NEWS_SITEMAP_CACHE_CONTROL);
+      return res.status(200).send(newsSitemapXml(posts.map(mapBlogPost), publicBaseUrl()));
+    }
+
     const { includeArchived, category } = req.query;
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : null;
     const searchPattern = blogSearchPattern(req.query.q);

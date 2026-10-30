@@ -74,10 +74,7 @@ export default function Files() {
 
   usePageMeta({
     title: t.documents.title,
-    description:
-      language === "no"
-        ? "Last ned referater, vedtekter og andre dokumenter fra FAU Erdal Barnehage."
-        : "Download minutes, statutes and other documents from FAU Erdal Kindergarten.",
+    description: t.seo.filesDescription,
     path: "/files",
   });
 
