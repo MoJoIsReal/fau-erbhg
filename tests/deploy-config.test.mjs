@@ -4,7 +4,7 @@
 // broken chunk URL — so the contracts are checked here.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { sanitizeHtml } from '../api/_shared/middleware.js';
 import { YOUTUBE_EMBED_HOST } from '../shared/video-embed.js';
@@ -278,6 +278,26 @@ test('admin pages and API answers carry noindex, and robots.txt keeps crawlers o
   assert.match(robots, /^Disallow: \/del$/m);
   assert.match(robots, /^Disallow: \/admin$/m);
   assert.ok(!read('client/public/sitemap.xml').includes('/del'), 'the sitemap never lists a share');
+});
+
+// Search Console reports a sitemap URL that redirects as "Page with redirect"
+// and one whose canonical names another page as "Alternate page with proper
+// canonical tag" — neither is indexed. So the sitemap lists only addresses a
+// page claims as its own canonical, and index.html, which is served for every
+// route, carries no static canonical that would name the homepage instead.
+test('the sitemap lists only canonical addresses, and index.html names none', () => {
+  const canonicalPaths = new Set();
+  for (const page of readdirSync(new URL('../client/src/pages/', import.meta.url))) {
+    const source = read(`client/src/pages/${page}`);
+    for (const [line] of source.matchAll(/^\s*path:.*$/gm)) {
+      for (const [, path] of line.matchAll(/"(\/[^"]*)"/g)) canonicalPaths.add(path);
+    }
+  }
+  const sitemapPaths = [...read('client/public/sitemap.xml').matchAll(/<loc>https:\/\/www\.erdal-bhg\.no([^<]*)<\/loc>/g)]
+    .map(([, path]) => path);
+  assert.ok(sitemapPaths.includes('/kalender'), 'the calendar is the site\'s main page');
+  assert.deepEqual(sitemapPaths.filter((path) => !canonicalPaths.has(path)), []);
+  assert.doesNotMatch(read('client/index.html'), /rel="canonical"/);
 });
 
 test('the admin page may upload straight to R2', () => {

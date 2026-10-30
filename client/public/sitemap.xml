@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- Only the canonical address of each page: never one the router
+       redirects, and never one whose canonical tag names another. -->
 
   <!-- Primary page -->
   <url>
@@ -11,8 +13,8 @@
 
   <!-- Section hubs -->
   <url>
-    <loc>https://www.erdal-bhg.no/events</loc>
-    <lastmod>2026-07-01</lastmod>
+    <loc>https://www.erdal-bhg.no/kalender</loc>
+    <lastmod>2026-10-30</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
@@ -20,13 +22,6 @@
   <url>
     <loc>https://www.erdal-bhg.no/news</loc>
     <lastmod>2026-06-24</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.8</priority>
-  </url>
-
-  <url>
-    <loc>https://www.erdal-bhg.no/arskalender</loc>
-    <lastmod>2026-07-01</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
