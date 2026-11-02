@@ -1063,6 +1063,8 @@ export interface Translations {
         dateRequired: string;
         dateMismatch: string;
         weekRequired: string;
+        weekNotInYear: string;
+        weekNotInMonth: string;
         weekEndRange: string;
         weekEndAfterStart: string;
       };
@@ -1154,6 +1156,7 @@ export const translations: Record<Language, Translations> = {
       ENTRY_FIELDS_REQUIRED: "Type, tittel, skoleår, år og måned må fylles ut.",
       TEMP_PASSWORD_EXPIRED: "Det midlertidige passordet har utløpt. Trykk «Glemt passord?» for å velge et nytt.",
       RESET_LINK_INVALID: "Lenken er brukt, utløpt eller ugyldig. Be om en ny med «Glemt passord?» når du logger inn.",
+      INVALID_ENTRY_PLACEMENT: "Velg en gyldig dato, måned og uke. Slutt må være etter eller lik start.",
       CONFLICT: "Noen andre har lagret endringer her siden du åpnet den. Det du har skrevet står fortsatt – lagrer du på nytt, erstatter du endringene deres.",
       generic: "Noe gikk galt. Prøv igjen.",
     },
@@ -2226,6 +2229,8 @@ export const translations: Record<Language, Translations> = {
           dateRequired: "Rad {row}: {type} krever dato i format YYYY-MM-DD innenfor barnehageåret {schoolYear}.",
           dateMismatch: "Rad {row}: Dato {date} samsvarer ikke med år/måned.",
           weekRequired: "Rad {row}: {type} krever uke_fra mellom 1 og 53.",
+          weekNotInYear: "Rad {row}: Uke {week} finnes ikke i {year}.",
+          weekNotInMonth: "Rad {row}: Uke {week} ligger ikke i {month}.",
           weekEndRange: "Rad {row}: uke_til må være mellom 1 og 53.",
           weekEndAfterStart: "Rad {row}: uke_til må være høyere enn uke_fra."
         },
@@ -2313,6 +2318,7 @@ export const translations: Record<Language, Translations> = {
       ENTRY_FIELDS_REQUIRED: "Type, title, school year, year and month are required.",
       TEMP_PASSWORD_EXPIRED: "The temporary password has expired. Use “Forgot password?” to choose a new one.",
       RESET_LINK_INVALID: "The link has been used, has expired or is invalid. Ask for a new one with “Forgot password?” when you log in.",
+      INVALID_ENTRY_PLACEMENT: "Choose a valid date, month and week. The end must be on or after the start.",
       CONFLICT: "Someone else has saved changes here since you opened it. What you wrote is still here – saving again replaces their changes.",
       generic: "Something went wrong. Try again.",
     },
@@ -3385,6 +3391,8 @@ export const translations: Record<Language, Translations> = {
           dateRequired: "Row {row}: {type} requires a date in YYYY-MM-DD format within kindergarten year {schoolYear}.",
           dateMismatch: "Row {row}: Date {date} does not match year/month.",
           weekRequired: "Row {row}: {type} requires uke_fra between 1 and 53.",
+          weekNotInYear: "Row {row}: Week {week} does not exist in {year}.",
+          weekNotInMonth: "Row {row}: Week {week} is not in {month}.",
           weekEndRange: "Row {row}: uke_til must be between 1 and 53.",
           weekEndAfterStart: "Row {row}: uke_til must be higher than uke_fra."
         },

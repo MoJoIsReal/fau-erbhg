@@ -259,6 +259,16 @@ function formatValidationError(error: string, language: Language, t: Translation
     });
   }
 
+  const weekNotInYear = /^Uke (\d+) finnes ikke i (\d{4})\.$/.exec(message);
+  if (weekNotInYear) {
+    return validationMessage(t, "weekNotInYear", { ...values, week: weekNotInYear[1], year: weekNotInYear[2] });
+  }
+
+  const weekNotInMonth = /^Uke (\d+) ligger ikke i (\d{4}-\d{2})\.$/.exec(message);
+  if (weekNotInMonth) {
+    return validationMessage(t, "weekNotInMonth", { ...values, week: weekNotInMonth[1], month: weekNotInMonth[2] });
+  }
+
   const weekRequired = /^(.+) krever uke_fra mellom 1 og 53\.$/.exec(message);
   if (weekRequired) {
     return validationMessage(t, "weekRequired", {

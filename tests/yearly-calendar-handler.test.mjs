@@ -132,6 +132,29 @@ test('an update from an older copy of an entry is refused as a conflict', async 
   assert.equal((await call(t, handler, write('PUT', DAY_EVENT, { id: '5' }))).statusCode, 404, 'no version: the old answer');
 });
 
+// DB-005. Placement was only checked in the browser: an impossible date, a
+// week the year lacks or a school year that disagreed with the date was
+// stored, and the calendar could not show the entry.
+test('an entry the calendar cannot place is refused, and its school year follows its date', async (t) => {
+  for (const change of [
+    { date: '2027-02-31' },
+    { entryType: 'week_event', date: undefined, year: 2027, month: 12, weekNumber: 53, schoolYear: 2027 },
+    { entryType: 'week_event', date: undefined, weekNumber: 23, weekdayStart: 3 },
+  ]) {
+    for (const [method, query] of [['POST', {}], ['PUT', { id: '5' }]]) {
+      const sql = useDatabase(scriptedSql());
+      const res = await call(t, handler, write(method, { ...DAY_EVENT, ...change }, query));
+      assert.deepEqual([res.statusCode, res.body.code], [400, 'INVALID_ENTRY_PLACEMENT'], `${method} ${JSON.stringify(change)}`);
+      assert.deepEqual(sql.writes(), []);
+    }
+  }
+
+  const sql = useDatabase(scriptedSql({ respond: () => [stored()] }));
+  await call(t, handler, write('POST', { ...DAY_EVENT, schoolYear: 2030, year: 2030, month: 1 }));
+  const row = fields(sql.writes()[0]);
+  assert.deepEqual([row.school_year, row.year, row.month, row.date], [2026, 2027, 6, '2027-06-04'], 'derived from the date');
+});
+
 test('update and delete need a numeric id and an existing entry', async (t) => {
   for (const [method, body] of [['PUT', DAY_EVENT], ['DELETE', {}]]) {
     const refused = useDatabase(scriptedSql());

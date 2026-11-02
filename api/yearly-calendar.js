@@ -12,6 +12,7 @@ import {
 } from './_shared/middleware.js';
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 import { YEARLY_CALENDAR_CATEGORIES } from '../shared/calendar-entries.js';
+import { resolveYearlyCalendarPlacement } from '../shared/yearly-calendar-placement.js';
 import { htmlToPlainText, plainTextToHtml } from '../shared/html-text.js';
 import {
   buildImportPreview,
@@ -147,6 +148,20 @@ function sanitizeEntryPayload(body) {
 // update used to skip the placement fields, so a PUT without them reached the
 // database and came back as a not-null violation, a 500 rather than a 400.
 const REQUIRED_ENTRY_FIELDS_ERROR = 'entryType, title, schoolYear, year and month are required';
+
+// Where an entry goes is worked out by the editor, and used to be trusted as
+// sent: an impossible date (2027-02-31), a week the year does not have, or a
+// school year that did not match the date was stored, and the calendar could
+// not show it. The same rule the editor uses decides here, and its school
+// year, year, month and week replace what was sent. Returns false when the
+// placement is impossible.
+const INVALID_PLACEMENT_ERROR = 'The date, month, week or weekdays do not make a valid placement';
+function placeEntry(payload) {
+  const placement = resolveYearlyCalendarPlacement(payload);
+  if (!placement) return false;
+  Object.assign(payload, placement);
+  return true;
+}
 
 function hasRequiredEntryFields(payload) {
   return Boolean(payload.entryType && payload.title && payload.schoolYear && payload.year && payload.month);
@@ -447,6 +462,9 @@ export default withApiHandler(async function handler(req, res) {
     if (!hasRequiredEntryFields(payload)) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
     }
+    if (!placeEntry(payload)) {
+      return res.status(400).json({ error: INVALID_PLACEMENT_ERROR, code: 'INVALID_ENTRY_PLACEMENT' });
+    }
     const now = new Date().toISOString();
     const created = await sql`
       INSERT INTO yearly_calendar_entries (
@@ -472,6 +490,9 @@ export default withApiHandler(async function handler(req, res) {
     const payload = sanitizeEntryPayload(req.body || {});
     if (!hasRequiredEntryFields(payload)) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
+    }
+    if (!placeEntry(payload)) {
+      return res.status(400).json({ error: INVALID_PLACEMENT_ERROR, code: 'INVALID_ENTRY_PLACEMENT' });
     }
     const now = new Date().toISOString();
     // The version the editor opened. Every column is rewritten, so without it

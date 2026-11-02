@@ -86,5 +86,6 @@ export const API_ERROR_CODES: readonly [
   'TEMP_PASSWORD_EXPIRED',
   'RESET_LINK_INVALID',
   'CONFLICT',
+  'INVALID_ENTRY_PLACEMENT',
 ];
 export type ApiErrorCode = typeof API_ERROR_CODES[number];

@@ -1,4 +1,5 @@
 import { htmlToPlainText } from './html-text.js';
+import { isoWeekYear, isoWeekYearForRow, mondayOfIsoWeek } from './calendar-entries.js';
 
 export const VALID_YEARLY_CALENDAR_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'closed', 'note'];
 export const VALID_YEARLY_CALENDAR_COLORS = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
@@ -274,9 +275,28 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
     }
   }
 
-  if (entryType === 'week_event' || entryType === 'food' || entryType === 'note') {
+  // A note without a week is a note for the whole month, which the editor
+  // can make and the export writes out; the import used to refuse it back.
+  const wholeMonthNote = entryType === 'note' && weekNumber === null;
+  if ((entryType === 'week_event' || entryType === 'food' || entryType === 'note') && !wholeMonthNote) {
     if (weekNumber === null || weekNumber < 1 || weekNumber > 53) {
       addError(errors, rowNumber, `${entryType} krever uke_fra mellom 1 og 53.`);
+    } else if (year !== null && month !== null && month >= 1 && month <= 12) {
+      // The week has to exist in that year and fall in that month. Week 53 in
+      // a 52-week year, or week 2 under September, used to import as new and
+      // then show nowhere, or in another school year.
+      const weekYear = isoWeekYearForRow(year, month, weekNumber);
+      const monday = mondayOfIsoWeek(weekYear, weekNumber);
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      if (isoWeekYear(monday) !== weekYear) {
+        addError(errors, rowNumber, `Uke ${weekNumber} finnes ikke i ${weekYear}.`);
+      } else if (monday > new Date(year, month, 0) || sunday < new Date(year, month - 1, 1)) {
+        addError(errors, rowNumber, `Uke ${weekNumber} ligger ikke i ${year}-${String(month).padStart(2, '0')}.`);
+      } else if (weekNumberEnd !== null && weekNumberEnd > weekNumber && weekNumberEnd <= 53
+          && isoWeekYear(mondayOfIsoWeek(weekYear, weekNumberEnd)) !== weekYear) {
+        addError(errors, rowNumber, `Uke ${weekNumberEnd} finnes ikke i ${weekYear}.`);
+      }
     }
   }
 
