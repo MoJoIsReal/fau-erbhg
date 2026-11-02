@@ -9,7 +9,7 @@ endring + test i samme PR, og følge valideringsstigen i `CLAUDE.md`
 
 ## P1
 
-## [ ] DB-001 — Excel-reimport skal ikke flate ut rik tekst i beskrivelsen
+## [x] DB-001 — Excel-reimport skal ikke flate ut rik tekst i beskrivelsen
 **Priority:** P1 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Dataintegritet / årskalender
 ### Files
 `api/yearly-calendar.js`, `shared/yearly-calendar-utils.js`, `tests/yearly-calendar-handler.test.mjs`
@@ -28,7 +28,7 @@ Behold eksisterende `description` med mindre forhåndsvisningens `changes` inneh
 ### Dependencies
 Ingen. · **Related:** DB-005
 
-## [ ] DB-002 — Avstem eller sperr arrangementsendringer når påmeldinger finnes
+## [x] DB-002 — Avstem eller sperr arrangementsendringer når påmeldinger finnes
 **Priority:** P1 · **Severity:** Medium · **Confidence:** High · **Effort:** M · **Area:** Dataintegritet / arrangementer
 ### Files
 `api/events.js`, `client/src/components/event-creation-modal.tsx`, `client/src/lib/i18n.ts`, `tests/events-handler.test.mjs`
@@ -47,7 +47,7 @@ Nye tilfeller i `tests/events-handler.test.mjs`; `npm run check`.
 ### Dependencies
 TRACE-001 (ny kode i `API_ERROR_CODES`). · **Related:** DB-009
 
-## [ ] DB-003 — Rydd opp bilder fra redigeringsverktøyet og sperr nedlasting av dem
+## [x] DB-003 — Rydd opp bilder fra redigeringsverktøyet og sperr nedlasting av dem
 **Priority:** P1 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** Dataintegritet / personvern
 ### Files
 `api/documents.js`, `api/secure-settings.js`, `api/upload.js`, `api/cron/event-reminders.js` (eller ny `api/_shared/`-modul), tester
@@ -66,7 +66,7 @@ Hvert bilde i rik tekst blir en `documents`-rad + offentlig Cloudinary-fil (`cat
 ### Dependencies
 Ingen. Kjør en lesespørring i prod for å se omfanget før opprydding.
 
-## [ ] UX-001 — Utløpt sesjon skal ikke kaste utkast
+## [x] UX-001 — Utløpt sesjon skal ikke kaste utkast
 **Priority:** P1 · **Severity:** High · **Confidence:** Confirmed · **Effort:** M · **Area:** UX / auth
 ### Files
 `client/src/App.tsx`, `client/src/lib/queryClient.ts`, `client/src/hooks/useAuth.ts`, `client/src/components/login-modal.tsx`, `client/src/lib/i18n.ts`
