@@ -17,6 +17,8 @@ import {
   validateUploadFile
 } from './_shared/upload-validation.js';
 import { parseCloudinaryDeliveryUrl } from './_shared/cloudinary-url.js';
+import { destroyDocumentAsset } from './_shared/document-assets.js';
+import { reportProviderError } from './_shared/provider-errors.js';
 
 export default withApiHandler(async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -101,6 +103,17 @@ export default withApiHandler(async function handler(req, res) {
     return res.status(400).json({ error: validation.error, code: validation.code });
   }
 
+  // Sanitize text inputs to prevent XSS. Checked before the uploaded asset is,
+  // so the only refusal left after that check is the asset itself.
+  const sanitizedTitle = sanitizeText(title, 1000);
+  const sanitizedDescription = sanitizeText(description, 5000);
+  const sanitizedUploadedBy = sanitizeText(decoded.username, 200);
+
+  // Validate sanitized inputs
+  if (!sanitizedTitle || sanitizedTitle.length < 1) {
+    return res.status(400).json({ error: 'Valid title is required', code: 'TITLE_REQUIRED' });
+  }
+
   const sanitizedFilename = validation.sanitizedFilename;
   const sanitizedPublicId = sanitizeText(publicId, 500);
   const sanitizedFileUrl = sanitizeText(fileUrl, 1000);
@@ -158,6 +171,18 @@ export default withApiHandler(async function handler(req, res) {
     fileExtension: validation.fileExtension,
   });
   if (!providerValidation.ok) {
+    // The browser has already uploaded the file to our folder, and nothing
+    // will ever list or reference it. Delete it, unless a document row
+    // already owns that public ID: a refused request must never remove a file
+    // someone else registered.
+    const owned = await sql`SELECT 1 FROM documents WHERE cloudinary_public_id = ${sanitizedPublicId} LIMIT 1`;
+    if (owned.length === 0) {
+      try {
+        await destroyDocumentAsset({ cloudinary_url: sanitizedFileUrl, cloudinary_public_id: sanitizedPublicId });
+      } catch (error) {
+        reportProviderError('Failed to delete a refused upload', error);
+      }
+    }
     return res.status(400).json({ error: providerValidation.error, code: providerValidation.code });
   }
   const observedFileSize = providerValidation.size;
@@ -167,16 +192,6 @@ export default withApiHandler(async function handler(req, res) {
   const storedFilename = providerValidation.fileExtension === validation.fileExtension
     ? sanitizedFilename
     : withFileExtension(sanitizedFilename, providerValidation.fileExtension);
-
-  // Sanitize text inputs to prevent XSS
-  const sanitizedTitle = sanitizeText(title, 1000);
-  const sanitizedDescription = sanitizeText(description, 5000);
-  const sanitizedUploadedBy = sanitizeText(decoded.username, 200);
-
-  // Validate sanitized inputs
-  if (!sanitizedTitle || sanitizedTitle.length < 1) {
-    return res.status(400).json({ error: 'Valid title is required', code: 'TITLE_REQUIRED' });
-  }
 
   const newDocument = await sql`
     INSERT INTO documents (title, filename, cloudinary_url, cloudinary_public_id, file_size, mime_type, category, description, uploaded_by, uploaded_at)

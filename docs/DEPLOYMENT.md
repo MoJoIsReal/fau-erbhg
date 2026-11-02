@@ -114,6 +114,13 @@ mail delivery is at least once, with possible duplicates after an ambiguous
 provider acceptance. See [subsystems.md](./subsystems.md) for retention windows,
 retry limits, source stamping and ownership invariants.
 
+The morning run also deletes images inserted in the rich-text editor that no
+blog post, event or calendar description refers to any more, once they are
+seven days old (`api/_shared/document-assets.js`): the Cloudinary file first,
+then its `documents` row, at most 50 a run. It is skipped where Cloudinary is
+not configured; a file the provider would not delete stays for the next run and
+is counted as `editorImagesFailed`, which raises the housekeeping alert.
+
 ## Cloudflare Turnstile (public forms)
 
 Turnstile checks that event signups, contact messages and newsletter signups are

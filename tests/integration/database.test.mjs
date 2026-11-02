@@ -421,6 +421,31 @@ test('editor images never push a real document off the public list', async () =>
   await sql("DELETE FROM documents WHERE uploaded_by = 'member@example.test';");
 });
 
+test('the editor-image sweep picks only old images no rich text refers to', async () => {
+  const url = (name) => `https://res.cloudinary.com/test/image/upload/v1/fau-documents/${name}.png`;
+  await sql(`INSERT INTO documents (title, filename, category, uploaded_by, uploaded_at, cloudinary_url, cloudinary_public_id) VALUES
+    ('a', 'a.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('1-unused')}', 'fau-documents/1-unused'),
+    ('b', 'b.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('2-in-post')}', 'fau-documents/2-in-post'),
+    ('c', 'c.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('3-in-event')}', 'fau-documents/3-in-event'),
+    ('d', 'd.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('4-in-calendar')}', 'fau-documents/4-in-calendar'),
+    ('e', 'e.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', 'https://res.cloudinary.com/test/image/upload/v9/fau-documents/5-by-id.png', 'fau-documents/5-by-id'),
+    ('f', 'f.png', 'editor-image', 'sweep@example.test', '2026-10-30T00:00:00.000Z', '${url('6-recent')}', 'fau-documents/6-recent'),
+    ('g', 'g.pdf', 'vedtekter', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('7-document')}', 'fau-documents/7-document');
+  INSERT INTO blog_posts (title, content, published_date, created_at, updated_at)
+    VALUES ('Sweep', '<p><img src="${url('2-in-post')}"></p><p>fau-documents/5-by-id</p>', '2098-01-01', '2026-01-01', '2026-01-01');
+  INSERT INTO yearly_calendar_entries (school_year, year, month, entry_type, date, title, description, created_at, updated_at)
+    VALUES (2091, 2091, 9, 'closed', '2091-09-01', 'Sweep', '<img src="${url('4-in-calendar')}">', '2026-01-01', '2026-01-01');`);
+  const eventId = await event();
+  await sql(`UPDATE events SET description = '<img src="${url('3-in-event')}">' WHERE id = ${eventId};`);
+
+  const sweep = await productionStatement('api/_shared/document-assets.js', 'WITH candidate AS', {
+    cutoff: '2026-10-26T07:00:00.000Z', EDITOR_IMAGES_PER_RUN: 50,
+  });
+  assert.deepEqual((await sql(sweep)).map(row => row.cloudinary_public_id), ['fau-documents/1-unused']);
+  await sql(`DELETE FROM documents WHERE uploaded_by = 'sweep@example.test'; DELETE FROM blog_posts WHERE title = 'Sweep';
+    DELETE FROM yearly_calendar_entries WHERE school_year = 2091; DELETE FROM events WHERE id = ${eventId};`);
+});
+
 test('an event edit cannot break its registrations, and a moved date re-arms their reminders', async () => {
   const id = await event('foto', 10, '2099-11-01');
   const values = (change = {}) => ({

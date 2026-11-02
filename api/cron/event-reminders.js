@@ -29,6 +29,7 @@ import {
 import { cancellationText } from '../_shared/registration-cancel.js';
 import { purgeExpiredShares } from '../_shared/media-share.js';
 import { isR2Configured } from '../_shared/r2.js';
+import { purgeUnusedEditorImages } from '../_shared/document-assets.js';
 
 // Per-batch claim sizes. These are upper bounds on what one claim query takes;
 // the real protection against being killed mid-batch is RUN_BUDGET_MS below,
@@ -822,7 +823,7 @@ export async function purgeMediaShares(sql) {
 }
 
 export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
-  const summary = { reminders: null, newsletter: null, retention: null, media: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null, auditLogDeleted: null };
+  const summary = { reminders: null, newsletter: null, retention: null, media: null, editorImages: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null, auditLogDeleted: null };
   const errors = [];
   const stage = async (name, work) => {
     try {
@@ -835,6 +836,7 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
   try {
     await stage('retention', () => cleanupPrivacyRetention(sql));
     await stage('media', () => purgeMediaShares(sql));
+    await stage('editorImages', () => purgeUnusedEditorImages(sql));
     // Reconcile after retention, including a partially completed purge.
     await stage('attendeeCountsRepaired', () => reconcileEventAttendeeCounts(sql));
     await stage('expiredRateLimitsDeleted', () => cleanupExpiredRateLimits(sql));
@@ -856,9 +858,9 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     // object as "[object Object]". A stage that failed has null here and
     // adds nothing.
     const stagesFailed = errors.map(({ stage: name }) => name);
-    const { reminders, newsletter, retention, media, ...counts } = summary;
+    const { reminders, newsletter, retention, media, editorImages, ...counts } = summary;
     logEvent('error', 'cron.run', {
-      task: 'reminders', targetDate, ...counts, ...retention, ...media, ...reminders,
+      task: 'reminders', targetDate, ...counts, ...retention, ...media, ...editorImages, ...reminders,
       stagesFailed: stagesFailed.join(','),
     });
     throw new AggregateError(errors.map(({ error }) => error), `Morning stage(s) failed: ${stagesFailed.join(', ')}`);
@@ -884,13 +886,14 @@ export function mailProblems(task, summary) {
 }
 
 // Housekeeping that left something behind: an expired share whose private
-// photos could not be deleted from R2, or rows whose date the privacy
+// photos could not be deleted from R2, an unused editor image still public at
+// Cloudinary, or rows whose date the privacy
 // retention could not read and so never deletes. Neither is mail, but both
 // keep personal data past its time, so they are reported the same way.
 export function housekeepingProblems(task, summary) {
   if (task !== 'reminders') return {};
   const problems = {};
-  for (const key of ['mediaPurgeFailed', 'unparseableDates']) {
+  for (const key of ['mediaPurgeFailed', 'editorImagesFailed', 'unparseableDates']) {
     const count = Number(summary?.[key]) || 0;
     if (count > 0) problems[key] = count;
   }
@@ -953,7 +956,7 @@ export default withApiHandler(async function handler(req, res) {
     }
   }
 
-  const { reminders, newsletter, retention, media, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted, auditLogDeleted } =
+  const { reminders, newsletter, retention, media, editorImages, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted, auditLogDeleted } =
     await runMorningTasks(sql, targetDate, sendPooledEmail, deadline);
   // Its own line, under the newsletter's rules: what it still leaves pending
   // is lost tonight, and raises the newsletter's mail alert.
@@ -965,6 +968,7 @@ export default withApiHandler(async function handler(req, res) {
     ...reminders,
     ...retention,
     ...media,
+    ...editorImages,
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,
@@ -979,6 +983,7 @@ export default withApiHandler(async function handler(req, res) {
     newsletter,
     retention,
     media,
+    editorImages,
     attendeeCountsRepaired,
     expiredRateLimitsDeleted,
     deliveryHistoryDeleted,

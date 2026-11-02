@@ -17,6 +17,11 @@ const handler = await importHandler('api/upload.js');
 // The provider boundary: the real client, with only the lookup replaced.
 let resource;
 mock.method(cloudinary.api, 'resource', (...args) => resource(...args));
+const destroyed = [];
+mock.method(cloudinary.uploader, 'destroy', async (publicId, options) => {
+  destroyed.push([publicId, options.resource_type]);
+  return { result: 'ok' };
+});
 
 const post = (body, query = {}) => ({ method: 'POST', body, query, as: 'member' });
 
@@ -87,6 +92,26 @@ test('an asset the provider cannot confirm is refused and nothing is stored', as
     resource = lookup;
     const res = await call(t, handler, post(PDF));
     assert.equal(res.statusCode, 400);
+    assert.deepEqual(sql.writes(), []);
+  }
+});
+
+// The browser uploads before it registers, so a file refused for what it is
+// was left in our folder with no row: public, and impossible to delete.
+test('an asset refused for its type or size is deleted, unless a document already owns it', async (t) => {
+  for (const [lookup, owned, expected] of [
+    [async () => ({ public_id: PDF.publicId, resource_type: 'raw', format: 'exe', bytes: 1000 }), false, [[PDF.publicId, 'raw']]],
+    [async () => ({ public_id: PDF.publicId, resource_type: 'raw', bytes: 11 * 1024 * 1024 }), false, [[PDF.publicId, 'raw']]],
+    [async () => ({ public_id: PDF.publicId, resource_type: 'raw', format: 'exe', bytes: 1000 }), true, []],
+    // Never confirmed as ours: nothing to delete.
+    [async () => { throw new Error('not found'); }, false, []],
+  ]) {
+    destroyed.length = 0;
+    const sql = useDatabase(scriptedSql({ respond: (statement) => (owned && statement.startsWith('SELECT 1 FROM documents') ? [{}] : []) }));
+    resource = lookup;
+    const res = await call(t, handler, post(PDF));
+    assert.equal(res.statusCode, 400);
+    assert.deepEqual(destroyed, expected);
     assert.deepEqual(sql.writes(), []);
   }
 });

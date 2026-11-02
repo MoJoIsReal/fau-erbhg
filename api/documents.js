@@ -1,6 +1,5 @@
 import { getDb } from './_shared/database.js';
-import { configureCloudinary } from './_shared/cloudinary.js';
-import { parseCloudinaryDeliveryUrl } from './_shared/cloudinary-url.js';
+import { destroyDocumentAsset } from './_shared/document-assets.js';
 import {
   withApiHandler,
   requireCsrf,
@@ -16,10 +15,13 @@ async function handleDownload(req, res, sql) {
   const id = requireIntId(req, res);
   if (!id) return;
 
+  // Editor images are shown from the rich text that holds them, never
+  // downloaded by id: a removed one is deleted by the morning run.
   const documents = await sql`
     SELECT id, title, filename, cloudinary_url, mime_type
     FROM documents
     WHERE id = ${id}
+      AND category <> 'editor-image'
   `;
 
   if (documents.length === 0) {
@@ -100,26 +102,7 @@ export default withApiHandler(async function handler(req, res) {
 
     // The verified delivery URL carries the provider type (PDFs can be image
     // resources). Never guess from MIME, or delete an unrelated stored ID.
-    const url = new URL(document.cloudinary_url);
-    const delivery = parseCloudinaryDeliveryUrl(url);
-    if (url.protocol !== 'https:' || url.hostname !== 'res.cloudinary.com'
-        || delivery.cloudName !== process.env.CLOUDINARY_CLOUD_NAME
-        || !['image', 'raw'].includes(delivery.resourceType)
-        || delivery.deliveryType !== 'upload'
-        || !delivery.publicId.startsWith('fau-documents/')
-        || delivery.publicId.split('/').some(part => !part || part === '.' || part === '..')
-        || (document.cloudinary_public_id && document.cloudinary_public_id !== delivery.publicId)) {
-      throw new Error('Invalid stored document delivery identity');
-    }
-
-    const cloudinary = configureCloudinary();
-    const cleanup = await cloudinary.uploader.destroy(delivery.publicId, {
-      resource_type: delivery.resourceType,
-      invalidate: true,
-    });
-    if (!['ok', 'not found'].includes(cleanup?.result)) {
-      throw new Error('Document provider cleanup did not complete');
-    }
+    await destroyDocumentAsset(document);
 
     // Keep the durable reference until cleanup succeeds. Provider failure
     // leaves the document available to retry; a DB failure after cleanup is
