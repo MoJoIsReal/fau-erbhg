@@ -66,7 +66,6 @@ export default function CalendarMonthTools({ month, schoolYear, entries, editor,
           {extraAction}
         </div>
         <p className="text-small text-subtle">{t.calendarWorkspace.downloadHint}</p>
-        {hasDataError && <p role="alert" className="text-small text-destructive">{t.calendar.loadFailed}</p>}
       </div>
 
       {showNotes && notes.length > 0 && (

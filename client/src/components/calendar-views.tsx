@@ -27,6 +27,7 @@ import PageHero from "@/components/site/page-hero";
 import { FilterChip, SegmentedControl } from "@/components/site/controls";
 import { InfoBanner } from "@/components/site/banners";
 import { EmptyState } from "@/components/site/section";
+import { QueryNotice } from "@/components/site/query-notice";
 import { ILLUSTRATION_CALENDAR } from "@/components/site/illustrations";
 import { returnFocus } from "@/lib/return-focus";
 
@@ -113,7 +114,7 @@ export default function CalendarViews() {
   const schoolYear = mode === "month"
     ? getKindergartenSchoolYear(new Date(monthCursor.year, monthCursor.month - 1, 1))
     : thisSchoolYear;
-  const { entries, yearlyEntries, events, exportsReady, hasDataError, isLoading, isError } = useCalendarEntries(schoolYear);
+  const { entries, yearlyEntries, events, exportsReady, hasDataError, queries, isLoading, isError } = useCalendarEntries(schoolYear);
 
   useEffect(() => {
     try {
@@ -308,6 +309,12 @@ export default function CalendarViews() {
 
       {editor.toolbar}
 
+      {/* One source failing still leaves a useful calendar, but it is not the
+          whole calendar: with the events missing, the list used to say
+          "nothing matches these filters" and a parent concluded nothing was
+          planned. Both views say so, with a retry. */}
+      {hasDataError && <QueryNotice queries={queries} />}
+
       {/* In the list view the banner at the bottom sits under every week of
           the year, so the subscribe action is also offered above the
           calendar: on its own here, beside the PDF downloads in month view. */}
@@ -323,7 +330,7 @@ export default function CalendarViews() {
           onShowEarlier={showPast ? null : () => setShowPast(true)}
           onRegister={setSelectedEvent}
           onSelect={openEntry}
-          emptyMessage={activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
+          emptyMessage={hasDataError ? t.calendar.loadFailed : activeCount === 0 ? t.calendar.noTypesSelected : t.calendar.nothingMatches}
         />
         </>
       ) : (
