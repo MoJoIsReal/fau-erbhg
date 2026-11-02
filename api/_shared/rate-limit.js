@@ -35,12 +35,19 @@ export function getClientIp(req) {
 // than refusing every public form.
 let digestKey = null;
 let digestKeyFor = null;
+let fallbackReported = false;
 function rateLimitSecretKey() {
   let secret = '';
   try {
     ({ secret } = getJwtConfig());
-  } catch {
-    // Login refuses the same misconfiguration loudly; see jwt-config.js.
+  } catch (error) {
+    // Sign-in refuses the same misconfiguration with a reported 500. Here the
+    // forms keep working, but on a key anyone can compute, so say so once
+    // per instance.
+    if (!fallbackReported) {
+      fallbackReported = true;
+      reportProviderError('Rate-limit keys fell back to an empty secret', error);
+    }
   }
   if (digestKeyFor !== secret) {
     digestKey = Buffer.from(crypto.hkdfSync('sha256', secret, 'fau-rate-limit', 'rate-limit-v1', 32));

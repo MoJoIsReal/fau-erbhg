@@ -146,12 +146,10 @@ async function handleLogin(req, res, sql) {
     return res.status(400).json({ error: 'Username and password required', code: 'REQUIRED_FIELDS' });
   }
 
-  let jwtConfig;
-  try {
-    jwtConfig = getJwtConfig();
-  } catch {
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
+  // A missing or placeholder SESSION_SECRET throws here, to withApiHandler:
+  // a 500 that is logged and reported, so a bad deploy cannot fail every
+  // sign-in without anyone being told.
+  const jwtConfig = getJwtConfig();
 
   const loginRateLimitKey = rateLimitKey(req, 'login', username);
   const loginIpRateLimitKey = rateLimitKey(req, 'login-ip', '');
@@ -325,12 +323,10 @@ async function handleChangePassword(req, res, sql, decoded) {
   if (currentPassword === newPassword) {
     return res.status(400).json({ error: 'New password must be different from current password', code: 'PASSWORD_UNCHANGED' });
   }
-  let jwtConfig;
-  try {
-    jwtConfig = getJwtConfig();
-  } catch {
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
+  // A missing or placeholder SESSION_SECRET throws here, to withApiHandler:
+  // a 500 that is logged and reported, so a bad deploy cannot fail every
+  // sign-in without anyone being told.
+  const jwtConfig = getJwtConfig();
 
   const rows = await sql`
     SELECT id, username, name, role, password, token_version as "tokenVersion"
@@ -441,12 +437,10 @@ async function handleForgotPassword(req, res, sql) {
     return res.status(500).json({ error: 'Email is not configured', code: 'EMAIL_NOT_CONFIGURED' });
   }
 
-  let jwtConfig;
-  try {
-    jwtConfig = getJwtConfig();
-  } catch {
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
+  // A missing or placeholder SESSION_SECRET throws here, to withApiHandler:
+  // a 500 that is logged and reported, so a bad deploy cannot fail every
+  // sign-in without anyone being told.
+  const jwtConfig = getJwtConfig();
 
   // Counted per address whether or not it has an account, so a refusal
   // says nothing about it either.
@@ -509,12 +503,10 @@ async function handleResetPassword(req, res, sql) {
     return res.status(400).json({ error: 'New password must be at least 12 characters', code: 'PASSWORD_TOO_SHORT' });
   }
 
-  let jwtConfig;
-  try {
-    jwtConfig = getJwtConfig();
-  } catch {
-    return res.status(500).json({ error: 'Server configuration error' });
-  }
+  // A missing or placeholder SESSION_SECRET throws here, to withApiHandler:
+  // a 500 that is logged and reported, so a bad deploy cannot fail every
+  // sign-in without anyone being told.
+  const jwtConfig = getJwtConfig();
 
   const limit = await checkRateLimit(sql, {
     key: rateLimitKey(req, 'password-reset-ip', ''),
