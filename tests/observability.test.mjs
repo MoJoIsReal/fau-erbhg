@@ -281,3 +281,19 @@ test('a provider failure is one structured, redacted line', (t) => {
   assert.equal(line.code, 'EENVELOPE');
   assert.doesNotMatch(JSON.stringify(line), /child@example/);
 });
+
+// OBS-001. The morning cron throws an AggregateError naming its failed stages;
+// its own stack only points at the throw. Each stage's error goes to Sentry
+// with its own stack, the aggregate last.
+test('an aggregate error reports each of its errors with their own stacks', () => {
+  const retention = new Error('retention unavailable');
+  const media = new TypeError('media unavailable');
+  const event = toSentryEvent(new AggregateError([retention, media], 'Morning stage(s) failed: retention, media'));
+  assert.deepEqual(event.exception.values.map(({ type, value }) => [type, value]), [
+    ['Error', 'retention unavailable'],
+    ['TypeError', 'media unavailable'],
+    ['AggregateError', 'Morning stage(s) failed: retention, media'],
+  ]);
+  assert.ok(event.exception.values[0].stacktrace.frames.length > 0);
+  assert.equal(toSentryEvent(new Error('alone')).exception.values.length, 1);
+});

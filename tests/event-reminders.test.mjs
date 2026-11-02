@@ -310,6 +310,9 @@ test('a housekeeping failure is reported without preventing other stages', async
   });
   assert.ok(calls.some(statement => statement.startsWith('DELETE FROM api_rate_limits')));
   assert.ok(calls.some(statement => statement.includes('WITH due AS')));
+  // The failing stage's own stack is logged, not just its message.
+  const stack = errors.mock.calls.find(({ arguments: [first] }) => first === 'cron.stage_failed stack:');
+  assert.match(stack?.arguments[1] ?? '', /^Error: retention unavailable\n\s+at /);
   // A failing run still writes its cron.run line, with the counts of the
   // stages that ran (not "[object Object]") and the ones that did not.
   const run = errors.mock.calls.map(({ arguments: [line] }) => String(line)).find((line) => line.includes('"cron.run"'));

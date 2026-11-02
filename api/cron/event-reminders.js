@@ -17,7 +17,7 @@ import {
 import { htmlToPlainText, truncatePlainText } from '../../shared/html-text.js';
 import { redactSensitiveText } from '../_shared/redact.js';
 import { reportProviderError } from '../_shared/provider-errors.js';
-import { logEvent } from '../_shared/log.js';
+import { getRequestId, logEvent } from '../_shared/log.js';
 import {
   DELIVERY_CONCURRENCY,
   DELIVERY_LEASE_MINUTES,
@@ -819,7 +819,7 @@ export async function purgeMediaShares(sql) {
   return { mediaSharesDeleted: sharesDeleted, mediaFilesDeleted: filesDeleted, mediaPurgeFailed: failed };
 }
 
-export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom()) {
+export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, deadline = deadlineFrom(), context = {}) {
   const summary = { reminders: null, newsletter: null, retention: null, media: null, editorImages: null, attendeeCountsRepaired: null, expiredRateLimitsDeleted: null, deliveryHistoryDeleted: null, auditLogDeleted: null };
   const errors = [];
   const stage = async (name, work) => {
@@ -827,7 +827,10 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
       summary[name] = await work();
     } catch (error) {
       errors.push({ stage: name, error });
-      logEvent('error', 'cron.stage_failed', { stage: name, message: redactSensitiveText(error?.message || String(error)) });
+      logEvent('error', 'cron.stage_failed', { ...context, stage: name, message: redactSensitiveText(error?.message || String(error)) });
+      // On its own line, like the handler's: a stack is multi-line and longer
+      // than a log field. Without it a failed stage could only be reproduced.
+      if (error?.stack) console.error('cron.stage_failed stack:', redactSensitiveText(error.stack));
     }
   };
   try {
@@ -857,7 +860,7 @@ export async function runMorningTasks(sql, targetDate, send = sendPooledEmail, d
     const stagesFailed = errors.map(({ stage: name }) => name);
     const { reminders, newsletter, retention, media, editorImages, ...counts } = summary;
     logEvent('error', 'cron.run', {
-      task: 'reminders', targetDate, ...counts, ...retention, ...media, ...editorImages, ...reminders,
+      ...context, task: 'reminders', targetDate, ...counts, ...retention, ...media, ...editorImages, ...reminders,
       stagesFailed: stagesFailed.join(','),
     });
     throw new AggregateError(errors.map(({ error }) => error), `Morning stage(s) failed: ${stagesFailed.join(', ')}`);
@@ -902,7 +905,7 @@ export function housekeepingProblems(task, summary) {
 // failing for a fortnight is visible instead of silent. A run that left mail
 // unsent logs at warn and raises one error-tracker event under a fixed title,
 // which is what the alert in docs/DEPLOYMENT.md listens for.
-export function logCronRun(task, targetDate, summary) {
+export function logCronRun(task, targetDate, summary, context = {}) {
   const problems = mailProblems(task, summary);
   const troubled = Object.keys(problems).length > 0;
   const leftovers = housekeepingProblems(task, summary);
@@ -911,7 +914,7 @@ export function logCronRun(task, targetDate, summary) {
   // run's date as a phone number; every field here is a count, the task or
   // that date. Warn goes to stderr, as logEvent does it.
   const line = {
-    level: troubled || untidy ? 'warn' : 'info', event: 'cron.run', task, targetDate, ...summary,
+    level: troubled || untidy ? 'warn' : 'info', event: 'cron.run', ...context, task, targetDate, ...summary,
     mailProblems: troubled,
     ...(untidy ? { housekeepingProblems: true } : {}),
   };
@@ -938,7 +941,10 @@ export default withApiHandler(async function handler(req, res) {
   const targetDate = req.query.date || tomorrowInOslo();
   const deadline = deadlineFrom();
 
-  const logRun = (task, summary) => logCronRun(task, targetDate, summary);
+  // Every line about this run carries the request id Vercel gave it.
+  const requestId = getRequestId(req);
+  const context = requestId ? { requestId } : {};
+  const logRun = (task, summary) => logCronRun(task, targetDate, summary, context);
 
   // The evening run (21:00 Oslo / 19:00 UTC) only broadcasts the newsletter
   // for the next day's flagged events. Registration reminders + GDPR cleanup
@@ -954,12 +960,12 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   const { reminders, newsletter, retention, media, editorImages, attendeeCountsRepaired, expiredRateLimitsDeleted, deliveryHistoryDeleted, auditLogDeleted } =
-    await runMorningTasks(sql, targetDate, sendPooledEmail, deadline);
+    await runMorningTasks(sql, targetDate, sendPooledEmail, deadline, context);
   // Its own line, under the newsletter's rules: what it still leaves pending
   // is lost tonight, and raises the newsletter's mail alert.
   // (Unconfigured mail already fails the reminders stage loudly.)
   if (newsletter && (newsletter.processed || newsletter.remaining || newsletter.reason === 'budget-exhausted')) {
-    logCronRun('newsletter', previousDay(targetDate), { ...newsletter, followUp: true });
+    logCronRun('newsletter', previousDay(targetDate), { ...newsletter, followUp: true }, context);
   }
   logRun('reminders', {
     ...reminders,

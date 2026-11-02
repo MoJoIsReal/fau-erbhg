@@ -39,6 +39,22 @@ function sentryTags(context = {}) {
   return tags;
 }
 
+function exceptionValue(error) {
+  return {
+    type: error?.name || 'Error',
+    value: redactSensitiveText(error?.message || String(error)),
+    stacktrace: error?.stack
+      ? {
+          frames: redactSensitiveText(error.stack)
+            .split('\n')
+            .slice(1, 30)
+            .map((line) => ({ function: line.trim() }))
+            .reverse(),
+        }
+      : undefined,
+  };
+}
+
 export function toSentryEvent(error, context) {
   const now = new Date().toISOString();
   return {
@@ -51,21 +67,13 @@ export function toSentryEvent(error, context) {
     // The deploy, so an event can be tied to the commit that shipped it.
     release: process.env.VERCEL_GIT_COMMIT_SHA || undefined,
     tags: sentryTags(context),
+    // An AggregateError (the morning cron's failed stages) carries the errors
+    // that matter in `.errors`; its own stack only points at the throw. Each
+    // goes in as its own exception, the aggregate last as Sentry expects.
     exception: {
       values: [
-        {
-          type: error?.name || 'Error',
-          value: redactSensitiveText(error?.message || String(error)),
-          stacktrace: error?.stack
-            ? {
-                frames: redactSensitiveText(error.stack)
-                  .split('\n')
-                  .slice(1, 30)
-                  .map((line) => ({ function: line.trim() }))
-                  .reverse(),
-              }
-            : undefined,
-        },
+        ...(Array.isArray(error?.errors) ? error.errors.slice(0, 10).map(exceptionValue) : []),
+        exceptionValue(error),
       ],
     },
   };
