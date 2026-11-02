@@ -13,12 +13,12 @@ export function getJwtConfig(env = process.env) {
 
   return {
     secret,
-    signOptions: {
+    signOptions: /** @type {import('jsonwebtoken').SignOptions} */ ({
       algorithm: JWT_ALGORITHM,
       issuer: JWT_ISSUER,
       audience: JWT_AUDIENCE,
       expiresIn: '2h',
-    },
+    }),
     verifyOptions: {
       algorithms: /** @type {import('jsonwebtoken').Algorithm[]} */ ([JWT_ALGORITHM]),
       issuer: JWT_ISSUER,
