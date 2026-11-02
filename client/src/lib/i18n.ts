@@ -498,6 +498,7 @@ export interface Translations {
   modals: {
     login: {
       title: string;
+      sessionExpired: string;
       email: string;
       password: string;
       cancel: string;
@@ -1650,6 +1651,7 @@ export const translations: Record<Language, Translations> = {
     modals: {
       login: {
         title: "Logg inn som FAU-medlem",
+        sessionExpired: "Økten din er utløpt. Logg inn igjen for å fortsette – siden og det du har skrevet blir stående, men er ikke lagret ennå.",
         email: "E-post",
         password: "Passord", 
         cancel: "Avbryt",
@@ -2807,6 +2809,7 @@ export const translations: Record<Language, Translations> = {
     modals: {
       login: {
         title: "Log in as council member",
+        sessionExpired: "Your session has expired. Log in again to carry on – this page and what you have written stay, but are not saved yet.",
         email: "Email",
         password: "Password",
         cancel: "Cancel",
