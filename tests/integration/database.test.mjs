@@ -421,6 +421,38 @@ test('editor images never push a real document off the public list', async () =>
   await sql("DELETE FROM documents WHERE uploaded_by = 'member@example.test';");
 });
 
+test('an event edit cannot break its registrations, and a moved date re-arms their reminders', async () => {
+  const id = await event('foto', 10, '2099-11-01');
+  const values = (change = {}) => ({
+    title: 'Fotografering', description: '', date: '2099-11-01', time: '12:00', location: 'Test', customLocation: null,
+    maxAttendees: 10, registrationDeadline: null, type: 'foto', vigiloSignup: false, noSignup: false,
+    notifyNewsletter: false, potluck: false, ...change,
+  });
+  const edit = async (change) => sql(await productionStatement('api/events.js', 'WITH previous AS', { eventId: id, values: values(change) }));
+
+  // Nobody registered yet: anything may change.
+  assert.equal((await edit({ time: '10:00' })).length, 1);
+  await sql(`INSERT INTO event_registrations (event_id, name, email, photo_slots, reminder_sent_at, reminder_attempts)
+    VALUES (${id}, 'Booked', 'booked@example.test', '["10:00"]', '2099-10-31T07:00:00.000Z', 1);`);
+
+  assert.deepEqual(await edit({ time: '11:00' }), [], 'a booked photo session keeps its start');
+  assert.deepEqual(await edit({ type: 'event' }), [], 'and stays a photo session');
+  const [kept] = await sql(`SELECT time, type FROM events WHERE id = ${id};`);
+  assert.deepEqual(kept, { time: '10:00', type: 'foto' });
+
+  const [moved] = await edit({ time: '10:00', date: '2099-11-08', title: 'Ny dag' });
+  assert.equal(moved.title, 'Ny dag');
+  assert.equal(Number(moved.derived_attendees), 1);
+  assert.deepEqual(await sql(`SELECT reminder_sent_at IS NULL AS unsent, reminder_attempts FROM event_registrations WHERE event_id = ${id};`),
+    [{ unsent: 't', reminder_attempts: '0' }]);
+
+  // A same-day edit leaves a sent reminder alone.
+  await sql(`UPDATE event_registrations SET reminder_sent_at = 'sent' WHERE event_id = ${id};`);
+  await edit({ time: '10:00', date: '2099-11-08', title: 'Samme dag' });
+  assert.deepEqual(await sql(`SELECT reminder_sent_at FROM event_registrations WHERE event_id = ${id};`), [{ reminder_sent_at: 'sent' }]);
+  await sql(`DELETE FROM event_registrations WHERE event_id = ${id}; DELETE FROM events WHERE id = ${id};`);
+});
+
 test('a reminder that has failed three times is not claimed again', async () => {
   const id = await event('event', 10, '2099-12-01');
   await sql(`INSERT INTO event_registrations (event_id, name, email, reminder_attempts) VALUES

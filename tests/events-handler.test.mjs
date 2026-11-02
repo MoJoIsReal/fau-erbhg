@@ -170,7 +170,23 @@ test('an update needs a numeric id and an existing event', async (t) => {
   const res = await call(t, handler, write('PUT', VALID, { id: '7' }));
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.currentAttendees, 12);
-  assert.equal(sql.writes()[0].values.at(-1), 7);
+  assert.equal(sql.writes()[0].values[0], 7);
+});
+
+// A photo booking holds clock times counted from the event's start, and the
+// type decides whether a registration is a photo booking at all. Changing
+// either under existing registrations left children booked before the new
+// start, or turned ordinary signups into bookings PATCH then refused.
+test('an update that would break existing registrations is refused, and a moved date re-arms the reminder', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('SELECT id FROM events') ? [{ id: 7 }] : []) }));
+  const res = await call(t, handler, write('PUT', { ...VALID, type: 'foto' }, { id: '7' }));
+  assert.equal(res.statusCode, 409);
+  assert.equal(res.body.code, 'EVENT_HAS_REGISTRATIONS');
+
+  const [update] = sql.writes();
+  assert.match(update.statement, /NOT EXISTS \(SELECT 1 FROM event_registrations r WHERE r\.event_id = events\.id\)/);
+  assert.match(update.statement, /\(events\.type = 'foto'\) = \(\? = 'foto'\) AND \(events\.type <> 'foto' OR events\.time = \?\)/);
+  assert.match(update.statement, /UPDATE event_registrations r SET reminder_sent_at = NULL, reminder_claimed_at = NULL, reminder_attempts = 0 FROM updated u WHERE r\.event_id = u\.id AND u\.date IS DISTINCT FROM u\.previous_date/);
 });
 
 test('cancelling keeps the event and its registrations, flagged as cancelled', async (t) => {

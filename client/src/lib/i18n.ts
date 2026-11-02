@@ -534,6 +534,7 @@ export interface Translations {
 
     eventCreation: {
       title: string;
+      registrationsLockHint: string;
       titleLabel: string;
       titlePlaceholder: string;
       descriptionLabel: string;
@@ -1139,6 +1140,7 @@ export const translations: Record<Language, Translations> = {
       INVALID_MAX_ATTENDEES: "Maks antall deltakere må være et heltall, eller tomt for ingen grense.",
       INVALID_REGISTRATION_DEADLINE: "Påmeldingsfristen er ikke gyldig.",
       INVALID_EVENT_TYPE: "Ugyldig type arrangement.",
+      EVENT_HAS_REGISTRATIONS: "Arrangementet har påmeldinger. Type (foto eller ikke) og starttid for fotografering kan ikke endres mens noen er påmeldt, fordi de påmeldte har fått tidspunkter. Avlys og opprett et nytt arrangement, eller fjern påmeldingene først.",
       TITLE_REQUIRED: "Tittel må fylles ut.",
       UPLOAD_TYPE_NOT_ALLOWED: "Denne filtypen er ikke tillatt.",
       UPLOAD_TOO_LARGE: "Filen er større enn 10 MB.",
@@ -1684,6 +1686,7 @@ export const translations: Record<Language, Translations> = {
 
       eventCreation: {
         title: "Opprett nytt arrangement",
+        registrationsLockHint: "Arrangementet har påmeldinger. Type (foto eller ikke) og starttid for fotografering kan ikke endres mens noen er påmeldt.",
         titleLabel: "Tittel",
         titlePlaceholder: "Navn på arrangementet",
         descriptionLabel: "Beskrivelse",
@@ -2294,6 +2297,7 @@ export const translations: Record<Language, Translations> = {
       INVALID_MAX_ATTENDEES: "Max attendees must be a whole number, or empty for no limit.",
       INVALID_REGISTRATION_DEADLINE: "The registration deadline is not valid.",
       INVALID_EVENT_TYPE: "Invalid event type.",
+      EVENT_HAS_REGISTRATIONS: "This event has registrations. Its type (photo or not) and a photo session's start time cannot change while people are signed up, because they have been given times. Cancel it and create a new event, or remove the registrations first.",
       TITLE_REQUIRED: "A title is required.",
       UPLOAD_TYPE_NOT_ALLOWED: "This file type is not allowed.",
       UPLOAD_TOO_LARGE: "The file is larger than 10 MB.",
@@ -2839,6 +2843,7 @@ export const translations: Record<Language, Translations> = {
 
       eventCreation: {
         title: "Create new event",
+        registrationsLockHint: "This event has registrations. Its type (photo or not) and a photo session's start time cannot change while people are signed up.",
         titleLabel: "Title",
         titlePlaceholder: "Event name",
         descriptionLabel: "Description",

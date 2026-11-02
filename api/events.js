@@ -369,31 +369,67 @@ export default withApiHandler(async function handler(req, res) {
     const { error, values } = validateEventBody(req.body);
     if (error) return res.status(400).json(error);
 
+    // Registrations depend on the event they were made for. A photo booking
+    // holds clock times counted from the event's start, and a type change
+    // turns ordinary signups into photo bookings (or back), which neither the
+    // stored slots nor the PATCH rules survive. So once anyone is registered,
+    // a change of photo/non-photo type, or of a photo event's start time, is
+    // refused rather than leaving booked children with slots that no longer
+    // exist. The guard sits in the UPDATE itself, behind the same row lock a
+    // signup takes. Moving the date sends a new reminder for the new day.
     const updated = await sql`
-      UPDATE events
-      SET title = ${values.title},
-          description = ${values.description},
-          date = ${values.date},
-          time = ${values.time},
-          location = ${values.location},
-          custom_location = ${values.customLocation},
-          max_attendees = ${values.maxAttendees},
-          registration_deadline = ${values.registrationDeadline},
-          type = ${values.type},
-          vigilo_signup = ${values.vigiloSignup},
-          no_signup = ${values.noSignup},
-          notify_newsletter = ${values.notifyNewsletter},
-          potluck = ${values.potluck}
-      WHERE id = ${eventId}
-      RETURNING *, (
+      WITH previous AS (
+        SELECT id, date AS previous_date FROM events WHERE id = ${eventId}
+      ), updated AS (
+        UPDATE events
+        SET title = ${values.title},
+            description = ${values.description},
+            date = ${values.date},
+            time = ${values.time},
+            location = ${values.location},
+            custom_location = ${values.customLocation},
+            max_attendees = ${values.maxAttendees},
+            registration_deadline = ${values.registrationDeadline},
+            type = ${values.type},
+            vigilo_signup = ${values.vigiloSignup},
+            no_signup = ${values.noSignup},
+            notify_newsletter = ${values.notifyNewsletter},
+            potluck = ${values.potluck}
+        FROM previous
+        WHERE events.id = previous.id
+          AND (
+            NOT EXISTS (SELECT 1 FROM event_registrations r WHERE r.event_id = events.id)
+            OR (
+              (events.type = 'foto') = (${values.type} = 'foto')
+              AND (events.type <> 'foto' OR events.time = ${values.time})
+            )
+          )
+        RETURNING events.*, previous.previous_date
+      ), rescheduled AS (
+        UPDATE event_registrations r
+        SET reminder_sent_at = NULL, reminder_claimed_at = NULL, reminder_attempts = 0
+        FROM updated u
+        WHERE r.event_id = u.id
+          AND u.date IS DISTINCT FROM u.previous_date
+        RETURNING r.id
+      )
+      SELECT updated.*, (
         SELECT COALESCE(SUM(r.attendee_count), 0)::int
         FROM event_registrations r
-        WHERE r.event_id = events.id
+        WHERE r.event_id = updated.id
       ) AS derived_attendees
+      FROM updated
     `;
 
     if (updated.length === 0) {
-      return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
+      const existing = await sql`SELECT id FROM events WHERE id = ${eventId}`;
+      if (existing.length === 0) {
+        return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
+      }
+      return res.status(409).json({
+        error: 'The event has registrations, so its type and photo time cannot change',
+        code: 'EVENT_HAS_REGISTRATIONS',
+      });
     }
 
     return res.status(200).json(mapEvent(updated[0]));
