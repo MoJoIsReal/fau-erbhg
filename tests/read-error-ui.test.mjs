@@ -14,6 +14,7 @@ const { render, copy, ApiError } = await importBundle({ stdin: { resolveDir: pro
   import Home from './client/src/pages/home';
   import Messages from './client/src/pages/messages';
   import Admin from './client/src/pages/admin';
+  import Content from './client/src/pages/content';
   import NewsPost from './client/src/pages/news-post';
   import Attendees from './client/src/components/event-registrations-view';
   import { translations } from './client/src/lib/i18n';
@@ -22,19 +23,19 @@ const { render, copy, ApiError } = await importBundle({ stdin: { resolveDir: pro
   export function render(name, status, data, overrides = {}) {
     const client = new QueryClient({defaultOptions:{queries:{queryFn:async()=>{throw new Error('unexpected fetch in static rendering')},retry:false, retryOnMount:false, staleTime:Infinity, gcTime:Infinity}}});
     const year = new Date().getFullYear() - (new Date().getMonth() < 7 ? 1 : 0);
-    for (const url of ['/api/registrations?eventId=1&view=council', '/api/registrations?eventId=1&cancelled=1', '/api/events', '/api/yearly-calendar?fromSchoolYear='+year+'&toSchoolYear='+(year+1), '/api/documents', '/api/secure-settings?resource=contact-messages', '/api/secure-settings?resource=blog-posts&homepage=true&limit=3', '/api/secure-settings?resource=blog-posts&includeArchived=true', '/api/secure-settings?resource=blog-posts&id=42', '/api/secure-settings?resource=kindergarten-info']) {
+    for (const url of ['/api/registrations?eventId=1&view=council', '/api/registrations?eventId=1&cancelled=1', '/api/events', '/api/yearly-calendar?fromSchoolYear='+year+'&toSchoolYear='+(year+1), '/api/documents', '/api/secure-settings?resource=contact-messages', '/api/secure-settings?resource=blog-posts&homepage=true&limit=3', '/api/secure-settings?resource=blog-posts&includeArchived=true', '/api/secure-settings?resource=blog-posts&id=42', '/api/secure-settings?resource=kindergarten-info', '/api/secure-settings?resource=board-members']) {
       const q = client.getQueryCache().build(client, {queryKey:[url]});
       q.setState({status, error:status==='error'?new Error('fixture failure'):null, data: data ?? (status==='success'?[]:undefined), dataUpdatedAt: data ? Date.now() : 0});
       if (overrides[url]) q.setState(overrides[url]);
     }
     client.setQueryData(['/api/auth'], {userId:1, name:'Test', role:'admin'});
-    const Page = {home:Home, messages:Messages, admin:Admin, article:NewsPost, attendees:()=> <Attendees event={{id:1,title:'Test',type:'other'}}/>}[name];
+    const Page = {home:Home, messages:Messages, admin:Admin, content:Content, article:NewsPost, attendees:()=> <Attendees event={{id:1,title:'Test',type:'other'}}/>}[name];
     return renderToStaticMarkup(<Router ssrPath='/nyheter/42'><QueryClientProvider client={client}><LanguageProvider><Page/></LanguageProvider></QueryClientProvider></Router>);
   }
 ` }, platform: 'node', jsx: 'automatic',
   plugins: [{ name: 'asset-paths', setup(build) { build.onLoad({ filter: /\.(webp|png|jpg|svg)$/ }, args => ({ contents: 'export default ' + JSON.stringify(args.path), loader: 'js' })); } }], define: { 'import.meta.env.DEV': 'false' } });
 
-for (const page of ['home', 'messages', 'admin', 'article', 'attendees']) {
+for (const page of ['home', 'messages', 'admin', 'content', 'article', 'attendees']) {
   test(`${page}: failed reads expose retry rather than successful absence`, () => {
     const html = render(page, 'error');
     assert.match(html, /Prøv igjen/);
@@ -51,6 +52,13 @@ test('attendees: a non-list answer renders instead of throwing', () => {
     '/api/registrations?eventId=1&view=council': { status: 'success', error: null, data: { count: 3 }, dataUpdatedAt: Date.now() },
   });
   assert.ok(html.includes(copy.events.noRegistrationsYet));
+});
+
+// A failed read of the content editor's list used to say "No posts yet", and a
+// member who believed the posts were gone wrote them again.
+test('content: a failed list is not shown as no posts', () => {
+  assert.ok(!render('content', 'error').includes('Ingen innlegg ennå'));
+  assert.ok(render('content', 'success').includes('Ingen innlegg ennå'));
 });
 
 test('successful empty article and inbox retain their real empty states', () => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Archive, Home, Loader2, Mail, MoreVertical, Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import { apiRequest } from "@/lib/queryClient";
+import { QueryNotice } from "@/components/site/query-notice";
 import type { FauBoardMember } from "@shared/schema";
 import { returnFocus } from "@/lib/return-focus";
 
@@ -76,9 +77,10 @@ export default function Content() {
     queryKey: ["/api/secure-settings?resource=board-members"],
   });
 
-  const { data: blogPosts, isLoading } = useQuery<BlogPost[]>({
+  const blogPostsQuery = useQuery<BlogPost[]>({
     queryKey: ["/api/secure-settings?resource=blog-posts&includeArchived=true"],
   });
+  const { data: blogPosts, isLoading } = blogPostsQuery;
 
   useEffect(() => {
     if (blogPosts) {
@@ -156,7 +158,7 @@ export default function Content() {
     setPostDraft(null);
   };
 
-  const savePost = async (index: number) => {
+  const savePostNow = async (index: number) => {
     const post = postDraft ?? posts[index];
     if (!post.title || !post.content) {
       toast({
@@ -192,7 +194,7 @@ export default function Content() {
     }
   };
 
-  const archivePost = async (index: number) => {
+  const archivePostNow = async (index: number) => {
     const post = posts[index];
     if (!post.id) return;
 
@@ -222,7 +224,7 @@ export default function Content() {
     }
   };
 
-  const toggleHomepage = async (index: number) => {
+  const toggleHomepageNow = async (index: number) => {
     const post = posts[index];
     if (!post.id) return;
 
@@ -252,7 +254,7 @@ export default function Content() {
     }
   };
 
-  const deletePost = async (index: number) => {
+  const deletePostNow = async (index: number) => {
     const post = posts[index];
     if (post.id) {
       try {
@@ -277,10 +279,41 @@ export default function Content() {
     setDeleteCandidate(null);
   };
 
+  // One change at a time. Save used to stay clickable while its request was
+  // out, and the draft stays "new" until the list reloads, so a double click
+  // created the post twice (and, flagged for the newsletter, sent it twice).
+  const [busy, setBusy] = useState(false);
+  const busyRef = useRef(false);
+  const runExclusive = async (work: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      await work();
+    } finally {
+      busyRef.current = false;
+      setBusy(false);
+    }
+  };
+  const savePost = (index: number) => runExclusive(() => savePostNow(index));
+  const archivePost = (index: number) => runExclusive(() => archivePostNow(index));
+  const toggleHomepage = (index: number) => runExclusive(() => toggleHomepageNow(index));
+  const deletePost = (index: number) => runExclusive(() => deletePostNow(index));
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // A failed read used to fall through to "No posts yet", and a member who
+  // believed the posts were gone wrote them again.
+  if (blogPostsQuery.isError && !blogPosts) {
+    return (
+      <div className="mx-auto max-w-4xl">
+        <QueryNotice queries={[blogPostsQuery]} />
       </div>
     );
   }
@@ -426,7 +459,7 @@ export default function Content() {
                     </div>
 
                     <div className="flex gap-2">
-                      <Button onClick={() => savePost(index)} size="sm">
+                      <Button onClick={() => savePost(index)} size="sm" disabled={busy}>
                         <Save className="h-4 w-4 mr-2" />
                         {t.contentPage.save}
                       </Button>
@@ -474,7 +507,7 @@ export default function Content() {
                           {t.contentPage.edit}
                         </Button>
                         {post.id && post.status === "published" && (
-                          <Button onClick={() => toggleHomepage(index)} variant="outline" size="sm">
+                          <Button onClick={() => toggleHomepage(index)} variant="outline" size="sm" disabled={busy}>
                             <Home className="h-4 w-4 mr-2" />
                             {post.showOnHomepage
                               ? t.contentPage.removeFromHome
@@ -482,7 +515,7 @@ export default function Content() {
                           </Button>
                         )}
                         {post.id && (
-                          <Button onClick={() => archivePost(index)} variant="outline" size="sm">
+                          <Button onClick={() => archivePost(index)} variant="outline" size="sm" disabled={busy}>
                             <Archive className="h-4 w-4 mr-2" />
                             {post.status === "archived"
                               ? t.contentPage.publish
@@ -514,7 +547,7 @@ export default function Content() {
                               {t.contentPage.edit}
                             </DropdownMenuItem>
                             {post.id && post.status === "published" && (
-                              <DropdownMenuItem onClick={() => toggleHomepage(index)}>
+                              <DropdownMenuItem onClick={() => toggleHomepage(index)} disabled={busy}>
                                 <Home className="h-4 w-4 mr-2" />
                                 {post.showOnHomepage
                                   ? t.contentPage.removeFromHome
@@ -522,7 +555,7 @@ export default function Content() {
                               </DropdownMenuItem>
                             )}
                             {post.id && (
-                              <DropdownMenuItem onClick={() => archivePost(index)}>
+                              <DropdownMenuItem onClick={() => archivePost(index)} disabled={busy}>
                                 <Archive className="h-4 w-4 mr-2" />
                                 {post.status === "archived"
                                   ? t.contentPage.publish
