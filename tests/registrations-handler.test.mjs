@@ -369,9 +369,15 @@ test('the council sees the list, everyone else sees only the count', async (t) =
   const database = () => useDatabase(scriptedSql({
     respond: (statement) => (statement.includes('SUM(attendee_count)') ? [{ count: 2 }] : statement.startsWith('SELECT id, event_id') ? [row] : []),
   }));
-  database();
+  const sql = database();
   const council = await call(t, handler, { query: { eventId: '7', view: 'council' }, as: 'member' });
   assert.deepEqual([council.statusCode, council.body], [200, [row]]);
+  // The cancel token only ever travels in the parent's own mail: the list the
+  // council reads never selects it. (The signup's own answer is an allow-list,
+  // pinned above.)
+  const councilRead = sql.calls.find(({ statement }) => statement.startsWith('SELECT id, event_id'));
+  assert.ok(councilRead, 'the council list was read');
+  assert.doesNotMatch(councilRead.statement, /cancel_token/);
 
   for (const as of [null, 'staff']) {
     database();

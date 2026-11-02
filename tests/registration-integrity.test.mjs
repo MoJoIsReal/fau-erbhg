@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { sliceBetween } from './helpers.mjs';
 import { isRegistrationForeignKeyConflict } from '../api/events.js';
 import { isPhotoSlotConflict } from '../api/registrations.js';
 
@@ -29,10 +30,7 @@ test('only the registration foreign key maps an event-delete race to registratio
 
 test('registration creation reserves normalized slots in the atomic CTE', () => {
   const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
-  const registrationCte = source.slice(
-    source.indexOf('WITH target_event AS'),
-    source.indexOf('const registrationState'),
-  );
+  const registrationCte = sliceBetween(source, 'WITH target_event AS', 'const registrationState');
   assert.match(registrationCte, /INSERT INTO photo_event_slots/);
   assert.match(registrationCte, /jsonb_array_elements_text/);
   assert.match(registrationCte, /reservedSlotCount/);
@@ -41,10 +39,7 @@ test('registration creation reserves normalized slots in the atomic CTE', () => 
 
 test('registration deletion and attendee adjustment share one statement', () => {
   const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
-  const deletion = source.slice(
-    source.indexOf('WITH deleted AS'),
-    source.indexOf("return res.status(200).json({ success: true });", source.indexOf('WITH deleted AS')),
-  );
+  const deletion = sliceBetween(source, 'WITH deleted AS', "return res.status(200).json({ success: true });");
   assert.match(deletion, /DELETE FROM event_registrations/);
   assert.match(deletion, /updated_event AS/);
   assert.match(deletion, /UPDATE events e/);

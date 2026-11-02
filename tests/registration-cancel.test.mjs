@@ -9,6 +9,7 @@ import {
   registrationCancelUrl,
 } from '../api/_shared/registration-cancel.js';
 import { handleCancel } from '../api/registrations.js';
+import { sliceBetween } from './helpers.mjs';
 import { registrationReminderEmail } from '../api/cron/event-reminders.js';
 import { mockResponse } from './helpers.mjs';
 
@@ -156,17 +157,6 @@ test('cancelling twice, or after the event, is a 404', async () => {
   assert.equal(res.statusCode, 404);
 });
 
-test('the council list never selects the cancel token', () => {
-  const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
-  const councilList = source.slice(
-    source.indexOf('if (isCouncilMember)'),
-    source.indexOf('Public access - return aggregate only'),
-  );
-  assert.doesNotMatch(councilList, /cancel_token/);
-  // The signup's own answer is an allow-list, pinned by behaviour in
-  // registrations-handler.test.mjs.
-});
-
 test('migration generates, backfills and uniquely indexes the token', () => {
   const migration = readFileSync(
     new URL('../migrations/0015_registration_cancel_token.sql', import.meta.url),
@@ -180,13 +170,12 @@ test('migration generates, backfills and uniquely indexes the token', () => {
 
 test('only the self-service cancel records a cancellation, not the council delete', () => {
   const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
-  const councilDelete = source.slice(source.indexOf("if (req.method === 'DELETE')"));
-  assert.doesNotMatch(councilDelete.slice(0, councilDelete.indexOf('Method not allowed')), /event_registration_cancellations/);
+  assert.doesNotMatch(sliceBetween(source, "if (req.method === 'DELETE')", 'Method not allowed'), /event_registration_cancellations/);
 });
 
 test('the cancellation list is council-only and hides people who signed up again', () => {
   const source = readFileSync(new URL('../api/registrations.js', import.meta.url), 'utf8');
-  const list = source.slice(source.indexOf("req.query.cancelled === '1'"), source.indexOf('if (isCouncilMember) {'));
+  const list = sliceBetween(source, "req.query.cancelled === '1'", 'if (isCouncilMember) {');
   assert.match(list, /requireRole\(req, res, COUNCIL_ROLES, sql\)/);
   assert.match(list, /NOT EXISTS[\s\S]*lower\(r\.email\) = lower\(c\.email\)/);
 });

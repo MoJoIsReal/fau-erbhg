@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
+import { sliceBetween } from './helpers.mjs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -32,10 +33,7 @@ test('no SQL comment contains a backtick', () => {
 // duplicate signup permanently consumed a seat.
 test('the registration statement updates the event row once, gated on an insert, under a lock', () => {
   const source = read('api/registrations.js');
-  const start = source.indexOf('WITH target_event AS');
-  const end = source.indexOf('AS registration', start);
-  assert.ok(start !== -1 && end !== -1, 'Locate the registration CTE');
-  const statement = source.slice(start, end);
+  const statement = sliceBetween(source, 'WITH target_event AS', 'AS registration');
 
   assert.equal((statement.match(/UPDATE\s+events\b/g) ?? []).length, 1);
   assert.doesNotMatch(statement, /rollback_capacity/);

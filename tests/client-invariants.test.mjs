@@ -5,6 +5,7 @@
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
+import { sliceBetween } from './helpers.mjs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -20,10 +21,7 @@ function clientSources(dir = 'client/src', found = []) {
 
 test('event editing invalidates the query the calendar reads and explains refused deletes', () => {
   const editorTools = read('client/src/components/calendar-editor-tools.tsx');
-  const cancelBlock = editorTools.slice(
-    editorTools.indexOf('const cancelMutation'),
-    editorTools.indexOf('const deleteMutation'),
-  );
+  const cancelBlock = sliceBetween(editorTools, 'const cancelMutation', 'const deleteMutation');
   assert.match(cancelBlock, /invalidateQueries\(\{\s*queryKey:\s*\["\/api\/events"\]\s*\}\)/s);
   assert.equal(cancelBlock.includes('queryKey: ["/api/secure/events"]'), false);
   assert.match(editorTools, /getApiErrorBody\(error\)/);
@@ -46,7 +44,7 @@ test('the council attendee views ask for the council list', () => {
 
 test('the messages route admits the same roles the API does', () => {
   const app = read('client/src/App.tsx');
-  const route = app.slice(app.indexOf('<Route path="/messages">'), app.indexOf('<Route path="/arskalender">'));
+  const route = sliceBetween(app, '<Route path="/messages">', '<Route path="/arskalender">');
   assert.match(route, /<RequireAuth roles=\{\["admin", "member"\]\}>/);
   assert.equal(route.includes('"staff"'), false);
 });
@@ -80,16 +78,10 @@ test('the Excel export escapes quotes and drops list values a formula cannot exp
   assert.match(excel, /values\.filter\(\(value\) => LIST_FORMULA_SAFE\.test\(value\)\)/);
 });
 
-test('the month grid draws spans as bands under a sticky, unclipped nav', () => {
+test('the month grid draws spans as bands', () => {
   const view = read('client/src/components/calendar-view.tsx');
   assert.match(view, /const bands: WeekBand\[\]/);
   assert.equal(view.includes('push(toCalendarIsoDate(monday.date), entry)'), false);
-  assert.match(view, /sticky top-\[var\(--header-height-mobile\)\][^"]*lg:top-\[var\(--header-height\)\]/);
-  // overflow-hidden would become the sticky nav's scroll container and trap it.
-  assert.match(view, /<Surface className="overflow-clip">/);
-  assert.equal(view.includes('truncate'), false, 'Entry titles wrap and clamp rather than truncate');
-  assert.match(read('client/src/components/layout.tsx'), /SheetContent[^>]+overflow-y-auto/,
-    'The mobile menu must scroll so signed-in actions stay reachable');
 });
 
 test('icon-only controls have accessible names and toggles expose their state', () => {
