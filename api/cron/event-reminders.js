@@ -27,6 +27,7 @@ import {
   sendWithDeadline,
 } from '../_shared/delivery.js';
 import { cancellationText } from '../_shared/registration-cancel.js';
+import { eventDate } from '../_shared/registration-emails.js';
 import { purgeExpiredShares } from '../_shared/media-share.js';
 import { isR2Configured } from '../_shared/r2.js';
 import { purgeUnusedEditorImages } from '../_shared/document-assets.js';
@@ -133,13 +134,7 @@ function photoSlotText(registration, isNorwegian) {
 
 export function registrationReminderEmail(registration) {
   const isNorwegian = registration.language !== 'en';
-  const locale = isNorwegian ? 'no-NO' : 'en-US';
-  const date = new Date(registration.eventDate).toLocaleDateString(locale, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
+  const date = formatLongDate(registration.eventDate, registration.language);
   const location = registration.customLocation
     ? `${registration.location} (${registration.customLocation})`
     : registration.location;
@@ -197,9 +192,11 @@ FAU Erdal Barnehage
 // full post rather than the whole article.
 const NEWS_EXCERPT_LENGTH = 600;
 
+// In Oslo, whatever zone the function runs in, and in the same words as the
+// confirmation mail. `new Date(date)` in the runtime's zone named the day
+// before anywhere west of UTC.
 function formatLongDate(dateStr, language) {
-  const locale = language === 'en' ? 'en-US' : 'no-NO';
-  return new Date(dateStr).toLocaleDateString(locale, {
+  return eventDate(dateStr, language === 'en' ? 'en' : 'no', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

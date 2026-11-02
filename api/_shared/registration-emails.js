@@ -15,8 +15,9 @@ import { cancellationText } from './registration-cancel.js';
 
 // An event date is 'YYYY-MM-DD'. Read as noon UTC and written in Oslo time, it
 // names the same day wherever the function runs; `new Date(date)` with the
-// runtime's own zone was a day early anywhere west of UTC.
-function eventDate(date, language, options) {
+// runtime's own zone was a day early anywhere west of UTC. Every mail that
+// names an event's day goes through here, so they all read the same.
+export function eventDate(date, language, options) {
   const parsed = new Date(`${String(date).slice(0, 10)}T12:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return String(date ?? '');
   return parsed.toLocaleDateString(language === 'en' ? 'en-GB' : 'nb-NO', { timeZone: 'Europe/Oslo', ...options });

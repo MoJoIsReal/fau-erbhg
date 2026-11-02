@@ -11,7 +11,7 @@ import {
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
-import { getKindergartenSchoolYear } from '../shared/yearly-calendar-utils.js';
+import { osloToday } from './_shared/registration-cancel.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import {
   LINK_PREVIEW_CACHE_CONTROL,
@@ -306,7 +306,11 @@ export function isRegistrationForeignKeyConflict(error) {
 // adjacent years too). The month view can be paged further back; it then asks
 // for `?from=` the start of that school year's previous year.
 export function eventListStart(value, now = new Date()) {
-  if (value === undefined || value === '') return `${getKindergartenSchoolYear(now) - 1}-08-01`;
+  if (value === undefined || value === '') {
+    // The school year of today in Oslo, not in the runtime's own zone.
+    const [year, month] = osloToday(now).split('-').map(Number);
+    return `${(month >= 8 ? year : year - 1) - 1}-08-01`;
+  }
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   return Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ? null : value;
 }

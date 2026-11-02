@@ -68,11 +68,13 @@ test('weekend indexes are the last two columns', () => {
   ]);
 });
 
+// These helpers read the browser's own clock and calendar, so the fixtures are
+// local times: noon UTC is already the next day in New Zealand.
 test('the kindergarten year turns over on 1 August', () => {
-  assert.equal(getKindergartenSchoolYear(new Date('2026-01-15T12:00:00Z')), 2025);
-  assert.equal(getKindergartenSchoolYear(new Date('2026-07-31T12:00:00Z')), 2025);
-  assert.equal(getKindergartenSchoolYear(new Date('2026-08-01T12:00:00Z')), 2026);
-  assert.equal(getKindergartenSchoolYear(new Date('2026-12-31T12:00:00Z')), 2026);
+  assert.equal(getKindergartenSchoolYear(new Date(2026, 0, 15, 12)), 2025);
+  assert.equal(getKindergartenSchoolYear(new Date(2026, 6, 31, 12)), 2025);
+  assert.equal(getKindergartenSchoolYear(new Date(2026, 7, 1, 12)), 2026);
+  assert.equal(getKindergartenSchoolYear(new Date(2026, 11, 31, 12)), 2026);
   assert.equal(isMonthInSchoolYear(2027, 8, 2027), true);
   assert.equal(isMonthInSchoolYear(2028, 7, 2027), true);
   assert.equal(isMonthInSchoolYear(2028, 8, 2027), false);
@@ -80,7 +82,7 @@ test('the kindergarten year turns over on 1 August', () => {
 });
 
 test('month groups split the current month from past months, newest first', () => {
-  const groups = getYearlyCalendarMonthGroups(2025, new Date('2026-07-01T12:00:00Z'));
+  const groups = getYearlyCalendarMonthGroups(2025, new Date(2026, 6, 1, 12));
   assert.deepEqual(groups.currentAndUpcoming, [{ year: 2026, month: 7 }]);
   assert.deepEqual(groups.past.slice(0, 3), [
     { year: 2026, month: 6 },
@@ -91,7 +93,7 @@ test('month groups split the current month from past months, newest first', () =
 });
 
 test('the today marker carries the date, ISO week and a sortable month value', () => {
-  assert.deepEqual(getYearlyCalendarTodayMarker(new Date('2026-07-01T12:00:00Z')), {
+  assert.deepEqual(getYearlyCalendarTodayMarker(new Date(2026, 6, 1, 12)), {
     date: '2026-07-01',
     weekNumber: 27,
     monthValue: 2026 * 12 + 7,
