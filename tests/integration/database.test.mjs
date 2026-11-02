@@ -299,9 +299,18 @@ test('the year-calendar import writes every row in one statement, or none of the
     { title: 'New one', notify_newsletter: 'f', created_by: 'Test' },
   ]);
 
+  // A description the sheet only flattened keeps its stored rich text; an
+  // edited one replaces it.
+  await sql(`UPDATE yearly_calendar_entries SET description = '<p><strong>Rich</strong></p>' WHERE id = ${id};`);
+  await commit([entry(8, 'update', 'Colour only', { id, description: null, keep_description: true, color: 'red' })]);
+  assert.deepEqual(await sql(`SELECT description, color FROM yearly_calendar_entries WHERE id = ${id};`),
+    [{ description: '<p><strong>Rich</strong></p>', color: 'red' }]);
+  await commit([entry(9, 'update', 'Edited', { id, description: '<p>New text</p>', keep_description: false })]);
+  assert.deepEqual(await sql(`SELECT description FROM yearly_calendar_entries WHERE id = ${id};`), [{ description: '<p>New text</p>' }]);
+
   // A row the database refuses takes the whole batch with it, update included.
   await assert.rejects(commit([entry(6, 'update', 'Must not stick', { id }), entry(7, 'create', null)]), /23502/);
-  assert.deepEqual((await saved2090()).map(row => row.title), ['Later edit', 'New one']);
+  assert.deepEqual((await saved2090()).map(row => row.title), ['Edited', 'New one']);
   await sql('DELETE FROM yearly_calendar_entries WHERE school_year = 2090;');
 });
 

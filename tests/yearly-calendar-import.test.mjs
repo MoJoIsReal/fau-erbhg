@@ -354,7 +354,7 @@ test('invalid rows name the field and the sheet row they came from', () => {
     validateYearlyCalendarImportRow({
       rowNumber: 12,
       schoolYear: 2027,
-      row: validDayRow({ beskrivelse: 'B'.repeat(1001) }),
+      row: validDayRow({ beskrivelse: 'B'.repeat(5001) }),
     }),
     'Beskrivelse',
   );

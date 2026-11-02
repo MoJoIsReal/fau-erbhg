@@ -12,12 +12,14 @@ import {
 } from './_shared/middleware.js';
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 import { YEARLY_CALENDAR_CATEGORIES } from '../shared/calendar-entries.js';
-import { htmlToPlainText } from '../shared/html-text.js';
+import { htmlToPlainText, plainTextToHtml } from '../shared/html-text.js';
 import {
   buildImportPreview,
   supportsYearlyCalendarNewsletter,
   validateImportDecision,
   validateYearlyCalendarImportRow,
+  YEARLY_CALENDAR_DESCRIPTION_MAX,
+  YEARLY_CALENDAR_DESCRIPTION_TOO_LONG,
 } from '../shared/yearly-calendar-utils.js';
 
 const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note', 'closed'];
@@ -76,7 +78,7 @@ function mapEntry(row) {
 // The entry editor writes the same rich text as an event description, so a
 // description is stored as sanitized HTML and rendered through SafeHtml. An
 // editor the author emptied still sends "<p></p>"; store that as no description.
-const ENTRY_DESCRIPTION_MAX = 5000;
+const ENTRY_DESCRIPTION_MAX = YEARLY_CALENDAR_DESCRIPTION_MAX;
 
 function sanitizeEntryDescription(value) {
   const html = sanitizeHtml(value, ENTRY_DESCRIPTION_MAX);
@@ -164,7 +166,9 @@ function sanitizeImportRowText(row) {
   }
   for (const descriptionKey of ['beskrivelse', 'description']) {
     if (Object.prototype.hasOwnProperty.call(sanitized, descriptionKey)) {
-      sanitized[descriptionKey] = sanitizeImportTextValue(sanitized[descriptionKey], 1000);
+      // Cut above the validator's limit, so an over-long description is
+      // refused with its row number instead of being shortened in silence.
+      sanitized[descriptionKey] = sanitizeImportTextValue(sanitized[descriptionKey], ENTRY_DESCRIPTION_MAX + 1);
     }
   }
   return sanitized;
@@ -327,6 +331,19 @@ export default withApiHandler(async function handler(req, res) {
 
         if (action === 'update' || action === 'create') {
           const payload = validation.payload;
+          // The sheet carries a description as plain text and the preview
+          // compares it as text, so an update whose description reads the same
+          // keeps the stored rich text (links, bold, images) rather than
+          // overwriting it with the flattened copy. A new or edited
+          // description is stored the way the editor writes one: paragraphs.
+          const changedFields = previewRow?.status === 'changed' ? previewRow.changes : [];
+          const keepDescription = action === 'update'
+            && !changedFields.some(({ field }) => field === 'description');
+          const descriptionHtml = keepDescription ? null : plainTextToHtml(payload.description);
+          if (descriptionHtml && descriptionHtml.length > ENTRY_DESCRIPTION_MAX) {
+            summary.errors.push({ rowNumber, errors: [`Rad ${rowNumber}: ${YEARLY_CALENDAR_DESCRIPTION_TOO_LONG}`] });
+            continue;
+          }
           writes.push({
             row_number: rowNumber,
             action,
@@ -339,7 +356,8 @@ export default withApiHandler(async function handler(req, res) {
             week_number_end: payload.weekNumberEnd,
             date: payload.date,
             title: payload.title,
-            description: payload.description,
+            description: descriptionHtml ? sanitizeEntryDescription(descriptionHtml) : null,
+            keep_description: keepDescription,
             color: payload.color,
             show_on_homepage: payload.showOnHomepage,
             show_for_parents: payload.showForParents,
@@ -358,7 +376,8 @@ export default withApiHandler(async function handler(req, res) {
             FROM jsonb_to_recordset(${JSON.stringify(writes)}::jsonb) AS i(
               row_number int, action text, id int, school_year int, year int, month int,
               entry_type text, week_number int, week_number_end int, date text, title text,
-              description text, color text, show_on_homepage boolean, show_for_parents boolean
+              description text, keep_description boolean, color text, show_on_homepage boolean,
+              show_for_parents boolean
             )
           ), updated AS (
             UPDATE yearly_calendar_entries e
@@ -370,7 +389,7 @@ export default withApiHandler(async function handler(req, res) {
                 week_number_end = u.week_number_end,
                 date = u.date,
                 title = u.title,
-                description = u.description,
+                description = CASE WHEN u.keep_description THEN e.description ELSE u.description END,
                 color = u.color,
                 show_on_homepage = u.show_on_homepage,
                 show_for_parents = u.show_for_parents,

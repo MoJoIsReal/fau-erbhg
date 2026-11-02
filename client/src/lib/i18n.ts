@@ -2210,7 +2210,7 @@ export const translations: Record<Language, Translations> = {
         validation: {
           missingTitle: "Rad {row}: Mangler tittel.",
           titleTooLong: "Rad {row}: Tittel kan maksimalt være 200 tegn.",
-          descriptionTooLong: "Rad {row}: Beskrivelse kan maksimalt være 1000 tegn.",
+          descriptionTooLong: "Rad {row}: Beskrivelse kan maksimalt være 5000 tegn.",
           invalidEntryType: "Rad {row}: Ugyldig type \"{value}\". Bruk en av: {allowed}.",
           invalidYear: "Rad {row}: År må være et heltall.",
           invalidMonth: "Rad {row}: Måned må være et heltall mellom 1 og 12.",
@@ -3365,7 +3365,7 @@ export const translations: Record<Language, Translations> = {
         validation: {
           missingTitle: "Row {row}: Missing title.",
           titleTooLong: "Row {row}: Title can be at most 200 characters.",
-          descriptionTooLong: "Row {row}: Description can be at most 1000 characters.",
+          descriptionTooLong: "Row {row}: Description can be at most 5000 characters.",
           invalidEntryType: "Row {row}: Invalid type \"{value}\". Use one of: {allowed}.",
           invalidYear: "Row {row}: Year must be an integer.",
           invalidMonth: "Row {row}: Month must be an integer between 1 and 12.",

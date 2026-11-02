@@ -265,6 +265,59 @@ test('a full import is one read and one write, and a failed write fails the whol
   assert.equal(importWrites(failing).length, 1, 'the one statement either writes every row or none');
 });
 
+// The export writes a rich text description out as plain text. Re-importing
+// the sheet after changing another column used to write that flattened copy
+// back, so every touched entry lost its links, formatting and images.
+test('an import keeps a stored description the sheet only flattened, and stores an edited one as paragraphs', async (t) => {
+  const rich = '<p><strong>Ta med</strong> matpakke. <a href="https://example.test/p">P\u00e5melding</a></p><p>Linje 2</p>';
+  EXISTING[0].description = rich;
+  t.after(() => { EXISTING[0].description = null; });
+  const flattened = 'Ta med matpakke. P\u00e5melding\n\nLinje 2';
+
+  const sql = importDatabase();
+  const res = await call(t, handler, write('POST', {
+    schoolYear: SCHOOL_YEAR,
+    decisions: [
+      { rowNumber: 2, status: 'changed', action: 'update', existingId: 10,
+        row: sheet('Julaften', '2026-12-24', { beskrivelse: flattened, farge: 'red' }) },
+      { rowNumber: 3, status: 'new', action: 'create',
+        row: sheet('Planleggingsdag', '2027-01-04', { beskrivelse: 'Stengt & rydding\n\nHele dagen' }) },
+    ],
+  }, { action: 'commit-import' }));
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.errors, []);
+  const [statement] = importWrites(sql);
+  const [update, create] = JSON.parse(statement.values[0]);
+  assert.equal(update.keep_description, true);
+  assert.equal(update.description, null);
+  assert.match(statement.statement, /description = CASE WHEN u\.keep_description THEN e\.description ELSE u\.description END/);
+  assert.equal(create.keep_description, false);
+  assert.equal(create.description, '<p>Stengt &amp; rydding</p><p>Hele dagen</p>');
+
+  const edited = importDatabase();
+  await call(t, handler, write('POST', {
+    schoolYear: SCHOOL_YEAR,
+    decisions: [{ rowNumber: 2, status: 'changed', action: 'update', existingId: 10,
+      row: sheet('Julaften', '2026-12-24', { beskrivelse: 'Ta med niste' }) }],
+  }, { action: 'commit-import' }));
+  const [editedUpdate] = JSON.parse(importWrites(edited)[0].values[0]);
+  assert.equal(editedUpdate.keep_description, false);
+  assert.equal(editedUpdate.description, '<p>Ta med niste</p>');
+});
+
+test('an over-long sheet description is refused for its row rather than shortened', async (t) => {
+  const sql = importDatabase();
+  const res = await call(t, handler, write('POST', {
+    schoolYear: SCHOOL_YEAR,
+    decisions: [{ rowNumber: 3, status: 'new', action: 'create',
+      row: sheet('Planleggingsdag', '2027-01-04', { beskrivelse: 'B'.repeat(5001) }) }],
+  }, { action: 'commit-import' }));
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.created, []);
+  assert.match(res.body.errors[0].errors.join('\n'), /Rad 3: Beskrivelse kan maksimalt v\u00e6re 5000 tegn/);
+  assert.deepEqual(importWrites(sql), []);
+});
+
 test('an entry deleted since the preview is reported for its row', async (t) => {
   importDatabase({ missing: [10] });
   const res = await call(t, handler, write('POST', {

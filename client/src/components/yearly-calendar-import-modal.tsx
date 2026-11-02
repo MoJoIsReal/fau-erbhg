@@ -31,6 +31,7 @@ import type {
   YearlyCalendarEntryType,
   YearlyCalendarImportPayload,
 } from "@shared/yearly-calendar-utils";
+import { YEARLY_CALENDAR_DESCRIPTION_TOO_LONG } from "@shared/yearly-calendar-utils";
 import { returnFocus } from "@/lib/return-focus";
 
 type Translation = ReturnType<typeof useTranslation>;
@@ -196,7 +197,7 @@ function formatValidationError(error: string, language: Language, t: Translation
   if (message === "Tittel kan maksimalt være 200 tegn.") {
     return validationMessage(t, "titleTooLong", values);
   }
-  if (message === "Beskrivelse kan maksimalt være 1000 tegn.") {
+  if (message === YEARLY_CALENDAR_DESCRIPTION_TOO_LONG) {
     return validationMessage(t, "descriptionTooLong", values);
   }
   if (/^(?:år|År) må være et heltall\.$/.test(message)) {

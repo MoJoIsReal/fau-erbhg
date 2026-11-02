@@ -2,6 +2,10 @@ import { htmlToPlainText } from './html-text.js';
 
 export const VALID_YEARLY_CALENDAR_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'closed', 'note'];
 export const VALID_YEARLY_CALENDAR_COLORS = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
+// The longest description an entry stores: the editor's limit, which the
+// sheet's plain text has to fit as well.
+export const YEARLY_CALENDAR_DESCRIPTION_MAX = 5000;
+export const YEARLY_CALENDAR_DESCRIPTION_TOO_LONG = 'Beskrivelse kan maksimalt v\u00e6re 5000 tegn.';
 export const YEARLY_CALENDAR_HEX_COLOR_PATTERN = '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$';
 
 const HEX_COLOR_RE = new RegExp(YEARLY_CALENDAR_HEX_COLOR_PATTERN);
@@ -214,8 +218,8 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
     addError(errors, rowNumber, 'Tittel kan maksimalt v\u00e6re 200 tegn.');
   }
 
-  if (description.length > 1000) {
-    addError(errors, rowNumber, 'Beskrivelse kan maksimalt v\u00e6re 1000 tegn.');
+  if (description.length > YEARLY_CALENDAR_DESCRIPTION_MAX) {
+    addError(errors, rowNumber, YEARLY_CALENDAR_DESCRIPTION_TOO_LONG);
   }
 
   if (!VALID_YEARLY_CALENDAR_ENTRY_TYPES.includes(entryType)) {

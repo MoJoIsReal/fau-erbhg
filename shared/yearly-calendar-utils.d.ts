@@ -12,6 +12,8 @@ export const VALID_YEARLY_CALENDAR_ENTRY_TYPES: readonly [
   'closed',
   'note',
 ];
+export const YEARLY_CALENDAR_DESCRIPTION_MAX: 5000;
+export const YEARLY_CALENDAR_DESCRIPTION_TOO_LONG: string;
 export const VALID_YEARLY_CALENDAR_COLORS: readonly [
   'red',
   'yellow',
