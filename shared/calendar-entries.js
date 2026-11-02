@@ -152,6 +152,15 @@ function clampWeek(value) {
  * `mode` mirrors the flags on the event: an internal event and one marked
  * noSignup both take no registrations, but they say different things.
  */
+// Today's date in Oslo as YYYY-MM-DD, the format an event's date is stored in.
+const osloDateFormat = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/Oslo', year: 'numeric', month: '2-digit', day: '2-digit',
+});
+function osloDate(now) {
+  const parts = Object.fromEntries(osloDateFormat.formatToParts(now).map((part) => [part.type, part.value]));
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
 export function describeEventSignup(event, now = new Date()) {
   const kind = calendarKindForEventType(event?.type);
   const max = Number.isInteger(event?.maxAttendees) ? event.maxAttendees : null;
@@ -167,6 +176,10 @@ export function describeEventSignup(event, now = new Date()) {
   const deadlinePassed = !!deadlineDate
     && !Number.isNaN(deadlineDate.getTime())
     && deadlineDate.getTime() < now.getTime();
+  // Without a deadline an event used to stay open after its day, and the
+  // emailed cancel link refuses a past event, so that signup was stuck.
+  const eventPassed = typeof event?.date === 'string' && event.date.length >= 10
+    && event.date.slice(0, 10) < osloDate(now);
 
   return {
     mode,
@@ -176,8 +189,9 @@ export function describeEventSignup(event, now = new Date()) {
     isFull: max !== null && count >= max,
     deadline,
     deadlinePassed,
+    eventPassed,
     // Only a registration event can actually be closed for signup.
-    isOpen: mode === 'registration' && !deadlinePassed && !(max !== null && count >= max),
+    isOpen: mode === 'registration' && !deadlinePassed && !eventPassed && !(max !== null && count >= max),
   };
 }
 

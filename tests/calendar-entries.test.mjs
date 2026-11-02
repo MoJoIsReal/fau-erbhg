@@ -209,6 +209,9 @@ test('signup state reports full, closed and remaining spots', () => {
   assert.equal(full.spotsLeft, 0);
   assert.equal(full.isOpen, false);
 
+  const past = describeEventSignup(event({ date: '2000-01-01' }), now);
+  assert.equal(past.eventPassed, true);
+  assert.equal(past.isOpen, false, 'an event without a deadline closes after its day');
   const closed = describeEventSignup(event({ registrationDeadline: '2026-09-18T23:59:00Z' }), now);
   assert.equal(closed.deadlinePassed, true);
   assert.equal(closed.isOpen, false);

@@ -14,7 +14,7 @@ async function event(type = 'event', capacity = 1, date = '2099-09-24') {
 }
 async function signup(eventIdNum, email, slots = null) {
   return productionStatement(registrationFile, 'WITH target_event AS', {
-    eventIdNum, nowIso: new Date().toISOString(), requestedAttendees: 1,
+    eventIdNum, nowIso: new Date().toISOString(), osloToday: () => '2099-09-24', requestedAttendees: 1,
     sanitizedName: 'Test', sanitizedEmail: email, sanitizedPhone: null,
     sanitizedComments: null, sanitizedLanguage: 'no', childrenNamesParam: slots ? '["Test child"]' : null,
     photoSlotsParam: slots ? JSON.stringify(slots) : null, sanitizedFoodContribution: null,

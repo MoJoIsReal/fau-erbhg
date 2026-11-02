@@ -88,6 +88,12 @@ export function validateSignupForEvent(event, { sanitizedAttendeeCount, sanitize
   if (event.no_signup || event.vigilo_signup) {
     return refuse('SIGNUP_CLOSED', 'Påmelding er ikke tillatt for dette arrangementet', 'Registration is not available for this event');
   }
+  // An event without a deadline used to take signups after its day, and the
+  // emailed cancel link refuses a past event, so only the council could
+  // remove such a registration. The day itself (in Oslo) is still open.
+  if (typeof event.date === 'string' && event.date.slice(0, 10) < osloToday(new Date(nowIso))) {
+    return refuse('SIGNUP_CLOSED', 'Arrangementet er over', 'This event has already taken place');
+  }
   if (event.registration_deadline && event.registration_deadline < nowIso) {
     return refuse('DEADLINE_PASSED', 'Påmeldingsfristen har gått ut', 'The registration deadline has passed');
   }
@@ -520,6 +526,7 @@ export default withApiHandler(async function handler(req, res) {
               AND COALESCE(no_signup, false) = false
               AND COALESCE(vigilo_signup, false) = false
               AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
+              AND date >= ${osloToday(new Date(nowIso))}
             -- Locks the event row for the duration of this statement, so two
             -- parents racing for the last seat are serialized: the second one
             -- re-reads current_attendees after the first commits. The row mark

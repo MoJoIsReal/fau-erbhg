@@ -26,6 +26,7 @@ export type CalendarSignupState = {
   isFull: boolean;
   deadline: string | null;
   deadlinePassed: boolean;
+  eventPassed: boolean;
   isOpen: boolean;
 };
 

@@ -327,6 +327,11 @@ test('the event decides whether a signup is open and what it must name', async (
   assert.equal(check({ vigilo_signup: true }, 1).error.code, 'SIGNUP_CLOSED');
   assert.equal(check({ registration_deadline: '2026-05-31T12:00:00.000Z' }, 1).error.code, 'DEADLINE_PASSED');
   assert.deepEqual(check({}, 1).values, { sanitizedChildrenNames: null, sanitizedFoodContribution: null });
+  // Without a deadline an event closes after its day (in Oslo), not before.
+  assert.equal(check({ date: '2026-05-31' }, 1).error.code, 'SIGNUP_CLOSED');
+  assert.equal(check({ date: '2026-06-01' }, 1).error, undefined);
+  assert.equal(validateSignupForEvent({ date: '2026-05-31' }, values(1), {}, '2026-05-31T22:30:00.000Z').error.code,
+    'SIGNUP_CLOSED', '00:30 in Oslo is already the next day');
 
   // Everyone besides the registrant is named; on a photo event, every child.
   assert.equal(check({}, 2).error.code, 'ATTENDEE_NAMES_REQUIRED');

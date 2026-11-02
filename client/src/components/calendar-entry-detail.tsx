@@ -182,7 +182,7 @@ export default function CalendarEntryDetail({
           >
             {signup.isFull
               ? t.events.full
-              : signup.deadlinePassed
+              : !signup.isOpen
                 ? t.events.registrationClosed
                 : t.events.register}
           </Button>
