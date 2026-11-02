@@ -73,11 +73,25 @@ export default function Layout({ children }: LayoutProps) {
   // on every client-side navigation so a keyboard or screen-reader user
   // starts at the new page's content. The first render is skipped: on a
   // fresh load the browser already starts at the top of the document.
+  //
+  // A new page also starts at the top. Without that, a parent who tapped a
+  // footer link landed on the new page as far down as they had scrolled the
+  // old one. Back and forward are left to the browser, which restores where
+  // the reader was. `location` is the path alone, so a query change such as
+  // ?view=month keeps its place.
   const mainRef = useRef<HTMLElement>(null);
   const previousLocation = useRef(location);
+  const historyNavigation = useRef(false);
+  useEffect(() => {
+    const onPopState = () => { historyNavigation.current = true; };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
   useEffect(() => {
     if (previousLocation.current === location) return;
     previousLocation.current = location;
+    if (!historyNavigation.current) window.scrollTo(0, 0);
+    historyNavigation.current = false;
     mainRef.current?.focus({ preventScroll: true });
   }, [location]);
 
