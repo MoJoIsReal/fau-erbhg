@@ -626,7 +626,18 @@ export default withApiHandler(async function handler(req, res) {
     // carries the link instead and the page shows it once. Sending itself
     // never fails the request, so the caller does not wait on Gmail —
     // waitUntil() lets it finish after the response is sent.
-    const mailQueued = isEmailConfigured() && await reservePublicMail(sql, 'registration-confirmation');
+    // The registration is already committed. A failure while reserving the
+    // mail budget used to escape as a 500, so the parent tried again, was told
+    // they were already registered, and never got the link. Treated as "no
+    // mail" instead: the answer then carries the link.
+    let mailQueued = false;
+    if (isEmailConfigured()) {
+      try {
+        mailQueued = await reservePublicMail(sql, 'registration-confirmation');
+      } catch (budgetError) {
+        reportProviderError('Failed to reserve the confirmation mail budget', budgetError);
+      }
+    }
     if (mailQueued) {
       waitUntil(
         sendEventConfirmationEmail({

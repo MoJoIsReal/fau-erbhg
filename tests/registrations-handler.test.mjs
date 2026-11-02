@@ -189,6 +189,23 @@ test('past the daily public-mail cap the signup is kept but no mail is sent', as
   assert.equal('cancel_token' in res.body, false);
 });
 
+// The registration is committed before the mail budget is reserved. A
+// database error there used to answer 500 for a signup that had been saved,
+// so a retry said ALREADY_REGISTERED and the cancel link was lost.
+test('a failure reserving the mail budget still answers the saved signup with its link', async (t) => {
+  await settle();
+  sent.length = 0;
+  t.mock.method(console, 'error', () => {});
+  const sql = signupDatabase({ rateCount: (key) => { if (key === PUBLIC_MAIL_KEY) throw new Error('database unavailable'); return 1; } });
+  const res = await call(t, handler, signup({}));
+  await settle();
+  assert.equal(res.statusCode, 201);
+  assert.ok(signupStatement(sql));
+  assert.equal(res.body.confirmationEmail, false);
+  assert.match(res.body.cancelUrl, /\/avmelding\?token=c{64}$/);
+  assert.equal(sent.length, 0);
+});
+
 // With TURNSTILE_SECRET_KEY set, a signup must carry a token Cloudflare
 // accepts; Cloudflare is stubbed at the network boundary.
 test('with Turnstile on, a signup without a valid token is refused before anything is written', async (t) => {
