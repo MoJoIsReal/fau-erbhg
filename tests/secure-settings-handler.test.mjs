@@ -360,6 +360,44 @@ test('updating a post keeps, sets or clears its newsletter flag, and sanitizes t
   assert.deepEqual(statementsOf(sql, 'UPDATE blog_posts'), []);
 });
 
+// DB-006. A save rewrites the whole post, so an editor holding an older copy
+// overwrote whatever someone else had saved in between.
+test('a save from an older copy of a post is refused as a conflict', async (t) => {
+  const put = (body) => ({ method: 'PUT', query: { resource: 'blog-posts', id: '4' }, as: 'member',
+    body: { title: 'Dugnad', content: '<p>Hei</p>', ...body } });
+
+  const changed = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('SELECT id FROM blog_posts') ? [{ id: 4 }] : []) }));
+  const res = await call(t, handler, put({ updatedAt: '2026-09-01T00:00:00.000Z' }));
+  assert.deepEqual([res.statusCode, res.body.code], [409, 'CONFLICT']);
+  const [update] = statementsOf(changed, 'UPDATE blog_posts');
+  assert.match(update.statement, /WHERE id = \? AND \(\?::text IS NULL OR updated_at = \?\)/);
+  assert.ok(update.values.includes('2026-09-01T00:00:00.000Z'));
+
+  useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, put({ updatedAt: '2026-09-01T00:00:00.000Z' }))).statusCode, 404, 'a deleted post is still a 404');
+  useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, put({}))).statusCode, 404, 'no version: the old answer');
+});
+
+// The archive and homepage switches sent the whole post from the page's list,
+// restoring an older title and text over someone else's edit.
+test('archiving or moving a post off the homepage writes only that field', async (t) => {
+  const patch = (body) => ({ method: 'PATCH', query: { resource: 'blog-posts', id: '4' }, as: 'member', body });
+  const sql = useDatabase(database());
+  const res = await call(t, handler, patch({ status: 'archived' }));
+  assert.equal(res.statusCode, 200);
+  const [update] = statementsOf(sql, 'UPDATE blog_posts');
+  assert.match(update.statement, /SET status = COALESCE\(\?::text, status\), show_on_homepage = COALESCE\(\?::boolean, show_on_homepage\), updated_at = \?/);
+  assert.deepEqual(update.values.slice(0, 2), ['archived', null]);
+  assert.doesNotMatch(update.statement, /title|content/);
+
+  for (const body of [{}, { status: 'deleted' }, { showOnHomepage: 'yes' }]) {
+    const refused = useDatabase(database());
+    assert.equal((await call(t, handler, patch(body))).statusCode, 400, JSON.stringify(body));
+    assert.deepEqual(statementsOf(refused, 'UPDATE blog_posts'), []);
+  }
+});
+
 test('board members and kindergarten info refuse incomplete input and store it sanitized', async (t) => {
   let sql = useDatabase(database());
   let res = await call(t, handler, asAdmin('POST', 'board-members', { body: { name: '<b>Kari</b>', role: 'Leder' } }));

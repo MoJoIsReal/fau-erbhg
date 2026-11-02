@@ -85,5 +85,6 @@ export const API_ERROR_CODES: readonly [
   'ENTRY_FIELDS_REQUIRED',
   'TEMP_PASSWORD_EXPIRED',
   'RESET_LINK_INVALID',
+  'CONFLICT',
 ];
 export type ApiErrorCode = typeof API_ERROR_CODES[number];

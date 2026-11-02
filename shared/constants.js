@@ -116,4 +116,5 @@ export const API_ERROR_CODES = Object.freeze([
   'ENTRY_FIELDS_REQUIRED',
   'TEMP_PASSWORD_EXPIRED',
   'RESET_LINK_INVALID',
+  'CONFLICT',
 ]);

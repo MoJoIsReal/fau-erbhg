@@ -29,7 +29,7 @@ import SafeHtml from "@/components/safe-html";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useToast } from "@/hooks/use-toast";
 import { usePageMeta } from "@/hooks/usePageMeta";
-import { apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { QueryNotice } from "@/components/site/query-notice";
 import type { FauBoardMember } from "@shared/schema";
 import { returnFocus } from "@/lib/return-focus";
@@ -45,6 +45,8 @@ interface BlogPost {
   showOnHomepage?: boolean;
   notifyNewsletter?: boolean;
   newsletterSentAt?: string | null;
+  // The version the editor loaded; a save is refused (409) if it changed.
+  updatedAt?: string;
 }
 
 export default function Content() {
@@ -110,6 +112,15 @@ export default function Content() {
   const updatePostMutation = useMutation({
     mutationFn: async ({ id, post }: { id: number; post: Partial<BlogPost> }) => {
       const res = await apiRequest("PUT", `/api/secure-settings?resource=blog-posts&id=${id}`, post);
+      return res.json();
+    },
+  });
+
+  // Archive/publish and the homepage switch change one field and send only
+  // that field, never the whole post from a list that may be minutes old.
+  const patchPostMutation = useMutation({
+    mutationFn: async ({ id, change }: { id: number; change: Pick<Partial<BlogPost>, "status" | "showOnHomepage"> }) => {
+      const res = await apiRequest("PATCH", `/api/secure-settings?resource=blog-posts&id=${id}`, change);
       return res.json();
     },
   });
@@ -185,11 +196,21 @@ export default function Content() {
         title: t.contentPage.saved,
         description: t.contentPage.postHasBeenSaved,
       });
-    } catch {
+    } catch (error) {
+      if (getApiErrorBody(error)?.code === "CONFLICT" && post.id) {
+        // Someone saved this post since it was opened. Keep what this member
+        // wrote, and take the new version as the base: saving again is then
+        // a deliberate choice to replace the other change.
+        await invalidateBlogPostQueries();
+        const fresh = queryClient
+          .getQueryData<BlogPost[]>(["/api/secure-settings?resource=blog-posts&includeArchived=true"])
+          ?.find((item) => item.id === post.id);
+        if (fresh?.updatedAt) setPostDraft((current) => (current ? { ...current, updatedAt: fresh.updatedAt } : current));
+      }
       toast({
         variant: "destructive",
         title: t.contentPage.error,
-        description: t.contentPage.couldNotSavePost,
+        description: apiErrorText(error, t, t.contentPage.couldNotSavePost),
       });
     }
   };
@@ -199,9 +220,9 @@ export default function Content() {
     if (!post.id) return;
 
     try {
-      await updatePostMutation.mutateAsync({
+      await patchPostMutation.mutateAsync({
         id: post.id,
-        post: { ...post, status: post.status === "archived" ? "published" : "archived" },
+        change: { status: post.status === "archived" ? "published" : "archived" },
       });
       await invalidateBlogPostQueries();
       toast({
@@ -215,11 +236,11 @@ export default function Content() {
             ? "Innlegget er arkivert"
             : "Post has been archived",
       });
-    } catch {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: t.contentPage.error,
-        description: t.contentPage.couldNotUpdatePost,
+        description: apiErrorText(error, t, t.contentPage.couldNotUpdatePost),
       });
     }
   };
@@ -229,9 +250,9 @@ export default function Content() {
     if (!post.id) return;
 
     try {
-      await updatePostMutation.mutateAsync({
+      await patchPostMutation.mutateAsync({
         id: post.id,
-        post: { ...post, showOnHomepage: !post.showOnHomepage },
+        change: { showOnHomepage: !post.showOnHomepage },
       });
       await invalidateBlogPostQueries();
       toast({
@@ -245,11 +266,11 @@ export default function Content() {
             ? "Innlegget vises på forsiden"
             : "Post will show on homepage",
       });
-    } catch {
+    } catch (error) {
       toast({
         variant: "destructive",
         title: t.contentPage.error,
-        description: t.contentPage.couldNotUpdatePost,
+        description: apiErrorText(error, t, t.contentPage.couldNotUpdatePost),
       });
     }
   };
@@ -264,11 +285,11 @@ export default function Content() {
           title: t.contentPage.deleted,
           description: t.contentPage.postWasDeleted,
         });
-      } catch {
+      } catch (error) {
         toast({
           variant: "destructive",
           title: t.contentPage.error,
-          description: t.contentPage.couldNotDeletePost,
+          description: apiErrorText(error, t, t.contentPage.couldNotDeletePost),
         });
       }
     } else {

@@ -27,7 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiErrorText, apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -99,6 +99,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
   const isEditing = !!existing?.id;
 
   const [entryType, setEntryType] = useState<EntryDraft["entryType"]>("week_event");
+  const [baseVersion, setBaseVersion] = useState<string | null>(null);
   const [category, setCategory] = useState<CalendarDayKind>("bhgdag");
   const [year, setYear] = useState<number>(new Date().getFullYear());
   const [month, setMonth] = useState<number>(1);
@@ -146,6 +147,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
     setColor(seed.color ?? "");
     setShowOnHomepage(seed.showOnHomepage === true || seed.showForParents === true);
     setNotifyNewsletter(seed.notifyNewsletter === true);
+    setBaseVersion(existing?.updatedAt ?? null);
   }, [isOpen, initial, existing]);
 
   const placement = resolveYearlyCalendarPlacement({
@@ -176,6 +178,9 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
         notifyNewsletter: supportsNewsletter ? notifyNewsletter : false,
       };
       if (isEditing) {
+        // The version this form opened; null once the editor has been told
+        // someone else saved and chooses to save over it.
+        if (baseVersion) body.updatedAt = baseVersion;
         const res = await apiRequest("PUT", `/api/yearly-calendar?id=${existing!.id}`, body);
         return res.json();
       }
@@ -188,6 +193,10 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
       onClose();
     },
     onError: (err: unknown) => {
+      if (getApiErrorBody(err)?.code === "CONFLICT") {
+        setBaseVersion(null);
+        queryClient.invalidateQueries({ predicate: (query) => String(query.queryKey[0]).startsWith("/api/yearly-calendar?") });
+      }
       setSaveError(apiErrorText(err, t, t.apiErrors.generic));
     },
   });

@@ -120,6 +120,18 @@ test('a description keeps its formatting as sanitized HTML, and an emptied edito
   }
 });
 
+// DB-006. Two editors on one entry: the second save rewrote every column from
+// an older copy. With the version it opened, it is refused instead.
+test('an update from an older copy of an entry is refused as a conflict', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('SELECT id FROM yearly_calendar_entries') ? [{ id: 5 }] : []) }));
+  const res = await call(t, handler, write('PUT', { ...DAY_EVENT, updatedAt: '2026-09-01T00:00:00.000Z' }, { id: '5' }));
+  assert.deepEqual([res.statusCode, res.body.code], [409, 'CONFLICT']);
+  assert.match(sql.writes()[0].statement, /WHERE id = \? AND \(\?::text IS NULL OR updated_at = \?\)/);
+
+  useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, write('PUT', DAY_EVENT, { id: '5' }))).statusCode, 404, 'no version: the old answer');
+});
+
 test('update and delete need a numeric id and an existing entry', async (t) => {
   for (const [method, body] of [['PUT', DAY_EVENT], ['DELETE', {}]]) {
     const refused = useDatabase(scriptedSql());

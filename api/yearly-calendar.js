@@ -474,6 +474,12 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
     }
     const now = new Date().toISOString();
+    // The version the editor opened. Every column is rewritten, so without it
+    // a second editor's older copy silently replaced the first one's save.
+    // An editor that sends no version keeps last-write-wins.
+    const expectedUpdatedAt = typeof req.body?.updatedAt === 'string' && req.body.updatedAt
+      ? req.body.updatedAt.slice(0, 64)
+      : null;
     const updated = await sql`
       UPDATE yearly_calendar_entries
       SET school_year = ${payload.schoolYear},
@@ -496,9 +502,16 @@ export default withApiHandler(async function handler(req, res) {
           notify_newsletter = ${payload.notifyNewsletter},
           updated_at = ${now}
       WHERE id = ${id}
+        AND (${expectedUpdatedAt}::text IS NULL OR updated_at = ${expectedUpdatedAt})
       RETURNING *
     `;
     if (updated.length === 0) {
+      if (expectedUpdatedAt) {
+        const existing = await sql`SELECT id FROM yearly_calendar_entries WHERE id = ${id}`;
+        if (existing.length > 0) {
+          return res.status(409).json({ error: 'The entry was changed by someone else', code: 'CONFLICT' });
+        }
+      }
       return res.status(404).json({ error: 'Entry not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json(mapEntry(updated[0]));

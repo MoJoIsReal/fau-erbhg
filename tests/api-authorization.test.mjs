@@ -36,6 +36,7 @@ const ROUTES = [
   settings('blog-posts', 'GET', COUNCIL, { includeArchived: 'true' }),
   settings('blog-posts', 'POST', COUNCIL),
   settings('blog-posts', 'PUT', COUNCIL, { id: '1' }),
+  settings('blog-posts', 'PATCH', COUNCIL, { id: '1' }),
   settings('blog-posts', 'DELETE', COUNCIL, { id: '1' }),
   settings('contact-messages', 'GET', COUNCIL),
   settings('contact-messages', 'POST', COUNCIL, { id: '1' }),

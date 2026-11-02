@@ -1154,6 +1154,7 @@ export const translations: Record<Language, Translations> = {
       ENTRY_FIELDS_REQUIRED: "Type, tittel, skoleår, år og måned må fylles ut.",
       TEMP_PASSWORD_EXPIRED: "Det midlertidige passordet har utløpt. Trykk «Glemt passord?» for å velge et nytt.",
       RESET_LINK_INVALID: "Lenken er brukt, utløpt eller ugyldig. Be om en ny med «Glemt passord?» når du logger inn.",
+      CONFLICT: "Noen andre har lagret endringer her siden du åpnet den. Det du har skrevet står fortsatt – lagrer du på nytt, erstatter du endringene deres.",
       generic: "Noe gikk galt. Prøv igjen.",
     },
     dataState: {
@@ -2312,6 +2313,7 @@ export const translations: Record<Language, Translations> = {
       ENTRY_FIELDS_REQUIRED: "Type, title, school year, year and month are required.",
       TEMP_PASSWORD_EXPIRED: "The temporary password has expired. Use “Forgot password?” to choose a new one.",
       RESET_LINK_INVALID: "The link has been used, has expired or is invalid. Ask for a new one with “Forgot password?” when you log in.",
+      CONFLICT: "Someone else has saved changes here since you opened it. What you wrote is still here – saving again replaces their changes.",
       generic: "Something went wrong. Try again.",
     },
     dataState: {
