@@ -208,9 +208,11 @@ sends credentials.
 **i18n is enforced.** Every user-facing string goes in `client/src/lib/i18n.ts`
 so the typed `Translations` interface forces both languages. Inline
 `language === 'no' ? … : …` copy is capped by a ratchet in
-`scripts/check-i18n.mjs` (`BUDGET`, currently 30) that `npm run check` runs —
-the number may fall, never rise. Locale ids and date-fns locales are the
-legitimate inline cases.
+`scripts/check-i18n.mjs` (`BUDGET`) that `npm run check` runs — the number may
+fall, never rise. Locale ids and date-fns locales are the legitimate inline
+cases. A second budget there (`NORWEGIAN_BUDGET`) counts strings and JSX text
+holding æ, ø or å outside `i18n.ts`: Norwegian written straight into a
+component, which English readers would see.
 
 **Backend types are gated.** `api/` and `shared/*.js` are type-checked with
 `checkJs` by `scripts/check-backend-types.mjs` (part of `npm run check`): an

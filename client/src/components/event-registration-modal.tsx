@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -25,14 +25,17 @@ import {
 import { z } from "zod";
 import { returnFocus } from "@/lib/return-focus";
 
-const formSchema = registrationFormBaseSchema.extend({
-  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(MAX_ATTENDEES_PER_REGISTRATION, `Maksimalt ${MAX_ATTENDEES_PER_REGISTRATION} deltakere`),
-  childrenNames: z.string().optional().nullable(),
-  foodContribution: z.string().max(200).optional().nullable(),
-  // Email validation removed from frontend - handled by backend database blacklist
-});
+// Built per language, so its messages are in the one the form is shown in.
+function createFormSchema(messages: { min: string; max: string }) {
+  return registrationFormBaseSchema.extend({
+    attendeeCount: z.number().min(1, messages.min).max(MAX_ATTENDEES_PER_REGISTRATION, messages.max),
+    childrenNames: z.string().optional().nullable(),
+    foodContribution: z.string().max(200).optional().nullable(),
+    // Email validation removed from frontend - handled by backend database blacklist
+  });
+}
 
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<ReturnType<typeof createFormSchema>>;
 
 interface EventRegistrationModalProps {
   event: Event | null;
@@ -49,6 +52,10 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
+  const formSchema = useMemo(() => createFormSchema({
+    min: t.events.signupAttendeesMin,
+    max: t.events.signupAttendeesMax.replace("{max}", String(MAX_ATTENDEES_PER_REGISTRATION)),
+  }), [t]);
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -329,13 +336,13 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                   <FormLabel>
                     {isFotoEvent
                       ? (t.events.numberChildren)
-                      : 'Antall deltakere'
+                      : t.events.signupAttendeeCount
                     }
                   </FormLabel>
                   <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Velg antall" />
+                        <SelectValue placeholder={t.events.signupSelectCount} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -343,7 +350,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                         <SelectItem key={num} value={num.toString()}>
                           {isFotoEvent
                             ? `${num} ${num === 1 ? (t.events.child) : (t.events.children)}`
-                            : `${num} ${num === 1 ? "person" : "personer"}`
+                            : `${num} ${num === 1 ? t.events.person : t.events.persons}`
                           }
                         </SelectItem>
                       ))}
@@ -485,7 +492,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         <div className="flex-shrink-0 px-4 pt-3 pb-4 border-t border-border sm:px-6 sm:pt-4 sm:pb-6">
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
             <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleClose}>
-              Avbryt
+              {t.events.signupCancel}
             </Button>
             <Button
               form="reg-form"
@@ -493,7 +500,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               className="w-full sm:w-auto"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? "Melder på..." : "Meld deg på"}
+              {mutation.isPending ? t.events.signupSubmitting : t.events.register}
             </Button>
           </div>
         </div>

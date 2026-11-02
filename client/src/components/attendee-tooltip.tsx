@@ -22,7 +22,7 @@ export default function AttendeeTooltip({
   maxAttendees,
   className = ""
 }: AttendeeTooltipProps) {
-  const { language, t } = useLanguage();
+  const { t } = useLanguage();
 
   // Council only; `view=council` makes a lapsed session a 401, not the
   // public count (which is not a list).
@@ -38,9 +38,7 @@ export default function AttendeeTooltip({
     }
 
     if (attendeeCount > 10) {
-      return language === 'no' 
-        ? 'Mer enn 10 påmeldte. Bruk Excel-eksport for full liste.'
-        : 'More than 10 attendees. Use Excel export for full list.';
+      return t.events.moreThanTenAttendees;
     }
 
     const attendeeNames = registrations

@@ -300,6 +300,21 @@ export interface Translations {
     parentGuardianName: string;
     parentGuardianName2: string;
     numberChildren: string;
+    signupAttendeeCount: string;
+    signupSelectCount: string;
+    person: string;
+    persons: string;
+    signupSubmitting: string;
+    signupCancel: string;
+    signupAttendeesMin: string;
+    /** {max} is filled in. */
+    signupAttendeesMax: string;
+    /** {title} is filled in. */
+    registrationsTitle: string;
+    registrationsOverview: string;
+    moreThanTenAttendees: string;
+    /** {address} is filled in. */
+    openMapFor: string;
     child: string;
     children: string;
     childrenSFirstNames: string;
@@ -1466,6 +1481,18 @@ export const translations: Record<Language, Translations> = {
       parentGuardianName: "Navn foresatt *",
       parentGuardianName2: "Navn på foresatt",
       numberChildren: "Antall barn",
+      signupAttendeeCount: "Antall deltakere",
+      signupSelectCount: "Velg antall",
+      person: "person",
+      persons: "personer",
+      signupSubmitting: "Melder på …",
+      signupCancel: "Avbryt",
+      signupAttendeesMin: "Må være minst 1 deltaker",
+      signupAttendeesMax: "Maksimalt {max} deltakere",
+      registrationsTitle: "Påmeldinger – {title}",
+      registrationsOverview: "Oversikt over alle påmeldte deltakere til arrangementet.",
+      moreThanTenAttendees: "Mer enn 10 påmeldte. Bruk Excel-eksport for full liste.",
+      openMapFor: "Åpne kart for: {address}",
       child: "barn",
       children: "barn",
       childrenSFirstNames: "Fornavn på barn",
@@ -2628,6 +2655,18 @@ export const translations: Record<Language, Translations> = {
       parentGuardianName: "Parent/guardian name *",
       parentGuardianName2: "Parent/guardian name",
       numberChildren: "Number of children",
+      signupAttendeeCount: "Number of attendees",
+      signupSelectCount: "Choose how many",
+      person: "person",
+      persons: "people",
+      signupSubmitting: "Registering …",
+      signupCancel: "Cancel",
+      signupAttendeesMin: "At least 1 attendee",
+      signupAttendeesMax: "At most {max} attendees",
+      registrationsTitle: "Registrations – {title}",
+      registrationsOverview: "Everyone registered for the event.",
+      moreThanTenAttendees: "More than 10 attendees. Use the Excel export for the full list.",
+      openMapFor: "Open map for: {address}",
       child: "child",
       children: "children",
       childrenSFirstNames: "Children\\'s first names",
