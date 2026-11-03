@@ -360,6 +360,19 @@ test('two sign-ups for the same new address at once both succeed, and an active 
   await sql("DELETE FROM newsletter_subscribers WHERE email = 'race@example.test';");
 });
 
+test('signing up again after unsubscribing records the new consent, not the first one', async () => {
+  await sql(`INSERT INTO newsletter_subscribers (email, status, unsubscribe_token, created_at, confirmed_at, unsubscribed_at)
+    VALUES ('again@example.test', 'unsubscribed', 'again-token', '2025-01-01T00:00:00.000Z', '2025-01-02T00:00:00.000Z', '2025-06-01T00:00:00.000Z');`);
+  const now = new Date().toISOString();
+  await sql(await productionStatement('api/contact.js', 'ON CONFLICT (email) DO UPDATE', {
+    sanitizedEmail: 'again@example.test', sanitizedName: null, lang: 'no', confirmToken: 'c'.repeat(64),
+    newsletterToken: () => 'n'.repeat(64), now,
+  }));
+  const [rearmed] = await sql("SELECT status, confirmed_at IS NULL AS unconfirmed, created_at FROM newsletter_subscribers WHERE email = 'again@example.test';");
+  assert.deepEqual(rearmed, { status: 'pending', unconfirmed: 't', created_at: now });
+  await sql("DELETE FROM newsletter_subscribers WHERE email = 'again@example.test';");
+});
+
 test('two admins creating the same user at once get one user and no error', async () => {
   const create = (hashed) => productionStatement('api/secure-settings.js', 'INSERT INTO users (username', {
     username: 'twice@example.test', hashed, name: 'Twice', role: 'member', now: new Date().toISOString(),

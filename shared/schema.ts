@@ -165,7 +165,10 @@ export const newsletterSubscribers = pgTable("newsletter_subscribers", {
   name: text("name"),
   language: text("language").notNull().default("no"), // "no" or "en"
   status: text("status").notNull().default("pending"), // "pending", "active", "unsubscribed"
-  confirmToken: text("confirm_token"), // double opt-in token; cleared once confirmed
+  // Double opt-in token. Kept once confirmed, so opening the link again still
+  // answers "subscribed"; replaced when the address signs up again, and
+  // cleared on unsubscribe.
+  confirmToken: text("confirm_token"),
   unsubscribeToken: text("unsubscribe_token").notNull(), // stable token embedded in every email
   createdAt: text("created_at").notNull(),
   confirmedAt: text("confirmed_at"),

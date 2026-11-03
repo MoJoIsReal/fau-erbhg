@@ -304,7 +304,11 @@ async function handleNewsletterSubscribe(req, res) {
           -- for NEWSLETTER_CONFIRM_DAYS from now, and the cron's purge of
           -- unconfirmed sign-ups counts from here too.
           created_at = EXCLUDED.created_at,
-          unsubscribed_at = NULL
+          unsubscribed_at = NULL,
+          -- The consent on record is the one given for this sign-up: an
+          -- address that unsubscribed and signs up again used to keep its
+          -- first confirmation date, earlier than its own created_at.
+          confirmed_at = NULL
       WHERE newsletter_subscribers.status <> 'active'
     RETURNING id
   `;
