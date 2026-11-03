@@ -783,7 +783,9 @@ async function handleUsers(req, res, sql) {
     const created = await sql`
       INSERT INTO users (username, password, name, role, must_change_password, password_changed_at, temp_password_expires_at, created_at)
       VALUES (${username}, ${hashed}, ${name}, ${role}, true, ${null}, ${temporaryPasswordExpiry()}, ${now})
-      ON CONFLICT (username) DO NOTHING
+      -- No conflict target, so both unique rules on the name are arbiters:
+      -- UNIQUE(username) and the lower(username) index from migration 0025.
+      ON CONFLICT DO NOTHING
       RETURNING id, username, name, role, created_at
     `;
     if (created.length === 0) {

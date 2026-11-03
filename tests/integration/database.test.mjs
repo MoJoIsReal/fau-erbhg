@@ -7,6 +7,8 @@ const sql = database();
 before(async () => { await initialize(sql); });
 const registrationFile = 'api/registrations.js';
 const cronFile = 'api/cron/event-reminders.js';
+const outboxFile = 'api/_shared/newsletter-outbox.js';
+const retentionFile = 'api/_shared/retention.js';
 async function event(type = 'event', capacity = 1, date = '2099-09-24') {
   const [row] = await sql(`INSERT INTO events (title, description, date, time, location, type, max_attendees)
     VALUES ('Test', '', ${literal(date)}, '12:00', 'Test', ${literal(type)}, ${capacity}) RETURNING id;`);
@@ -169,7 +171,7 @@ test('concurrent delivery claims are exclusive, take whole subscribers, expired 
   await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date)
     SELECT 'event', n, s.id, 'Test', '2099-09-24' FROM generate_series(1,2) n CROSS JOIN newsletter_subscribers s WHERE s.id IN (${subscriberIds});`);
   // The cap counts emails: three subscribers, each with both of their rows.
-  const claim = await productionStatement(cronFile, 'WITH recipients AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
+  const claim = await productionStatement(outboxFile, 'WITH recipients AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
   const results = await Promise.all([sql(`BEGIN; ${claim}; DO $$ BEGIN PERFORM pg_sleep(0.3); END $$; COMMIT;`), sql(claim)]);
   for (const rows of results) {
     const perSubscriber = Object.values(Object.groupBy(rows, row => row.subscriberId));
@@ -202,11 +204,11 @@ test('privacy and delivery retention enforce the six/twelve-month and ninety-day
   contactCutoff.setUTCMonth(contactCutoff.getUTCMonth() - 12);
   const bindings = { contactCutoff, eventCutoff: dates[0].cutoff };
   for (const marker of ['DELETE FROM contact_messages', 'DELETE FROM event_registrations r\n', 'DELETE FROM event_registration_cancellations c']) {
-    await sql(await productionStatement(cronFile, marker, bindings));
+    await sql(await productionStatement(retentionFile, marker, bindings));
   }
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${notADate};`)).length, 1, 'skipped, not a failure');
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${impossible};`)).length, 0, 'compared as text, never cast');
-  const [unparseable] = await sql(await productionStatement(cronFile, 'AS "contactMessages"'));
+  const [unparseable] = await sql(await productionStatement(retentionFile, 'AS "contactMessages"'));
   assert.deepEqual([Number(unparseable.contactMessages), Number(unparseable.events)], [1, 1]);
   await sql(`DELETE FROM event_registrations WHERE event_id IN (${notADate},${impossible}); DELETE FROM event_registration_cancellations WHERE event_id IN (${notADate},${impossible});
     DELETE FROM events WHERE id IN (${notADate},${impossible}); DELETE FROM contact_messages WHERE created_at = 'ukjent';`);
@@ -220,7 +222,7 @@ test('privacy and delivery retention enforce the six/twelve-month and ninety-day
     VALUES ('event',1,${sub.id},'Test','2099-09-24','sent',NOW()-INTERVAL '91 days'),
     ('event',2,${sub.id},'Test','2099-09-24','pending',NOW()-INTERVAL '91 days'),
     ('event',3,${sub.id},'Test','2099-09-24','sent',NOW()-INTERVAL '89 days');`);
-  await sql(await productionStatement(cronFile, 'DELETE FROM newsletter_deliveries', { DELIVERY_RETENTION_DAYS: 90 }));
+  await sql(await productionStatement(retentionFile, 'DELETE FROM newsletter_deliveries', { DELIVERY_RETENTION_DAYS: 90 }));
   assert.deepEqual(await sql('SELECT item_id FROM newsletter_deliveries ORDER BY item_id;'), [{ item_id: '2' }, { item_id: '3' }]);
 });
 
@@ -228,7 +230,7 @@ test('a delivery that has used every attempt is retired as failed', async () => 
   const [subscriber] = await sql("INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status) VALUES ('retire@example.test', 'retire-token', NOW()::text, 'active') RETURNING id;");
   const [delivery] = await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date,status,attempts,claimed_at)
     VALUES ('news', 1, ${subscriber.id}, 'Test', '2099-09-24', 'processing', 5, NOW()) RETURNING id;`);
-  await sql(await productionStatement(cronFile, "exhausted ? 'failed'", {
+  await sql(await productionStatement(outboxFile, "exhausted ? 'failed'", {
     exhausted: true, retryAt: new Date().toISOString(), safeError: 'mailbox unavailable', delivery: { id: delivery.id },
   }));
   assert.deepEqual(await sql(`SELECT status, claimed_at FROM newsletter_deliveries WHERE id=${delivery.id};`), [{ status: 'failed', claimed_at: '' }]);
@@ -245,7 +247,7 @@ test('the delivery claim reports whether the queued item is still one to send', 
       ('event', ${active}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('event', ${cancelled}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('news', 999999, ${subscriber.id}, 'Deleted post', '2099-10-01');`);
-  const claim = await productionStatement(cronFile, 'WITH recipients AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
+  const claim = await productionStatement(outboxFile, 'WITH recipients AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
   const claimed = (await sql(claim)).filter(row => row.email === 'eligible@example.test');
   const eligible = Object.fromEntries(claimed.map(row => [`${row.itemType}:${row.itemId}`, row.sourceEligible]));
   assert.deepEqual(eligible, { [`event:${active}`]: 't', [`event:${cancelled}`]: 'f', 'news:999999': 'f' });
@@ -359,7 +361,7 @@ test('two sign-ups for the same new address at once both succeed, and an active 
 });
 
 test('two admins creating the same user at once get one user and no error', async () => {
-  const create = (hashed) => productionStatement('api/secure-settings.js', 'ON CONFLICT (username) DO NOTHING', {
+  const create = (hashed) => productionStatement('api/secure-settings.js', 'INSERT INTO users (username', {
     username: 'twice@example.test', hashed, name: 'Twice', role: 'member', now: new Date().toISOString(),
     temporaryPasswordExpiry: () => new Date(Date.now() + 7 * 86400000).toISOString(),
   });
@@ -496,8 +498,8 @@ test('a flagged news post with nobody to send to is stamped, not kept for later 
   await sql("UPDATE newsletter_subscribers SET status = 'unsubscribed';");
   const post = async (title) => (await sql(`INSERT INTO blog_posts (title, content, status, notify_newsletter, published_date, created_at, updated_at)
     VALUES (${literal(title)}, 'Test', 'published', true, '2099-10-02', NOW()::text, NOW()::text) RETURNING id;`))[0].id;
-  const fanOut = await productionStatement(cronFile, 'WITH due_items AS', { targetDate: '2099-10-02' });
-  const stamp = await productionStatement(cronFile, 'UPDATE blog_posts p', { stampedAt: new Date().toISOString() });
+  const fanOut = await productionStatement(outboxFile, 'WITH due_items AS', { targetDate: '2099-10-02' });
+  const stamp = await productionStatement(outboxFile, 'UPDATE blog_posts p', { stampedAt: new Date().toISOString() });
   const sentAt = async (id) => (await sql(`SELECT newsletter_sent_at FROM blog_posts WHERE id=${id};`))[0].newsletter_sent_at;
 
   const unheard = await post('Nobody subscribed yet');
@@ -610,7 +612,7 @@ test('an audit row is written as the middleware writes it, and dropped after a y
   assert.deepEqual(row, { user_id: '1', role: 'admin', method: 'DELETE', path: '/api/secure-settings', action: '', resource: 'users', target_id: '5', status: '200', request_id: 'arn1::abc' });
 
   await sql(`INSERT INTO audit_log (created_at, user_id, role, method, path, status) VALUES ('${new Date(Date.now() - 366 * DAY).toISOString()}', 2, 'member', 'PUT', '/api/events', 200);`);
-  const purge = await productionStatement(cronFile, 'DELETE FROM audit_log', { cutoff: new Date(Date.now() - 365 * DAY).toISOString() });
+  const purge = await productionStatement(retentionFile, 'DELETE FROM audit_log', { cutoff: new Date(Date.now() - 365 * DAY).toISOString() });
   assert.equal((await sql(purge)).length, 1, 'only the row older than a year');
   assert.equal((await sql('SELECT count(*) AS count FROM audit_log;'))[0].count, '1');
   await sql('DELETE FROM audit_log;');

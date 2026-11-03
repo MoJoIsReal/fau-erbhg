@@ -208,7 +208,7 @@ test('a user created twice at once is a 400 and sends no login mail', async (t) 
   });
   assert.equal(res.statusCode, 400);
   assert.deepEqual(res.body, { error: 'Username is already in use', code: 'USERNAME_TAKEN' });
-  assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO users')).statement, /ON CONFLICT \(username\) DO NOTHING/);
+  assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO users')).statement, /ON CONFLICT DO NOTHING/);
   // DB-007. The lookup reads the name as sign-in does, case-insensitively.
   assert.ok(sql.calls.some(({ statement }) => statement === 'SELECT id FROM users WHERE lower(username) = ? LIMIT 1'));
   assert.equal(sql.calls.filter(({ statement }) => statement.startsWith('DELETE FROM users')).length, 0);
