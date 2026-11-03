@@ -116,11 +116,21 @@ function RequireAuth({ children, roles }: { children: ReactNode; roles?: string[
   }, [isAuthenticated]);
 
   useEffect(() => {
-    if (isLoading) return;
-    if (forbidden || (!isAuthenticated && !signedIn.current)) {
-      setLocation("/");
-    }
-  }, [forbidden, isAuthenticated, isLoading, setLocation]);
+    if (!isLoading && forbidden) setLocation("/");
+  }, [forbidden, isLoading, setLocation]);
+
+  // Opened without a session (a bookmark, a link in a mail): ask for the
+  // sign-in here, and show the page once it succeeds. This used to send the
+  // visitor to the home page without a word, and after signing in there they
+  // had to find their way back. Closing the prompt goes home, as before.
+  if (!isLoading && !isAuthenticated && !signedIn.current) {
+    return (
+      <>
+        <PageLoader />
+        <LoginModal isOpen onSignedIn={() => {}} onClose={() => setLocation("/")} />
+      </>
+    );
+  }
 
   if (!sessionLost && (isLoading || !isAuthenticated || forbidden)) {
     return <PageLoader />;
