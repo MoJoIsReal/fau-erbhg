@@ -25,6 +25,11 @@ import {
 import { z } from "zod";
 import { returnFocus } from "@/lib/return-focus";
 
+// Refusals that mean the event is no longer what the dialog shows.
+const SIGNUP_STATE_CHANGED = new Set<string>([
+  "EVENT_FULL", "DEADLINE_PASSED", "EVENT_INACTIVE", "SIGNUP_CLOSED", "PHOTO_SLOTS_FULL", "PHOTO_SLOT_TAKEN",
+]);
+
 // Built per language, so its messages are in the one the form is shown in.
 // Name and address are checked here as the API checks them: an empty form
 // used to go to the server and come back as a toast with no field marked.
@@ -185,6 +190,14 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         description: message,
         variant: "destructive",
       });
+      // The event changed under the form: it filled up, closed or was
+      // cancelled. The dialog and the calendar kept showing seats left and an
+      // open Register button for up to five minutes. Reload what they show,
+      // and close the dialog when the signup can no longer succeed.
+      if (event && SIGNUP_STATE_CHANGED.has(code)) {
+        invalidateEventRegistrations(event.id);
+        if (code !== "PHOTO_SLOT_TAKEN") handleClose();
+      }
     }
   });
 
