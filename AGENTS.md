@@ -41,8 +41,9 @@ client/src/         React SPA. pages/ = routes, components/ = features,
 api/*.js            The entire backend: 9 Vercel serverless route handlers
 api/cron/           Scheduled handler (Vercel Cron)
 api/_shared/        Backend-only helpers: middleware, database, email,
-                    cloudinary, r2, media-share, rate-limit, newsletter,
-                    delivery, sentry, log
+                    cloudinary, document-assets, r2, media-share, rate-limit,
+                    newsletter, newsletter-outbox, delivery, retention,
+                    sentry, log
 shared/             Code used by BOTH tiers (see "The shared/ boundary")
 attached_assets/    Uploaded source material, never served — including
                     illustrations/, the six commissioned page originals and
@@ -90,8 +91,9 @@ return raw rows and map through it. Add fields there, not ad hoc per endpoint.
 
 **The `shared/` boundary.** `api/` runs unbundled, so shared runtime code is
 plain `.js` with a hand-written `.d.ts` sibling for the typed client
-(`constants`, `photo-slots`, `yearly-calendar-*`, `calendar-feed`, `html-text`,
-`media`).
+(`constants`, `photo-slots`, `yearly-calendar-*`, `calendar-entries`,
+`html-text`, `media`, `structured-data`, `video-embed`). `calendar-feed.js` is
+used by `api/` only and has none.
 `shared/schema.ts` is the one TypeScript file — it is types/schema only and is
 **never imported by `api/`**. If you add shared runtime code, write `.js` + a
 `.d.ts`; if you add types, they belong in `schema.ts`.
@@ -109,7 +111,7 @@ calendar, calendar feed, newsletter invariants),
 | Task | Start here |
 |---|---|
 | Page/route | `client/src/pages/*.tsx`, routes registered in `client/src/App.tsx` |
-| UI text (any user-facing string) | `client/src/lib/i18n.ts` — grep for a nearby key, it is 2.5k lines |
+| UI text (any user-facing string) | `client/src/lib/i18n.ts` — grep for a nearby key, it is 3.5k lines |
 | Data fetching / CSRF / auth errors | `client/src/lib/queryClient.ts` |
 | New or changed endpoint | the matching `api/<resource>.js` |
 | Auth, CSRF, sanitizers, roles | `api/_shared/middleware.js` |
@@ -290,14 +292,19 @@ Stub a provider (Cloudinary, nodemailer) by mocking the method on its real
 client, not by rewriting source.
 
 `api-authorization` checks every protected route against every role and
-against a missing CSRF pair. A new route guarded by `requireRole` fails that
-suite until it is added to the matrix. Three suites hold the source-level guards —
-checks that read a file because the behaviour cannot run offline:
-`backend-invariants` (SQL shape inside handlers), `client-invariants` (query
-keys, route guards, accessible names, illustration crops) and `deploy-config`
-(`vercel.json` / `index.html` against the code they must agree with). Add a
-guard there only for a bug that would otherwise fail silently; never to pin
-copy, class names or anything `npm run check` already catches.
+against a missing CSRF pair. It reads each handler that calls `requireRole`
+for its methods and its `?action=`/`?resource=` values (and each
+`secure-settings` resource for its methods), and fails until a new one has a
+row in the matrix or is named public there. Source-level guards — checks that
+read a file because the behaviour cannot run offline — live mainly in three
+suites: `backend-invariants` (SQL shape inside handlers, logging),
+`client-invariants` (query keys, route guards, accessible names, illustration
+crops) and `deploy-config` (`vercel.json` / `index.html` against the code they
+must agree with); a few module suites keep one beside the behaviour it
+protects. Slice a source file with `sliceBetween()` from `tests/helpers.mjs`,
+which fails when a marker is gone. Add a guard only for a bug that would
+otherwise fail silently; never to pin copy, class names or anything
+`npm run check` already catches.
 
 ```bash
 node --test tests/calendar-feed.test.mjs   # one suite while iterating
