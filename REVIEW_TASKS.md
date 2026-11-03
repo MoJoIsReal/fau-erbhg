@@ -378,7 +378,7 @@ TEST-001, TEST-002 først.
 
 ## P3
 
-## [ ] DB-009 — NOT NULL og CHECK på setekolonner
+## [x] DB-009 — NOT NULL og CHECK på setekolonner
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** S · **Area:** DB
 ### Files
 ny migrasjon, `shared/schema.ts`
@@ -395,7 +395,7 @@ Forhåndssjekk som 0009, backfill NULL→1, `SET NOT NULL`, `CHECK (attendee_cou
 ### Dependencies
 Lesespørring i prod først.
 
-## [ ] DB-010 — Én FK per relasjon og robust FK-gjenkjenning
+## [x] DB-010 — Én FK per relasjon og robust FK-gjenkjenning
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed (CI-DB) · **Effort:** S · **Area:** DB
 ### Files
 `api/events.js`, ny migrasjon, `tests/integration/database.test.mjs`
@@ -412,7 +412,7 @@ Match på `code === '23503' && table === 'event_registrations'`; migrasjon som f
 ### Dependencies
 Sjekk prod-FK-er først.
 
-## [ ] DB-011 — Krev eierskap før svar på kontaktmelding
+## [x] DB-011 — Krev eierskap før svar på kontaktmelding
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** DB
 ### Files
 `api/secure-settings.js`
@@ -429,7 +429,7 @@ Kreve meldingen med `UPDATE … WHERE status <> 'responded' RETURNING` før send
 ### Dependencies
 TRACE-001.
 
-## [ ] DB-012 — Riktige samtykketidspunkter ved re-abonnement
+## [x] DB-012 — Riktige samtykketidspunkter ved re-abonnement
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** DB / nyhetsbrev
 ### Files
 `api/contact.js`, `shared/schema.ts` (kommentar)
@@ -444,7 +444,7 @@ Nullstill `confirmed_at` ved re-arming, sett den ved pending→active; rett komm
 ### Dependencies
 Ingen.
 
-## [ ] DB-013 — Unngå R2-objekter uten rad ved tilbakekall under opplasting
+## [x] DB-013 — Unngå R2-objekter uten rad ved tilbakekall under opplasting
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** M · **Area:** DB / mediedeling
 ### Files
 `api/_shared/media-share.js`, `api/media.js`
@@ -461,7 +461,7 @@ Merk delingen som «revoking» først slik at `upload-init/complete` avviser, el
 ### Dependencies
 Ingen.
 
-## [ ] UX-008 — Beskyttet dyplenke skal be om innlogging og komme tilbake
+## [x] UX-008 — Beskyttet dyplenke skal be om innlogging og komme tilbake
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** UX
 ### Files
 `client/src/App.tsx`, `login-modal.tsx`
@@ -477,7 +477,7 @@ Playwright.
 ### Dependencies
 UX-001.
 
-## [ ] UX-009 — Oppdater arrangementsdata når påmelding avvises
+## [x] UX-009 — Oppdater arrangementsdata når påmelding avvises
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** UX
 ### Files
 `client/src/components/event-registration-modal.tsx`
@@ -494,7 +494,7 @@ Bundle-test.
 ### Dependencies
 Ingen.
 
-## [ ] UX-010 — Rett ErrorBoundary
+## [x] UX-010 — Rett ErrorBoundary
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** UX
 ### Files
 `client/src/components/ErrorBoundary.tsx`
@@ -511,7 +511,7 @@ Bundle-test.
 ### Dependencies
 UX-003.
 
-## [ ] UX-011 — Skill forbigående feil fra ugyldig lenke på e-postsider
+## [x] UX-011 — Skill forbigående feil fra ugyldig lenke på e-postsider
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** UX
 ### Files
 `client/src/pages/newsletter.tsx`, `client/src/pages/registration-cancel.tsx`
@@ -528,7 +528,7 @@ Bundle-test.
 ### Dependencies
 TRACE-001.
 
-## [ ] UX-012 — Vis lengdegrenser i fritekstfelt
+## [x] UX-012 — Vis lengdegrenser i fritekstfelt
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** UX
 ### Files
 `event-registration-modal.tsx`, `contact.tsx`, `shared/constants.js`
@@ -545,7 +545,7 @@ Grenser i `shared/constants.js`; `maxLength` + teller i klienten.
 ### Dependencies
 Ingen.
 
-## [ ] TRACE-001 — Koder på avvisninger brukeren kan møte
+## [x] TRACE-001 — Koder på avvisninger brukeren kan møte
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** M · **Area:** Kontrakt
 ### Files
 `shared/constants.js`, `client/src/lib/i18n.ts`, `api/registrations.js`, `api/contact.js`, `api/events.js`, `client/src/pages/content.tsx`
@@ -561,7 +561,7 @@ Handler-suitene; `npm run check`.
 ### Dependencies
 Ingen (blokkerer DB-002, DB-006, DB-011, UX-011).
 
-## [ ] A11Y-001 — Kalenderens totalfeil: behold hero og legg til «prøv igjen»
+## [x] A11Y-001 — Kalenderens totalfeil: behold hero og legg til «prøv igjen»
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Tilgjengelighet
 ### Files
 `client/src/components/calendar-views.tsx`
@@ -578,7 +578,7 @@ SSR-test.
 ### Dependencies
 UX-002.
 
-## [ ] A11Y-002 — Unike navn på slett-knapper per påmelding
+## [x] A11Y-002 — Unike navn på slett-knapper per påmelding
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Tilgjengelighet
 ### Files
 `client/src/components/event-registrations-view.tsx`, `i18n.ts`
@@ -595,7 +595,7 @@ Legg `registration.name` i `aria-label`.
 ### Dependencies
 Ingen.
 
-## [ ] A11Y-003 — Behold fokus etter mislykket innsending
+## [x] A11Y-003 — Behold fokus etter mislykket innsending
 **Priority:** P3 · **Severity:** Low · **Confidence:** Possible · **Effort:** S · **Area:** Tilgjengelighet
 ### Files
 `event-registration-modal.tsx` (og skjema med samme mønster)
@@ -612,7 +612,7 @@ Playwright (`document.activeElement`).
 ### Dependencies
 UX-004.
 
-## [ ] A11Y-004 — 44px berøringsmål for frittstående tekstlenker
+## [x] A11Y-004 — 44px berøringsmål for frittstående tekstlenker
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Tilgjengelighet
 ### Files
 `client/src/pages/home.tsx`, `client/src/pages/contact.tsx`
@@ -627,7 +627,7 @@ Playwright DOM-måling.
 ### Dependencies
 Ingen.
 
-## [ ] TEST-003 — Autorisasjonsmatrise per rute og cron i harness
+## [x] TEST-003 — Autorisasjonsmatrise per rute og cron i harness
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** M · **Area:** Tester
 ### Files
 `tests/api-authorization.test.mjs`, ny `tests/event-reminders-handler.test.mjs` (eller i `event-reminders`), `tests/media-handler.test.mjs`, `api/cron/event-reminders.js`
@@ -646,6 +646,8 @@ Utled (metode, action/resource)-par fra handlerne og feil på manglende rad; har
 Ingen.
 
 ## [ ] TEST-004 — Atferdstester for klientens skjemaflyter
+
+> **Status (delvis):** skjemaenes valideringsregler er flyttet til `client/src/lib/form-schemas.ts` og testet i `tests/form-schemas.test.mjs`. De interaktive flytene er verifisert manuelt i Chromium; å kjøre dem i CI krever en nettlesertestløper, som ikke er lagt til uten avklaring.
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** L · **Area:** Tester
 ### Files
 `tests/` (ny suite per flyt), `tests/helpers.mjs`
@@ -660,7 +662,7 @@ Start med påmelding, kontakt og innholdsredigering via `importBundle()` eller e
 ### Dependencies
 UX-001, UX-004, UX-006 gir naturlige første tester.
 
-## [ ] OBS-003 — Telefon-redaksjon skal ikke spise datoer
+## [x] OBS-003 — Telefon-redaksjon skal ikke spise datoer
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Observerbarhet
 ### Files
 `api/_shared/redact.js`, `api/_shared/log.js`, `api/cron/event-reminders.js`
@@ -675,7 +677,7 @@ Match reelle telefonformer (valgfri +47 og 8 sifre), ekskluder ISO-datoer; fjern
 ### Dependencies
 Ingen.
 
-## [ ] OBS-004 — Bruk `logEvent` i stedet for `console.*` i `api/`
+## [x] OBS-004 — Bruk `logEvent` i stedet for `console.*` i `api/`
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Observerbarhet
 ### Files
 `api/_shared/middleware.js:200,360`, `api/contact.js:145,163,180,208`, `api/registrations.js:631,790`, `api/events.js:135`, `api/_shared/cloudinary.js:15`, `api/_shared/sentry.js:97`
@@ -690,7 +692,7 @@ Konverter til `logEvent`; senk token-linjen til warn/debug.
 ### Dependencies
 Ingen.
 
-## [ ] MAINT-002 — Innfør `mapRegistration`
+## [x] MAINT-002 — Innfør `mapRegistration`
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Vedlikehold
 ### Files
 `api/registrations.js`
@@ -705,7 +707,7 @@ Svarformen bygges fire steder (`:190-196`, `:342-350`, `:641-647`, `:750-755`), 
 ### Dependencies
 TEST-002.
 
-## [ ] MAINT-003 — Typ forespørselskroppen i årskalendermodalen
+## [x] MAINT-003 — Typ forespørselskroppen i årskalendermodalen
 **Priority:** P3 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** Vedlikehold
 ### Files
 `client/src/components/yearly-calendar-entry-modal.tsx`
@@ -720,7 +722,7 @@ Typ som `InsertYearlyCalendarEntry`. Ingen separat refaktor av store sider.
 ### Dependencies
 Ingen.
 
-## [ ] DOC-001 — Rett dokumentasjonsavvik
+## [x] DOC-001 — Rett dokumentasjonsavvik
 **Priority:** P3 · **Severity:** Low · **Confidence:** Confirmed · **Effort:** S · **Area:** Dokumentasjon
 ### Files
 `AGENTS.md`, `CLAUDE.md`, `docs/subsystems.md`, `shared/schema.ts`
