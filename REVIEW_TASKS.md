@@ -89,7 +89,7 @@ Ingen. · **Related:** UX-008
 
 ## P2
 
-## [ ] DB-004 — Steng påmelding etter arrangementsdato
+## [x] DB-004 — Steng påmelding etter arrangementsdato
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Dataintegritet / påmelding
 ### Files
 `api/registrations.js`, `shared/calendar-entries.js`, tester
@@ -108,7 +108,7 @@ Legg til `date >= osloToday` i CTE og `validateSignupForEvent` (kode `SIGNUP_CLO
 ### Dependencies
 Ingen.
 
-## [ ] DB-005 — Valider kalenderplassering på serveren
+## [x] DB-005 — Valider kalenderplassering på serveren
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** Dataintegritet / årskalender
 ### Files
 `api/yearly-calendar.js`, `shared/yearly-calendar-utils.js`, `shared/yearly-calendar-placement.js`
@@ -127,7 +127,7 @@ Kall `resolveYearlyCalendarPlacement` i `sanitizeEntryPayload` og i importvalide
 ### Dependencies
 Ingen. · **Related:** DB-001
 
-## [ ] DB-006 — Hindre tapte oppdateringer ved hele-rad-PUT
+## [x] DB-006 — Hindre tapte oppdateringer ved hele-rad-PUT
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** M · **Area:** Dataintegritet / innhold
 ### Files
 `client/src/pages/content.tsx`, `api/secure-settings.js`, `api/yearly-calendar.js`
@@ -146,7 +146,7 @@ Gjør toggles til delvise oppdateringer (bare feltet som endres). For full redig
 ### Dependencies
 TRACE-001 (koden `CONFLICT`). · **Related:** UX-006
 
-## [ ] DB-007 — Gjør brukernavn unikt uavhengig av store/små bokstaver
+## [x] DB-007 — Gjør brukernavn unikt uavhengig av store/små bokstaver
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Possible · **Effort:** S · **Area:** Dataintegritet / brukere
 ### Files
 `migrations/0025_*.sql` (ny), `shared/schema.ts`, `api/secure-settings.js`
@@ -164,7 +164,7 @@ Sjekk først prod: `SELECT lower(username), count(*) FROM users GROUP BY 1 HAVIN
 ### Dependencies
 Ingen.
 
-## [ ] DB-008 — En lagret påmelding skal aldri besvares med 500
+## [x] DB-008 — En lagret påmelding skal aldri besvares med 500
 **Priority:** P2 · **Severity:** Low · **Confidence:** High · **Effort:** S · **Area:** Dataintegritet / påmelding
 ### Files
 `api/registrations.js`, `tests/registrations-handler.test.mjs`
@@ -181,7 +181,7 @@ Pakk reservasjonen i try/catch; ved feil behandle som «ikke sendt» (svaret bæ
 ### Dependencies
 Ingen.
 
-## [ ] UX-002 — Vis feil i kalenderens listevisning når én kilde feiler
+## [x] UX-002 — Vis feil i kalenderens listevisning når én kilde feiler
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** UX / kalender
 ### Files
 `client/src/components/calendar-views.tsx`, `client/src/hooks/useCalendarEntries.ts`
@@ -198,7 +198,7 @@ Playwright med `page.route`, eller SSR-test.
 ### Dependencies
 Ingen. · **Related:** A11Y-001
 
-## [ ] UX-003 — Oversett påmeldingsdialogen og gjør i18n-ratchet seende
+## [x] UX-003 — Oversett påmeldingsdialogen og gjør i18n-ratchet seende
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** UX / i18n
 ### Files
 `client/src/components/event-registration-modal.tsx`, `event-registrations-modal.tsx`, `attendee-tooltip.tsx`, `location-map-link.tsx`, `ErrorBoundary.tsx`, `client/src/lib/i18n.ts`, `scripts/check-i18n.mjs`
@@ -216,7 +216,7 @@ Flytt strengene til `t.*`; bygg zod-skjemaet per språk som `event-creation-moda
 ### Dependencies
 Ingen. · **Related:** UX-010
 
-## [ ] UX-004 — Valider offentlige skjema i klienten og vis feltfeil
+## [x] UX-004 — Valider offentlige skjema i klienten og vis feltfeil
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** UX / skjema
 ### Files
 `client/src/lib/form-schemas.ts`, `event-registration-modal.tsx`, `client/src/pages/contact.tsx`, `tests/form-schemas.test.mjs`
@@ -234,7 +234,7 @@ Per-språk-skjema med `.trim().min(1)` og `.email()` (betinget av anonym); kartl
 ### Dependencies
 UX-003 (per-språk-skjema).
 
-## [ ] UX-005 — Vis lastefeil i innholdsredigeringen
+## [x] UX-005 — Vis lastefeil i innholdsredigeringen
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** UX / innhold
 ### Files
 `client/src/pages/content.tsx`
@@ -251,7 +251,7 @@ SSR-test som for `messages`/`admin`.
 ### Dependencies
 Ingen.
 
-## [ ] UX-006 — Sperr Lagre mens innlegg lagres
+## [x] UX-006 — Sperr Lagre mens innlegg lagres
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** S · **Area:** UX / innhold
 ### Files
 `client/src/pages/content.tsx`
@@ -268,7 +268,7 @@ Bundle-test eller Playwright.
 ### Dependencies
 Ingen. · **Related:** DB-006
 
-## [ ] UX-007 — Scroll til toppen ved sidebytte
+## [x] UX-007 — Scroll til toppen ved sidebytte
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** UX / navigasjon
 ### Files
 `client/src/components/layout.tsx`
@@ -286,7 +286,7 @@ Playwright ved 375px.
 ### Dependencies
 Ingen.
 
-## [ ] TEST-001 — Formater e-postdatoer i Europe/Oslo og pin testsuitens tidssone
+## [x] TEST-001 — Formater e-postdatoer i Europe/Oslo og pin testsuitens tidssone
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Tester / datoer
 ### Files
 `api/cron/event-reminders.js`, `package.json`, `.github/workflows/ci.yml`, berørte tester
@@ -304,7 +304,7 @@ Kjør suiten under tre TZ-verdier.
 ### Dependencies
 Gjøres sammen med eller før MAINT-001.
 
-## [ ] TEST-002 — Gjør kildebaserte testvakter selvsjekkende
+## [x] TEST-002 — Gjør kildebaserte testvakter selvsjekkende
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Tester
 ### Files
 `tests/helpers.mjs`, `tests/registration-cancel.test.mjs`, `tests/client-invariants.test.mjs`, `tests/registration-integrity.test.mjs`
@@ -322,7 +322,7 @@ Simuler omdøping lokalt; `npm test`.
 ### Dependencies
 Bør gjøres før MAINT-001/MAINT-002.
 
-## [ ] OBS-001 — Bevar stack og send hver feil fra cron-steg til Sentry
+## [x] OBS-001 — Bevar stack og send hver feil fra cron-steg til Sentry
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** S · **Area:** Observerbarhet
 ### Files
 `api/cron/event-reminders.js`, `api/_shared/sentry.js`, `tests/observability.test.mjs`
@@ -339,7 +339,7 @@ Logg redigert stack i `stage`; legg til én exception per `error.errors` i `toSe
 ### Dependencies
 Ingen.
 
-## [ ] OBS-002 — Feilkonfigurert SESSION_SECRET skal varsle
+## [x] OBS-002 — Feilkonfigurert SESSION_SECRET skal varsle
 **Priority:** P2 · **Severity:** Medium · **Confidence:** High · **Effort:** S · **Area:** Observerbarhet / konfig
 ### Files
 `api/auth.js`, `api/_shared/rate-limit.js`, `tests/auth-handler.test.mjs`
@@ -356,7 +356,7 @@ Ny test i `auth-handler`.
 ### Dependencies
 Ingen.
 
-## [ ] MAINT-001 — Flytt delte hjelpere ut av cron-modulen
+## [x] MAINT-001 — Flytt delte hjelpere ut av cron-modulen
 **Priority:** P2 · **Severity:** Medium · **Confidence:** Confirmed · **Effort:** M · **Area:** Vedlikehold
 ### Files
 `api/cron/event-reminders.js`, `api/_shared/registration-emails.js`, `api/_shared/newsletter.js`, nye `api/_shared/{dates,newsletter-outbox,retention}.js`, `tests/backend-invariants.test.mjs`
