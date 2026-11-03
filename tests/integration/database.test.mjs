@@ -725,7 +725,19 @@ test('the migrated database matches what shared/schema.ts declares', async () =>
     columns: await sql("SELECT table_name, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'public';"),
     indexes: await sql("SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname NOT LIKE '%_pkey';"),
     constraints: await sql("SELECT conrelid::regclass::text AS table_name, conname, contype FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype IN ('u', 'c');"),
+    // Foreign keys by what they do, not by name: the migrations and Drizzle
+    // name the same key differently, and a second key on one column (DB-010)
+    // is what this has to catch.
+    foreignKeys: await sql(`SELECT c.conrelid::regclass::text AS table_name, c.confrelid::regclass::text AS table_to, c.confdeltype,
+      (SELECT string_agg(a.attname, ',' ORDER BY a.attnum) FROM pg_attribute a WHERE a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)) AS columns
+      FROM pg_constraint c WHERE c.connamespace = 'public'::regnamespace AND c.contype = 'f';`),
   };
+  const onDelete = { cascade: 'c', restrict: 'r', 'set null': 'n', 'set default': 'd', 'no action': 'a' };
+  const key = (table, columns, to, action) => `${table}(${columns}) -> ${to} on delete ${action}`;
+  const declaredKeys = Object.values(declared.tables).flatMap((table) => Object.values(table.foreignKeys)
+    .map((fk) => key(fk.tableFrom, fk.columnsFrom.join(','), fk.tableTo, onDelete[fk.onDelete ?? 'no action']))).sort();
+  const liveKeys = live.foreignKeys.map((fk) => key(fk.table_name, fk.columns, fk.table_to, fk.confdeltype)).sort();
+  assert.deepEqual(liveKeys, declaredKeys, 'foreign keys: one per declared reference, with its ON DELETE');
   const tables = new Map(Object.values(declared.tables).map((table) => [table.name, table]));
   const liveTables = new Set(live.columns.map((row) => row.table_name));
   for (const name of liveTables) if (!tables.has(name)) problems.push(`table ${name} exists but is not declared`);

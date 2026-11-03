@@ -296,9 +296,14 @@ function eventIdFrom(req) {
   return sanitizeInteger(req.query.id, 1, MAX_INT_ID);
 }
 
+// Any foreign key from event_registrations to events, not one by name: a
+// database whose base tables came from the schema declaration also carried
+// Drizzle's event_registrations_event_id_events_id_fk (dropped by migration
+// 0027), which fired first, so the race answered 500.
 export function isRegistrationForeignKeyConflict(error) {
   return error?.code === '23503'
-    && error?.constraint === 'event_registrations_event_id_fkey';
+    && (error?.table === 'event_registrations'
+      || String(error?.constraint ?? '').startsWith('event_registrations_event_id'));
 }
 
 // The public list used to return every event ever held, and grows by a few

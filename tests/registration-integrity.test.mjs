@@ -22,6 +22,9 @@ test('only the registration foreign key maps an event-delete race to registratio
     code: '23503',
     constraint: 'event_registrations_event_id_fkey',
   }), true);
+  // DB-010. Drizzle's name for the same key, and the table PostgreSQL reports.
+  assert.equal(isRegistrationForeignKeyConflict({ code: '23503', constraint: 'event_registrations_event_id_events_id_fk' }), true);
+  assert.equal(isRegistrationForeignKeyConflict({ code: '23503', table: 'event_registrations', constraint: 'renamed' }), true);
   assert.equal(isRegistrationForeignKeyConflict({
     code: '23503',
     constraint: 'photo_event_slots_event_id_fkey',
