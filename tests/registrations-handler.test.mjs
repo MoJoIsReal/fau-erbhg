@@ -369,13 +369,19 @@ test('the event decides whether a signup is open and what it must name', async (
 
 // TEST-003. The council's view of a signup list, and removing a signup.
 test('the council sees the list, everyone else sees only the count', async (t) => {
-  const row = { id: 3, eventId: 7, name: 'Kari', email: 'kari@example.test', phone: '90000000', attendeeCount: 2 };
+  const row = { id: 3, event_id: 7, name: 'Kari', email: 'kari@example.test', phone: '90000000', attendee_count: 2,
+    comments: null, registered_at: '2026-09-01T00:00:00.000Z', children_names: null, photo_slots: null, food_contribution: null,
+    cancel_token: 'c'.repeat(64) };
   const database = () => useDatabase(scriptedSql({
     respond: (statement) => (statement.includes('SUM(attendee_count)') ? [{ count: 2 }] : statement.startsWith('SELECT id, event_id') ? [row] : []),
   }));
   const sql = database();
   const council = await call(t, handler, { query: { eventId: '7', view: 'council' }, as: 'member' });
-  assert.deepEqual([council.statusCode, council.body], [200, [row]]);
+  // Mapped to the wire shape (MAINT-002), and a stray column never passes.
+  assert.deepEqual([council.statusCode, council.body], [200, [{
+    id: 3, eventId: 7, name: 'Kari', email: 'kari@example.test', phone: '90000000', attendeeCount: 2,
+    comments: null, registeredAt: '2026-09-01T00:00:00.000Z', childrenNames: null, photoSlots: null, foodContribution: null,
+  }]]);
   // The cancel token only ever travels in the parent's own mail: the list the
   // council reads never selects it. (The signup's own answer is an allow-list,
   // pinned above.)

@@ -81,6 +81,26 @@ export function validateSignupBody(body = {}) {
   return { values };
 }
 
+// The wire shape of a registration, as the council's list reads it. The one
+// place a column becomes a field (AGENTS.md, "Row mapping"); the cancel token
+// is never part of it. The public signup answer is an allow-list of three of
+// these fields, and the parent's own page reads a joined lookup of its own.
+function mapRegistration(row) {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    attendeeCount: row.attendee_count,
+    comments: row.comments,
+    registeredAt: row.registered_at,
+    childrenNames: row.children_names,
+    photoSlots: row.photo_slots,
+    foodContribution: row.food_contribution,
+  };
+}
+
 // What the event itself asks of a signup: that it takes signups here and is
 // still open, a name for everyone booked, and the food on a potluck.
 export function validateSignupForEvent(event, { sanitizedAttendeeCount, sanitizedLanguage }, body = {}, nowIso = new Date().toISOString()) {
@@ -347,17 +367,13 @@ export default withApiHandler(async function handler(req, res) {
 
     if (isCouncilMember) {
       const registrations = await sql`
-        SELECT id, event_id as "eventId", name, email, phone,
-               attendee_count as "attendeeCount", comments,
-               registered_at as "registeredAt",
-               children_names as "childrenNames",
-               photo_slots as "photoSlots",
-               food_contribution as "foodContribution"
+        SELECT id, event_id, name, email, phone, attendee_count, comments,
+               registered_at, children_names, photo_slots, food_contribution
         FROM event_registrations
         WHERE event_id = ${eventIdNum}
         ORDER BY registered_at DESC
       `;
-      return res.status(200).json(registrations);
+      return res.status(200).json(registrations.map(mapRegistration));
     } else {
       // Public access - return aggregate only. Never expose registration PII.
       const totals = await sql`
@@ -657,13 +673,13 @@ export default withApiHandler(async function handler(req, res) {
     // An allow-list, not the stored row minus the token: a column added to
     // event_registrations later must not reach an anonymous caller by default.
     // Otherwise the cancel token only ever travels in the confirmation email.
-    const created = newRegistration[0];
+    const { id, eventId, attendeeCount } = mapRegistration(newRegistration[0]);
     return res.status(201).json({
-      id: created.id,
-      eventId: created.event_id,
-      attendeeCount: created.attendee_count,
+      id,
+      eventId,
+      attendeeCount,
       confirmationEmail: mailQueued,
-      ...(mailQueued ? {} : { cancelUrl: registrationCancelUrl(created.cancel_token) }),
+      ...(mailQueued ? {} : { cancelUrl: registrationCancelUrl(newRegistration[0].cancel_token) }),
     });
   }
 
