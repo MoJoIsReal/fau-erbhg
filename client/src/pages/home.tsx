@@ -172,7 +172,7 @@ export default function Home() {
           action={
             <Link
               href="/kalender"
-              className="inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+              className="inline-flex min-h-[44px] items-center gap-1.5 text-small font-semibold text-brand hover:underline"
             >
               {t.home.seeAllEvents}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -306,7 +306,7 @@ export default function Home() {
             action={
               <Link
                 href="/news"
-                className="inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+                className="inline-flex min-h-[44px] items-center gap-1.5 text-small font-semibold text-brand hover:underline"
               >
                 {t.home.readMore}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -361,7 +361,7 @@ export default function Home() {
           action={
             <Link
               href="/contact"
-              className="inline-flex items-center gap-1.5 text-small font-semibold text-brand hover:underline"
+              className="inline-flex min-h-[44px] items-center gap-1.5 text-small font-semibold text-brand hover:underline"
             >
               {t.home.boardOnContact}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -395,7 +395,7 @@ export default function Home() {
               <dd className="mt-1.5">
                 <a
                   href={`mailto:${kindergartenInfo.contactEmail}`}
-                  className="break-words font-semibold text-brand hover:underline"
+                  className="inline-flex min-h-[44px] items-center break-all font-semibold text-brand hover:underline"
                 >
                   {kindergartenInfo.contactEmail}
                 </a>
@@ -408,7 +408,7 @@ export default function Home() {
               <dd className="mt-1.5">
                 <a
                   href={`mailto:${FAU_EMAIL}`}
-                  className="break-words font-semibold text-brand hover:underline"
+                  className="inline-flex min-h-[44px] items-center break-all font-semibold text-brand hover:underline"
                 >
                   {FAU_EMAIL}
                 </a>

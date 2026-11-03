@@ -412,14 +412,14 @@ export default function Contact() {
                         <p className="mt-0.5 text-small text-subtle">{card.description}</p>
                         <ul className="mt-3 space-y-1.5 text-small">
                           {card.email && (
-                            <li className="flex items-start gap-2">
+                            <li className="flex items-center gap-2">
                               <Mail
-                                className="mt-0.5 h-4 w-4 shrink-0 text-subtle"
+                                className="h-4 w-4 shrink-0 text-subtle"
                                 aria-hidden="true"
                               />
                               <a
                                 href={`mailto:${card.email}`}
-                                className="min-w-0 break-words font-semibold text-brand hover:underline"
+                                className="inline-flex min-h-[44px] min-w-0 items-center break-all font-semibold text-brand hover:underline"
                               >
                                 {card.email}
                               </a>
