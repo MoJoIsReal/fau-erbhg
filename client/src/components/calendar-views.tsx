@@ -26,7 +26,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import PageHero from "@/components/site/page-hero";
 import { FilterChip, SegmentedControl } from "@/components/site/controls";
 import { InfoBanner } from "@/components/site/banners";
-import { EmptyState } from "@/components/site/section";
 import { QueryNotice } from "@/components/site/query-notice";
 import { ILLUSTRATION_CALENDAR } from "@/components/site/illustrations";
 import { returnFocus } from "@/lib/return-focus";
@@ -114,7 +113,7 @@ export default function CalendarViews() {
   const schoolYear = mode === "month"
     ? getKindergartenSchoolYear(new Date(monthCursor.year, monthCursor.month - 1, 1))
     : thisSchoolYear;
-  const { entries, yearlyEntries, events, exportsReady, hasDataError, queries, isLoading, isError } = useCalendarEntries(schoolYear);
+  const { entries, yearlyEntries, events, exportsReady, hasDataError, queries, isLoading } = useCalendarEntries(schoolYear);
 
   useEffect(() => {
     try {
@@ -218,16 +217,10 @@ export default function CalendarViews() {
     );
   }
 
-  if (isError) {
-    return (
-      <EmptyState
-        isError
-        icon={<CalendarDays className="h-5 w-5" aria-hidden="true" />}
-        title={t.calendar.loadFailed}
-      />
-    );
-  }
-
+  // When both sources fail the page keeps its hero (and so its h1) and shows
+  // the same retry notice as a partial failure, above an empty calendar that
+  // says it could not load. It used to replace the whole page with a bare
+  // message: no heading and no way to try again.
   return (
     // The calendar is the site's one working surface, so it takes the wide
     // container rather than the reading one (guide v1.1 §24, "Kalender").
