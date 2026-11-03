@@ -10,7 +10,7 @@ import {
 } from '../api/_shared/registration-cancel.js';
 import { handleCancel } from '../api/registrations.js';
 import { sliceBetween } from './helpers.mjs';
-import { registrationReminderEmail } from '../api/cron/event-reminders.js';
+import { registrationReminderEmail } from '../api/_shared/registration-emails.js';
 import { mockResponse } from './helpers.mjs';
 
 const TOKEN = 'ab'.repeat(32);

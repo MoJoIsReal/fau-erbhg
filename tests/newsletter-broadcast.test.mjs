@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { broadcastNewsletter } from '../api/cron/event-reminders.js';
+import { broadcastNewsletter } from '../api/_shared/newsletter-outbox.js';
 
 process.env.GMAIL_USER = 'sender@example.test';
 process.env.GMAIL_APP_PASSWORD = 'test-only-password';

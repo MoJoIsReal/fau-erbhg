@@ -143,7 +143,8 @@ a redrawn card gets a **new file name**, not new bytes under the old one.
 
 ## Newsletter
 
-Files: `api/cron/event-reminders.js` (`?task=newsletter`), `api/_shared/newsletter.js`,
+Files: `api/_shared/newsletter-outbox.js` (fan-out, claim and send, run by
+`api/cron/event-reminders.js?task=newsletter`), `api/_shared/newsletter.js`,
 `api/_shared/delivery.js`, `api/contact.js` (subscribe/confirm/unsubscribe actions).
 
 Three item types feed the evening broadcast, all through the

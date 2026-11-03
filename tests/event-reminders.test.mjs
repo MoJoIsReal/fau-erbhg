@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  cleanupPrivacyRetention,
   isAuthorizedCron,
   logCronRun,
-  registrationReminderEmail,
   runMorningTasks,
   sendEventReminders,
 } from '../api/cron/event-reminders.js';
+import { cleanupPrivacyRetention } from '../api/_shared/retention.js';
+import { registrationReminderEmail } from '../api/_shared/registration-emails.js';
 
 process.env.GMAIL_USER = 'sender@example.test';
 process.env.GMAIL_APP_PASSWORD = 'test-only-password';

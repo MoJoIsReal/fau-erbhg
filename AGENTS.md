@@ -119,7 +119,7 @@ calendar, calendar feed, newsletter invariants),
 | Uploads | `api/upload.js` + `api/_shared/upload-validation.js` |
 | Bot check on the public forms (Cloudflare Turnstile) | `api/_shared/turnstile.js` + `client/src/components/turnstile-widget.tsx`; keys and CSP in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) |
 | Structured logs, request ids | `api/_shared/log.js` (`withApiHandler` calls it) |
-| Scheduled work | `api/cron/event-reminders.js`, schedules in `vercel.json` |
+| Scheduled work | `api/cron/event-reminders.js` (the handler and its stages), schedules in `vercel.json`; the work in `api/_shared/{retention,newsletter-outbox,run-budget}.js` and the reminder mail in `registration-emails.js` |
 | Video embeds (sanitizer + CSP) | `shared/video-embed.js`, and the four files [`docs/subsystems.md`](docs/subsystems.md) names |
 | Roles/enums shared by both tiers | `shared/constants.js` |
 | **Any visual change** — read first | [`docs/design/style-guide.md`](docs/design/style-guide.md) |
