@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
-import { contactFormBaseSchema } from "@/lib/form-schemas";
+import { contactFormBaseSchema, isValidEmail } from "@/lib/form-schemas";
 import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
 import {
   GraduationCap,
@@ -92,9 +92,18 @@ export default function Contact() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
+  // Required fields are checked here as the API checks them. An empty form
+  // used to reach the server, come back as a toast with no field marked, and
+  // spend one of the three messages an address may send in ten minutes.
   const formSchema = contactFormBaseSchema.extend({
     subject: z.string().min(1, t.contact.selectSubject),
+    message: z.string().trim().min(1, t.common.fieldRequired),
     website: z.string().optional(),
+  }).superRefine((data, ctx) => {
+    if (data.subject === "anonymous") return;
+    if (!data.name.trim()) ctx.addIssue({ code: "custom", path: ["name"], message: t.common.fieldRequired });
+    if (!data.email.trim()) ctx.addIssue({ code: "custom", path: ["email"], message: t.common.fieldRequired });
+    else if (!isValidEmail(data.email)) ctx.addIssue({ code: "custom", path: ["email"], message: t.common.emailInvalid });
   });
 
   const contactCards: ContactCard[] = [
@@ -177,9 +186,21 @@ export default function Contact() {
         setTurnstileNotReady(true);
         return;
       }
+      // A refusal about one field is shown under that field.
+      const code = getApiErrorBody(error)?.code;
+      const message = apiErrorText(error, t, t.contact.errorDesc);
+      if (code === "NAME_AND_EMAIL_REQUIRED") {
+        form.setError("name", { type: "server", message }, { shouldFocus: true });
+        form.setError("email", { type: "server", message });
+        return;
+      }
+      if (code === "MESSAGE_REQUIRED") {
+        form.setError("message", { type: "server", message }, { shouldFocus: true });
+        return;
+      }
       toast({
         title: t.contact.error,
-        description: apiErrorText(error, t, t.contact.errorDesc),
+        description: message,
         variant: "destructive",
       });
     },

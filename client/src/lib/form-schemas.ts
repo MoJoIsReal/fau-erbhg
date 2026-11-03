@@ -39,6 +39,13 @@ export const registrationFormBaseSchema = z.object({
   foodContribution: z.string().nullable().optional(),
 });
 
+// The address rule the API applies (sanitizeEmail in api/_shared/middleware.js),
+// to the trimmed, lower-cased value, so the form refuses what the server would.
+export const EMAIL_PATTERN = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+export function isValidEmail(value: string | null | undefined): boolean {
+  return EMAIL_PATTERN.test(String(value ?? "").trim().toLowerCase());
+}
+
 export const contactFormBaseSchema = z.object({
   name: z.string(),
   email: z.string(),

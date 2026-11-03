@@ -629,6 +629,8 @@ export interface Translations {
     loading: string;
     bytes: string;
     required: string;
+    fieldRequired: string;
+    emailInvalid: string;
     file: string;
     cancel: string;
     upload: string;
@@ -1807,6 +1809,8 @@ export const translations: Record<Language, Translations> = {
       loading: "Laster...",
       bytes: "Bytes",
       required: "påkrevd",
+      fieldRequired: "Fyll ut dette feltet.",
+      emailInvalid: "Skriv en gyldig e-postadresse, for eksempel navn@eksempel.no.",
       file: "Fil",
       cancel: "Avbryt",
       upload: "Last opp",
@@ -2981,6 +2985,8 @@ export const translations: Record<Language, Translations> = {
       loading: "Loading...",
       bytes: "Bytes",
       required: "required",
+      fieldRequired: "Please fill in this field.",
+      emailInvalid: "Enter a valid email address, for example name@example.com.",
       file: "File",
       cancel: "Cancel",
       upload: "Upload",

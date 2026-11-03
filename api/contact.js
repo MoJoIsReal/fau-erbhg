@@ -62,6 +62,24 @@ export default withApiHandler(async function handler(req, res) {
     });
   }
 
+  // For anonymous submissions, we don't require name/email
+  const isAnonymous = subject === 'anonymous';
+
+  // A form sent without its name or address is refused before the per-IP
+  // limit counts it: the limit allows three messages in ten minutes, and a
+  // parent who left a field empty twice (or a kindergarten's shared network)
+  // used to be locked out before sending anything.
+  const filled = (value) => typeof value === 'string' && value.trim() !== '';
+  if (!isAnonymous && (!filled(name) || !filled(email))) {
+    return res.status(400).json({
+      error: 'Valid name and email are required for non-anonymous submissions',
+      code: 'NAME_AND_EMAIL_REQUIRED',
+    });
+  }
+  if (!filled(message)) {
+    return res.status(400).json({ error: 'Valid message is required', code: 'MESSAGE_REQUIRED' });
+  }
+
   const sql = getDb();
 
   // The per-IP limit needs no sanitized value, so it runs before sanitization
@@ -77,9 +95,6 @@ export default withApiHandler(async function handler(req, res) {
     res.setHeader('Retry-After', String(ipRateLimit.retryAfter));
     return res.status(429).json({ error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
   }
-
-  // For anonymous submissions, we don't require name/email
-  const isAnonymous = subject === 'anonymous';
 
   // Sanitize inputs
   const sanitizedName = isAnonymous ? '' : sanitizeText(name, 100);
