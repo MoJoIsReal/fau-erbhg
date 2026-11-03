@@ -759,3 +759,24 @@ test('a revoke that would race a live upload is refused and deletes nothing', as
   const check = sql.calls.find(({ statement }) => statement.startsWith('SELECT 1 FROM media_files'));
   assert.match(check.statement, /status = 'uploading' AND created_at > \?/);
 });
+
+// TEST-003. upload-abort had an authorization row and no test of what it does.
+test('aborting an upload ends the multipart upload, deletes what arrived, then the row', async (t) => {
+  const sent = stubR2(t);
+  const file = { id: 42, share_id: 1, object_key: 'media/1/cafe', preview_key: 'media/1/cafe-preview', kind: 'video',
+    mime_type: 'video/quicktime', size_bytes: '1000', upload_id: 'upload-1', preview_bytes: null };
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('SELECT f.id, f.share_id') ? [file] : undefined) }));
+  const res = await call(t, handler, { method: 'POST', query: { action: 'upload-abort' }, body: { fileId: 42 }, as: 'admin' });
+  assert.deepEqual(res.body, { success: true });
+  assert.deepEqual(sent.map(({ name }) => name), ['AbortMultipartUploadCommand', 'DeleteObjectsCommand']);
+  assert.deepEqual(sent[1].input.Delete.Objects, [{ Key: 'media/1/cafe' }, { Key: 'media/1/cafe-preview' }]);
+  assert.ok(sql.writes().some(({ statement, values }) => statement.startsWith('DELETE FROM media_files') && values[0] === 42));
+
+  // Only an upload still in progress, in a draft, can be aborted.
+  const none = stubR2(t);
+  const missing = useDatabase(scriptedSql());
+  const gone = await call(t, handler, { method: 'POST', query: { action: 'upload-abort' }, body: { fileId: 42 }, as: 'admin' });
+  assert.equal(gone.statusCode, 404);
+  assert.deepEqual(none, []);
+  assert.deepEqual(missing.writes(), []);
+});

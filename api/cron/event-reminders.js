@@ -71,6 +71,12 @@ function previousDay(isoDate) {
   return date.toISOString().slice(0, 10);
 }
 
+function isIsoDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T12:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 function tomorrowInOslo() {
   return osloToday(new Date(Date.now() + 24 * 60 * 60 * 1000));
 }
@@ -313,6 +319,11 @@ export default withApiHandler(async function handler(req, res) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // ?date= runs the job for another day (by hand, with the cron secret). A
+  // value that is not a real date used to reach previousDay() and answer 500.
+  if (req.query.date !== undefined && !isIsoDate(req.query.date)) {
+    return res.status(400).json({ error: 'date must be a real date written as YYYY-MM-DD' });
+  }
   const sql = getDb();
   const targetDate = req.query.date || tomorrowInOslo();
   const deadline = deadlineFrom();

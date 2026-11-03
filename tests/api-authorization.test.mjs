@@ -25,7 +25,10 @@ const ROUTES = [
   { handler: 'registrations', method: 'DELETE', query: { id: '1' }, allowed: COUNCIL },
   { handler: 'documents', method: 'DELETE', query: { id: '1' }, allowed: COUNCIL },
   { handler: 'upload', method: 'POST', allowed: COUNCIL },
+  { handler: 'upload', method: 'POST', query: { action: 'sign' }, allowed: COUNCIL },
   { handler: 'yearly-calendar', method: 'POST', allowed: EDITORS },
+  { handler: 'yearly-calendar', method: 'POST', query: { action: 'preview-import' }, allowed: EDITORS },
+  { handler: 'yearly-calendar', method: 'POST', query: { action: 'commit-import' }, allowed: EDITORS },
   { handler: 'yearly-calendar', method: 'PUT', query: { id: '1' }, allowed: EDITORS },
   { handler: 'yearly-calendar', method: 'DELETE', query: { id: '1' }, allowed: EDITORS },
   settings('board-members', 'POST', ADMIN),
@@ -109,13 +112,58 @@ test('an allowed role without the CSRF pair changes nothing', async (t) => {
 });
 
 // A new handler that guards a route with requireRole has to be listed above,
-// or it ships with no check that the guard is in the right place.
-test('every handler that checks a role is covered by the matrix', () => {
-  const covered = new Set(ROUTES.map((route) => route.handler));
+// or it ships with no check that the guard is in the right place. Checked per
+// route, not per file: a new method, ?action= or ?resource= in a handler that
+// is already listed used to pass with no row of its own.
+const PUBLIC_ROUTES = {
+  documents: ['download'],
+  media: ['view'],
+  registrations: ['cancel-lookup', 'cancel', 'update-food'],
+  // Import decisions inside a commit, not routes.
+  'yearly-calendar': ['create', 'update', 'ignore'],
+};
+// The public signup.
+const PUBLIC_METHODS = { registrations: ['POST'] };
+test('every method, action and resource of a handler that checks a role is in the matrix', () => {
   for (const file of readdirSync(new URL('../api/', import.meta.url)).filter((name) => name.endsWith('.js'))) {
     const source = readFileSync(new URL(`../api/${file}`, import.meta.url), 'utf8');
-    if (/requireRole\(/.test(source)) {
-      assert.ok(covered.has(file.replace(/\.js$/, '')), `api/${file} guards routes but is not in ROUTES`);
+    if (!/requireRole\(/.test(source)) continue;
+    const handler = file.replace(/\.js$/, '');
+    const rows = ROUTES.filter((route) => route.handler === handler);
+    assert.ok(rows.length > 0, `api/${file} guards routes but is not in ROUTES`);
+
+    const methods = new Set([...source.matchAll(/req\.method === '([A-Z]+)'/g)].map((match) => match[1]));
+    for (const method of methods) {
+      if (method === 'GET' || method === 'OPTIONS' || (PUBLIC_METHODS[handler] ?? []).includes(method)) continue;
+      assert.ok(rows.some((route) => route.method === method), `${handler}: ${method} has no row in ROUTES`);
+    }
+    const named = [...source.matchAll(/(?<![.\w])(?:action|resource) === '([a-z-]+)'|req\.(?:query|body)\.(?:action|resource) === '([a-z-]+)'/g)]
+      .map((match) => match[1] ?? match[2]);
+    const table = source.match(/const WRITE_ACTIONS = \{([\s\S]*?)\};/)?.[1] ?? '';
+    named.push(...[...table.matchAll(/^\s+'?([a-z-]+)'?:/gm)].map((match) => match[1]));
+    for (const name of new Set(named)) {
+      if ((PUBLIC_ROUTES[handler] ?? []).includes(name)) continue;
+      assert.ok(rows.some((route) => Object.values(route.query ?? {}).includes(name)), `${handler}: ${name} has no row in ROUTES`);
+    }
+  }
+});
+
+// secure-settings multiplexes six resources, each with its own methods: a row
+// per handler method is not enough there, so each resource's own methods are
+// checked against its rows.
+test('every method of every secure-settings resource is in the matrix', () => {
+  const source = readFileSync(new URL('../api/secure-settings.js', import.meta.url), 'utf8');
+  const resources = [...source.matchAll(/resource === '([a-z-]+)'\) \{\s*return await (\w+)\(/g)];
+  assert.ok(resources.length >= 6, 'found the resource routing');
+  for (const [, resource, fn] of resources) {
+    const start = source.indexOf(`async function ${fn}(`);
+    assert.ok(start !== -1, fn);
+    const next = source.slice(start + 1).search(/\n(?:async function |export default )/);
+    const body = source.slice(start, next === -1 ? undefined : start + 1 + next);
+    for (const [, method] of body.matchAll(/req\.method === '([A-Z]+)'/g)) {
+      if (method === 'GET') continue;
+      assert.ok(ROUTES.some((route) => route.handler === 'secure-settings' && route.query?.resource === resource && route.method === method),
+        `secure-settings ${resource} ${method} has no row in ROUTES`);
     }
   }
 });
