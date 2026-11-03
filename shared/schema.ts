@@ -16,7 +16,10 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   role: text("role").notNull().default("member"), // "admin", "member", "staff"
   createdAt: text("created_at").notNull(),
-});
+}, (table) => ({
+  // Sign-in reads the username case-insensitively (migration 0025).
+  usernameLowerUnique: uniqueIndex("users_username_lower_unique_idx").on(sql`lower(${table.username})`),
+}));
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),
@@ -27,7 +30,7 @@ export const events = pgTable("events", {
   location: text("location").notNull(),
   customLocation: text("custom_location"), // For "Annet" locations
   maxAttendees: integer("max_attendees"),
-  currentAttendees: integer("current_attendees").default(0),
+  currentAttendees: integer("current_attendees").notNull().default(0),
   registrationDeadline: text("registration_deadline"), // ISO datetime; signup closes after this point
   type: text("type").notNull(), // "meeting", "event", "dugnad", "foreldrefest", etc.
   status: text("status").default("active").notNull(), // "active", "cancelled"
@@ -41,7 +44,11 @@ export const events = pgTable("events", {
   // Potluck ("kurvfest"): everyone who signs up says what food they bring.
   // Chosen per event, since the same kind of event is not always a potluck.
   potluck: boolean("potluck").notNull().default(false),
-});
+}, (table) => ({
+  // Migration 0026. max_attendees stays nullable: NULL means no limit.
+  currentAttendeesCheck: check("events_current_attendees_check", sql`${table.currentAttendees} >= 0`),
+  maxAttendeesCheck: check("events_max_attendees_check", sql`${table.maxAttendees} >= 0`),
+}));
 
 export const eventRegistrations = pgTable("event_registrations", {
   id: serial("id").primaryKey(),
@@ -49,7 +56,7 @@ export const eventRegistrations = pgTable("event_registrations", {
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
-  attendeeCount: integer("attendee_count").default(1),
+  attendeeCount: integer("attendee_count").notNull().default(1),
   comments: text("comments"),
   language: text("language").default("no"),
   // JSON array of names: each child booked on a "foto" event, or, on any
@@ -77,6 +84,8 @@ export const eventRegistrations = pgTable("event_registrations", {
   // with the same address both pass the NOT EXISTS check, and this index is
   // what stops the second insert.
   eventEmailUnique: uniqueIndex("event_registrations_event_email_unique_idx").on(table.eventId, sql`lower(${table.email})`),
+  // Migration 0026: a registration is at least one person.
+  attendeeCountCheck: check("event_registrations_attendee_count_check", sql`${table.attendeeCount} >= 1`),
 }));
 
 // Registrations a parent cancelled through the link in their email. The cancel
@@ -89,12 +98,13 @@ export const eventRegistrationCancellations = pgTable("event_registration_cancel
   name: text("name").notNull(),
   email: text("email").notNull(),
   phone: text("phone"),
-  attendeeCount: integer("attendee_count"),
+  attendeeCount: integer("attendee_count").notNull().default(1),
   childrenNames: text("children_names"),
   registeredAt: text("registered_at"),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
   eventIdIdx: index("event_registration_cancellations_event_id_idx").on(table.eventId),
+  attendeeCountCheck: check("event_registration_cancellations_attendee_count_check", sql`${table.attendeeCount} >= 1`),
 }));
 
 // Normalized reservations for newly-created photo registrations. Legacy rows
@@ -162,7 +172,10 @@ export const newsletterSubscribers = pgTable("newsletter_subscribers", {
   name: text("name"),
   language: text("language").notNull().default("no"), // "no" or "en"
   status: text("status").notNull().default("pending"), // "pending", "active", "unsubscribed"
-  confirmToken: text("confirm_token"), // double opt-in token; cleared once confirmed
+  // Double opt-in token. Kept once confirmed, so opening the link again still
+  // answers "subscribed"; replaced when the address signs up again, and
+  // cleared on unsubscribe.
+  confirmToken: text("confirm_token"),
   unsubscribeToken: text("unsubscribe_token").notNull(), // stable token embedded in every email
   createdAt: text("created_at").notNull(),
   confirmedAt: text("confirmed_at"),

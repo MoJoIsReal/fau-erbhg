@@ -12,12 +12,15 @@ import {
 } from './_shared/middleware.js';
 import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 import { YEARLY_CALENDAR_CATEGORIES } from '../shared/calendar-entries.js';
-import { htmlToPlainText } from '../shared/html-text.js';
+import { resolveYearlyCalendarPlacement } from '../shared/yearly-calendar-placement.js';
+import { htmlToPlainText, plainTextToHtml } from '../shared/html-text.js';
 import {
   buildImportPreview,
   supportsYearlyCalendarNewsletter,
   validateImportDecision,
   validateYearlyCalendarImportRow,
+  YEARLY_CALENDAR_DESCRIPTION_MAX,
+  YEARLY_CALENDAR_DESCRIPTION_TOO_LONG,
 } from '../shared/yearly-calendar-utils.js';
 
 const VALID_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'note', 'closed'];
@@ -76,7 +79,7 @@ function mapEntry(row) {
 // The entry editor writes the same rich text as an event description, so a
 // description is stored as sanitized HTML and rendered through SafeHtml. An
 // editor the author emptied still sends "<p></p>"; store that as no description.
-const ENTRY_DESCRIPTION_MAX = 5000;
+const ENTRY_DESCRIPTION_MAX = YEARLY_CALENDAR_DESCRIPTION_MAX;
 
 function sanitizeEntryDescription(value) {
   const html = sanitizeHtml(value, ENTRY_DESCRIPTION_MAX);
@@ -146,6 +149,20 @@ function sanitizeEntryPayload(body) {
 // database and came back as a not-null violation, a 500 rather than a 400.
 const REQUIRED_ENTRY_FIELDS_ERROR = 'entryType, title, schoolYear, year and month are required';
 
+// Where an entry goes is worked out by the editor, and used to be trusted as
+// sent: an impossible date (2027-02-31), a week the year does not have, or a
+// school year that did not match the date was stored, and the calendar could
+// not show it. The same rule the editor uses decides here, and its school
+// year, year, month and week replace what was sent. Returns false when the
+// placement is impossible.
+const INVALID_PLACEMENT_ERROR = 'The date, month, week or weekdays do not make a valid placement';
+function placeEntry(payload) {
+  const placement = resolveYearlyCalendarPlacement(payload);
+  if (!placement) return false;
+  Object.assign(payload, placement);
+  return true;
+}
+
 function hasRequiredEntryFields(payload) {
   return Boolean(payload.entryType && payload.title && payload.schoolYear && payload.year && payload.month);
 }
@@ -164,7 +181,9 @@ function sanitizeImportRowText(row) {
   }
   for (const descriptionKey of ['beskrivelse', 'description']) {
     if (Object.prototype.hasOwnProperty.call(sanitized, descriptionKey)) {
-      sanitized[descriptionKey] = sanitizeImportTextValue(sanitized[descriptionKey], 1000);
+      // Cut above the validator's limit, so an over-long description is
+      // refused with its row number instead of being shortened in silence.
+      sanitized[descriptionKey] = sanitizeImportTextValue(sanitized[descriptionKey], ENTRY_DESCRIPTION_MAX + 1);
     }
   }
   return sanitized;
@@ -327,6 +346,19 @@ export default withApiHandler(async function handler(req, res) {
 
         if (action === 'update' || action === 'create') {
           const payload = validation.payload;
+          // The sheet carries a description as plain text and the preview
+          // compares it as text, so an update whose description reads the same
+          // keeps the stored rich text (links, bold, images) rather than
+          // overwriting it with the flattened copy. A new or edited
+          // description is stored the way the editor writes one: paragraphs.
+          const changedFields = previewRow?.status === 'changed' ? previewRow.changes : [];
+          const keepDescription = action === 'update'
+            && !changedFields.some(({ field }) => field === 'description');
+          const descriptionHtml = keepDescription ? null : plainTextToHtml(payload.description);
+          if (descriptionHtml && descriptionHtml.length > ENTRY_DESCRIPTION_MAX) {
+            summary.errors.push({ rowNumber, errors: [`Rad ${rowNumber}: ${YEARLY_CALENDAR_DESCRIPTION_TOO_LONG}`] });
+            continue;
+          }
           writes.push({
             row_number: rowNumber,
             action,
@@ -339,7 +371,8 @@ export default withApiHandler(async function handler(req, res) {
             week_number_end: payload.weekNumberEnd,
             date: payload.date,
             title: payload.title,
-            description: payload.description,
+            description: descriptionHtml ? sanitizeEntryDescription(descriptionHtml) : null,
+            keep_description: keepDescription,
             color: payload.color,
             show_on_homepage: payload.showOnHomepage,
             show_for_parents: payload.showForParents,
@@ -358,7 +391,8 @@ export default withApiHandler(async function handler(req, res) {
             FROM jsonb_to_recordset(${JSON.stringify(writes)}::jsonb) AS i(
               row_number int, action text, id int, school_year int, year int, month int,
               entry_type text, week_number int, week_number_end int, date text, title text,
-              description text, color text, show_on_homepage boolean, show_for_parents boolean
+              description text, keep_description boolean, color text, show_on_homepage boolean,
+              show_for_parents boolean
             )
           ), updated AS (
             UPDATE yearly_calendar_entries e
@@ -370,7 +404,7 @@ export default withApiHandler(async function handler(req, res) {
                 week_number_end = u.week_number_end,
                 date = u.date,
                 title = u.title,
-                description = u.description,
+                description = CASE WHEN u.keep_description THEN e.description ELSE u.description END,
                 color = u.color,
                 show_on_homepage = u.show_on_homepage,
                 show_for_parents = u.show_for_parents,
@@ -428,6 +462,9 @@ export default withApiHandler(async function handler(req, res) {
     if (!hasRequiredEntryFields(payload)) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
     }
+    if (!placeEntry(payload)) {
+      return res.status(400).json({ error: INVALID_PLACEMENT_ERROR, code: 'INVALID_ENTRY_PLACEMENT' });
+    }
     const now = new Date().toISOString();
     const created = await sql`
       INSERT INTO yearly_calendar_entries (
@@ -454,7 +491,16 @@ export default withApiHandler(async function handler(req, res) {
     if (!hasRequiredEntryFields(payload)) {
       return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
     }
+    if (!placeEntry(payload)) {
+      return res.status(400).json({ error: INVALID_PLACEMENT_ERROR, code: 'INVALID_ENTRY_PLACEMENT' });
+    }
     const now = new Date().toISOString();
+    // The version the editor opened. Every column is rewritten, so without it
+    // a second editor's older copy silently replaced the first one's save.
+    // An editor that sends no version keeps last-write-wins.
+    const expectedUpdatedAt = typeof req.body?.updatedAt === 'string' && req.body.updatedAt
+      ? req.body.updatedAt.slice(0, 64)
+      : null;
     const updated = await sql`
       UPDATE yearly_calendar_entries
       SET school_year = ${payload.schoolYear},
@@ -477,9 +523,16 @@ export default withApiHandler(async function handler(req, res) {
           notify_newsletter = ${payload.notifyNewsletter},
           updated_at = ${now}
       WHERE id = ${id}
+        AND (${expectedUpdatedAt}::text IS NULL OR updated_at = ${expectedUpdatedAt})
       RETURNING *
     `;
     if (updated.length === 0) {
+      if (expectedUpdatedAt) {
+        const existing = await sql`SELECT id FROM yearly_calendar_entries WHERE id = ${id}`;
+        if (existing.length > 0) {
+          return res.status(409).json({ error: 'The entry was changed by someone else', code: 'CONFLICT' });
+        }
+      }
       return res.status(404).json({ error: 'Entry not found', code: 'NOT_FOUND' });
     }
     return res.status(200).json(mapEntry(updated[0]));

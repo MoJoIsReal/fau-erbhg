@@ -16,9 +16,25 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = 'client/src';
-const BUDGET = 29;
+const BUDGET = 58;
 
-const PATTERN = /language === (['"])no\1 \?/g;
+// Whitespace-tolerant: `language === 'no'` with the `?` on the next line is
+// the same branch.
+const PATTERN = /language\s*===\s*(['"])no\1\s*\?/g;
+
+// The second ratchet: Norwegian written straight into a component, with no
+// branch at all. The public signup dialog showed "Antall deltakere" and
+// "Avbryt" to English readers, and the ternary count above could not see it.
+// A string or JSX text holding æ, ø or å outside i18n.ts is Norwegian copy
+// (or a data value, such as a room name, which the budget allows for).
+// Comments are skipped.
+const NORWEGIAN_BUDGET = 58;
+const NORWEGIAN_TEXT = /(["'`])(?:(?!\1)[^\\\n])*[æøåÆØÅ](?:(?!\1)[^\\\n])*\1|>[^<>{}]*[æøåÆØÅ][^<>{}]*</g;
+const withoutComments = (source) => source
+  .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')
+  .replace(/\/\*[\s\S]*?\*\//g, '')
+  .replace(/^\s*\/\/.*$/gm, '')
+  .replace(/\s\/\/ .*$/gm, '');
 
 function walk(dir) {
   const out = [];
@@ -37,13 +53,30 @@ function walk(dir) {
 
 const counts = [];
 let total = 0;
+const norwegian = [];
+let norwegianTotal = 0;
 
 for (const file of walk(ROOT)) {
-  const hits = (readFileSync(file, 'utf8').match(PATTERN) ?? []).length;
+  const source = readFileSync(file, 'utf8');
+  const hits = (source.match(PATTERN) ?? []).length;
   if (hits > 0) {
     counts.push([hits, file]);
     total += hits;
   }
+  if (file.endsWith('i18n.ts')) continue;
+  const texts = withoutComments(source).match(NORWEGIAN_TEXT) ?? [];
+  if (texts.length > 0) {
+    norwegian.push([texts.length, file]);
+    norwegianTotal += texts.length;
+  }
+}
+
+norwegian.sort((a, b) => b[0] - a[0]);
+if (norwegianTotal > NORWEGIAN_BUDGET) {
+  console.error(`\ni18n: ${norwegianTotal} Norwegian strings outside i18n.ts, budget is ${NORWEGIAN_BUDGET}.\n`);
+  for (const [count, file] of norwegian) console.error(`  ${String(count).padStart(3)}  ${file}`);
+  console.error('\nMove the copy into client/src/lib/i18n.ts, in both languages.\n');
+  process.exit(1);
 }
 
 counts.sort((a, b) => b[0] - a[0]);
@@ -64,4 +97,9 @@ if (total < BUDGET) {
   console.log('Lower BUDGET in scripts/check-i18n.mjs to lock in the improvement.');
 } else {
   console.log(`i18n: ${total} inline ternaries, at budget.`);
+}
+if (norwegianTotal < NORWEGIAN_BUDGET) {
+  console.log(`i18n: ${norwegianTotal} Norwegian strings outside i18n.ts, under the budget of ${NORWEGIAN_BUDGET}; lower NORWEGIAN_BUDGET.`);
+} else {
+  console.log(`i18n: ${norwegianTotal} Norwegian strings outside i18n.ts, at budget.`);
 }

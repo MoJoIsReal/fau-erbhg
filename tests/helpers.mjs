@@ -1,8 +1,22 @@
 // Shared fixtures for the suites in this directory. Not a suite itself: the
 // runner only picks up *.test.mjs.
+import assert from 'node:assert/strict';
 import { mock } from 'node:test';
 import { build } from 'esbuild';
 import jwt from 'jsonwebtoken';
+
+// The part of a source file from one marker up to the next. Both markers must
+// be found: with a bare indexOf, a renamed marker made the slice empty (or the
+// file's last character), and a guard like "this block never selects X" passed
+// on nothing. Without an end marker, the rest of the file.
+export function sliceBetween(source, start, end) {
+  const from = source.indexOf(start);
+  assert.ok(from !== -1, `source marker not found: ${start}`);
+  if (end === undefined) return source.slice(from);
+  const to = source.indexOf(end, from + start.length);
+  assert.ok(to !== -1, `source marker not found after "${start}": ${end}`);
+  return source.slice(from, to);
+}
 
 export const SESSION_SECRET = 'test-only-session-secret-with-at-least-32-bytes';
 process.env.SESSION_SECRET ??= SESSION_SECRET;

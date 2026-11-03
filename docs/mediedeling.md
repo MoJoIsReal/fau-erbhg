@@ -48,7 +48,7 @@ Dokumentet har fire deler:
 | Admin-side `/admin/media` | `client/src/pages/media-shares.tsx` |
 | Fjerning av metadata og opplasting | `client/src/lib/media-scrub.ts`, `client/src/lib/media-upload.ts` |
 | Delingssiden `/del` | `client/del.html`, `client/src/share/` |
-| Daglig sletting | `api/cron/event-reminders.js` (morgenkjøringen kl. 07 UTC) |
+| Daglig sletting | `api/cron/event-reminders.js` (morgenkjøringen kl. 07 UTC), som kaller `purgeExpiredShares` i `api/_shared/media-share.js` |
 | Test mot ekte R2 | `scripts/media-smoke.mjs` |
 
 ### Personvern og sikkerhet

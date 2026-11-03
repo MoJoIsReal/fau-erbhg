@@ -32,6 +32,14 @@ jobs:
       - name: Tests
         run: npm test
 
+      # The runner's clock is UTC, which hid date code that read the runtime's
+      # own zone (a reminder named the day before west of UTC). Run the suite
+      # either side of it as well.
+      - name: Tests outside UTC
+        run: |
+          TZ=America/New_York npm test
+          TZ=Pacific/Auckland npm test
+
       - name: Build
         run: npm run build
 

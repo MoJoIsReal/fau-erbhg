@@ -403,6 +403,9 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                 </div>
               </div>
               <p className="text-small text-subtle">{t.entryEditor.categoryHint}</p>
+              {event && (event.currentAttendees ?? 0) > 0 && (
+                <p className="text-small text-subtle">{t.modals.eventCreation.registrationsLockHint}</p>
+              )}
             </EditorSection>
             <EditorSection title={t.entryEditor.schedule}>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

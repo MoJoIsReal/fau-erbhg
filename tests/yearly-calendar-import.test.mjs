@@ -354,7 +354,7 @@ test('invalid rows name the field and the sheet row they came from', () => {
     validateYearlyCalendarImportRow({
       rowNumber: 12,
       schoolYear: 2027,
-      row: validDayRow({ beskrivelse: 'B'.repeat(1001) }),
+      row: validDayRow({ beskrivelse: 'B'.repeat(5001) }),
     }),
     'Beskrivelse',
   );
@@ -388,7 +388,7 @@ test('week-based entry types require a week in range; food ignores an end week',
     'uke_til',
   );
 
-  for (const entryType of ['week_event', 'food', 'note']) {
+  for (const entryType of ['week_event', 'food']) {
     assertInvalidContains(
       validateYearlyCalendarImportRow({
         rowNumber: 12,
@@ -674,4 +674,23 @@ test('titles match case- and whitespace-insensitively, Norwegian letters include
 test('only dated entry types can be sent in the newsletter', () => {
   for (const type of ['day_event', 'closed']) assert.equal(supportsYearlyCalendarNewsletter(type), true, type);
   for (const type of ['week_event', 'food', 'note', 'not-real']) assert.equal(supportsYearlyCalendarNewsletter(type), false, type);
+});
+
+// DB-005. The import checked only 1–53 and the month, so a week that does not
+// exist, or does not touch its month, imported as new and then showed nowhere
+// (or in another school year). A note for a whole month has no week at all.
+test('a week has to exist in its year and fall in its month; a whole-month note needs none', () => {
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({ rowNumber: 12, schoolYear: 2027, row: validWeekRow({ [YEAR_COLUMN]: 2027, [MONTH_COLUMN]: 12, uke_fra: 53 }) }),
+    'Uke 53 finnes ikke i 2027',
+  );
+  assertInvalidContains(
+    validateYearlyCalendarImportRow({ rowNumber: 12, schoolYear: 2027, row: validWeekRow({ [MONTH_COLUMN]: 9, uke_fra: 2 }) }),
+    'Uke 2 ligger ikke i 2027-09',
+  );
+  assert.equal(validateYearlyCalendarImportRow({ rowNumber: 12, schoolYear: 2026, row: validWeekRow({ [YEAR_COLUMN]: 2026, [MONTH_COLUMN]: 12, uke_fra: 53 }) }).ok, true,
+    '2026 has a week 53');
+  const note = validateYearlyCalendarImportRow({ rowNumber: 12, schoolYear: 2027, row: validWeekRow({ entry_type: 'note', uke_fra: '' }) });
+  assert.equal(note.ok, true);
+  assert.equal(note.payload.weekNumber, null);
 });

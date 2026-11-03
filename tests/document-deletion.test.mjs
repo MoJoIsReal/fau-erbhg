@@ -137,3 +137,53 @@ test('a download redirects to the stored file, and a missing one is a 404', asyn
   assert.equal((await call(t, handler, { query: { action: 'download', id: '7.5' } })).statusCode, 400);
   assert.deepEqual(refused.calls, []);
 });
+
+// An editor image is shown from the rich text that holds it. Downloading one
+// by its sequential id kept a removed photo reachable.
+test('an editor image is never served by download', async (t) => {
+  const sql = useDatabase(scriptedSql());
+  const res = await call(t, handler, { query: { action: 'download', id: '7' } });
+  assert.equal(res.statusCode, 404);
+  assert.match(sql.calls.at(-1).statement, /WHERE id = \? AND category <> 'editor-image'/);
+});
+
+// Nothing removed an editor image when it left the text, or when the post,
+// event or calendar entry holding it was deleted.
+test('the morning run deletes unused editor images, file first, and keeps the rest for a retry', async (t) => {
+  const { purgeUnusedEditorImages, EDITOR_IMAGE_GRACE_DAYS } = await import('../api/_shared/document-assets.js');
+  const image = (id, extra = {}) => ({ id, cloudinary_public_id: `fau-documents/${id}-bilde`,
+    cloudinary_url: `https://res.cloudinary.com/test/image/upload/v1/fau-documents/${id}-bilde.png`, ...extra });
+  const effects = [];
+  const statements = [];
+  const sql = async (strings, ...values) => {
+    const statement = strings.join('?').replace(/\s+/g, ' ').trim();
+    statements.push({ statement, values });
+    if (statement.startsWith('WITH candidate AS')) {
+      return [image(1), image(2, { cloudinary_url: 'https://evil.example/x.png' }), image(3)];
+    }
+    if (statement.startsWith('DELETE FROM documents')) effects.push(`row ${values[0]}`);
+    return [];
+  };
+  destroy = async (target) => {
+    effects.push(target);
+    return { result: target.endsWith('3-bilde') ? 'error' : 'ok' };
+  };
+  t.mock.method(console, 'error', () => {});
+
+  const now = new Date('2026-11-02T07:00:00.000Z');
+  assert.deepEqual(await purgeUnusedEditorImages(sql, now), { editorImagesDeleted: 1, editorImagesFailed: 2 });
+  assert.deepEqual(effects, ['fau-documents/1-bilde', 'row 1', 'fau-documents/3-bilde'],
+    'only a verified identity reaches the provider, and a row goes only after its file');
+
+  const [select] = statements;
+  assert.equal(select.values[0], new Date(now.getTime() - EDITOR_IMAGE_GRACE_DAYS * 86400000).toISOString());
+  for (const table of ['blog_posts b', 'events e', 'yearly_calendar_entries y']) {
+    assert.ok(select.statement.includes(`NOT EXISTS ( SELECT 1 FROM ${table}`), `a reference in ${table} keeps the image`);
+  }
+  assert.match(statements[1].statement, /^DELETE FROM documents WHERE id = \? AND category = 'editor-image'$/);
+
+  const env = process.env.CLOUDINARY_API_SECRET;
+  delete process.env.CLOUDINARY_API_SECRET;
+  t.after(() => { process.env.CLOUDINARY_API_SECRET = env; });
+  assert.equal(await purgeUnusedEditorImages(sql, now), null, 'skipped, not failed, without Cloudinary');
+});

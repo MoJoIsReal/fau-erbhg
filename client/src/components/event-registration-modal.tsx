@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorBody, invalidateEventRegistrations } from "@/lib/queryClient";
-import { registrationFormBaseSchema } from "@/lib/form-schemas";
-import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, type SignupErrorCode } from "@shared/constants";
+import { createSignupFormSchema } from "@/lib/form-schemas";
+import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, TEXT_LIMITS, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import PotluckContributions from "@/components/potluck-contributions";
@@ -25,14 +25,12 @@ import {
 import { z } from "zod";
 import { returnFocus } from "@/lib/return-focus";
 
-const formSchema = registrationFormBaseSchema.extend({
-  attendeeCount: z.number().min(1, "Må være minst 1 deltaker").max(MAX_ATTENDEES_PER_REGISTRATION, `Maksimalt ${MAX_ATTENDEES_PER_REGISTRATION} deltakere`),
-  childrenNames: z.string().optional().nullable(),
-  foodContribution: z.string().max(200).optional().nullable(),
-  // Email validation removed from frontend - handled by backend database blacklist
-});
+// Refusals that mean the event is no longer what the dialog shows.
+const SIGNUP_STATE_CHANGED = new Set<string>([
+  "EVENT_FULL", "DEADLINE_PASSED", "EVENT_INACTIVE", "SIGNUP_CLOSED", "PHOTO_SLOTS_FULL", "PHOTO_SLOT_TAKEN",
+]);
 
-type FormData = z.infer<typeof formSchema>;
+type FormData = z.infer<ReturnType<typeof createSignupFormSchema>>;
 
 interface EventRegistrationModalProps {
   event: Event | null;
@@ -49,6 +47,12 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
+  const formSchema = useMemo(() => createSignupFormSchema({
+    min: t.events.signupAttendeesMin,
+    max: t.events.signupAttendeesMax.replace("{max}", String(MAX_ATTENDEES_PER_REGISTRATION)),
+    required: t.common.fieldRequired,
+    email: t.common.emailInvalid,
+  }), [t]);
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -172,8 +176,26 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         description: message,
         variant: "destructive",
       });
+      // The event changed under the form: it filled up, closed or was
+      // cancelled. The dialog and the calendar kept showing seats left and an
+      // open Register button for up to five minutes. Reload what they show,
+      // and close the dialog when the signup can no longer succeed.
+      if (event && SIGNUP_STATE_CHANGED.has(code)) {
+        invalidateEventRegistrations(event.id);
+        if (code !== "PHOTO_SLOT_TAKEN") handleClose();
+      }
     }
   });
+
+  // The submit button is disabled while the request is out, which drops
+  // keyboard focus to the page body; after a refusal shown only as a toast the
+  // user was left nowhere (WCAG 2.4.3). Focus returns to the button, unless a
+  // field with the error already took it.
+  const submitRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (mutation.isPending || !mutation.isError) return;
+    if (!document.activeElement || document.activeElement === document.body) submitRef.current?.focus();
+  }, [mutation.isPending, mutation.isError]);
 
   const onSubmit = (data: FormData) => {
     // Validate children names for foto events
@@ -286,7 +308,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                 <FormItem>
                   <FormLabel>{isFotoEvent ? t.events.parentGuardianName : t.events.signupFullName}</FormLabel>
                   <FormControl>
-                    <Input autoComplete="name" placeholder={isFotoEvent ? t.events.parentGuardianName2 : t.events.signupFullNamePlaceholder} {...field} />
+                    <Input autoComplete="name" maxLength={TEXT_LIMITS.name} placeholder={isFotoEvent ? t.events.parentGuardianName2 : t.events.signupFullNamePlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -329,13 +351,13 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                   <FormLabel>
                     {isFotoEvent
                       ? (t.events.numberChildren)
-                      : 'Antall deltakere'
+                      : t.events.signupAttendeeCount
                     }
                   </FormLabel>
                   <Select onValueChange={(value) => field.onChange(parseInt(value))} defaultValue={field.value?.toString()}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Velg antall" />
+                        <SelectValue placeholder={t.events.signupSelectCount} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
@@ -343,7 +365,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                         <SelectItem key={num} value={num.toString()}>
                           {isFotoEvent
                             ? `${num} ${num === 1 ? (t.events.child) : (t.events.children)}`
-                            : `${num} ${num === 1 ? "person" : "personer"}`
+                            : `${num} ${num === 1 ? t.events.person : t.events.persons}`
                           }
                         </SelectItem>
                       ))}
@@ -455,10 +477,14 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                     <Textarea
                       rows={3}
                       placeholder={t.events.signupCommentsPlaceholder}
+                      maxLength={TEXT_LIMITS.signupComment}
                       {...field}
                       value={field.value || ""}
                     />
                   </FormControl>
+                  <FormDescription className="text-right tabular-nums">
+                    {(field.value || "").length} / {TEXT_LIMITS.signupComment}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -485,15 +511,16 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
         <div className="flex-shrink-0 px-4 pt-3 pb-4 border-t border-border sm:px-6 sm:pt-4 sm:pb-6">
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
             <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={handleClose}>
-              Avbryt
+              {t.events.signupCancel}
             </Button>
             <Button
+              ref={submitRef}
               form="reg-form"
               type="submit"
               className="w-full sm:w-auto"
               disabled={mutation.isPending}
             >
-              {mutation.isPending ? "Melder på..." : "Meld deg på"}
+              {mutation.isPending ? t.events.signupSubmitting : t.events.register}
             </Button>
           </div>
         </div>

@@ -1,5 +1,6 @@
 import { nameForMail } from './middleware.js';
 import { cancellationText } from './registration-cancel.js';
+import { resolvePhotoSlotsForRegistration } from '../../shared/photo-slots.js';
 
 /**
  * The confirmation a parent gets after signing up: the most-sent mail this
@@ -15,8 +16,9 @@ import { cancellationText } from './registration-cancel.js';
 
 // An event date is 'YYYY-MM-DD'. Read as noon UTC and written in Oslo time, it
 // names the same day wherever the function runs; `new Date(date)` with the
-// runtime's own zone was a day early anywhere west of UTC.
-function eventDate(date, language, options) {
+// runtime's own zone was a day early anywhere west of UTC. Every mail that
+// names an event's day goes through here, so they all read the same.
+export function eventDate(date, language, options) {
   const parsed = new Date(`${String(date).slice(0, 10)}T12:00:00Z`);
   if (Number.isNaN(parsed.getTime())) return String(date ?? '');
   return parsed.toLocaleDateString(language === 'en' ? 'en-GB' : 'nb-NO', { timeZone: 'Europe/Oslo', ...options });
@@ -123,4 +125,88 @@ FAU Erdal Barnehage
     subject: isNorwegian ? `Påmelding bekreftet: ${event.title}` : `Registration confirmed: ${event.title}`,
     text,
   };
+}
+
+// In Oslo, whatever zone the function runs in, and in the same words as the
+// confirmation mail. `new Date(date)` in the runtime's zone named the day
+// before anywhere west of UTC.
+export function formatLongDate(dateStr, language) {
+  return eventDate(dateStr, language === 'en' ? 'en' : 'no', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+// "Ola: 09:00" per child, as in the confirmation mail. The stored slots are a
+// JSON array; printing that raw gave `["09:00","09:10"]` with no names.
+function photoSlotText(registration, isNorwegian) {
+  if (!registration.photoSlots) return '';
+  const slots = resolvePhotoSlotsForRegistration({ time: registration.eventTime }, registration, [registration]);
+  if (slots.length === 0) return '';
+  let names = [];
+  try { names = JSON.parse(registration.childrenNames || '[]'); } catch {}
+  if (!Array.isArray(names)) names = [];
+  const lines = slots.map((slot, i) => {
+    const name = nameForMail(names[i]) || (isNorwegian ? `Barn ${i + 1}` : `Child ${i + 1}`);
+    return `- ${name}: ${slot}`;
+  });
+  return `${isNorwegian ? 'Fototidspunkt' : 'Photo slots'}:\n${lines.join('\n')}\n\n`;
+}
+
+export function registrationReminderEmail(registration) {
+  const isNorwegian = registration.language !== 'en';
+  const date = formatLongDate(registration.eventDate, registration.language);
+  const location = registration.customLocation
+    ? `${registration.location} (${registration.customLocation})`
+    : registration.location;
+
+  const cancellation = cancellationText({
+    language: registration.language,
+    cancelToken: registration.cancelToken,
+    potluck: registration.potluck,
+  });
+
+  const subject = isNorwegian
+    ? `Påminnelse: ${registration.eventTitle} i morgen`
+    : `Reminder: ${registration.eventTitle} tomorrow`;
+
+  const text = isNorwegian ? `
+Hei ${registration.name},
+
+Dette er en påminnelse om at du er påmeldt "${registration.eventTitle}" i morgen.
+
+Arrangementsinformasjon:
+- Dato: ${date}
+- Tid: ${registration.eventTime}
+- Sted: ${location}
+- Antall deltakere: ${registration.attendeeCount || 1}
+
+${photoSlotText(registration, true)}Vi gleder oss til å se deg!
+
+${cancellation}
+
+Med vennlig hilsen,
+FAU Erdal Barnehage
+` : `
+Hi ${registration.name},
+
+This is a reminder that you are registered for "${registration.eventTitle}" tomorrow.
+
+Event information:
+- Date: ${date}
+- Time: ${registration.eventTime}
+- Location: ${location}
+- Number of attendees: ${registration.attendeeCount || 1}
+
+${photoSlotText(registration, false)}We look forward to seeing you!
+
+${cancellation}
+
+Best regards,
+FAU Erdal Barnehage
+`;
+
+  return { subject, text };
 }

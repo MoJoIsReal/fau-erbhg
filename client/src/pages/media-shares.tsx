@@ -586,7 +586,10 @@ function ShareRow({ share }: { share: MediaShareSummary }) {
       toast({ title: t.mediaAdmin.revoked });
       refresh();
     },
-    onError: () => toast({ title: t.mediaAdmin.errorGeneric, variant: "destructive" }),
+    onError: (error) => toast({
+      title: errorCode(error) === "UPLOAD_IN_PROGRESS" ? t.mediaAdmin.uploadInProgress : t.mediaAdmin.errorGeneric,
+      variant: "destructive",
+    }),
   });
 
   const status = share.status === "draft"

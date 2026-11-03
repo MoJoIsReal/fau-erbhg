@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { Event, YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntry } from "@shared/calendar-entries";
 import { mergeCalendarEntries } from "@shared/calendar-entries";
@@ -12,6 +12,8 @@ export type UseCalendarEntriesResult = {
   events: Event[];
   exportsReady: boolean;
   hasDataError: boolean;
+  // Both reads, for a retry notice when one of them failed.
+  queries: [UseQueryResult<Event[]>, UseQueryResult<YearlyCalendarEntry[]>];
   isLoading: boolean;
   isError: boolean;
 };
@@ -62,6 +64,7 @@ export function useCalendarEntries(schoolYear = getKindergartenSchoolYear(new Da
     events: events ?? [],
     exportsReady: eventsQuery.isSuccess && yearlyQuery.isSuccess,
     hasDataError: eventsQuery.isError || yearlyQuery.isError,
+    queries: [eventsQuery, yearlyQuery],
     isLoading: eventsQuery.isLoading || yearlyQuery.isLoading,
     // Either source alone still makes a useful calendar; only give up when
     // both are unavailable.

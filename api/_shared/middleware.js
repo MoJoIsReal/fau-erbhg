@@ -357,7 +357,8 @@ export async function parseAuthToken(req, sqlClient = null) {
     decoded = jwt.verify(token, jwtConfig.secret, jwtConfig.verifyOptions);
   } catch (error) {
     if (error.name !== 'TokenExpiredError') {
-      console.error('Token validation error:', redactSensitiveText(error.message));
+      // A tampered, foreign or malformed token: worth a line, not an error.
+      logEvent('warn', 'auth.token_invalid', { errorName: error.name, message: error.message });
     }
     return null;
   }

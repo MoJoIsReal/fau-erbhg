@@ -46,6 +46,22 @@ test('an unknown account and a wrong password get the same answer and no session
   }
 });
 
+// OBS-002. A bad SESSION_SECRET was caught and answered with a bare 500 that
+// never reached the error handler, so a deploy that broke every sign-in
+// raised no alert. It now goes through the handler: logged and reported.
+test('a misconfigured session secret fails login through the reporting error handler', async (t) => {
+  const secret = process.env.SESSION_SECRET;
+  process.env.SESSION_SECRET = 'too-short';
+  t.after(() => { process.env.SESSION_SECRET = secret; });
+  useDatabase(scriptedSql({ respond: accounts() }));
+  const res = await call(t, handler, login({ username: USERNAME, password: PASSWORD }));
+  assert.equal(res.statusCode, 500);
+  // call() quiets the console for the test; its mock kept every line.
+  const lines = console.error.mock.calls.map(({ arguments: args }) => args.map(String).join(' '));
+  assert.ok(lines.some((line) => line.includes('"api.error"') && /SESSION_SECRET must be/.test(line)), lines.join('\n'));
+  assert.deepEqual(cookies(res), []);
+});
+
 // SEC-005. An object or array password reached bcrypt and came back as a 500.
 test('a login whose fields are not strings is a 400 before anything is looked up', async (t) => {
   for (const body of [

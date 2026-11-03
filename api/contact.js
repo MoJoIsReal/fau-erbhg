@@ -13,6 +13,8 @@ import { confirmationEmail, NEWSLETTER_CONFIRM_DAYS, newsletterToken } from './_
 import { contactAcknowledgementEmail, contactSubjectLabel } from './_shared/contact-emails.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
+import { TEXT_LIMITS } from '../shared/constants.js';
+import { logEvent } from './_shared/log.js';
 
 const CONTACT_WINDOW_SECONDS = 10 * 60;
 const CONTACT_MAX_ATTEMPTS = 3;
@@ -62,6 +64,24 @@ export default withApiHandler(async function handler(req, res) {
     });
   }
 
+  // For anonymous submissions, we don't require name/email
+  const isAnonymous = subject === 'anonymous';
+
+  // A form sent without its name or address is refused before the per-IP
+  // limit counts it: the limit allows three messages in ten minutes, and a
+  // parent who left a field empty twice (or a kindergarten's shared network)
+  // used to be locked out before sending anything.
+  const filled = (value) => typeof value === 'string' && value.trim() !== '';
+  if (!isAnonymous && (!filled(name) || !filled(email))) {
+    return res.status(400).json({
+      error: 'Valid name and email are required for non-anonymous submissions',
+      code: 'NAME_AND_EMAIL_REQUIRED',
+    });
+  }
+  if (!filled(message)) {
+    return res.status(400).json({ error: 'Valid message is required', code: 'MESSAGE_REQUIRED' });
+  }
+
   const sql = getDb();
 
   // The per-IP limit needs no sanitized value, so it runs before sanitization
@@ -78,14 +98,11 @@ export default withApiHandler(async function handler(req, res) {
     return res.status(429).json({ error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
   }
 
-  // For anonymous submissions, we don't require name/email
-  const isAnonymous = subject === 'anonymous';
-
   // Sanitize inputs
-  const sanitizedName = isAnonymous ? '' : sanitizeText(name, 100);
+  const sanitizedName = isAnonymous ? '' : sanitizeText(name, TEXT_LIMITS.name);
   const sanitizedEmail = isAnonymous ? '' : sanitizeEmail(email);
   const sanitizedPhone = sanitizePhone(phone);
-  const sanitizedMessage = sanitizeText(message, 5000);
+  const sanitizedMessage = sanitizeText(message, TEXT_LIMITS.contactMessage);
 
   if (!isAnonymous && (!sanitizedName || !sanitizedEmail)) {
     return res.status(400).json({
@@ -142,7 +159,7 @@ export default withApiHandler(async function handler(req, res) {
       message: sanitizedMessage,
       isAnonymous
     }))
-      .then((sent) => sent && console.log('Contact email sent successfully'))
+      .then((sent) => sent && logEvent('info', 'mail.sent', { kind: 'contact-notification' }))
       .catch((emailError) => {
         reportProviderError('Failed to send contact email', emailError);
       })
@@ -160,7 +177,7 @@ export default withApiHandler(async function handler(req, res) {
         language: language === 'en' ? 'en' : 'no',
         receivedAt: contactMessage?.created_at,
       }))
-        .then((sent) => sent && console.log('Contact acknowledgement sent successfully'))
+        .then((sent) => sent && logEvent('info', 'mail.sent', { kind: 'contact-acknowledgement' }))
         .catch((emailError) => {
           reportProviderError('Failed to send contact acknowledgement', emailError);
         })
@@ -177,7 +194,7 @@ async function sendContactEmail(params) {
   const subject = contactSubjectLabel(params.subject, 'no');
 
   if (!isEmailConfigured()) {
-    console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
+    logEvent('warn', 'mail.not_configured', { kind: 'contact-notification' });
     throw new Error('Email configuration not available');
   }
 
@@ -205,7 +222,7 @@ ${isAnonymous ? 'Dette er en anonym henvendelse.' : ''}
 // Receipt to the person who submitted the form, sent from FAU's own address.
 async function sendAcknowledgementEmail({ name, email, subject, language, receivedAt }) {
   if (!isEmailConfigured()) {
-    console.warn('Email configuration missing: skipping contact acknowledgement');
+    logEvent('warn', 'mail.not_configured', { kind: 'contact-acknowledgement' });
     return;
   }
 
@@ -289,7 +306,11 @@ async function handleNewsletterSubscribe(req, res) {
           -- for NEWSLETTER_CONFIRM_DAYS from now, and the cron's purge of
           -- unconfirmed sign-ups counts from here too.
           created_at = EXCLUDED.created_at,
-          unsubscribed_at = NULL
+          unsubscribed_at = NULL,
+          -- The consent on record is the one given for this sign-up: an
+          -- address that unsubscribed and signs up again used to keep its
+          -- first confirmation date, earlier than its own created_at.
+          confirmed_at = NULL
       WHERE newsletter_subscribers.status <> 'active'
     RETURNING id
   `;
@@ -316,7 +337,7 @@ async function handleNewsletterSubscribe(req, res) {
 async function handleNewsletterConfirm(req, res) {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   if (!TOKEN_RE.test(token)) {
-    return res.status(400).json({ error: 'Invalid token' });
+    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
   }
 
   const sql = getDb();
@@ -346,7 +367,7 @@ async function handleNewsletterConfirm(req, res) {
   `;
 
   if (confirmed.length === 0) {
-    return res.status(400).json({ error: 'Invalid or expired confirmation link' });
+    return res.status(400).json({ error: 'Invalid or expired confirmation link', code: 'LINK_EXPIRED' });
   }
 
   return res.status(200).json({ success: true });
@@ -356,7 +377,7 @@ async function handleNewsletterConfirm(req, res) {
 async function handleNewsletterUnsubscribe(req, res) {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   if (!TOKEN_RE.test(token)) {
-    return res.status(400).json({ error: 'Invalid token' });
+    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
   }
 
   const sql = getDb();

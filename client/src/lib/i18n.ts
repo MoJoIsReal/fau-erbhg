@@ -300,6 +300,21 @@ export interface Translations {
     parentGuardianName: string;
     parentGuardianName2: string;
     numberChildren: string;
+    signupAttendeeCount: string;
+    signupSelectCount: string;
+    person: string;
+    persons: string;
+    signupSubmitting: string;
+    signupCancel: string;
+    signupAttendeesMin: string;
+    /** {max} is filled in. */
+    signupAttendeesMax: string;
+    /** {title} is filled in. */
+    registrationsTitle: string;
+    registrationsOverview: string;
+    moreThanTenAttendees: string;
+    /** {address} is filled in. */
+    openMapFor: string;
     child: string;
     children: string;
     childrenSFirstNames: string;
@@ -400,6 +415,8 @@ export interface Translations {
     unsubSuccessDesc: string;
     unsubErrorTitle: string;
     unsubErrorDesc: string;
+    linkInvalidTitle: string;
+    transientTitle: string;
     footerLink: string;
     admin: {
       title: string;
@@ -448,6 +465,7 @@ export interface Translations {
     notFoundDesc: string;
     errorTitle: string;
     errorDesc: string;
+    lookupErrorTitle: string;
     missingTokenDesc: string;
     foodSave: string;
     foodSaving: string;
@@ -498,6 +516,7 @@ export interface Translations {
   modals: {
     login: {
       title: string;
+      sessionExpired: string;
       email: string;
       password: string;
       cancel: string;
@@ -534,6 +553,7 @@ export interface Translations {
 
     eventCreation: {
       title: string;
+      registrationsLockHint: string;
       titleLabel: string;
       titlePlaceholder: string;
       descriptionLabel: string;
@@ -612,6 +632,13 @@ export interface Translations {
     loading: string;
     bytes: string;
     required: string;
+    fieldRequired: string;
+    emailInvalid: string;
+    crashTitle: string;
+    crashBody: string;
+    crashDetails: string;
+    crashReload: string;
+    crashBack: string;
     file: string;
     cancel: string;
     upload: string;
@@ -768,6 +795,7 @@ export interface Translations {
     extended: string;
     extendedCapped: string;
     atMaxLifetime: string;
+    uploadInProgress: string;
     revoke: string;
     revokeTitle: string;
     revokeBody: string;
@@ -1061,6 +1089,8 @@ export interface Translations {
         dateRequired: string;
         dateMismatch: string;
         weekRequired: string;
+        weekNotInYear: string;
+        weekNotInMonth: string;
         weekEndRange: string;
         weekEndAfterStart: string;
       };
@@ -1139,6 +1169,7 @@ export const translations: Record<Language, Translations> = {
       INVALID_MAX_ATTENDEES: "Maks antall deltakere må være et heltall, eller tomt for ingen grense.",
       INVALID_REGISTRATION_DEADLINE: "Påmeldingsfristen er ikke gyldig.",
       INVALID_EVENT_TYPE: "Ugyldig type arrangement.",
+      EVENT_HAS_REGISTRATIONS: "Arrangementet har påmeldinger. Type (foto eller ikke) og starttid for fotografering kan ikke endres mens noen er påmeldt, fordi de påmeldte har fått tidspunkter. Avlys og opprett et nytt arrangement, eller fjern påmeldingene først.",
       TITLE_REQUIRED: "Tittel må fylles ut.",
       UPLOAD_TYPE_NOT_ALLOWED: "Denne filtypen er ikke tillatt.",
       UPLOAD_TOO_LARGE: "Filen er større enn 10 MB.",
@@ -1151,6 +1182,11 @@ export const translations: Record<Language, Translations> = {
       ENTRY_FIELDS_REQUIRED: "Type, tittel, skoleår, år og måned må fylles ut.",
       TEMP_PASSWORD_EXPIRED: "Det midlertidige passordet har utløpt. Trykk «Glemt passord?» for å velge et nytt.",
       RESET_LINK_INVALID: "Lenken er brukt, utløpt eller ugyldig. Be om en ny med «Glemt passord?» når du logger inn.",
+      INVALID_ENTRY_PLACEMENT: "Velg en gyldig dato, måned og uke. Slutt må være etter eller lik start.",
+      LINK_EXPIRED: "Lenken er ugyldig, allerede brukt eller utløpt.",
+      EVENT_DELETE_HAS_REGISTRATIONS: "Arrangementet har påmeldinger og kan ikke slettes. Du kan avlyse det i stedet.",
+      ALREADY_REPLIED: "Henvendelsen er allerede besvart, trolig av et annet styremedlem. Listen er oppdatert, og svaret ditt er ikke sendt.",
+      CONFLICT: "Noen andre har lagret endringer her siden du åpnet den. Det du har skrevet står fortsatt – lagrer du på nytt, erstatter du endringene deres.",
       generic: "Noe gikk galt. Prøv igjen.",
     },
     dataState: {
@@ -1459,6 +1495,18 @@ export const translations: Record<Language, Translations> = {
       parentGuardianName: "Navn foresatt *",
       parentGuardianName2: "Navn på foresatt",
       numberChildren: "Antall barn",
+      signupAttendeeCount: "Antall deltakere",
+      signupSelectCount: "Velg antall",
+      person: "person",
+      persons: "personer",
+      signupSubmitting: "Melder på …",
+      signupCancel: "Avbryt",
+      signupAttendeesMin: "Må være minst 1 deltaker",
+      signupAttendeesMax: "Maksimalt {max} deltakere",
+      registrationsTitle: "Påmeldinger – {title}",
+      registrationsOverview: "Oversikt over alle påmeldte deltakere til arrangementet.",
+      moreThanTenAttendees: "Mer enn 10 påmeldte. Bruk Excel-eksport for full liste.",
+      openMapFor: "Åpne kart for: {address}",
       child: "barn",
       children: "barn",
       childrenSFirstNames: "Fornavn på barn",
@@ -1554,6 +1602,8 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "Du vil ikke lenger motta nyhetsbrev fra FAU Erdal Barnehage.",
       unsubErrorTitle: "Noe gikk galt",
       unsubErrorDesc: "Kunne ikke melde deg av. Prøv igjen senere.",
+      linkInvalidTitle: "Lenken virker ikke",
+      transientTitle: "Det gikk ikke akkurat nå",
       footerLink: "Meld deg på nyhetsbrev",
       admin: {
         title: "Nyhetsbrev-abonnenter",
@@ -1600,6 +1650,7 @@ export const translations: Record<Language, Translations> = {
       notFoundDesc: "Lenken er ugyldig, eller så er påmeldingen allerede slettet.",
       errorTitle: "Noe gikk galt",
       errorDesc: "Kunne ikke melde deg av. Prøv igjen senere, eller kontakt FAU.",
+      lookupErrorTitle: "Vi fikk ikke hentet påmeldingen akkurat nå",
       missingTokenDesc: "Bruk lenken i bekreftelses- eller påminnelses-e-posten for å se påmeldingen din.",
       foodSave: "Lagre",
       foodSaving: "Lagrer...",
@@ -1648,6 +1699,7 @@ export const translations: Record<Language, Translations> = {
     modals: {
       login: {
         title: "Logg inn som FAU-medlem",
+        sessionExpired: "Økten din er utløpt. Logg inn igjen for å fortsette – siden og det du har skrevet blir stående, men er ikke lagret ennå.",
         email: "E-post",
         password: "Passord", 
         cancel: "Avbryt",
@@ -1684,6 +1736,7 @@ export const translations: Record<Language, Translations> = {
 
       eventCreation: {
         title: "Opprett nytt arrangement",
+        registrationsLockHint: "Arrangementet har påmeldinger. Type (foto eller ikke) og starttid for fotografering kan ikke endres mens noen er påmeldt.",
         titleLabel: "Tittel",
         titlePlaceholder: "Navn på arrangementet",
         descriptionLabel: "Beskrivelse",
@@ -1771,6 +1824,13 @@ export const translations: Record<Language, Translations> = {
       loading: "Laster...",
       bytes: "Bytes",
       required: "påkrevd",
+      fieldRequired: "Fyll ut dette feltet.",
+      emailInvalid: "Skriv en gyldig e-postadresse, for eksempel navn@eksempel.no.",
+      crashTitle: "Noe gikk galt",
+      crashBody: "Beklager, det oppstod en uventet feil. Vi har blitt varslet om problemet.",
+      crashDetails: "Tekniske detaljer",
+      crashReload: "Last inn siden på nytt",
+      crashBack: "Gå tilbake",
       file: "Fil",
       cancel: "Avbryt",
       upload: "Last opp",
@@ -1925,6 +1985,7 @@ export const translations: Record<Language, Translations> = {
       extended: "Delingen er forlenget til {date}",
       extendedCapped: "Forlenget til maksimal levetid: {date}",
       atMaxLifetime: "Delingen har allerede maksimal levetid",
+      uploadInProgress: "Det lastes fortsatt opp filer til denne delingen. Avbryt opplastingen eller vent til den er ferdig, og prøv igjen.",
       revoke: "Tilbakekall",
       revokeTitle: "Tilbakekalle «{title}»?",
       revokeBody: "Alle filene slettes nå, og lenken slutter å virke med en gang. Dette kan ikke angres.",
@@ -2210,7 +2271,7 @@ export const translations: Record<Language, Translations> = {
         validation: {
           missingTitle: "Rad {row}: Mangler tittel.",
           titleTooLong: "Rad {row}: Tittel kan maksimalt være 200 tegn.",
-          descriptionTooLong: "Rad {row}: Beskrivelse kan maksimalt være 1000 tegn.",
+          descriptionTooLong: "Rad {row}: Beskrivelse kan maksimalt være 5000 tegn.",
           invalidEntryType: "Rad {row}: Ugyldig type \"{value}\". Bruk en av: {allowed}.",
           invalidYear: "Rad {row}: År må være et heltall.",
           invalidMonth: "Rad {row}: Måned må være et heltall mellom 1 og 12.",
@@ -2220,6 +2281,8 @@ export const translations: Record<Language, Translations> = {
           dateRequired: "Rad {row}: {type} krever dato i format YYYY-MM-DD innenfor barnehageåret {schoolYear}.",
           dateMismatch: "Rad {row}: Dato {date} samsvarer ikke med år/måned.",
           weekRequired: "Rad {row}: {type} krever uke_fra mellom 1 og 53.",
+          weekNotInYear: "Rad {row}: Uke {week} finnes ikke i {year}.",
+          weekNotInMonth: "Rad {row}: Uke {week} ligger ikke i {month}.",
           weekEndRange: "Rad {row}: uke_til må være mellom 1 og 53.",
           weekEndAfterStart: "Rad {row}: uke_til må være høyere enn uke_fra."
         },
@@ -2294,6 +2357,7 @@ export const translations: Record<Language, Translations> = {
       INVALID_MAX_ATTENDEES: "Max attendees must be a whole number, or empty for no limit.",
       INVALID_REGISTRATION_DEADLINE: "The registration deadline is not valid.",
       INVALID_EVENT_TYPE: "Invalid event type.",
+      EVENT_HAS_REGISTRATIONS: "This event has registrations. Its type (photo or not) and a photo session's start time cannot change while people are signed up, because they have been given times. Cancel it and create a new event, or remove the registrations first.",
       TITLE_REQUIRED: "A title is required.",
       UPLOAD_TYPE_NOT_ALLOWED: "This file type is not allowed.",
       UPLOAD_TOO_LARGE: "The file is larger than 10 MB.",
@@ -2306,6 +2370,11 @@ export const translations: Record<Language, Translations> = {
       ENTRY_FIELDS_REQUIRED: "Type, title, school year, year and month are required.",
       TEMP_PASSWORD_EXPIRED: "The temporary password has expired. Use “Forgot password?” to choose a new one.",
       RESET_LINK_INVALID: "The link has been used, has expired or is invalid. Ask for a new one with “Forgot password?” when you log in.",
+      INVALID_ENTRY_PLACEMENT: "Choose a valid date, month and week. The end must be on or after the start.",
+      LINK_EXPIRED: "The link is invalid, already used or has expired.",
+      EVENT_DELETE_HAS_REGISTRATIONS: "The event has registrations and cannot be deleted. You can cancel it instead.",
+      ALREADY_REPLIED: "This inquiry has already been answered, probably by another council member. The list has been updated, and your reply was not sent.",
+      CONFLICT: "Someone else has saved changes here since you opened it. What you wrote is still here – saving again replaces their changes.",
       generic: "Something went wrong. Try again.",
     },
     dataState: {
@@ -2614,6 +2683,18 @@ export const translations: Record<Language, Translations> = {
       parentGuardianName: "Parent/guardian name *",
       parentGuardianName2: "Parent/guardian name",
       numberChildren: "Number of children",
+      signupAttendeeCount: "Number of attendees",
+      signupSelectCount: "Choose how many",
+      person: "person",
+      persons: "people",
+      signupSubmitting: "Registering …",
+      signupCancel: "Cancel",
+      signupAttendeesMin: "At least 1 attendee",
+      signupAttendeesMax: "At most {max} attendees",
+      registrationsTitle: "Registrations – {title}",
+      registrationsOverview: "Everyone registered for the event.",
+      moreThanTenAttendees: "More than 10 attendees. Use the Excel export for the full list.",
+      openMapFor: "Open map for: {address}",
       child: "child",
       children: "children",
       childrenSFirstNames: "Children\\'s first names",
@@ -2709,6 +2790,8 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "You will no longer receive newsletters from FAU Erdal Kindergarten.",
       unsubErrorTitle: "Something went wrong",
       unsubErrorDesc: "Could not unsubscribe you. Please try again later.",
+      linkInvalidTitle: "The link does not work",
+      transientTitle: "That did not work just now",
       footerLink: "Subscribe to newsletter",
       admin: {
         title: "Newsletter subscribers",
@@ -2755,6 +2838,7 @@ export const translations: Record<Language, Translations> = {
       notFoundDesc: "The link is invalid, or the registration has already been cancelled.",
       errorTitle: "Something went wrong",
       errorDesc: "Could not cancel your registration. Please try again later, or contact FAU.",
+      lookupErrorTitle: "We could not fetch your registration just now",
       missingTokenDesc: "Use the link in your confirmation or reminder email to see your registration.",
       foodSave: "Save",
       foodSaving: "Saving...",
@@ -2803,6 +2887,7 @@ export const translations: Record<Language, Translations> = {
     modals: {
       login: {
         title: "Log in as council member",
+        sessionExpired: "Your session has expired. Log in again to carry on – this page and what you have written stay, but are not saved yet.",
         email: "Email",
         password: "Password",
         cancel: "Cancel",
@@ -2839,6 +2924,7 @@ export const translations: Record<Language, Translations> = {
 
       eventCreation: {
         title: "Create new event",
+        registrationsLockHint: "This event has registrations. Its type (photo or not) and a photo session's start time cannot change while people are signed up.",
         titleLabel: "Title",
         titlePlaceholder: "Event name",
         descriptionLabel: "Description",
@@ -2926,6 +3012,13 @@ export const translations: Record<Language, Translations> = {
       loading: "Loading...",
       bytes: "Bytes",
       required: "required",
+      fieldRequired: "Please fill in this field.",
+      emailInvalid: "Enter a valid email address, for example name@example.com.",
+      crashTitle: "Something went wrong",
+      crashBody: "Sorry, an unexpected error occurred. We have been notified of the problem.",
+      crashDetails: "Technical details",
+      crashReload: "Reload the page",
+      crashBack: "Go back",
       file: "File",
       cancel: "Cancel",
       upload: "Upload",
@@ -3080,6 +3173,7 @@ export const translations: Record<Language, Translations> = {
       extended: "The share now lasts until {date}",
       extendedCapped: "Extended to its maximum lifetime: {date}",
       atMaxLifetime: "The share is already at its maximum lifetime",
+      uploadInProgress: "Files are still being uploaded to this share. Cancel the upload or wait until it has finished, then try again.",
       revoke: "Revoke",
       revokeTitle: "Revoke “{title}”?",
       revokeBody: "All files are deleted now and the link stops working at once. This cannot be undone.",
@@ -3365,7 +3459,7 @@ export const translations: Record<Language, Translations> = {
         validation: {
           missingTitle: "Row {row}: Missing title.",
           titleTooLong: "Row {row}: Title can be at most 200 characters.",
-          descriptionTooLong: "Row {row}: Description can be at most 1000 characters.",
+          descriptionTooLong: "Row {row}: Description can be at most 5000 characters.",
           invalidEntryType: "Row {row}: Invalid type \"{value}\". Use one of: {allowed}.",
           invalidYear: "Row {row}: Year must be an integer.",
           invalidMonth: "Row {row}: Month must be an integer between 1 and 12.",
@@ -3375,6 +3469,8 @@ export const translations: Record<Language, Translations> = {
           dateRequired: "Row {row}: {type} requires a date in YYYY-MM-DD format within kindergarten year {schoolYear}.",
           dateMismatch: "Row {row}: Date {date} does not match year/month.",
           weekRequired: "Row {row}: {type} requires uke_fra between 1 and 53.",
+          weekNotInYear: "Row {row}: Week {week} does not exist in {year}.",
+          weekNotInMonth: "Row {row}: Week {week} is not in {month}.",
           weekEndRange: "Row {row}: uke_til must be between 1 and 53.",
           weekEndAfterStart: "Row {row}: uke_til must be higher than uke_fra."
         },

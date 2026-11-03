@@ -1,8 +1,9 @@
-import { lazy, Suspense, useEffect, type ReactNode } from "react";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { Switch, Route, useLocation, Link } from "wouter";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/layout";
+import LoginModal from "@/components/login-modal";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
@@ -97,18 +98,59 @@ function Redirect({ to }: { to: string }) {
 function RequireAuth({ children, roles }: { children: ReactNode; roles?: string[] }) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [, setLocation] = useLocation();
+  // Whether this page has had a signed-in user. A session that runs out
+  // afterwards (any 401, or the auth refetch answering null) used to send the
+  // user to "/", unmounting the page and the post, reply or settings they had
+  // not saved yet. Now the page stays mounted under a sign-in prompt, and once
+  // signed in again the user can save what is still on screen. Logging out on
+  // purpose reloads the site, so it never gets here.
+  const signedIn = useRef(false);
+  if (isAuthenticated) signedIn.current = true;
+  const forbidden = Boolean(roles && user && !roles.includes(user.role));
+  const sessionLost = signedIn.current && !isLoading && !isAuthenticated;
+  // Closing the prompt keeps the page too, so the text can still be copied;
+  // the header's sign-in button is there when the user is ready.
+  const [promptDismissed, setPromptDismissed] = useState(false);
+  useEffect(() => {
+    if (isAuthenticated) setPromptDismissed(false);
+  }, [isAuthenticated]);
 
   useEffect(() => {
-    if (!isLoading && (!isAuthenticated || (roles && user && !roles.includes(user.role)))) {
-      setLocation("/");
-    }
-  }, [isAuthenticated, isLoading, roles, setLocation, user]);
+    if (!isLoading && forbidden) setLocation("/");
+  }, [forbidden, isLoading, setLocation]);
 
-  if (isLoading || !isAuthenticated || (roles && user && !roles.includes(user.role))) {
+  // Opened without a session (a bookmark, a link in a mail): ask for the
+  // sign-in here, and show the page once it succeeds. This used to send the
+  // visitor to the home page without a word, and after signing in there they
+  // had to find their way back. Closing the prompt goes home, as before.
+  if (!isLoading && !isAuthenticated && !signedIn.current) {
+    return (
+      <>
+        <PageLoader />
+        <LoginModal isOpen onSignedIn={() => {}} onClose={() => setLocation("/")} />
+      </>
+    );
+  }
+
+  if (!sessionLost && (isLoading || !isAuthenticated || forbidden)) {
     return <PageLoader />;
   }
 
-  return <>{children}</>;
+  // The same element shape whether or not the prompt shows, so React keeps
+  // the page (and its unsaved state) mounted when the prompt appears.
+  return (
+    <>
+      {children}
+      {sessionLost && (
+        <LoginModal
+          isOpen={!promptDismissed}
+          sessionExpired
+          onSignedIn={() => {}}
+          onClose={() => setPromptDismissed(true)}
+        />
+      )}
+    </>
+  );
 }
 
 function Router() {

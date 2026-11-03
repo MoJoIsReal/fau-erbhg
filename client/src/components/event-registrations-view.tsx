@@ -265,8 +265,8 @@ export default function EventRegistrationsView({ event }: EventRegistrationsView
                             variant="outline"
                             size="sm"
                             disabled={deleteRegistrationMutation.isPending}
-                            className="border-red-500 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
-                            aria-label={t.events.deleteRegistration}
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            aria-label={`${t.events.deleteRegistration}: ${registration.name}`}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

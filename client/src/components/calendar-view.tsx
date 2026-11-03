@@ -606,7 +606,7 @@ export default function CalendarView({
                           >
                             {entry.signup.isFull
                               ? t.events.full
-                              : entry.signup.deadlinePassed
+                              : !entry.signup.isOpen
                                 ? t.events.registrationClosed
                                 : t.events.register}
                           </Button>

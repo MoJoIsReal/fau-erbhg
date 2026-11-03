@@ -124,7 +124,8 @@ test('confirm and unsubscribe reject a malformed token before any lookup', async
   for (const action of ['newsletter-confirm', 'newsletter-unsubscribe']) {
     for (const token of [undefined, '', 'abc', 'AB'.repeat(32), `${TOKEN}0`]) {
       const sql = useDatabase(scriptedSql());
-      assert.equal((await call(t, handler, submit({ token }, { action }))).statusCode, 400, `${action} ${token}`);
+      const res = await call(t, handler, submit({ token }, { action }));
+      assert.deepEqual([res.statusCode, res.body.code], [400, 'LINK_EXPIRED'], `${action} ${token}`);
       assert.deepEqual(sql.calls, []);
     }
   }
@@ -216,4 +217,22 @@ test('a database failure is logged once, as an error', async (t) => {
     .map(({ arguments: [line] }) => { try { return JSON.parse(line).event; } catch { return null; } })
     .filter(Boolean);
   assert.deepEqual(events.filter((event) => event.startsWith('api.')), ['api.error']);
+});
+
+// UX-004. A form missing its name, address or message is refused before the
+// per-IP limit counts it, so two mistakes cannot use up a parent's three
+// messages.
+test('a named inquiry without name, address or message is refused before the IP limit counts it', async (t) => {
+  for (const body of [
+    { subject: 'general', name: '', email: 'ola@example.test', message: 'Hei' },
+    { subject: 'general', name: 'Ola', email: '  ', message: 'Hei' },
+    { subject: 'general', name: 'Ola', email: 'ola@example.test', message: '   ' },
+    { subject: 'anonymous', message: '\n' },
+  ]) {
+    const sql = useDatabase(scriptedSql());
+    const res = await call(t, handler, { method: 'POST', body, csrf: false });
+    assert.equal(res.statusCode, 400, JSON.stringify(body));
+    assert.match(res.body.code, /^(NAME_AND_EMAIL_REQUIRED|MESSAGE_REQUIRED)$/);
+    assert.deepEqual(sql.calls, [], 'no rate-limit row, nothing else');
+  }
 });

@@ -1,4 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
+import { logEvent } from './log.js';
 
 // Configure Cloudinary once at module initialization
 // This is more efficient than configuring on every request
@@ -12,7 +13,7 @@ export function configureCloudinary() {
   if (!process.env.CLOUDINARY_CLOUD_NAME ||
       !process.env.CLOUDINARY_API_KEY ||
       !process.env.CLOUDINARY_API_SECRET) {
-    console.warn('Cloudinary configuration missing. File uploads will fail.');
+    logEvent('warn', 'cloudinary.not_configured', {});
     throw new Error('Cloudinary configuration not available');
   }
 

@@ -1,7 +1,12 @@
 import { htmlToPlainText } from './html-text.js';
+import { isoWeekYear, isoWeekYearForRow, mondayOfIsoWeek } from './calendar-entries.js';
 
 export const VALID_YEARLY_CALENDAR_ENTRY_TYPES = ['week_event', 'day_event', 'food', 'closed', 'note'];
 export const VALID_YEARLY_CALENDAR_COLORS = ['red', 'yellow', 'green', 'blue', 'orange', 'pink', 'purple'];
+// The longest description an entry stores: the editor's limit, which the
+// sheet's plain text has to fit as well.
+export const YEARLY_CALENDAR_DESCRIPTION_MAX = 5000;
+export const YEARLY_CALENDAR_DESCRIPTION_TOO_LONG = 'Beskrivelse kan maksimalt v\u00e6re 5000 tegn.';
 export const YEARLY_CALENDAR_HEX_COLOR_PATTERN = '^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$';
 
 const HEX_COLOR_RE = new RegExp(YEARLY_CALENDAR_HEX_COLOR_PATTERN);
@@ -214,8 +219,8 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
     addError(errors, rowNumber, 'Tittel kan maksimalt v\u00e6re 200 tegn.');
   }
 
-  if (description.length > 1000) {
-    addError(errors, rowNumber, 'Beskrivelse kan maksimalt v\u00e6re 1000 tegn.');
+  if (description.length > YEARLY_CALENDAR_DESCRIPTION_MAX) {
+    addError(errors, rowNumber, YEARLY_CALENDAR_DESCRIPTION_TOO_LONG);
   }
 
   if (!VALID_YEARLY_CALENDAR_ENTRY_TYPES.includes(entryType)) {
@@ -270,9 +275,28 @@ export function validateYearlyCalendarImportRow({ rowNumber, schoolYear, row }) 
     }
   }
 
-  if (entryType === 'week_event' || entryType === 'food' || entryType === 'note') {
+  // A note without a week is a note for the whole month, which the editor
+  // can make and the export writes out; the import used to refuse it back.
+  const wholeMonthNote = entryType === 'note' && weekNumber === null;
+  if ((entryType === 'week_event' || entryType === 'food' || entryType === 'note') && !wholeMonthNote) {
     if (weekNumber === null || weekNumber < 1 || weekNumber > 53) {
       addError(errors, rowNumber, `${entryType} krever uke_fra mellom 1 og 53.`);
+    } else if (year !== null && month !== null && month >= 1 && month <= 12) {
+      // The week has to exist in that year and fall in that month. Week 53 in
+      // a 52-week year, or week 2 under September, used to import as new and
+      // then show nowhere, or in another school year.
+      const weekYear = isoWeekYearForRow(year, month, weekNumber);
+      const monday = mondayOfIsoWeek(weekYear, weekNumber);
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      if (isoWeekYear(monday) !== weekYear) {
+        addError(errors, rowNumber, `Uke ${weekNumber} finnes ikke i ${weekYear}.`);
+      } else if (monday > new Date(year, month, 0) || sunday < new Date(year, month - 1, 1)) {
+        addError(errors, rowNumber, `Uke ${weekNumber} ligger ikke i ${year}-${String(month).padStart(2, '0')}.`);
+      } else if (weekNumberEnd !== null && weekNumberEnd > weekNumber && weekNumberEnd <= 53
+          && isoWeekYear(mondayOfIsoWeek(weekYear, weekNumberEnd)) !== weekYear) {
+        addError(errors, rowNumber, `Uke ${weekNumberEnd} finnes ikke i ${weekYear}.`);
+      }
     }
   }
 

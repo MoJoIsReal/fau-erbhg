@@ -18,12 +18,13 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormDescription,
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
-import { contactFormBaseSchema } from "@/lib/form-schemas";
-import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
+import { contactFormBaseSchema, createContactFormSchema } from "@/lib/form-schemas";
+import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER, TEXT_LIMITS } from "@shared/constants";
 import {
   GraduationCap,
   Info,
@@ -92,9 +93,13 @@ export default function Contact() {
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
-  const formSchema = contactFormBaseSchema.extend({
-    subject: z.string().min(1, t.contact.selectSubject),
-    website: z.string().optional(),
+  // Required fields are checked here as the API checks them. An empty form
+  // used to reach the server, come back as a toast with no field marked, and
+  // spend one of the three messages an address may send in ten minutes.
+  const formSchema = createContactFormSchema({
+    subject: t.contact.selectSubject,
+    required: t.common.fieldRequired,
+    email: t.common.emailInvalid,
   });
 
   const contactCards: ContactCard[] = [
@@ -177,13 +182,35 @@ export default function Contact() {
         setTurnstileNotReady(true);
         return;
       }
+      // A refusal about one field is shown under that field.
+      const code = getApiErrorBody(error)?.code;
+      const message = apiErrorText(error, t, t.contact.errorDesc);
+      if (code === "NAME_AND_EMAIL_REQUIRED") {
+        form.setError("name", { type: "server", message }, { shouldFocus: true });
+        form.setError("email", { type: "server", message });
+        return;
+      }
+      if (code === "MESSAGE_REQUIRED") {
+        form.setError("message", { type: "server", message }, { shouldFocus: true });
+        return;
+      }
       toast({
         title: t.contact.error,
-        description: apiErrorText(error, t, t.contact.errorDesc),
+        description: message,
         variant: "destructive",
       });
     },
   });
+
+  // The submit button is disabled while the request is out, which drops
+  // keyboard focus to the page body; after a refusal shown only as a toast the
+  // user was left nowhere (WCAG 2.4.3). Focus returns to the button, unless a
+  // field with the error already took it.
+  const submitRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (mutation.isPending || !mutation.isError) return;
+    if (!document.activeElement || document.activeElement === document.body) submitRef.current?.focus();
+  }, [mutation.isPending, mutation.isError]);
 
   const onTurnstileToken = (token: string | null) => {
     setTurnstileToken(token);
@@ -281,7 +308,7 @@ export default function Contact() {
                       <FormItem>
                         <FormLabel>{t.contact.name} *</FormLabel>
                         <FormControl>
-                          <Input autoComplete="name" {...field} />
+                          <Input autoComplete="name" maxLength={TEXT_LIMITS.name} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -334,8 +361,11 @@ export default function Contact() {
                   <FormItem>
                     <FormLabel>{t.contact.message} *</FormLabel>
                     <FormControl>
-                      <Textarea rows={6} {...field} />
+                      <Textarea rows={6} maxLength={TEXT_LIMITS.contactMessage} {...field} />
                     </FormControl>
+                    <FormDescription className="text-right tabular-nums">
+                      {field.value.length} / {TEXT_LIMITS.contactMessage}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -347,7 +377,7 @@ export default function Contact() {
                 showNotReady={turnstileNotReady}
               />
 
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button ref={submitRef} type="submit" disabled={mutation.isPending}>
                 <Send className="h-4 w-4" aria-hidden="true" />
                 {mutation.isPending ? t.contact.sending : t.contact.send}
               </Button>
@@ -377,14 +407,14 @@ export default function Contact() {
                         <p className="mt-0.5 text-small text-subtle">{card.description}</p>
                         <ul className="mt-3 space-y-1.5 text-small">
                           {card.email && (
-                            <li className="flex items-start gap-2">
+                            <li className="flex items-center gap-2">
                               <Mail
-                                className="mt-0.5 h-4 w-4 shrink-0 text-subtle"
+                                className="h-4 w-4 shrink-0 text-subtle"
                                 aria-hidden="true"
                               />
                               <a
                                 href={`mailto:${card.email}`}
-                                className="min-w-0 break-words font-semibold text-brand hover:underline"
+                                className="inline-flex min-h-[44px] min-w-0 items-center break-all font-semibold text-brand hover:underline"
                               >
                                 {card.email}
                               </a>

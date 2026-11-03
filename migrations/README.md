@@ -29,6 +29,9 @@ contents of each migration file. The current migrations are:
 22. `0022_media_previews.sql`
 23. `0023_temporary_password_expiry.sql`
 24. `0024_audit_log.sql`
+25. `0025_username_case_unique.sql`
+26. `0026_seat_counts_not_null.sql`
+27. `0027_single_registration_event_fk.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the

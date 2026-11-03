@@ -18,13 +18,14 @@ import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { registrationConfirmationEmail } from './_shared/registration-emails.js';
-import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION } from '../shared/constants.js';
+import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION, TEXT_LIMITS } from '../shared/constants.js';
 import {
   isCancelToken,
   isCancellationOpen,
   osloToday,
   registrationCancelUrl
 } from './_shared/registration-cancel.js';
+import { logEvent } from './_shared/log.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
 const REGISTRATION_MAX_ATTEMPTS = 10;
@@ -59,10 +60,10 @@ export function validateSignupBody(body = {}) {
   const sanitizedLanguage = ['no', 'en'].includes(body.language) ? body.language : 'no';
   const values = {
     eventIdNum: sanitizeInteger(body.eventId, 1, MAX_INT_ID),
-    sanitizedName: sanitizeText(body.name, 100),
+    sanitizedName: sanitizeText(body.name, TEXT_LIMITS.name),
     sanitizedEmail: sanitizeEmail(body.email),
     sanitizedPhone: sanitizePhone(body.phone),
-    sanitizedComments: body.comments ? sanitizeText(body.comments, 1000) : null,
+    sanitizedComments: body.comments ? sanitizeText(body.comments, TEXT_LIMITS.signupComment) : null,
     sanitizedAttendeeCount: normalizeAttendeeCount(body.attendeeCount),
     sanitizedLanguage,
   };
@@ -80,6 +81,26 @@ export function validateSignupBody(body = {}) {
   return { values };
 }
 
+// The wire shape of a registration, as the council's list reads it. The one
+// place a column becomes a field (AGENTS.md, "Row mapping"); the cancel token
+// is never part of it. The public signup answer is an allow-list of three of
+// these fields, and the parent's own page reads a joined lookup of its own.
+function mapRegistration(row) {
+  return {
+    id: row.id,
+    eventId: row.event_id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    attendeeCount: row.attendee_count,
+    comments: row.comments,
+    registeredAt: row.registered_at,
+    childrenNames: row.children_names,
+    photoSlots: row.photo_slots,
+    foodContribution: row.food_contribution,
+  };
+}
+
 // What the event itself asks of a signup: that it takes signups here and is
 // still open, a name for everyone booked, and the food on a potluck.
 export function validateSignupForEvent(event, { sanitizedAttendeeCount, sanitizedLanguage }, body = {}, nowIso = new Date().toISOString()) {
@@ -87,6 +108,12 @@ export function validateSignupForEvent(event, { sanitizedAttendeeCount, sanitize
   const refuse = (code, norwegian, english) => ({ error: { code, message: no ? norwegian : english } });
   if (event.no_signup || event.vigilo_signup) {
     return refuse('SIGNUP_CLOSED', 'Påmelding er ikke tillatt for dette arrangementet', 'Registration is not available for this event');
+  }
+  // An event without a deadline used to take signups after its day, and the
+  // emailed cancel link refuses a past event, so only the council could
+  // remove such a registration. The day itself (in Oslo) is still open.
+  if (typeof event.date === 'string' && event.date.slice(0, 10) < osloToday(new Date(nowIso))) {
+    return refuse('SIGNUP_CLOSED', 'Arrangementet er over', 'This event has already taken place');
   }
   if (event.registration_deadline && event.registration_deadline < nowIso) {
     return refuse('DEADLINE_PASSED', 'Påmeldingsfristen har gått ut', 'The registration deadline has passed');
@@ -172,7 +199,7 @@ export async function handleCancel(req, res, sql, action) {
 
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   if (!isCancelToken(token)) {
-    return res.status(400).json({ error: 'Invalid token' });
+    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
   }
 
   const ipLimit = await checkRateLimit(sql, {
@@ -182,7 +209,7 @@ export async function handleCancel(req, res, sql, action) {
   });
   if (!ipLimit.allowed) {
     res.setHeader('Retry-After', String(ipLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
   if (action === 'cancel-lookup') {
@@ -197,7 +224,7 @@ export async function handleCancel(req, res, sql, action) {
       WHERE r.cancel_token = ${token}
     `;
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Registration not found' });
+      return res.status(404).json({ error: 'Registration not found', code: 'LINK_EXPIRED' });
     }
     const registration = rows[0];
     return res.status(200).json({
@@ -226,7 +253,7 @@ export async function handleCancel(req, res, sql, action) {
       RETURNING r.food_contribution as "foodContribution"
     `;
     if (updated.length === 0) {
-      return res.status(404).json({ error: 'Registration not found or can no longer be changed' });
+      return res.status(404).json({ error: 'Registration not found or can no longer be changed', code: 'LINK_EXPIRED' });
     }
     return res.status(200).json({ foodContribution: updated[0].foodContribution });
   }
@@ -263,7 +290,7 @@ export async function handleCancel(req, res, sql, action) {
   `;
 
   if (cancelled.length === 0) {
-    return res.status(404).json({ error: 'Registration not found or can no longer be cancelled' });
+    return res.status(404).json({ error: 'Registration not found or can no longer be cancelled', code: 'LINK_EXPIRED' });
   }
 
   return res.status(200).json({ success: true });
@@ -340,17 +367,13 @@ export default withApiHandler(async function handler(req, res) {
 
     if (isCouncilMember) {
       const registrations = await sql`
-        SELECT id, event_id as "eventId", name, email, phone,
-               attendee_count as "attendeeCount", comments,
-               registered_at as "registeredAt",
-               children_names as "childrenNames",
-               photo_slots as "photoSlots",
-               food_contribution as "foodContribution"
+        SELECT id, event_id, name, email, phone, attendee_count, comments,
+               registered_at, children_names, photo_slots, food_contribution
         FROM event_registrations
         WHERE event_id = ${eventIdNum}
         ORDER BY registered_at DESC
       `;
-      return res.status(200).json(registrations);
+      return res.status(200).json(registrations.map(mapRegistration));
     } else {
       // Public access - return aggregate only. Never expose registration PII.
       const totals = await sql`
@@ -372,7 +395,7 @@ export default withApiHandler(async function handler(req, res) {
     // separate sanitizeText calls.
     const oversizedField = findOversizedField(req.body);
     if (oversizedField) {
-      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large`, code: 'FIELD_TOO_LARGE' });
     }
 
     const registrationIpRateLimit = await checkRateLimit(sql, {
@@ -520,6 +543,7 @@ export default withApiHandler(async function handler(req, res) {
               AND COALESCE(no_signup, false) = false
               AND COALESCE(vigilo_signup, false) = false
               AND (registration_deadline IS NULL OR registration_deadline = '' OR registration_deadline >= ${nowIso})
+              AND date >= ${osloToday(new Date(nowIso))}
             -- Locks the event row for the duration of this statement, so two
             -- parents racing for the last seat are serialized: the second one
             -- re-reads current_attendees after the first commits. The row mark
@@ -619,7 +643,18 @@ export default withApiHandler(async function handler(req, res) {
     // carries the link instead and the page shows it once. Sending itself
     // never fails the request, so the caller does not wait on Gmail —
     // waitUntil() lets it finish after the response is sent.
-    const mailQueued = isEmailConfigured() && await reservePublicMail(sql, 'registration-confirmation');
+    // The registration is already committed. A failure while reserving the
+    // mail budget used to escape as a 500, so the parent tried again, was told
+    // they were already registered, and never got the link. Treated as "no
+    // mail" instead: the answer then carries the link.
+    let mailQueued = false;
+    if (isEmailConfigured()) {
+      try {
+        mailQueued = await reservePublicMail(sql, 'registration-confirmation');
+      } catch (budgetError) {
+        reportProviderError('Failed to reserve the confirmation mail budget', budgetError);
+      }
+    }
     if (mailQueued) {
       waitUntil(
         sendEventConfirmationEmail({
@@ -628,7 +663,7 @@ export default withApiHandler(async function handler(req, res) {
           language: sanitizedLanguage,
           photoSlots: photoSlots
         })
-          .then(() => console.log('Event confirmation email sent successfully'))
+          .then(() => logEvent('info', 'mail.sent', { kind: 'registration-confirmation' }))
           .catch((emailError) => {
             reportProviderError('Failed to send event confirmation email', emailError);
           })
@@ -638,13 +673,13 @@ export default withApiHandler(async function handler(req, res) {
     // An allow-list, not the stored row minus the token: a column added to
     // event_registrations later must not reach an anonymous caller by default.
     // Otherwise the cancel token only ever travels in the confirmation email.
-    const created = newRegistration[0];
+    const { id, eventId, attendeeCount } = mapRegistration(newRegistration[0]);
     return res.status(201).json({
-      id: created.id,
-      eventId: created.event_id,
-      attendeeCount: created.attendee_count,
+      id,
+      eventId,
+      attendeeCount,
       confirmationEmail: mailQueued,
-      ...(mailQueued ? {} : { cancelUrl: registrationCancelUrl(created.cancel_token) }),
+      ...(mailQueued ? {} : { cancelUrl: registrationCancelUrl(newRegistration[0].cancel_token) }),
     });
   }
 
@@ -663,7 +698,7 @@ export default withApiHandler(async function handler(req, res) {
     }
     const oversizedField = findOversizedField(req.body);
     if (oversizedField) {
-      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large`, code: 'FIELD_TOO_LARGE' });
     }
     const attendeeCount = normalizeAttendeeCount(req.body?.attendeeCount);
     if (attendeeCount === null) {
@@ -787,7 +822,7 @@ export default withApiHandler(async function handler(req, res) {
 // The text lives in api/_shared/registration-emails.js, where it is tested.
 async function sendEventConfirmationEmail({ registration, event, language, photoSlots }) {
   if (!isEmailConfigured()) {
-    console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
+    logEvent('warn', 'mail.not_configured', { kind: 'registration-confirmation' });
     throw new Error('Email configuration not available');
   }
   const { subject, text } = registrationConfirmationEmail({ registration, event, language, photoSlots });

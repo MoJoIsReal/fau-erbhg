@@ -14,9 +14,13 @@ import { returnFocus } from '@/lib/return-focus';
 interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
+  // Shown when a signed-in session ran out on a page that needs one. Signing
+  // in then calls onSignedIn instead of onClose: the page stays as it was.
+  sessionExpired?: boolean;
+  onSignedIn?: () => void;
 }
 
-export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, sessionExpired = false, onSignedIn }: LoginModalProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   // Shown under the form until the user edits a field or tries again.
@@ -45,7 +49,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
       // Force refresh authentication state
       queryClient.invalidateQueries({ queryKey: ['/api/auth'] });
       queryClient.refetchQueries({ queryKey: ['/api/auth'] });
-      onClose();
+      (onSignedIn ?? onClose)();
       setUsername('');
       setPassword('');
     },
@@ -92,6 +96,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
           {mode !== 'login' && (
             <DialogDescription className="text-center">
               {mode === 'forgot' ? t.modals.login.forgotDescription : t.modals.login.forgotSent}
+            </DialogDescription>
+          )}
+          {mode === 'login' && sessionExpired && (
+            <DialogDescription className="text-center">
+              {t.modals.login.sessionExpired}
             </DialogDescription>
           )}
         </DialogHeader>

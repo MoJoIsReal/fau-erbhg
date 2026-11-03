@@ -120,6 +120,41 @@ test('a description keeps its formatting as sanitized HTML, and an emptied edito
   }
 });
 
+// DB-006. Two editors on one entry: the second save rewrote every column from
+// an older copy. With the version it opened, it is refused instead.
+test('an update from an older copy of an entry is refused as a conflict', async (t) => {
+  const sql = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('SELECT id FROM yearly_calendar_entries') ? [{ id: 5 }] : []) }));
+  const res = await call(t, handler, write('PUT', { ...DAY_EVENT, updatedAt: '2026-09-01T00:00:00.000Z' }, { id: '5' }));
+  assert.deepEqual([res.statusCode, res.body.code], [409, 'CONFLICT']);
+  assert.match(sql.writes()[0].statement, /WHERE id = \? AND \(\?::text IS NULL OR updated_at = \?\)/);
+
+  useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, write('PUT', DAY_EVENT, { id: '5' }))).statusCode, 404, 'no version: the old answer');
+});
+
+// DB-005. Placement was only checked in the browser: an impossible date, a
+// week the year lacks or a school year that disagreed with the date was
+// stored, and the calendar could not show the entry.
+test('an entry the calendar cannot place is refused, and its school year follows its date', async (t) => {
+  for (const change of [
+    { date: '2027-02-31' },
+    { entryType: 'week_event', date: undefined, year: 2027, month: 12, weekNumber: 53, schoolYear: 2027 },
+    { entryType: 'week_event', date: undefined, weekNumber: 23, weekdayStart: 3 },
+  ]) {
+    for (const [method, query] of [['POST', {}], ['PUT', { id: '5' }]]) {
+      const sql = useDatabase(scriptedSql());
+      const res = await call(t, handler, write(method, { ...DAY_EVENT, ...change }, query));
+      assert.deepEqual([res.statusCode, res.body.code], [400, 'INVALID_ENTRY_PLACEMENT'], `${method} ${JSON.stringify(change)}`);
+      assert.deepEqual(sql.writes(), []);
+    }
+  }
+
+  const sql = useDatabase(scriptedSql({ respond: () => [stored()] }));
+  await call(t, handler, write('POST', { ...DAY_EVENT, schoolYear: 2030, year: 2030, month: 1 }));
+  const row = fields(sql.writes()[0]);
+  assert.deepEqual([row.school_year, row.year, row.month, row.date], [2026, 2027, 6, '2027-06-04'], 'derived from the date');
+});
+
 test('update and delete need a numeric id and an existing entry', async (t) => {
   for (const [method, body] of [['PUT', DAY_EVENT], ['DELETE', {}]]) {
     const refused = useDatabase(scriptedSql());
@@ -263,6 +298,59 @@ test('a full import is one read and one write, and a failed write fails the whol
   const failed = await call(t, handler, write('POST', { schoolYear: SCHOOL_YEAR, decisions }, { action: 'commit-import' }));
   assert.equal(failed.statusCode, 500);
   assert.equal(importWrites(failing).length, 1, 'the one statement either writes every row or none');
+});
+
+// The export writes a rich text description out as plain text. Re-importing
+// the sheet after changing another column used to write that flattened copy
+// back, so every touched entry lost its links, formatting and images.
+test('an import keeps a stored description the sheet only flattened, and stores an edited one as paragraphs', async (t) => {
+  const rich = '<p><strong>Ta med</strong> matpakke. <a href="https://example.test/p">P\u00e5melding</a></p><p>Linje 2</p>';
+  EXISTING[0].description = rich;
+  t.after(() => { EXISTING[0].description = null; });
+  const flattened = 'Ta med matpakke. P\u00e5melding\n\nLinje 2';
+
+  const sql = importDatabase();
+  const res = await call(t, handler, write('POST', {
+    schoolYear: SCHOOL_YEAR,
+    decisions: [
+      { rowNumber: 2, status: 'changed', action: 'update', existingId: 10,
+        row: sheet('Julaften', '2026-12-24', { beskrivelse: flattened, farge: 'red' }) },
+      { rowNumber: 3, status: 'new', action: 'create',
+        row: sheet('Planleggingsdag', '2027-01-04', { beskrivelse: 'Stengt & rydding\n\nHele dagen' }) },
+    ],
+  }, { action: 'commit-import' }));
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.errors, []);
+  const [statement] = importWrites(sql);
+  const [update, create] = JSON.parse(statement.values[0]);
+  assert.equal(update.keep_description, true);
+  assert.equal(update.description, null);
+  assert.match(statement.statement, /description = CASE WHEN u\.keep_description THEN e\.description ELSE u\.description END/);
+  assert.equal(create.keep_description, false);
+  assert.equal(create.description, '<p>Stengt &amp; rydding</p><p>Hele dagen</p>');
+
+  const edited = importDatabase();
+  await call(t, handler, write('POST', {
+    schoolYear: SCHOOL_YEAR,
+    decisions: [{ rowNumber: 2, status: 'changed', action: 'update', existingId: 10,
+      row: sheet('Julaften', '2026-12-24', { beskrivelse: 'Ta med niste' }) }],
+  }, { action: 'commit-import' }));
+  const [editedUpdate] = JSON.parse(importWrites(edited)[0].values[0]);
+  assert.equal(editedUpdate.keep_description, false);
+  assert.equal(editedUpdate.description, '<p>Ta med niste</p>');
+});
+
+test('an over-long sheet description is refused for its row rather than shortened', async (t) => {
+  const sql = importDatabase();
+  const res = await call(t, handler, write('POST', {
+    schoolYear: SCHOOL_YEAR,
+    decisions: [{ rowNumber: 3, status: 'new', action: 'create',
+      row: sheet('Planleggingsdag', '2027-01-04', { beskrivelse: 'B'.repeat(5001) }) }],
+  }, { action: 'commit-import' }));
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(res.body.created, []);
+  assert.match(res.body.errors[0].errors.join('\n'), /Rad 3: Beskrivelse kan maksimalt v\u00e6re 5000 tegn/);
+  assert.deepEqual(importWrites(sql), []);
 });
 
 test('an entry deleted since the preview is reported for its row', async (t) => {

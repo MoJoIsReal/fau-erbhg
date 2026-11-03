@@ -7,6 +7,8 @@ const sql = database();
 before(async () => { await initialize(sql); });
 const registrationFile = 'api/registrations.js';
 const cronFile = 'api/cron/event-reminders.js';
+const outboxFile = 'api/_shared/newsletter-outbox.js';
+const retentionFile = 'api/_shared/retention.js';
 async function event(type = 'event', capacity = 1, date = '2099-09-24') {
   const [row] = await sql(`INSERT INTO events (title, description, date, time, location, type, max_attendees)
     VALUES ('Test', '', ${literal(date)}, '12:00', 'Test', ${literal(type)}, ${capacity}) RETURNING id;`);
@@ -14,7 +16,7 @@ async function event(type = 'event', capacity = 1, date = '2099-09-24') {
 }
 async function signup(eventIdNum, email, slots = null) {
   return productionStatement(registrationFile, 'WITH target_event AS', {
-    eventIdNum, nowIso: new Date().toISOString(), requestedAttendees: 1,
+    eventIdNum, nowIso: new Date().toISOString(), osloToday: () => '2099-09-24', requestedAttendees: 1,
     sanitizedName: 'Test', sanitizedEmail: email, sanitizedPhone: null,
     sanitizedComments: null, sanitizedLanguage: 'no', childrenNamesParam: slots ? '["Test child"]' : null,
     photoSlotsParam: slots ? JSON.stringify(slots) : null, sanitizedFoodContribution: null,
@@ -169,7 +171,7 @@ test('concurrent delivery claims are exclusive, take whole subscribers, expired 
   await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date)
     SELECT 'event', n, s.id, 'Test', '2099-09-24' FROM generate_series(1,2) n CROSS JOIN newsletter_subscribers s WHERE s.id IN (${subscriberIds});`);
   // The cap counts emails: three subscribers, each with both of their rows.
-  const claim = await productionStatement(cronFile, 'WITH recipients AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
+  const claim = await productionStatement(outboxFile, 'WITH recipients AS', { targetDate: '2099-09-24', MAX_NEWSLETTER_EMAILS_PER_RUN: 3, DELIVERY_LEASE_MINUTES: 10 });
   const results = await Promise.all([sql(`BEGIN; ${claim}; DO $$ BEGIN PERFORM pg_sleep(0.3); END $$; COMMIT;`), sql(claim)]);
   for (const rows of results) {
     const perSubscriber = Object.values(Object.groupBy(rows, row => row.subscriberId));
@@ -202,11 +204,11 @@ test('privacy and delivery retention enforce the six/twelve-month and ninety-day
   contactCutoff.setUTCMonth(contactCutoff.getUTCMonth() - 12);
   const bindings = { contactCutoff, eventCutoff: dates[0].cutoff };
   for (const marker of ['DELETE FROM contact_messages', 'DELETE FROM event_registrations r\n', 'DELETE FROM event_registration_cancellations c']) {
-    await sql(await productionStatement(cronFile, marker, bindings));
+    await sql(await productionStatement(retentionFile, marker, bindings));
   }
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${notADate};`)).length, 1, 'skipped, not a failure');
   assert.equal((await sql(`SELECT * FROM event_registrations WHERE event_id=${impossible};`)).length, 0, 'compared as text, never cast');
-  const [unparseable] = await sql(await productionStatement(cronFile, 'AS "contactMessages"'));
+  const [unparseable] = await sql(await productionStatement(retentionFile, 'AS "contactMessages"'));
   assert.deepEqual([Number(unparseable.contactMessages), Number(unparseable.events)], [1, 1]);
   await sql(`DELETE FROM event_registrations WHERE event_id IN (${notADate},${impossible}); DELETE FROM event_registration_cancellations WHERE event_id IN (${notADate},${impossible});
     DELETE FROM events WHERE id IN (${notADate},${impossible}); DELETE FROM contact_messages WHERE created_at = 'ukjent';`);
@@ -220,7 +222,7 @@ test('privacy and delivery retention enforce the six/twelve-month and ninety-day
     VALUES ('event',1,${sub.id},'Test','2099-09-24','sent',NOW()-INTERVAL '91 days'),
     ('event',2,${sub.id},'Test','2099-09-24','pending',NOW()-INTERVAL '91 days'),
     ('event',3,${sub.id},'Test','2099-09-24','sent',NOW()-INTERVAL '89 days');`);
-  await sql(await productionStatement(cronFile, 'DELETE FROM newsletter_deliveries', { DELIVERY_RETENTION_DAYS: 90 }));
+  await sql(await productionStatement(retentionFile, 'DELETE FROM newsletter_deliveries', { DELIVERY_RETENTION_DAYS: 90 }));
   assert.deepEqual(await sql('SELECT item_id FROM newsletter_deliveries ORDER BY item_id;'), [{ item_id: '2' }, { item_id: '3' }]);
 });
 
@@ -228,7 +230,7 @@ test('a delivery that has used every attempt is retired as failed', async () => 
   const [subscriber] = await sql("INSERT INTO newsletter_subscribers (email, unsubscribe_token, created_at, status) VALUES ('retire@example.test', 'retire-token', NOW()::text, 'active') RETURNING id;");
   const [delivery] = await sql(`INSERT INTO newsletter_deliveries (item_type,item_id,subscriber_id,title,event_date,status,attempts,claimed_at)
     VALUES ('news', 1, ${subscriber.id}, 'Test', '2099-09-24', 'processing', 5, NOW()) RETURNING id;`);
-  await sql(await productionStatement(cronFile, "exhausted ? 'failed'", {
+  await sql(await productionStatement(outboxFile, "exhausted ? 'failed'", {
     exhausted: true, retryAt: new Date().toISOString(), safeError: 'mailbox unavailable', delivery: { id: delivery.id },
   }));
   assert.deepEqual(await sql(`SELECT status, claimed_at FROM newsletter_deliveries WHERE id=${delivery.id};`), [{ status: 'failed', claimed_at: '' }]);
@@ -245,7 +247,7 @@ test('the delivery claim reports whether the queued item is still one to send', 
       ('event', ${active}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('event', ${cancelled}, ${subscriber.id}, 'Test', '2099-10-01'),
       ('news', 999999, ${subscriber.id}, 'Deleted post', '2099-10-01');`);
-  const claim = await productionStatement(cronFile, 'WITH recipients AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
+  const claim = await productionStatement(outboxFile, 'WITH recipients AS', { targetDate: '2099-10-01', MAX_NEWSLETTER_EMAILS_PER_RUN: 10, DELIVERY_LEASE_MINUTES: 10 });
   const claimed = (await sql(claim)).filter(row => row.email === 'eligible@example.test');
   const eligible = Object.fromEntries(claimed.map(row => [`${row.itemType}:${row.itemId}`, row.sourceEligible]));
   assert.deepEqual(eligible, { [`event:${active}`]: 't', [`event:${cancelled}`]: 'f', 'news:999999': 'f' });
@@ -299,9 +301,18 @@ test('the year-calendar import writes every row in one statement, or none of the
     { title: 'New one', notify_newsletter: 'f', created_by: 'Test' },
   ]);
 
+  // A description the sheet only flattened keeps its stored rich text; an
+  // edited one replaces it.
+  await sql(`UPDATE yearly_calendar_entries SET description = '<p><strong>Rich</strong></p>' WHERE id = ${id};`);
+  await commit([entry(8, 'update', 'Colour only', { id, description: null, keep_description: true, color: 'red' })]);
+  assert.deepEqual(await sql(`SELECT description, color FROM yearly_calendar_entries WHERE id = ${id};`),
+    [{ description: '<p><strong>Rich</strong></p>', color: 'red' }]);
+  await commit([entry(9, 'update', 'Edited', { id, description: '<p>New text</p>', keep_description: false })]);
+  assert.deepEqual(await sql(`SELECT description FROM yearly_calendar_entries WHERE id = ${id};`), [{ description: '<p>New text</p>' }]);
+
   // A row the database refuses takes the whole batch with it, update included.
   await assert.rejects(commit([entry(6, 'update', 'Must not stick', { id }), entry(7, 'create', null)]), /23502/);
-  assert.deepEqual((await saved2090()).map(row => row.title), ['Later edit', 'New one']);
+  assert.deepEqual((await saved2090()).map(row => row.title), ['Edited', 'New one']);
   await sql('DELETE FROM yearly_calendar_entries WHERE school_year = 2090;');
 });
 
@@ -349,8 +360,21 @@ test('two sign-ups for the same new address at once both succeed, and an active 
   await sql("DELETE FROM newsletter_subscribers WHERE email = 'race@example.test';");
 });
 
+test('signing up again after unsubscribing records the new consent, not the first one', async () => {
+  await sql(`INSERT INTO newsletter_subscribers (email, status, unsubscribe_token, created_at, confirmed_at, unsubscribed_at)
+    VALUES ('again@example.test', 'unsubscribed', 'again-token', '2025-01-01T00:00:00.000Z', '2025-01-02T00:00:00.000Z', '2025-06-01T00:00:00.000Z');`);
+  const now = new Date().toISOString();
+  await sql(await productionStatement('api/contact.js', 'ON CONFLICT (email) DO UPDATE', {
+    sanitizedEmail: 'again@example.test', sanitizedName: null, lang: 'no', confirmToken: 'c'.repeat(64),
+    newsletterToken: () => 'n'.repeat(64), now,
+  }));
+  const [rearmed] = await sql("SELECT status, confirmed_at IS NULL AS unconfirmed, created_at FROM newsletter_subscribers WHERE email = 'again@example.test';");
+  assert.deepEqual(rearmed, { status: 'pending', unconfirmed: 't', created_at: now });
+  await sql("DELETE FROM newsletter_subscribers WHERE email = 'again@example.test';");
+});
+
 test('two admins creating the same user at once get one user and no error', async () => {
-  const create = (hashed) => productionStatement('api/secure-settings.js', 'ON CONFLICT (username) DO NOTHING', {
+  const create = (hashed) => productionStatement('api/secure-settings.js', 'INSERT INTO users (username', {
     username: 'twice@example.test', hashed, name: 'Twice', role: 'member', now: new Date().toISOString(),
     temporaryPasswordExpiry: () => new Date(Date.now() + 7 * 86400000).toISOString(),
   });
@@ -412,6 +436,63 @@ test('editor images never push a real document off the public list', async () =>
   await sql("DELETE FROM documents WHERE uploaded_by = 'member@example.test';");
 });
 
+test('the editor-image sweep picks only old images no rich text refers to', async () => {
+  const url = (name) => `https://res.cloudinary.com/test/image/upload/v1/fau-documents/${name}.png`;
+  await sql(`INSERT INTO documents (title, filename, category, uploaded_by, uploaded_at, cloudinary_url, cloudinary_public_id) VALUES
+    ('a', 'a.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('1-unused')}', 'fau-documents/1-unused'),
+    ('b', 'b.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('2-in-post')}', 'fau-documents/2-in-post'),
+    ('c', 'c.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('3-in-event')}', 'fau-documents/3-in-event'),
+    ('d', 'd.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('4-in-calendar')}', 'fau-documents/4-in-calendar'),
+    ('e', 'e.png', 'editor-image', 'sweep@example.test', '2026-01-01T00:00:00.000Z', 'https://res.cloudinary.com/test/image/upload/v9/fau-documents/5-by-id.png', 'fau-documents/5-by-id'),
+    ('f', 'f.png', 'editor-image', 'sweep@example.test', '2026-10-30T00:00:00.000Z', '${url('6-recent')}', 'fau-documents/6-recent'),
+    ('g', 'g.pdf', 'vedtekter', 'sweep@example.test', '2026-01-01T00:00:00.000Z', '${url('7-document')}', 'fau-documents/7-document');
+  INSERT INTO blog_posts (title, content, published_date, created_at, updated_at)
+    VALUES ('Sweep', '<p><img src="${url('2-in-post')}"></p><p>fau-documents/5-by-id</p>', '2098-01-01', '2026-01-01', '2026-01-01');
+  INSERT INTO yearly_calendar_entries (school_year, year, month, entry_type, date, title, description, created_at, updated_at)
+    VALUES (2091, 2091, 9, 'closed', '2091-09-01', 'Sweep', '<img src="${url('4-in-calendar')}">', '2026-01-01', '2026-01-01');`);
+  const eventId = await event();
+  await sql(`UPDATE events SET description = '<img src="${url('3-in-event')}">' WHERE id = ${eventId};`);
+
+  const sweep = await productionStatement('api/_shared/document-assets.js', 'WITH candidate AS', {
+    cutoff: '2026-10-26T07:00:00.000Z', EDITOR_IMAGES_PER_RUN: 50,
+  });
+  assert.deepEqual((await sql(sweep)).map(row => row.cloudinary_public_id), ['fau-documents/1-unused']);
+  await sql(`DELETE FROM documents WHERE uploaded_by = 'sweep@example.test'; DELETE FROM blog_posts WHERE title = 'Sweep';
+    DELETE FROM yearly_calendar_entries WHERE school_year = 2091; DELETE FROM events WHERE id = ${eventId};`);
+});
+
+test('an event edit cannot break its registrations, and a moved date re-arms their reminders', async () => {
+  const id = await event('foto', 10, '2099-11-01');
+  const values = (change = {}) => ({
+    title: 'Fotografering', description: '', date: '2099-11-01', time: '12:00', location: 'Test', customLocation: null,
+    maxAttendees: 10, registrationDeadline: null, type: 'foto', vigiloSignup: false, noSignup: false,
+    notifyNewsletter: false, potluck: false, ...change,
+  });
+  const edit = async (change) => sql(await productionStatement('api/events.js', 'WITH previous AS', { eventId: id, values: values(change) }));
+
+  // Nobody registered yet: anything may change.
+  assert.equal((await edit({ time: '10:00' })).length, 1);
+  await sql(`INSERT INTO event_registrations (event_id, name, email, photo_slots, reminder_sent_at, reminder_attempts)
+    VALUES (${id}, 'Booked', 'booked@example.test', '["10:00"]', '2099-10-31T07:00:00.000Z', 1);`);
+
+  assert.deepEqual(await edit({ time: '11:00' }), [], 'a booked photo session keeps its start');
+  assert.deepEqual(await edit({ type: 'event' }), [], 'and stays a photo session');
+  const [kept] = await sql(`SELECT time, type FROM events WHERE id = ${id};`);
+  assert.deepEqual(kept, { time: '10:00', type: 'foto' });
+
+  const [moved] = await edit({ time: '10:00', date: '2099-11-08', title: 'Ny dag' });
+  assert.equal(moved.title, 'Ny dag');
+  assert.equal(Number(moved.derived_attendees), 1);
+  assert.deepEqual(await sql(`SELECT reminder_sent_at IS NULL AS unsent, reminder_attempts FROM event_registrations WHERE event_id = ${id};`),
+    [{ unsent: 't', reminder_attempts: '0' }]);
+
+  // A same-day edit leaves a sent reminder alone.
+  await sql(`UPDATE event_registrations SET reminder_sent_at = 'sent' WHERE event_id = ${id};`);
+  await edit({ time: '10:00', date: '2099-11-08', title: 'Samme dag' });
+  assert.deepEqual(await sql(`SELECT reminder_sent_at FROM event_registrations WHERE event_id = ${id};`), [{ reminder_sent_at: 'sent' }]);
+  await sql(`DELETE FROM event_registrations WHERE event_id = ${id}; DELETE FROM events WHERE id = ${id};`);
+});
+
 test('a reminder that has failed three times is not claimed again', async () => {
   const id = await event('event', 10, '2099-12-01');
   await sql(`INSERT INTO event_registrations (event_id, name, email, reminder_attempts) VALUES
@@ -430,8 +511,8 @@ test('a flagged news post with nobody to send to is stamped, not kept for later 
   await sql("UPDATE newsletter_subscribers SET status = 'unsubscribed';");
   const post = async (title) => (await sql(`INSERT INTO blog_posts (title, content, status, notify_newsletter, published_date, created_at, updated_at)
     VALUES (${literal(title)}, 'Test', 'published', true, '2099-10-02', NOW()::text, NOW()::text) RETURNING id;`))[0].id;
-  const fanOut = await productionStatement(cronFile, 'WITH due_items AS', { targetDate: '2099-10-02' });
-  const stamp = await productionStatement(cronFile, 'UPDATE blog_posts p', { stampedAt: new Date().toISOString() });
+  const fanOut = await productionStatement(outboxFile, 'WITH due_items AS', { targetDate: '2099-10-02' });
+  const stamp = await productionStatement(outboxFile, 'UPDATE blog_posts p', { stampedAt: new Date().toISOString() });
   const sentAt = async (id) => (await sql(`SELECT newsletter_sent_at FROM blog_posts WHERE id=${id};`))[0].newsletter_sent_at;
 
   const unheard = await post('Nobody subscribed yet');
@@ -544,7 +625,7 @@ test('an audit row is written as the middleware writes it, and dropped after a y
   assert.deepEqual(row, { user_id: '1', role: 'admin', method: 'DELETE', path: '/api/secure-settings', action: '', resource: 'users', target_id: '5', status: '200', request_id: 'arn1::abc' });
 
   await sql(`INSERT INTO audit_log (created_at, user_id, role, method, path, status) VALUES ('${new Date(Date.now() - 366 * DAY).toISOString()}', 2, 'member', 'PUT', '/api/events', 200);`);
-  const purge = await productionStatement(cronFile, 'DELETE FROM audit_log', { cutoff: new Date(Date.now() - 365 * DAY).toISOString() });
+  const purge = await productionStatement(retentionFile, 'DELETE FROM audit_log', { cutoff: new Date(Date.now() - 365 * DAY).toISOString() });
   assert.equal((await sql(purge)).length, 1, 'only the row older than a year');
   assert.equal((await sql('SELECT count(*) AS count FROM audit_log;'))[0].count, '1');
   await sql('DELETE FROM audit_log;');
@@ -617,6 +698,25 @@ test('the cron purges expired shares and day-old drafts, and nothing else', asyn
 // and failed on Neon. It now builds from a frozen baseline plus the migrations,
 // and this compares the result with the declaration: tables, columns
 // (type, NOT NULL), indexes, unique and CHECK constraints.
+test('two usernames that differ only in letter case cannot both exist', async () => {
+  await sql(`INSERT INTO users (username, password, name, role, created_at) VALUES ('Case@example.test', 'x', 'A', 'member', '2026-01-01T00:00:00.000Z');`);
+  await assert.rejects(
+    sql(`INSERT INTO users (username, password, name, role, created_at) VALUES ('case@example.test', 'x', 'B', 'member', '2026-01-01T00:00:00.000Z');`),
+    /users_username_lower_unique_idx/,
+  );
+  await sql(`DELETE FROM users WHERE lower(username) = 'case@example.test';`);
+});
+
+test('seat counts cannot be missing or negative (0026)', async () => {
+  const id = await event('event', 10, '2099-11-20');
+  await assert.rejects(sql(`INSERT INTO event_registrations (event_id, name, email, attendee_count) VALUES (${id}, 'A', 'zero@example.test', 0);`), /attendee_count_check/);
+  await assert.rejects(sql(`INSERT INTO event_registrations (event_id, name, email, attendee_count) VALUES (${id}, 'A', 'null@example.test', NULL);`), /null value/);
+  await assert.rejects(sql(`UPDATE events SET current_attendees = -1 WHERE id = ${id};`), /current_attendees_check/);
+  await assert.rejects(sql(`UPDATE events SET max_attendees = -1 WHERE id = ${id};`), /max_attendees_check/);
+  await sql(`UPDATE events SET max_attendees = NULL WHERE id = ${id};`);
+  await sql(`DELETE FROM events WHERE id = ${id};`);
+});
+
 test('the migrated database matches what shared/schema.ts declares', async () => {
   const declared = await declaredSchema();
   const typeOf = (type) => ({ serial: 'integer', bigserial: 'bigint', timestamp: 'timestamp without time zone' }[type] ?? type);
@@ -625,7 +725,19 @@ test('the migrated database matches what shared/schema.ts declares', async () =>
     columns: await sql("SELECT table_name, column_name, data_type, is_nullable FROM information_schema.columns WHERE table_schema = 'public';"),
     indexes: await sql("SELECT tablename, indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname NOT LIKE '%_pkey';"),
     constraints: await sql("SELECT conrelid::regclass::text AS table_name, conname, contype FROM pg_constraint WHERE connamespace = 'public'::regnamespace AND contype IN ('u', 'c');"),
+    // Foreign keys by what they do, not by name: the migrations and Drizzle
+    // name the same key differently, and a second key on one column (DB-010)
+    // is what this has to catch.
+    foreignKeys: await sql(`SELECT c.conrelid::regclass::text AS table_name, c.confrelid::regclass::text AS table_to, c.confdeltype,
+      (SELECT string_agg(a.attname, ',' ORDER BY a.attnum) FROM pg_attribute a WHERE a.attrelid = c.conrelid AND a.attnum = ANY(c.conkey)) AS columns
+      FROM pg_constraint c WHERE c.connamespace = 'public'::regnamespace AND c.contype = 'f';`),
   };
+  const onDelete = { cascade: 'c', restrict: 'r', 'set null': 'n', 'set default': 'd', 'no action': 'a' };
+  const key = (table, columns, to, action) => `${table}(${columns}) -> ${to} on delete ${action}`;
+  const declaredKeys = Object.values(declared.tables).flatMap((table) => Object.values(table.foreignKeys)
+    .map((fk) => key(fk.tableFrom, fk.columnsFrom.join(','), fk.tableTo, onDelete[fk.onDelete ?? 'no action']))).sort();
+  const liveKeys = live.foreignKeys.map((fk) => key(fk.table_name, fk.columns, fk.table_to, fk.confdeltype)).sort();
+  assert.deepEqual(liveKeys, declaredKeys, 'foreign keys: one per declared reference, with its ON DELETE');
   const tables = new Map(Object.values(declared.tables).map((table) => [table.name, table]));
   const liveTables = new Set(live.columns.map((row) => row.table_name));
   for (const name of liveTables) if (!tables.has(name)) problems.push(`table ${name} exists but is not declared`);

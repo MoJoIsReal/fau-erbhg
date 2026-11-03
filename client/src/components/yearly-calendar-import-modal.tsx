@@ -31,6 +31,7 @@ import type {
   YearlyCalendarEntryType,
   YearlyCalendarImportPayload,
 } from "@shared/yearly-calendar-utils";
+import { YEARLY_CALENDAR_DESCRIPTION_TOO_LONG } from "@shared/yearly-calendar-utils";
 import { returnFocus } from "@/lib/return-focus";
 
 type Translation = ReturnType<typeof useTranslation>;
@@ -196,7 +197,7 @@ function formatValidationError(error: string, language: Language, t: Translation
   if (message === "Tittel kan maksimalt være 200 tegn.") {
     return validationMessage(t, "titleTooLong", values);
   }
-  if (message === "Beskrivelse kan maksimalt være 1000 tegn.") {
+  if (message === YEARLY_CALENDAR_DESCRIPTION_TOO_LONG) {
     return validationMessage(t, "descriptionTooLong", values);
   }
   if (/^(?:år|År) må være et heltall\.$/.test(message)) {
@@ -256,6 +257,16 @@ function formatValidationError(error: string, language: Language, t: Translation
       ...values,
       date: dateMismatch[1],
     });
+  }
+
+  const weekNotInYear = /^Uke (\d+) finnes ikke i (\d{4})\.$/.exec(message);
+  if (weekNotInYear) {
+    return validationMessage(t, "weekNotInYear", { ...values, week: weekNotInYear[1], year: weekNotInYear[2] });
+  }
+
+  const weekNotInMonth = /^Uke (\d+) ligger ikke i (\d{4}-\d{2})\.$/.exec(message);
+  if (weekNotInMonth) {
+    return validationMessage(t, "weekNotInMonth", { ...values, week: weekNotInMonth[1], month: weekNotInMonth[2] });
   }
 
   const weekRequired = /^(.+) krever uke_fra mellom 1 og 53\.$/.exec(message);

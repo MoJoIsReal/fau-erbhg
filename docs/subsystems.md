@@ -35,9 +35,9 @@ derives the school year from that placement, including moves across July/August.
 Month notes without a week are shown above the grid. The editor's complete month
 list also exposes yearly entries hidden by filters or deduplicated against events.
 Staff can edit yearly entries; only council roles can edit signup events.
-The public read includes each entry's `createdBy`, the editor's display name, on
-purpose: the council wants the calendar to show who added an entry. It is a
-display name, never a login address.
+The public read leaves out each entry's `createdBy`: it is the editor's display
+name, or their login e-mail when the name is empty, and no page shows it. Do not
+add it back to the public answer.
 
 PDF downloads (selected month or full August–July school year) are public in the
 month view, including on phones. They use the light design tokens and bundled
@@ -143,7 +143,8 @@ a redrawn card gets a **new file name**, not new bytes under the old one.
 
 ## Newsletter
 
-Files: `api/cron/event-reminders.js` (`?task=newsletter`), `api/_shared/newsletter.js`,
+Files: `api/_shared/newsletter-outbox.js` (fan-out, claim and send, run by
+`api/cron/event-reminders.js?task=newsletter`), `api/_shared/newsletter.js`,
 `api/_shared/delivery.js`, `api/contact.js` (subscribe/confirm/unsubscribe actions).
 
 Three item types feed the evening broadcast, all through the

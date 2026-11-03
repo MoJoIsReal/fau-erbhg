@@ -275,6 +275,18 @@ const BLOG_CONTENT_MAX = 50000;
 // month, and is read by crawlers only: an hour at the edge costs nothing.
 export const NEWS_SITEMAP_CACHE_CONTROL = 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=86400';
 
+// A conditional update matched nothing: the post is gone, or someone saved it
+// since this editor loaded it.
+async function refuseMissingOrChangedPost(res, sql, id, expectedUpdatedAt) {
+  if (expectedUpdatedAt) {
+    const existing = await sql`SELECT id FROM blog_posts WHERE id = ${id}`;
+    if (existing.length > 0) {
+      return res.status(409).json({ error: 'The post was changed by someone else', code: 'CONFLICT' });
+    }
+  }
+  return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
+}
+
 async function handleBlogPosts(req, res, sql) {
   // GET - Public access to view published blog posts
   if (req.method === 'GET') {
@@ -392,7 +404,7 @@ async function handleBlogPosts(req, res, sql) {
   if (req.method === 'PUT') {
     const id = requireIntId(req, res);
     if (!id) return;
-    const { title, content, status, publishedDate, author, showOnHomepage, category, notifyNewsletter } = req.body;
+    const { title, content, status, publishedDate, author, showOnHomepage, category, notifyNewsletter, updatedAt } = req.body;
 
     const sanitizedTitle = sanitizeText(title, 200);
     if (isHtmlTooLong(content, BLOG_CONTENT_MAX)) {
@@ -401,6 +413,11 @@ async function handleBlogPosts(req, res, sql) {
     const sanitizedContent = sanitizeHtml(content, BLOG_CONTENT_MAX);
     const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
     const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
+    // The version the editor started from. A save rewrites every column, so
+    // without it a member whose copy was older overwrote whatever someone
+    // else had saved in between. An editor that sends no version keeps the
+    // old last-write-wins behaviour.
+    const expectedUpdatedAt = typeof updatedAt === 'string' && updatedAt ? updatedAt.slice(0, 64) : null;
     const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
 
     if (!sanitizedTitle || !sanitizedContent) {
@@ -419,13 +436,43 @@ async function handleBlogPosts(req, res, sql) {
           notify_newsletter = COALESCE(${notifyNewsletter === undefined ? null : notifyNewsletter === true}::boolean, notify_newsletter),
           updated_at = ${now}
       WHERE id = ${id}
+        AND (${expectedUpdatedAt}::text IS NULL OR updated_at = ${expectedUpdatedAt})
       RETURNING *
     `;
 
     if (result.length === 0) {
-      return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
+      return refuseMissingOrChangedPost(res, sql, id, expectedUpdatedAt);
     }
 
+    return res.status(200).json(mapBlogPost(result[0]));
+  }
+
+  // PATCH - Archive or publish a post, or show it on the homepage or not.
+  // Only the field asked for is written: these switches used to send the
+  // whole post from the list the page had loaded, so clicking one restored
+  // an older title and text over someone else's edit.
+  if (req.method === 'PATCH') {
+    const id = requireIntId(req, res);
+    if (!id) return;
+    const { status, showOnHomepage } = req.body || {};
+    const sanitizedStatus = status === undefined ? null : ['published', 'archived'].includes(status) ? status : undefined;
+    const sanitizedHomepage = showOnHomepage === undefined ? null : typeof showOnHomepage === 'boolean' ? showOnHomepage : undefined;
+    if (sanitizedStatus === undefined || sanitizedHomepage === undefined
+        || (sanitizedStatus === null && sanitizedHomepage === null)) {
+      return res.status(400).json({ error: 'status or showOnHomepage is required', code: 'REQUIRED_FIELDS' });
+    }
+
+    const result = await sql`
+      UPDATE blog_posts
+      SET status = COALESCE(${sanitizedStatus}::text, status),
+          show_on_homepage = COALESCE(${sanitizedHomepage}::boolean, show_on_homepage),
+          updated_at = ${now}
+      WHERE id = ${id}
+      RETURNING *
+    `;
+    if (result.length === 0) {
+      return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
+    }
     return res.status(200).json(mapBlogPost(result[0]));
   }
 
@@ -606,6 +653,12 @@ async function handleContactMessages(req, res, sql) {
     }
 
     const original = mapContactMessage(rows[0]);
+    // Two council members answering one inquiry from lists loaded before
+    // either replied: the parent got both mails and only the last reply was
+    // kept. An inquiry already answered is refused before anything is sent.
+    if (original.status === 'responded') {
+      return res.status(409).json({ error: 'This inquiry has already been answered', code: 'ALREADY_REPLIED' });
+    }
     const recipient = sanitizeEmail(original.email);
 
     // Anonymous inquiries carry no address, so there is nobody to answer.
@@ -724,7 +777,8 @@ async function handleUsers(req, res, sql) {
     // the race it cannot see. Two admins creating the same user at once used
     // to both pass the lookup, and the second INSERT was a unique violation —
     // a 500 — instead of this 400.
-    const existing = await sql`SELECT id FROM users WHERE username = ${username} LIMIT 1`;
+    // Case-insensitive, as sign-in reads it: "Ola@x.no" is the same account.
+    const existing = await sql`SELECT id FROM users WHERE lower(username) = ${username} LIMIT 1`;
     if (existing.length > 0) {
       return res.status(400).json({ error: 'Username is already in use', code: 'USERNAME_TAKEN' });
     }
@@ -735,7 +789,9 @@ async function handleUsers(req, res, sql) {
     const created = await sql`
       INSERT INTO users (username, password, name, role, must_change_password, password_changed_at, temp_password_expires_at, created_at)
       VALUES (${username}, ${hashed}, ${name}, ${role}, true, ${null}, ${temporaryPasswordExpiry()}, ${now})
-      ON CONFLICT (username) DO NOTHING
+      -- No conflict target, so both unique rules on the name are arbiters:
+      -- UNIQUE(username) and the lower(username) index from migration 0025.
+      ON CONFLICT DO NOTHING
       RETURNING id, username, name, role, created_at
     `;
     if (created.length === 0) {

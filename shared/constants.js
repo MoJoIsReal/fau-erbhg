@@ -57,6 +57,11 @@ export const MAX_EVENT_ATTENDEES = 1000;
 // whole photo day) in one go.
 export const MAX_ATTENDEES_PER_REGISTRATION = 10;
 
+// How long a free-text answer on the public forms may be. The API cuts at
+// these lengths and the forms stop there and show the count, so a parent's
+// allergy note or message is never shortened without them seeing it.
+export const TEXT_LIMITS = Object.freeze({ name: 100, signupComment: 1000, contactMessage: 5000 });
+
 // Why a public event signup was refused. api/registrations.js answers with one
 // of these as `code` and the signup form shows its translation; the `error`
 // text beside it is only a fallback for other callers. The form used to match
@@ -103,6 +108,7 @@ export const API_ERROR_CODES = Object.freeze([
   'INVALID_MAX_ATTENDEES',
   'INVALID_REGISTRATION_DEADLINE',
   'INVALID_EVENT_TYPE',
+  'EVENT_HAS_REGISTRATIONS',
   'TITLE_REQUIRED',
   'UPLOAD_TYPE_NOT_ALLOWED',
   'UPLOAD_TOO_LARGE',
@@ -115,4 +121,9 @@ export const API_ERROR_CODES = Object.freeze([
   'ENTRY_FIELDS_REQUIRED',
   'TEMP_PASSWORD_EXPIRED',
   'RESET_LINK_INVALID',
+  'CONFLICT',
+  'INVALID_ENTRY_PLACEMENT',
+  'LINK_EXPIRED',
+  'EVENT_DELETE_HAS_REGISTRATIONS',
+  'ALREADY_REPLIED',
 ]);

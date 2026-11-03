@@ -11,7 +11,7 @@ about the repository. This file holds only Claude Code workflow notes.
 - The map and routing table in `AGENTS.md` are usually enough to find the right
   file. Grep for a symbol before opening anything; reserve a full read for files
   under ~300 lines.
-- Never read these whole: `client/src/lib/i18n.ts` (~2.5k lines — grep a nearby
+- Never read these whole: `client/src/lib/i18n.ts` (~3.5k lines — grep a nearby
   translation key and edit both `no` and `en` in place), `package-lock.json`,
   `client/src/components/ui/**`.
 - Load `docs/subsystems.md`, `docs/architecture.md`, `docs/DEPLOYMENT.md` or

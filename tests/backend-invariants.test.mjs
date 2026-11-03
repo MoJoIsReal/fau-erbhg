@@ -3,8 +3,9 @@
 // that shipped once and failed silently. Behaviour that CAN be exercised
 // belongs in the suite for its module, not here.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
+import { sliceBetween } from './helpers.mjs';
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -15,7 +16,7 @@ test('no SQL comment contains a backtick', () => {
   const files = [
     'api/registrations.js', 'api/events.js', 'api/contact.js', 'api/documents.js',
     'api/auth.js', 'api/upload.js', 'api/yearly-calendar.js', 'api/secure-settings.js',
-    'api/cron/event-reminders.js',
+    'api/cron/event-reminders.js', 'api/_shared/newsletter-outbox.js', 'api/_shared/retention.js',
   ];
   for (const file of files) {
     read(file).split('\n').forEach((line, index) => {
@@ -32,10 +33,7 @@ test('no SQL comment contains a backtick', () => {
 // duplicate signup permanently consumed a seat.
 test('the registration statement updates the event row once, gated on an insert, under a lock', () => {
   const source = read('api/registrations.js');
-  const start = source.indexOf('WITH target_event AS');
-  const end = source.indexOf('AS registration', start);
-  assert.ok(start !== -1 && end !== -1, 'Locate the registration CTE');
-  const statement = source.slice(start, end);
+  const statement = sliceBetween(source, 'WITH target_event AS', 'AS registration');
 
   assert.equal((statement.match(/UPDATE\s+events\b/g) ?? []).length, 1);
   assert.doesNotMatch(statement, /rollback_capacity/);
@@ -59,7 +57,7 @@ test('attendee counts are derived on read and reconciled, while capacity uses th
     /COALESCE\(current_attendees, 0\) \+ \$\{requestedAttendees\} <= max_attendees/,
   );
 
-  const cron = read('api/cron/event-reminders.js');
+  const cron = read('api/_shared/retention.js');
   assert.match(cron, /export async function reconcileEventAttendeeCounts/);
   assert.match(
     cron,
@@ -71,7 +69,7 @@ test('attendee counts are derived on read and reconciled, while capacity uses th
 // DB-003/DB-004. The outbox never shrank, copied each item body into every
 // subscriber row, and kept undeliverable rows pending forever.
 test('the newsletter outbox is bounded in attempts, retention and row size', () => {
-  const cron = read('api/cron/event-reminders.js');
+  const cron = read('api/_shared/newsletter-outbox.js') + read('api/_shared/retention.js');
   assert.match(cron, /const MAX_DELIVERY_ATTEMPTS = \d+/);
   assert.match(cron, /status = \$\{exhausted \? 'failed' : 'pending'\}/);
   assert.match(cron, /DELETE FROM newsletter_deliveries[\s\S]*?status IN \('sent', 'skipped', 'failed'\)/);
@@ -134,7 +132,8 @@ test('every Sentry capture in a handler is awaited or kept alive with waitUntil'
   const files = [
     'api/registrations.js', 'api/events.js', 'api/contact.js', 'api/documents.js', 'api/auth.js',
     'api/upload.js', 'api/yearly-calendar.js', 'api/secure-settings.js', 'api/media.js',
-    'api/cron/event-reminders.js', 'api/_shared/middleware.js', 'api/_shared/provider-errors.js',
+    'api/cron/event-reminders.js', 'api/_shared/newsletter-outbox.js', 'api/_shared/retention.js',
+    'api/_shared/middleware.js', 'api/_shared/provider-errors.js',
   ];
   for (const file of files) {
     read(file).split('\n').forEach((line, index) => {
@@ -168,4 +167,24 @@ test('handler refusal codes and the client code lists agree', async () => {
   }
   for (const code of API_ERROR_CODES) assert.ok(used.has(code), `API_ERROR_CODES lists ${code}, but no handler sends it`);
   for (const code of MEDIA_ERROR_CODES) assert.ok(usedByMedia.has(code), `MEDIA_ERROR_CODES lists ${code}, but media.js never sends it`);
+});
+
+// OBS-004. Lines written with console.* carried no event name, level or
+// request id, and a bad token was logged at error level on every request.
+test('the API writes its lines through logEvent, apart from the documented ones', () => {
+  const files = ['api', 'api/_shared', 'api/cron'].flatMap((dir) => readdirSync(new URL(`../${dir}`, import.meta.url))
+    .filter((name) => name.endsWith('.js')).map((name) => `${dir}/${name}`));
+  const allowed = [
+    'api/_shared/log.js',
+    // A stack is multi-line and would break the one-JSON-object line.
+    "console.error('API Error stack:'", "console.error('cron.stage_failed stack:'",
+    // logCronRun writes its own line (see its comment).
+    '(troubled || untidy ? console.error : console.log)',
+  ];
+  for (const file of files) {
+    const source = read(file);
+    for (const line of source.split('\n').filter((text) => /console\.(log|warn|error|info)\(/.test(text) || /console\.error : console\.log/.test(text))) {
+      assert.ok(allowed.some((ok) => file === ok || line.includes(ok)), `${file}: ${line.trim()}`);
+    }
+  }
 });

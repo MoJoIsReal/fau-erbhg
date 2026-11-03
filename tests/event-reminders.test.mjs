@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  cleanupPrivacyRetention,
   isAuthorizedCron,
   logCronRun,
-  registrationReminderEmail,
   runMorningTasks,
   sendEventReminders,
 } from '../api/cron/event-reminders.js';
+import { cleanupPrivacyRetention } from '../api/_shared/retention.js';
+import { registrationReminderEmail } from '../api/_shared/registration-emails.js';
 
 process.env.GMAIL_USER = 'sender@example.test';
 process.env.GMAIL_APP_PASSWORD = 'test-only-password';
@@ -310,6 +310,9 @@ test('a housekeeping failure is reported without preventing other stages', async
   });
   assert.ok(calls.some(statement => statement.startsWith('DELETE FROM api_rate_limits')));
   assert.ok(calls.some(statement => statement.includes('WITH due AS')));
+  // The failing stage's own stack is logged, not just its message.
+  const stack = errors.mock.calls.find(({ arguments: [first] }) => first === 'cron.stage_failed stack:');
+  assert.match(stack?.arguments[1] ?? '', /^Error: retention unavailable\n\s+at /);
   // A failing run still writes its cron.run line, with the counts of the
   // stages that ran (not "[object Object]") and the ones that did not.
   const run = errors.mock.calls.map(({ arguments: [line] }) => String(line)).find((line) => line.includes('"cron.run"'));

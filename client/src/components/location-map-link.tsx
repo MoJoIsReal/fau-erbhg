@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { MapPin, ExternalLink } from "lucide-react";
 import { generateMapUrls, getLocationAddress } from "@/lib/location-utils";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface LocationMapLinkProps {
   location: string;
@@ -15,6 +16,7 @@ export default function LocationMapLink({
   variant = "outline", 
   size = "sm" 
 }: LocationMapLinkProps) {
+  const { t } = useLanguage();
   const address = getLocationAddress(location, customLocation);
   const mapUrls = generateMapUrls(address);
 
@@ -29,7 +31,7 @@ export default function LocationMapLink({
       size={size} 
       className="gap-2" 
       onClick={handleMapClick}
-      title={`Åpne kart for: ${address}`}
+      title={t.events.openMapFor.replace("{address}", address)}
     >
       <MapPin className="h-4 w-4" />
       <span className="truncate max-w-[150px]">{location}</span>

@@ -11,7 +11,7 @@ import {
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
-import { getKindergartenSchoolYear } from '../shared/yearly-calendar-utils.js';
+import { osloToday } from './_shared/registration-cancel.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import {
   LINK_PREVIEW_CACHE_CONTROL,
@@ -19,6 +19,7 @@ import {
   previewFor,
   renderLinkPreview,
 } from './_shared/link-preview.js';
+import { logEvent } from './_shared/log.js';
 
 // All event endpoints return rows with the same camelCase shape so the
 // client (and any cache merge) sees one schema. `mapEvent` is the single
@@ -132,10 +133,10 @@ async function respondWithCalendarFeed(req, res, sql) {
   // sees the event, and nothing else in the system notices.
   const unrenderable = events.filter((event) => !isValidEventTime(event.time));
   if (unrenderable.length > 0) {
-    console.warn(
-      'Calendar feed: skipping events with an unusable time',
-      unrenderable.map((event) => ({ id: event.id, time: event.time })),
-    );
+    logEvent('warn', 'calendar_feed.events_skipped', {
+      count: unrenderable.length,
+      eventIds: unrenderable.map((event) => event.id).join(','),
+    });
   }
 
   const feed = buildCalendarFeed({
@@ -295,9 +296,14 @@ function eventIdFrom(req) {
   return sanitizeInteger(req.query.id, 1, MAX_INT_ID);
 }
 
+// Any foreign key from event_registrations to events, not one by name: a
+// database whose base tables came from the schema declaration also carried
+// Drizzle's event_registrations_event_id_events_id_fk (dropped by migration
+// 0027), which fired first, so the race answered 500.
 export function isRegistrationForeignKeyConflict(error) {
   return error?.code === '23503'
-    && error?.constraint === 'event_registrations_event_id_fkey';
+    && (error?.table === 'event_registrations'
+      || String(error?.constraint ?? '').startsWith('event_registrations_event_id'));
 }
 
 // The public list used to return every event ever held, and grows by a few
@@ -306,7 +312,11 @@ export function isRegistrationForeignKeyConflict(error) {
 // adjacent years too). The month view can be paged further back; it then asks
 // for `?from=` the start of that school year's previous year.
 export function eventListStart(value, now = new Date()) {
-  if (value === undefined || value === '') return `${getKindergartenSchoolYear(now) - 1}-08-01`;
+  if (value === undefined || value === '') {
+    // The school year of today in Oslo, not in the runtime's own zone.
+    const [year, month] = osloToday(now).split('-').map(Number);
+    return `${(month >= 8 ? year : year - 1) - 1}-08-01`;
+  }
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   return Number.isNaN(Date.parse(`${value}T00:00:00Z`)) ? null : value;
 }
@@ -369,31 +379,67 @@ export default withApiHandler(async function handler(req, res) {
     const { error, values } = validateEventBody(req.body);
     if (error) return res.status(400).json(error);
 
+    // Registrations depend on the event they were made for. A photo booking
+    // holds clock times counted from the event's start, and a type change
+    // turns ordinary signups into photo bookings (or back), which neither the
+    // stored slots nor the PATCH rules survive. So once anyone is registered,
+    // a change of photo/non-photo type, or of a photo event's start time, is
+    // refused rather than leaving booked children with slots that no longer
+    // exist. The guard sits in the UPDATE itself, behind the same row lock a
+    // signup takes. Moving the date sends a new reminder for the new day.
     const updated = await sql`
-      UPDATE events
-      SET title = ${values.title},
-          description = ${values.description},
-          date = ${values.date},
-          time = ${values.time},
-          location = ${values.location},
-          custom_location = ${values.customLocation},
-          max_attendees = ${values.maxAttendees},
-          registration_deadline = ${values.registrationDeadline},
-          type = ${values.type},
-          vigilo_signup = ${values.vigiloSignup},
-          no_signup = ${values.noSignup},
-          notify_newsletter = ${values.notifyNewsletter},
-          potluck = ${values.potluck}
-      WHERE id = ${eventId}
-      RETURNING *, (
+      WITH previous AS (
+        SELECT id, date AS previous_date FROM events WHERE id = ${eventId}
+      ), updated AS (
+        UPDATE events
+        SET title = ${values.title},
+            description = ${values.description},
+            date = ${values.date},
+            time = ${values.time},
+            location = ${values.location},
+            custom_location = ${values.customLocation},
+            max_attendees = ${values.maxAttendees},
+            registration_deadline = ${values.registrationDeadline},
+            type = ${values.type},
+            vigilo_signup = ${values.vigiloSignup},
+            no_signup = ${values.noSignup},
+            notify_newsletter = ${values.notifyNewsletter},
+            potluck = ${values.potluck}
+        FROM previous
+        WHERE events.id = previous.id
+          AND (
+            NOT EXISTS (SELECT 1 FROM event_registrations r WHERE r.event_id = events.id)
+            OR (
+              (events.type = 'foto') = (${values.type} = 'foto')
+              AND (events.type <> 'foto' OR events.time = ${values.time})
+            )
+          )
+        RETURNING events.*, previous.previous_date
+      ), rescheduled AS (
+        UPDATE event_registrations r
+        SET reminder_sent_at = NULL, reminder_claimed_at = NULL, reminder_attempts = 0
+        FROM updated u
+        WHERE r.event_id = u.id
+          AND u.date IS DISTINCT FROM u.previous_date
+        RETURNING r.id
+      )
+      SELECT updated.*, (
         SELECT COALESCE(SUM(r.attendee_count), 0)::int
         FROM event_registrations r
-        WHERE r.event_id = events.id
+        WHERE r.event_id = updated.id
       ) AS derived_attendees
+      FROM updated
     `;
 
     if (updated.length === 0) {
-      return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
+      const existing = await sql`SELECT id FROM events WHERE id = ${eventId}`;
+      if (existing.length === 0) {
+        return res.status(404).json({ error: 'Event not found', code: 'NOT_FOUND' });
+      }
+      return res.status(409).json({
+        error: 'The event has registrations, so its type and photo time cannot change',
+        code: 'EVENT_HAS_REGISTRATIONS',
+      });
     }
 
     return res.status(200).json(mapEvent(updated[0]));
@@ -463,6 +509,7 @@ export default withApiHandler(async function handler(req, res) {
         return res.status(400).json({
           error: 'Cannot delete event with registrations',
           message: 'This event has registrations and cannot be deleted. You can cancel it instead.',
+          code: 'EVENT_DELETE_HAS_REGISTRATIONS',
           hasRegistrations: true
         });
       }
@@ -478,12 +525,13 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({
         error: 'Cannot delete event with registrations',
         message: 'This event has registrations and cannot be deleted. You can cancel it instead.',
+        code: 'EVENT_DELETE_HAS_REGISTRATIONS',
         hasRegistrations: true
       });
     }
 
     if (!state.deleted) {
-      return res.status(409).json({ error: 'Event could not be deleted' });
+      return res.status(409).json({ error: 'Event could not be deleted', code: 'CONFLICT' });
     }
 
     return res.status(200).json({ success: true, message: 'Event deleted' });

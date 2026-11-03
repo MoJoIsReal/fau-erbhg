@@ -34,6 +34,7 @@ export const DOCUMENT_CATEGORIES: readonly ['protokoll', 'vedtekter', 'budsjett'
 
 export const MAX_EVENT_ATTENDEES: number;
 export const MAX_ATTENDEES_PER_REGISTRATION: number;
+export const TEXT_LIMITS: Readonly<{ name: number; signupComment: number; contactMessage: number }>;
 
 export const SIGNUP_ERROR_CODES: readonly [
   'INVALID_SIGNUP',
@@ -72,6 +73,7 @@ export const API_ERROR_CODES: readonly [
   'INVALID_MAX_ATTENDEES',
   'INVALID_REGISTRATION_DEADLINE',
   'INVALID_EVENT_TYPE',
+  'EVENT_HAS_REGISTRATIONS',
   'TITLE_REQUIRED',
   'UPLOAD_TYPE_NOT_ALLOWED',
   'UPLOAD_TOO_LARGE',
@@ -84,5 +86,10 @@ export const API_ERROR_CODES: readonly [
   'ENTRY_FIELDS_REQUIRED',
   'TEMP_PASSWORD_EXPIRED',
   'RESET_LINK_INVALID',
+  'CONFLICT',
+  'INVALID_ENTRY_PLACEMENT',
+  'LINK_EXPIRED',
+  'EVENT_DELETE_HAS_REGISTRATIONS',
+  'ALREADY_REPLIED',
 ];
 export type ApiErrorCode = typeof API_ERROR_CODES[number];

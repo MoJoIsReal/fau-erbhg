@@ -8,7 +8,7 @@ import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
 import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
 import { rateLimitDigest } from '../api/_shared/rate-limit.js';
-import { SIGNUP_ERROR_CODES } from '../shared/constants.js';
+import { API_ERROR_CODES, SIGNUP_ERROR_CODES } from '../shared/constants.js';
 
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
 const sent = [];
@@ -189,6 +189,23 @@ test('past the daily public-mail cap the signup is kept but no mail is sent', as
   assert.equal('cancel_token' in res.body, false);
 });
 
+// The registration is committed before the mail budget is reserved. A
+// database error there used to answer 500 for a signup that had been saved,
+// so a retry said ALREADY_REGISTERED and the cancel link was lost.
+test('a failure reserving the mail budget still answers the saved signup with its link', async (t) => {
+  await settle();
+  sent.length = 0;
+  t.mock.method(console, 'error', () => {});
+  const sql = signupDatabase({ rateCount: (key) => { if (key === PUBLIC_MAIL_KEY) throw new Error('database unavailable'); return 1; } });
+  const res = await call(t, handler, signup({}));
+  await settle();
+  assert.equal(res.statusCode, 201);
+  assert.ok(signupStatement(sql));
+  assert.equal(res.body.confirmationEmail, false);
+  assert.match(res.body.cancelUrl, /\/avmelding\?token=c{64}$/);
+  assert.equal(sent.length, 0);
+});
+
 // With TURNSTILE_SECRET_KEY set, a signup must carry a token Cloudflare
 // accepts; Cloudflare is stubbed at the network boundary.
 test('with Turnstile on, a signup without a valid token is refused before anything is written', async (t) => {
@@ -277,7 +294,11 @@ test('the codes the API refuses a signup with are exactly the ones the form tran
   // Refused in the handler, or by validateSignupBody / validateSignupForEvent.
   const used = new Set([...source.matchAll(/refuseSignup\(res, \d{3}, '([A-Z_]+)'|\bcode: '([A-Z_]+)'|\brefuse\('([A-Z_]+)'/g)]
     .map((match) => match[1] ?? match[2] ?? match[3]));
-  assert.deepEqual([...used].sort(), [...SIGNUP_ERROR_CODES].sort());
+  // Every signup code is used, and every code used is one the client knows:
+  // a signup code, or (on the emailed-link pages) a general one.
+  for (const code of SIGNUP_ERROR_CODES) assert.ok(used.has(code), `${code} is never refused with`);
+  const known = new Set([...SIGNUP_ERROR_CODES, ...API_ERROR_CODES]);
+  for (const code of used) assert.ok(known.has(code), `${code} has no translation`);
 });
 
 test('a potluck lists what everyone brings, never who brings it, to anyone who asks', async (t) => {
@@ -327,6 +348,11 @@ test('the event decides whether a signup is open and what it must name', async (
   assert.equal(check({ vigilo_signup: true }, 1).error.code, 'SIGNUP_CLOSED');
   assert.equal(check({ registration_deadline: '2026-05-31T12:00:00.000Z' }, 1).error.code, 'DEADLINE_PASSED');
   assert.deepEqual(check({}, 1).values, { sanitizedChildrenNames: null, sanitizedFoodContribution: null });
+  // Without a deadline an event closes after its day (in Oslo), not before.
+  assert.equal(check({ date: '2026-05-31' }, 1).error.code, 'SIGNUP_CLOSED');
+  assert.equal(check({ date: '2026-06-01' }, 1).error, undefined);
+  assert.equal(validateSignupForEvent({ date: '2026-05-31' }, values(1), {}, '2026-05-31T22:30:00.000Z').error.code,
+    'SIGNUP_CLOSED', '00:30 in Oslo is already the next day');
 
   // Everyone besides the registrant is named; on a photo event, every child.
   assert.equal(check({}, 2).error.code, 'ATTENDEE_NAMES_REQUIRED');
@@ -343,13 +369,25 @@ test('the event decides whether a signup is open and what it must name', async (
 
 // TEST-003. The council's view of a signup list, and removing a signup.
 test('the council sees the list, everyone else sees only the count', async (t) => {
-  const row = { id: 3, eventId: 7, name: 'Kari', email: 'kari@example.test', phone: '90000000', attendeeCount: 2 };
+  const row = { id: 3, event_id: 7, name: 'Kari', email: 'kari@example.test', phone: '90000000', attendee_count: 2,
+    comments: null, registered_at: '2026-09-01T00:00:00.000Z', children_names: null, photo_slots: null, food_contribution: null,
+    cancel_token: 'c'.repeat(64) };
   const database = () => useDatabase(scriptedSql({
     respond: (statement) => (statement.includes('SUM(attendee_count)') ? [{ count: 2 }] : statement.startsWith('SELECT id, event_id') ? [row] : []),
   }));
-  database();
+  const sql = database();
   const council = await call(t, handler, { query: { eventId: '7', view: 'council' }, as: 'member' });
-  assert.deepEqual([council.statusCode, council.body], [200, [row]]);
+  // Mapped to the wire shape (MAINT-002), and a stray column never passes.
+  assert.deepEqual([council.statusCode, council.body], [200, [{
+    id: 3, eventId: 7, name: 'Kari', email: 'kari@example.test', phone: '90000000', attendeeCount: 2,
+    comments: null, registeredAt: '2026-09-01T00:00:00.000Z', childrenNames: null, photoSlots: null, foodContribution: null,
+  }]]);
+  // The cancel token only ever travels in the parent's own mail: the list the
+  // council reads never selects it. (The signup's own answer is an allow-list,
+  // pinned above.)
+  const councilRead = sql.calls.find(({ statement }) => statement.startsWith('SELECT id, event_id'));
+  assert.ok(councilRead, 'the council list was read');
+  assert.doesNotMatch(councilRead.statement, /cancel_token/);
 
   for (const as of [null, 'staff']) {
     database();

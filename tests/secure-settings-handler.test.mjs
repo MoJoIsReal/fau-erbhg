@@ -208,7 +208,9 @@ test('a user created twice at once is a 400 and sends no login mail', async (t) 
   });
   assert.equal(res.statusCode, 400);
   assert.deepEqual(res.body, { error: 'Username is already in use', code: 'USERNAME_TAKEN' });
-  assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO users')).statement, /ON CONFLICT \(username\) DO NOTHING/);
+  assert.match(sql.calls.find(({ statement }) => statement.startsWith('INSERT INTO users')).statement, /ON CONFLICT DO NOTHING/);
+  // DB-007. The lookup reads the name as sign-in does, case-insensitively.
+  assert.ok(sql.calls.some(({ statement }) => statement === 'SELECT id FROM users WHERE lower(username) = ? LIMIT 1'));
   assert.equal(sql.calls.filter(({ statement }) => statement.startsWith('DELETE FROM users')).length, 0);
 });
 
@@ -317,6 +319,8 @@ test('a reply is marked as sent only after the mail went out', async (t) => {
     [{ ...ROWS.contact_messages, email: null, subject: 'anonymous' }, 'Svar', 400, 'NO_REPLY_ADDRESS'],
     [ROWS.contact_messages, '   ', 400, 'REPLY_REQUIRED'],
     [null, 'Svar', 404, 'NOT_FOUND'],
+    // DB-011. Already answered, by someone whose list was newer.
+    [{ ...ROWS.contact_messages, status: 'responded' }, 'Svar', 409, 'ALREADY_REPLIED'],
   ]) {
     sent.length = 0;
     sql = inquiryDatabase(row);
@@ -358,6 +362,44 @@ test('updating a post keeps, sets or clears its newsletter flag, and sanitizes t
   const res = await call(t, handler, { method: 'PUT', query: { resource: 'blog-posts', id: '4' }, as: 'member', body: { title: '', content: '<p>x</p>' } });
   assert.deepEqual([res.statusCode, res.body.code], [400, 'REQUIRED_FIELDS']);
   assert.deepEqual(statementsOf(sql, 'UPDATE blog_posts'), []);
+});
+
+// DB-006. A save rewrites the whole post, so an editor holding an older copy
+// overwrote whatever someone else had saved in between.
+test('a save from an older copy of a post is refused as a conflict', async (t) => {
+  const put = (body) => ({ method: 'PUT', query: { resource: 'blog-posts', id: '4' }, as: 'member',
+    body: { title: 'Dugnad', content: '<p>Hei</p>', ...body } });
+
+  const changed = useDatabase(scriptedSql({ respond: (statement) => (statement.startsWith('SELECT id FROM blog_posts') ? [{ id: 4 }] : []) }));
+  const res = await call(t, handler, put({ updatedAt: '2026-09-01T00:00:00.000Z' }));
+  assert.deepEqual([res.statusCode, res.body.code], [409, 'CONFLICT']);
+  const [update] = statementsOf(changed, 'UPDATE blog_posts');
+  assert.match(update.statement, /WHERE id = \? AND \(\?::text IS NULL OR updated_at = \?\)/);
+  assert.ok(update.values.includes('2026-09-01T00:00:00.000Z'));
+
+  useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, put({ updatedAt: '2026-09-01T00:00:00.000Z' }))).statusCode, 404, 'a deleted post is still a 404');
+  useDatabase(scriptedSql());
+  assert.equal((await call(t, handler, put({}))).statusCode, 404, 'no version: the old answer');
+});
+
+// The archive and homepage switches sent the whole post from the page's list,
+// restoring an older title and text over someone else's edit.
+test('archiving or moving a post off the homepage writes only that field', async (t) => {
+  const patch = (body) => ({ method: 'PATCH', query: { resource: 'blog-posts', id: '4' }, as: 'member', body });
+  const sql = useDatabase(database());
+  const res = await call(t, handler, patch({ status: 'archived' }));
+  assert.equal(res.statusCode, 200);
+  const [update] = statementsOf(sql, 'UPDATE blog_posts');
+  assert.match(update.statement, /SET status = COALESCE\(\?::text, status\), show_on_homepage = COALESCE\(\?::boolean, show_on_homepage\), updated_at = \?/);
+  assert.deepEqual(update.values.slice(0, 2), ['archived', null]);
+  assert.doesNotMatch(update.statement, /title|content/);
+
+  for (const body of [{}, { status: 'deleted' }, { showOnHomepage: 'yes' }]) {
+    const refused = useDatabase(database());
+    assert.equal((await call(t, handler, patch(body))).statusCode, 400, JSON.stringify(body));
+    assert.deepEqual(statementsOf(refused, 'UPDATE blog_posts'), []);
+  }
 });
 
 test('board members and kindergarten info refuse incomplete input and store it sanitized', async (t) => {
