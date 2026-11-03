@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorBody, invalidateEventRegistrations } from "@/lib/queryClient";
-import { isValidEmail, registrationFormBaseSchema } from "@/lib/form-schemas";
+import { createSignupFormSchema } from "@/lib/form-schemas";
 import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, TEXT_LIMITS, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -30,21 +30,7 @@ const SIGNUP_STATE_CHANGED = new Set<string>([
   "EVENT_FULL", "DEADLINE_PASSED", "EVENT_INACTIVE", "SIGNUP_CLOSED", "PHOTO_SLOTS_FULL", "PHOTO_SLOT_TAKEN",
 ]);
 
-// Built per language, so its messages are in the one the form is shown in.
-// Name and address are checked here as the API checks them: an empty form
-// used to go to the server and come back as a toast with no field marked.
-function createFormSchema(messages: { min: string; max: string; required: string; email: string }) {
-  return registrationFormBaseSchema.extend({
-    name: z.string().trim().min(1, messages.required),
-    email: z.string().trim().min(1, messages.required).refine(isValidEmail, messages.email),
-    attendeeCount: z.number().min(1, messages.min).max(MAX_ATTENDEES_PER_REGISTRATION, messages.max),
-    childrenNames: z.string().optional().nullable(),
-    foodContribution: z.string().max(200).optional().nullable(),
-    // Email validation removed from frontend - handled by backend database blacklist
-  });
-}
-
-type FormData = z.infer<ReturnType<typeof createFormSchema>>;
+type FormData = z.infer<ReturnType<typeof createSignupFormSchema>>;
 
 interface EventRegistrationModalProps {
   event: Event | null;
@@ -61,7 +47,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const [turnstileNotReady, setTurnstileNotReady] = useState(false);
 
-  const formSchema = useMemo(() => createFormSchema({
+  const formSchema = useMemo(() => createSignupFormSchema({
     min: t.events.signupAttendeesMin,
     max: t.events.signupAttendeesMax.replace("{max}", String(MAX_ATTENDEES_PER_REGISTRATION)),
     required: t.common.fieldRequired,

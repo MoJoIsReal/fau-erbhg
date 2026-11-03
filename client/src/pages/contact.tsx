@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
-import { contactFormBaseSchema, isValidEmail } from "@/lib/form-schemas";
+import { contactFormBaseSchema, createContactFormSchema } from "@/lib/form-schemas";
 import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER, TEXT_LIMITS } from "@shared/constants";
 import {
   GraduationCap,
@@ -96,15 +96,10 @@ export default function Contact() {
   // Required fields are checked here as the API checks them. An empty form
   // used to reach the server, come back as a toast with no field marked, and
   // spend one of the three messages an address may send in ten minutes.
-  const formSchema = contactFormBaseSchema.extend({
-    subject: z.string().min(1, t.contact.selectSubject),
-    message: z.string().trim().min(1, t.common.fieldRequired),
-    website: z.string().optional(),
-  }).superRefine((data, ctx) => {
-    if (data.subject === "anonymous") return;
-    if (!data.name.trim()) ctx.addIssue({ code: "custom", path: ["name"], message: t.common.fieldRequired });
-    if (!data.email.trim()) ctx.addIssue({ code: "custom", path: ["email"], message: t.common.fieldRequired });
-    else if (!isValidEmail(data.email)) ctx.addIssue({ code: "custom", path: ["email"], message: t.common.emailInvalid });
+  const formSchema = createContactFormSchema({
+    subject: t.contact.selectSubject,
+    required: t.common.fieldRequired,
+    email: t.common.emailInvalid,
   });
 
   const contactCards: ContactCard[] = [
