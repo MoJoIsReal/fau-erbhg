@@ -790,6 +790,7 @@ export interface Translations {
     extended: string;
     extendedCapped: string;
     atMaxLifetime: string;
+    uploadInProgress: string;
     revoke: string;
     revokeTitle: string;
     revokeBody: string;
@@ -1974,6 +1975,7 @@ export const translations: Record<Language, Translations> = {
       extended: "Delingen er forlenget til {date}",
       extendedCapped: "Forlenget til maksimal levetid: {date}",
       atMaxLifetime: "Delingen har allerede maksimal levetid",
+      uploadInProgress: "Det lastes fortsatt opp filer til denne delingen. Avbryt opplastingen eller vent til den er ferdig, og prøv igjen.",
       revoke: "Tilbakekall",
       revokeTitle: "Tilbakekalle «{title}»?",
       revokeBody: "Alle filene slettes nå, og lenken slutter å virke med en gang. Dette kan ikke angres.",
@@ -3156,6 +3158,7 @@ export const translations: Record<Language, Translations> = {
       extended: "The share now lasts until {date}",
       extendedCapped: "Extended to its maximum lifetime: {date}",
       atMaxLifetime: "The share is already at its maximum lifetime",
+      uploadInProgress: "Files are still being uploaded to this share. Cancel the upload or wait until it has finished, then try again.",
       revoke: "Revoke",
       revokeTitle: "Revoke “{title}”?",
       revokeBody: "All files are deleted now and the link stops working at once. This cannot be undone.",

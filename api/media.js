@@ -28,6 +28,7 @@ import {
   presignPut,
   presignUploadPart,
   readObjectPrefix,
+  UPLOAD_URL_SECONDS,
 } from './_shared/r2.js';
 import {
   createViewGrant,
@@ -579,6 +580,22 @@ async function handleRevoke(req, res, sql) {
   if (!id) return;
   const shares = await sql`SELECT id FROM media_shares WHERE id = ${id}`;
   if (!shares[0]) return res.status(404).json({ error: 'Share not found' });
+  // A browser still uploading holds presigned URLs for UPLOAD_URL_SECONDS.
+  // Revoking under it (from another tab) deleted the objects and rows, and a
+  // PUT that finished afterwards left a file in R2 that no row names, until
+  // the bucket's lifecycle rule took it a year later. The upload page aborts
+  // its own uploads before it discards a draft, so this only refuses a revoke
+  // that would race a live upload; the morning purge of drafts comes a day
+  // later, long after any such URL has expired.
+  const liveSince = new Date(Date.now() - UPLOAD_URL_SECONDS * 1000).toISOString();
+  const uploading = await sql`
+    SELECT 1 FROM media_files
+    WHERE share_id = ${id} AND status = 'uploading' AND created_at > ${liveSince}
+    LIMIT 1
+  `;
+  if (uploading.length > 0) {
+    return refuse(res, 409, 'UPLOAD_IN_PROGRESS', 'Files are still being uploaded to this share');
+  }
   const filesDeleted = await purgeShare(sql, id);
   return res.status(200).json({ success: true, filesDeleted });
 }

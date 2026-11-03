@@ -740,3 +740,22 @@ test('revoking a share deletes the previews along with the originals', async (t)
   assert.equal(res.statusCode, 200);
   assert.deepEqual(sent[0].input.Delete.Objects, [{ Key: 'media/9/a' }, { Key: 'media/9/a-small' }, { Key: 'media/9/b' }]);
 });
+
+// DB-013. A revoke from another tab under a live upload deleted the rows, and
+// a presigned PUT that finished afterwards left an object nothing names.
+test('a revoke that would race a live upload is refused and deletes nothing', async (t) => {
+  const sent = stubR2(t, () => ({}));
+  const sql = useDatabase(scriptedSql({
+    respond: (statement) => {
+      if (statement.startsWith('SELECT id FROM media_shares')) return [{ id: 9 }];
+      if (statement.startsWith('SELECT 1 FROM media_files')) return [{}];
+      return undefined;
+    },
+  }));
+  const res = await call(t, handler, { method: 'DELETE', query: { id: '9' }, as: 'admin' });
+  assert.deepEqual([res.statusCode, res.body.code], [409, 'UPLOAD_IN_PROGRESS']);
+  assert.deepEqual(sent, []);
+  assert.deepEqual(sql.writes(), []);
+  const check = sql.calls.find(({ statement }) => statement.startsWith('SELECT 1 FROM media_files'));
+  assert.match(check.statement, /status = 'uploading' AND created_at > \?/);
+});

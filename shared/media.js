@@ -118,6 +118,7 @@ export const MEDIA_ERROR_CODES = Object.freeze([
   'TOO_MANY_FILES',
   'UPLOAD_MISMATCH',
   'NOT_DRAFT',
+  'UPLOAD_IN_PROGRESS',
   'EMPTY_SHARE',
   'MAX_LIFETIME',
 ]);
