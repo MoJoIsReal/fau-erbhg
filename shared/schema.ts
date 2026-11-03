@@ -16,7 +16,10 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   role: text("role").notNull().default("member"), // "admin", "member", "staff"
   createdAt: text("created_at").notNull(),
-});
+}, (table) => ({
+  // Sign-in reads the username case-insensitively (migration 0025).
+  usernameLowerUnique: uniqueIndex("users_username_lower_unique_idx").on(sql`lower(${table.username})`),
+}));
 
 export const events = pgTable("events", {
   id: serial("id").primaryKey(),

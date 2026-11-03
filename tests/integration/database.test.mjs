@@ -683,6 +683,15 @@ test('the cron purges expired shares and day-old drafts, and nothing else', asyn
 // and failed on Neon. It now builds from a frozen baseline plus the migrations,
 // and this compares the result with the declaration: tables, columns
 // (type, NOT NULL), indexes, unique and CHECK constraints.
+test('two usernames that differ only in letter case cannot both exist', async () => {
+  await sql(`INSERT INTO users (username, password, name, role, created_at) VALUES ('Case@example.test', 'x', 'A', 'member', '2026-01-01T00:00:00.000Z');`);
+  await assert.rejects(
+    sql(`INSERT INTO users (username, password, name, role, created_at) VALUES ('case@example.test', 'x', 'B', 'member', '2026-01-01T00:00:00.000Z');`),
+    /users_username_lower_unique_idx/,
+  );
+  await sql(`DELETE FROM users WHERE lower(username) = 'case@example.test';`);
+});
+
 test('the migrated database matches what shared/schema.ts declares', async () => {
   const declared = await declaredSchema();
   const typeOf = (type) => ({ serial: 'integer', bigserial: 'bigint', timestamp: 'timestamp without time zone' }[type] ?? type);

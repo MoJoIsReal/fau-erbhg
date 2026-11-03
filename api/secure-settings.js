@@ -771,7 +771,8 @@ async function handleUsers(req, res, sql) {
     // the race it cannot see. Two admins creating the same user at once used
     // to both pass the lookup, and the second INSERT was a unique violation —
     // a 500 — instead of this 400.
-    const existing = await sql`SELECT id FROM users WHERE username = ${username} LIMIT 1`;
+    // Case-insensitive, as sign-in reads it: "Ola@x.no" is the same account.
+    const existing = await sql`SELECT id FROM users WHERE lower(username) = ${username} LIMIT 1`;
     if (existing.length > 0) {
       return res.status(400).json({ error: 'Username is already in use', code: 'USERNAME_TAKEN' });
     }
