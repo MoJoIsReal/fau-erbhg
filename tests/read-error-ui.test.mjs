@@ -61,6 +61,19 @@ test('content: a failed list is not shown as no posts', () => {
   assert.ok(render('content', 'success').includes('Ingen innlegg ennå'));
 });
 
+// A11Y-002. Every row's delete button was named "Delete registration", so a
+// screen-reader user could not tell which signup a button would remove.
+test('attendees: each delete button names the registration it removes', () => {
+  const html = render('attendees', 'success', undefined, {
+    '/api/registrations?eventId=1&view=council': { status: 'success', error: null, dataUpdatedAt: Date.now(), data: [
+      { id: 1, eventId: 1, name: 'Kari', email: 'kari@example.test', attendeeCount: 1, registeredAt: '2026-09-01T00:00:00.000Z' },
+      { id: 2, eventId: 1, name: 'Ola', email: 'ola@example.test', attendeeCount: 1, registeredAt: '2026-09-02T00:00:00.000Z' },
+    ] },
+  });
+  const names = [...html.matchAll(/aria-label="Slett påmelding: ([^"]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(names.sort(), ['Kari', 'Ola']);
+});
+
 test('successful empty article and inbox retain their real empty states', () => {
   assert.ok(render('article', 'success').includes(copy.newsPage.postNotFound));
   assert.ok(render('messages', 'success').includes(copy.messagesPage.noMessagesYet));
