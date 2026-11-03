@@ -89,5 +89,6 @@ export const API_ERROR_CODES: readonly [
   'INVALID_ENTRY_PLACEMENT',
   'LINK_EXPIRED',
   'EVENT_DELETE_HAS_REGISTRATIONS',
+  'ALREADY_REPLIED',
 ];
 export type ApiErrorCode = typeof API_ERROR_CODES[number];

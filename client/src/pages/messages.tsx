@@ -27,7 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Mail, Clock, User, Phone, Trash2, Check, Archive, Loader2, Reply } from "lucide-react";
-import { apiErrorText, apiRequest } from "@/lib/queryClient";
+import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { returnFocus } from "@/lib/return-focus";
 
 interface ContactMessage {
@@ -128,6 +128,10 @@ export default function Messages() {
       });
     },
     onError: (error: unknown) => {
+      // Someone else answered first: show the list as it is now.
+      if (getApiErrorBody(error)?.code === "ALREADY_REPLIED") {
+        queryClient.invalidateQueries({ queryKey: ["/api/secure-settings?resource=contact-messages"] });
+      }
       toast({
         variant: "destructive",
         title: t.messagesPage.couldNotSendReply,

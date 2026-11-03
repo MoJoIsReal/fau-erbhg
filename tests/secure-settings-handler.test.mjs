@@ -319,6 +319,8 @@ test('a reply is marked as sent only after the mail went out', async (t) => {
     [{ ...ROWS.contact_messages, email: null, subject: 'anonymous' }, 'Svar', 400, 'NO_REPLY_ADDRESS'],
     [ROWS.contact_messages, '   ', 400, 'REPLY_REQUIRED'],
     [null, 'Svar', 404, 'NOT_FOUND'],
+    // DB-011. Already answered, by someone whose list was newer.
+    [{ ...ROWS.contact_messages, status: 'responded' }, 'Svar', 409, 'ALREADY_REPLIED'],
   ]) {
     sent.length = 0;
     sql = inquiryDatabase(row);

@@ -653,6 +653,12 @@ async function handleContactMessages(req, res, sql) {
     }
 
     const original = mapContactMessage(rows[0]);
+    // Two council members answering one inquiry from lists loaded before
+    // either replied: the parent got both mails and only the last reply was
+    // kept. An inquiry already answered is refused before anything is sent.
+    if (original.status === 'responded') {
+      return res.status(409).json({ error: 'This inquiry has already been answered', code: 'ALREADY_REPLIED' });
+    }
     const recipient = sanitizeEmail(original.email);
 
     // Anonymous inquiries carry no address, so there is nobody to answer.
