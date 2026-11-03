@@ -33,7 +33,7 @@ export const registrationFormBaseSchema = z.object({
   name: z.string(),
   email: z.string(),
   phone: z.string().nullable().optional(),
-  attendeeCount: z.number().int().nullable().optional(),
+  attendeeCount: z.number().int().optional(),
   comments: z.string().nullable().optional(),
   childrenNames: z.string().nullable().optional(),
   foodContribution: z.string().nullable().optional(),

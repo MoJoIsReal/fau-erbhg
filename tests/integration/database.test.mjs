@@ -707,6 +707,16 @@ test('two usernames that differ only in letter case cannot both exist', async ()
   await sql(`DELETE FROM users WHERE lower(username) = 'case@example.test';`);
 });
 
+test('seat counts cannot be missing or negative (0026)', async () => {
+  const id = await event('event', 10, '2099-11-20');
+  await assert.rejects(sql(`INSERT INTO event_registrations (event_id, name, email, attendee_count) VALUES (${id}, 'A', 'zero@example.test', 0);`), /attendee_count_check/);
+  await assert.rejects(sql(`INSERT INTO event_registrations (event_id, name, email, attendee_count) VALUES (${id}, 'A', 'null@example.test', NULL);`), /null value/);
+  await assert.rejects(sql(`UPDATE events SET current_attendees = -1 WHERE id = ${id};`), /current_attendees_check/);
+  await assert.rejects(sql(`UPDATE events SET max_attendees = -1 WHERE id = ${id};`), /max_attendees_check/);
+  await sql(`UPDATE events SET max_attendees = NULL WHERE id = ${id};`);
+  await sql(`DELETE FROM events WHERE id = ${id};`);
+});
+
 test('the migrated database matches what shared/schema.ts declares', async () => {
   const declared = await declaredSchema();
   const typeOf = (type) => ({ serial: 'integer', bigserial: 'bigint', timestamp: 'timestamp without time zone' }[type] ?? type);
