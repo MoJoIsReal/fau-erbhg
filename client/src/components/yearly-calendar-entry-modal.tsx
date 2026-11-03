@@ -31,7 +31,7 @@ import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatDate } from "@/lib/i18n";
 import { useLanguage } from "@/contexts/LanguageContext";
-import type { YearlyCalendarEntry } from "@shared/schema";
+import type { InsertYearlyCalendarEntry, YearlyCalendarEntry } from "@shared/schema";
 import type { CalendarEntryKind, CalendarDayKind } from "@shared/calendar-entries";
 import { CALENDAR_DISPLAY_KINDS, calendarDisplayKind, calendarDisplayKindForEntry } from "@shared/calendar-entries";
 import { FormError } from "@/components/site/form-error";
@@ -128,7 +128,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
     if (!isOpen) return;
     setAttempted(false);
     setSaveError(null);
-    const seed: any = existing ?? initial ?? {};
+    const seed: Partial<EntryDraft> | YearlyCalendarEntry = existing ?? initial ?? {};
     setEntryType((seed.entryType as EntryDraft["entryType"]) || "week_event");
     setCategory(calendarDisplayKind(calendarDisplayKindForEntry(seed)));
     setYear(seed.year ?? new Date().getFullYear());
@@ -162,7 +162,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
     mutationFn: async () => {
       if (!placement) throw new Error(t.calendarWorkspace.placementError);
       const supportsNewsletter = supportsYearlyCalendarNewsletter(entryType);
-      const body: any = {
+      const body: InsertYearlyCalendarEntry & { updatedAt?: string } = {
         ...placement,
         entryType,
         category: entryType === "day_event" ? category : null,
@@ -538,7 +538,7 @@ export default function YearlyCalendarEntryModal({ isOpen, onClose, initial, exi
                 className="w-28 font-mono text-micro"
               />
             </div>
-            {color && !HEX_RE.test(color) && !COLORS.includes(color as any) && (
+            {color && !HEX_RE.test(color) && !(COLORS as readonly string[]).includes(color) && (
               <p className="text-micro text-destructive mt-1">#rrggbb</p>
             )}
           </div>
