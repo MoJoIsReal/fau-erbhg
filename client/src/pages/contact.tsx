@@ -207,6 +207,16 @@ export default function Contact() {
     },
   });
 
+  // The submit button is disabled while the request is out, which drops
+  // keyboard focus to the page body; after a refusal shown only as a toast the
+  // user was left nowhere (WCAG 2.4.3). Focus returns to the button, unless a
+  // field with the error already took it.
+  const submitRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (mutation.isPending || !mutation.isError) return;
+    if (!document.activeElement || document.activeElement === document.body) submitRef.current?.focus();
+  }, [mutation.isPending, mutation.isError]);
+
   const onTurnstileToken = (token: string | null) => {
     setTurnstileToken(token);
     if (token) setTurnstileNotReady(false);
@@ -372,7 +382,7 @@ export default function Contact() {
                 showNotReady={turnstileNotReady}
               />
 
-              <Button type="submit" disabled={mutation.isPending}>
+              <Button ref={submitRef} type="submit" disabled={mutation.isPending}>
                 <Send className="h-4 w-4" aria-hidden="true" />
                 {mutation.isPending ? t.contact.sending : t.contact.send}
               </Button>

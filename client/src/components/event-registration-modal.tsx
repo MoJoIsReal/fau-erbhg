@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
@@ -200,6 +200,16 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
       }
     }
   });
+
+  // The submit button is disabled while the request is out, which drops
+  // keyboard focus to the page body; after a refusal shown only as a toast the
+  // user was left nowhere (WCAG 2.4.3). Focus returns to the button, unless a
+  // field with the error already took it.
+  const submitRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (mutation.isPending || !mutation.isError) return;
+    if (!document.activeElement || document.activeElement === document.body) submitRef.current?.focus();
+  }, [mutation.isPending, mutation.isError]);
 
   const onSubmit = (data: FormData) => {
     // Validate children names for foto events
@@ -518,6 +528,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
               {t.events.signupCancel}
             </Button>
             <Button
+              ref={submitRef}
               form="reg-form"
               type="submit"
               className="w-full sm:w-auto"
