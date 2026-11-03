@@ -129,7 +129,7 @@ test('lookup of an unknown token is a 404', async () => {
   const { sql } = scriptedSql({ lookup: [] });
   const res = mockResponse();
   await handleCancel(post(TOKEN), res, sql, 'cancel-lookup');
-  assert.equal(res.statusCode, 404);
+  assert.deepEqual([res.statusCode, res.body.code], [404, 'LINK_EXPIRED'], 'a code the page translates');
 });
 
 test('cancel deletes by token, guards on the event date and releases the seats', async () => {

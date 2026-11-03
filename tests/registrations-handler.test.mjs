@@ -8,7 +8,7 @@ import test, { mock } from 'node:test';
 import nodemailer from 'nodemailer';
 import { call, importHandler, scriptedSql, useDatabase, settle } from './helpers.mjs';
 import { rateLimitDigest } from '../api/_shared/rate-limit.js';
-import { SIGNUP_ERROR_CODES } from '../shared/constants.js';
+import { API_ERROR_CODES, SIGNUP_ERROR_CODES } from '../shared/constants.js';
 
 Object.assign(process.env, { GMAIL_USER: 'fau@example.test', GMAIL_APP_PASSWORD: 'fixture' });
 const sent = [];
@@ -294,7 +294,11 @@ test('the codes the API refuses a signup with are exactly the ones the form tran
   // Refused in the handler, or by validateSignupBody / validateSignupForEvent.
   const used = new Set([...source.matchAll(/refuseSignup\(res, \d{3}, '([A-Z_]+)'|\bcode: '([A-Z_]+)'|\brefuse\('([A-Z_]+)'/g)]
     .map((match) => match[1] ?? match[2] ?? match[3]));
-  assert.deepEqual([...used].sort(), [...SIGNUP_ERROR_CODES].sort());
+  // Every signup code is used, and every code used is one the client knows:
+  // a signup code, or (on the emailed-link pages) a general one.
+  for (const code of SIGNUP_ERROR_CODES) assert.ok(used.has(code), `${code} is never refused with`);
+  const known = new Set([...SIGNUP_ERROR_CODES, ...API_ERROR_CODES]);
+  for (const code of used) assert.ok(known.has(code), `${code} has no translation`);
 });
 
 test('a potluck lists what everyone brings, never who brings it, to anyone who asks', async (t) => {

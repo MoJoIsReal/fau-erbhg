@@ -124,7 +124,8 @@ test('confirm and unsubscribe reject a malformed token before any lookup', async
   for (const action of ['newsletter-confirm', 'newsletter-unsubscribe']) {
     for (const token of [undefined, '', 'abc', 'AB'.repeat(32), `${TOKEN}0`]) {
       const sql = useDatabase(scriptedSql());
-      assert.equal((await call(t, handler, submit({ token }, { action }))).statusCode, 400, `${action} ${token}`);
+      const res = await call(t, handler, submit({ token }, { action }));
+      assert.deepEqual([res.statusCode, res.body.code], [400, 'LINK_EXPIRED'], `${action} ${token}`);
       assert.deepEqual(sql.calls, []);
     }
   }

@@ -503,6 +503,7 @@ export default withApiHandler(async function handler(req, res) {
         return res.status(400).json({
           error: 'Cannot delete event with registrations',
           message: 'This event has registrations and cannot be deleted. You can cancel it instead.',
+          code: 'EVENT_DELETE_HAS_REGISTRATIONS',
           hasRegistrations: true
         });
       }
@@ -518,12 +519,13 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(400).json({
         error: 'Cannot delete event with registrations',
         message: 'This event has registrations and cannot be deleted. You can cancel it instead.',
+        code: 'EVENT_DELETE_HAS_REGISTRATIONS',
         hasRegistrations: true
       });
     }
 
     if (!state.deleted) {
-      return res.status(409).json({ error: 'Event could not be deleted' });
+      return res.status(409).json({ error: 'Event could not be deleted', code: 'CONFLICT' });
     }
 
     return res.status(200).json({ success: true, message: 'Event deleted' });

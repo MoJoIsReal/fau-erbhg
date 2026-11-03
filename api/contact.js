@@ -331,7 +331,7 @@ async function handleNewsletterSubscribe(req, res) {
 async function handleNewsletterConfirm(req, res) {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   if (!TOKEN_RE.test(token)) {
-    return res.status(400).json({ error: 'Invalid token' });
+    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
   }
 
   const sql = getDb();
@@ -361,7 +361,7 @@ async function handleNewsletterConfirm(req, res) {
   `;
 
   if (confirmed.length === 0) {
-    return res.status(400).json({ error: 'Invalid or expired confirmation link' });
+    return res.status(400).json({ error: 'Invalid or expired confirmation link', code: 'LINK_EXPIRED' });
   }
 
   return res.status(200).json({ success: true });
@@ -371,7 +371,7 @@ async function handleNewsletterConfirm(req, res) {
 async function handleNewsletterUnsubscribe(req, res) {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   if (!TOKEN_RE.test(token)) {
-    return res.status(400).json({ error: 'Invalid token' });
+    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
   }
 
   const sql = getDb();

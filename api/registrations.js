@@ -178,7 +178,7 @@ export async function handleCancel(req, res, sql, action) {
 
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   if (!isCancelToken(token)) {
-    return res.status(400).json({ error: 'Invalid token' });
+    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
   }
 
   const ipLimit = await checkRateLimit(sql, {
@@ -188,7 +188,7 @@ export async function handleCancel(req, res, sql, action) {
   });
   if (!ipLimit.allowed) {
     res.setHeader('Retry-After', String(ipLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many requests. Try again later.' });
+    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
   if (action === 'cancel-lookup') {
@@ -203,7 +203,7 @@ export async function handleCancel(req, res, sql, action) {
       WHERE r.cancel_token = ${token}
     `;
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Registration not found' });
+      return res.status(404).json({ error: 'Registration not found', code: 'LINK_EXPIRED' });
     }
     const registration = rows[0];
     return res.status(200).json({
@@ -232,7 +232,7 @@ export async function handleCancel(req, res, sql, action) {
       RETURNING r.food_contribution as "foodContribution"
     `;
     if (updated.length === 0) {
-      return res.status(404).json({ error: 'Registration not found or can no longer be changed' });
+      return res.status(404).json({ error: 'Registration not found or can no longer be changed', code: 'LINK_EXPIRED' });
     }
     return res.status(200).json({ foodContribution: updated[0].foodContribution });
   }
@@ -269,7 +269,7 @@ export async function handleCancel(req, res, sql, action) {
   `;
 
   if (cancelled.length === 0) {
-    return res.status(404).json({ error: 'Registration not found or can no longer be cancelled' });
+    return res.status(404).json({ error: 'Registration not found or can no longer be cancelled', code: 'LINK_EXPIRED' });
   }
 
   return res.status(200).json({ success: true });
@@ -378,7 +378,7 @@ export default withApiHandler(async function handler(req, res) {
     // separate sanitizeText calls.
     const oversizedField = findOversizedField(req.body);
     if (oversizedField) {
-      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large`, code: 'FIELD_TOO_LARGE' });
     }
 
     const registrationIpRateLimit = await checkRateLimit(sql, {
@@ -681,7 +681,7 @@ export default withApiHandler(async function handler(req, res) {
     }
     const oversizedField = findOversizedField(req.body);
     if (oversizedField) {
-      return res.status(413).json({ error: `Field '${oversizedField}' is too large` });
+      return res.status(413).json({ error: `Field '${oversizedField}' is too large`, code: 'FIELD_TOO_LARGE' });
     }
     const attendeeCount = normalizeAttendeeCount(req.body?.attendeeCount);
     if (attendeeCount === null) {
