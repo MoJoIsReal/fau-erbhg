@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, CheckCircle2, XCircle, CalendarDays, Clock, MapPin } from "lucide-react";
-import { ApiError, apiRequest, invalidateEventRegistrations } from "@/lib/queryClient";
+import { ApiError, apiErrorText, apiRequest, invalidateEventRegistrations } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import PageHero from "@/components/site/page-hero";
@@ -33,7 +33,11 @@ type State =
   | { kind: "cancelled" }
   | { kind: "closed" }
   | { kind: "notFound" }
-  | { kind: "error"; registration?: Lookup };
+  | { kind: "error"; registration?: Lookup }
+  // The lookup failed for a reason a retry may fix (too many attempts, a
+  // dropped connection). It used to say the registration "could not be
+  // cancelled" before the parent had asked for anything.
+  | { kind: "lookupError"; message: string };
 
 type FoodStatus = "idle" | "saving" | "saved" | "invalid" | "error";
 
@@ -122,10 +126,12 @@ function StatusCard({
   tone,
   title,
   description,
+  action,
 }: {
   tone: "pending" | "success" | "error";
   title: string;
   description?: string;
+  action?: { label: string; onClick: () => void };
 }) {
   return (
     <Surface className="space-y-4 p-8 text-center" role={tone === "error" ? "alert" : "status"}>
@@ -134,6 +140,7 @@ function StatusCard({
       {tone === "error" && <XCircle className="mx-auto h-10 w-10 text-destructive" />}
       <h2 className="text-h3 font-bold tracking-tight text-ink">{title}</h2>
       {description && <p className="text-copy">{description}</p>}
+      {action && <Button onClick={action.onClick}>{action.label}</Button>}
     </Surface>
   );
 }
@@ -160,18 +167,26 @@ export default function RegistrationCancel() {
   const [state, setState] = useState<State>({ kind: "loading" });
   const looked = useRef(false);
 
-  useEffect(() => {
-    if (!token || looked.current) return;
-    looked.current = true;
-
+  const lookUp = () => {
+    if (!token) return;
+    setState({ kind: "loading" });
     apiRequest("POST", "/api/registrations?action=cancel-lookup", { token })
       .then((res) => res.json())
       .then((registration: Lookup) =>
         setState(registration.cancellable ? { kind: "ready", registration } : { kind: "closed" }),
       )
       .catch((error) =>
-        setState(error instanceof ApiError && error.status === 404 ? { kind: "notFound" } : { kind: "error" }),
+        setState(error instanceof ApiError && error.status === 404
+          ? { kind: "notFound" }
+          : { kind: "lookupError", message: apiErrorText(error, t, t.apiErrors.generic) }),
       );
+  };
+
+  useEffect(() => {
+    if (!token || looked.current) return;
+    looked.current = true;
+    lookUp();
+    // Looked up once per page; the retry button runs it again.
   }, [token]);
 
   const cancel = (registration: Lookup) => {
@@ -201,6 +216,15 @@ export default function RegistrationCancel() {
     content = <StatusCard tone="error" title={copy.closedTitle} description={copy.closedDesc} />;
   } else if (state.kind === "notFound") {
     content = <StatusCard tone="error" title={copy.notFoundTitle} description={copy.notFoundDesc} />;
+  } else if (state.kind === "lookupError") {
+    content = (
+      <StatusCard
+        tone="error"
+        title={copy.lookupErrorTitle}
+        description={state.message}
+        action={{ label: t.dataState.retry, onClick: lookUp }}
+      />
+    );
   } else if (state.kind === "error" && !state.registration) {
     content = <StatusCard tone="error" title={copy.errorTitle} description={copy.errorDesc} />;
   } else {

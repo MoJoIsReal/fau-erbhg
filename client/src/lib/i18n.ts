@@ -415,6 +415,8 @@ export interface Translations {
     unsubSuccessDesc: string;
     unsubErrorTitle: string;
     unsubErrorDesc: string;
+    linkInvalidTitle: string;
+    transientTitle: string;
     footerLink: string;
     admin: {
       title: string;
@@ -463,6 +465,7 @@ export interface Translations {
     notFoundDesc: string;
     errorTitle: string;
     errorDesc: string;
+    lookupErrorTitle: string;
     missingTokenDesc: string;
     foodSave: string;
     foodSaving: string;
@@ -1592,6 +1595,8 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "Du vil ikke lenger motta nyhetsbrev fra FAU Erdal Barnehage.",
       unsubErrorTitle: "Noe gikk galt",
       unsubErrorDesc: "Kunne ikke melde deg av. Prøv igjen senere.",
+      linkInvalidTitle: "Lenken virker ikke",
+      transientTitle: "Det gikk ikke akkurat nå",
       footerLink: "Meld deg på nyhetsbrev",
       admin: {
         title: "Nyhetsbrev-abonnenter",
@@ -1638,6 +1643,7 @@ export const translations: Record<Language, Translations> = {
       notFoundDesc: "Lenken er ugyldig, eller så er påmeldingen allerede slettet.",
       errorTitle: "Noe gikk galt",
       errorDesc: "Kunne ikke melde deg av. Prøv igjen senere, eller kontakt FAU.",
+      lookupErrorTitle: "Vi fikk ikke hentet påmeldingen akkurat nå",
       missingTokenDesc: "Bruk lenken i bekreftelses- eller påminnelses-e-posten for å se påmeldingen din.",
       foodSave: "Lagre",
       foodSaving: "Lagrer...",
@@ -2770,6 +2776,8 @@ export const translations: Record<Language, Translations> = {
       unsubSuccessDesc: "You will no longer receive newsletters from FAU Erdal Kindergarten.",
       unsubErrorTitle: "Something went wrong",
       unsubErrorDesc: "Could not unsubscribe you. Please try again later.",
+      linkInvalidTitle: "The link does not work",
+      transientTitle: "That did not work just now",
       footerLink: "Subscribe to newsletter",
       admin: {
         title: "Newsletter subscribers",
@@ -2816,6 +2824,7 @@ export const translations: Record<Language, Translations> = {
       notFoundDesc: "The link is invalid, or the registration has already been cancelled.",
       errorTitle: "Something went wrong",
       errorDesc: "Could not cancel your registration. Please try again later, or contact FAU.",
+      lookupErrorTitle: "We could not fetch your registration just now",
       missingTokenDesc: "Use the link in your confirmation or reminder email to see your registration.",
       foodSave: "Save",
       foodSaving: "Saving...",
