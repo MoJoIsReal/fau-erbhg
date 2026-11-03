@@ -286,9 +286,9 @@ export function logCronRun(task, targetDate, summary, context = {}) {
   const troubled = Object.keys(problems).length > 0;
   const leftovers = housekeepingProblems(task, summary);
   const untidy = Object.keys(leftovers).length > 0;
-  // Written directly rather than through logEvent, whose redaction reads the
-  // run's date as a phone number; every field here is a count, the task or
-  // that date. Warn goes to stderr, as logEvent does it.
+  // Written directly rather than through logEvent: every field here is a
+  // count, the task or the date, so there is nothing to redact, and logEvent
+  // would cap each value. Warn goes to stderr, as logEvent does it.
   const line = {
     level: troubled || untidy ? 'warn' : 'info', event: 'cron.run', ...context, task, targetDate, ...summary,
     mailProblems: troubled,

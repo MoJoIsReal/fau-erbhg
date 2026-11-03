@@ -32,5 +32,10 @@ test('redaction covers Norwegian and international phone formats and any email',
   assert.equal(text.match(/\[redacted-email\]/g).length, 1);
   assert.equal(text.match(/\[redacted-phone\]/g).length, 3);
   assert.equal(redactSensitiveText('event 42 failed'), 'event 42 failed', 'short ids survive');
+  // OBS-003. Dates and long ids are the clue in an error, not a phone number.
+  assert.equal(redactSensitiveText('date: "2026-13-45" at 2026-11-02T07:00:00.000Z'), 'date: "2026-13-45" at 2026-11-02T07:00:00.000Z');
+  assert.equal(redactSensitiveText('timestamp 1730505600000'), 'timestamp 1730505600000');
+  assert.equal(redactSensitiveText('on 2026-09-10 ring 912 34 567'), 'on 2026-09-10 ring [redacted-phone]');
+  assert.equal(redactSensitiveText('99988777 99988778'), '[redacted-phone]', 'a list of numbers is still hidden');
   assert.equal(redactSensitiveText(null), '');
 });
