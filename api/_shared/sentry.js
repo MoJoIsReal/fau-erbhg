@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { redactSensitiveText } from './redact.js';
+import { logEvent } from './log.js';
 
 // Vercel freezes the instance as soon as the response is written, so a capture
 // that is still in flight at that moment is simply lost — which is why Sentry
@@ -102,7 +103,7 @@ async function sendSentryEvent(error, context) {
       signal: timeoutSignal(SENTRY_TIMEOUT_MS),
     });
   } catch (sendError) {
-    console.error('Sentry event delivery failed:', redactSensitiveText(sendError.message));
+    logEvent('warn', 'sentry.delivery_failed', { errorName: sendError?.name, message: sendError?.message });
   }
 }
 

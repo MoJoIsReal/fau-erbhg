@@ -14,6 +14,7 @@ import { contactAcknowledgementEmail, contactSubjectLabel } from './_shared/cont
 import { reportProviderError } from './_shared/provider-errors.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 import { TEXT_LIMITS } from '../shared/constants.js';
+import { logEvent } from './_shared/log.js';
 
 const CONTACT_WINDOW_SECONDS = 10 * 60;
 const CONTACT_MAX_ATTEMPTS = 3;
@@ -158,7 +159,7 @@ export default withApiHandler(async function handler(req, res) {
       message: sanitizedMessage,
       isAnonymous
     }))
-      .then((sent) => sent && console.log('Contact email sent successfully'))
+      .then((sent) => sent && logEvent('info', 'mail.sent', { kind: 'contact-notification' }))
       .catch((emailError) => {
         reportProviderError('Failed to send contact email', emailError);
       })
@@ -176,7 +177,7 @@ export default withApiHandler(async function handler(req, res) {
         language: language === 'en' ? 'en' : 'no',
         receivedAt: contactMessage?.created_at,
       }))
-        .then((sent) => sent && console.log('Contact acknowledgement sent successfully'))
+        .then((sent) => sent && logEvent('info', 'mail.sent', { kind: 'contact-acknowledgement' }))
         .catch((emailError) => {
           reportProviderError('Failed to send contact acknowledgement', emailError);
         })
@@ -193,7 +194,7 @@ async function sendContactEmail(params) {
   const subject = contactSubjectLabel(params.subject, 'no');
 
   if (!isEmailConfigured()) {
-    console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
+    logEvent('warn', 'mail.not_configured', { kind: 'contact-notification' });
     throw new Error('Email configuration not available');
   }
 
@@ -221,7 +222,7 @@ ${isAnonymous ? 'Dette er en anonym henvendelse.' : ''}
 // Receipt to the person who submitted the form, sent from FAU's own address.
 async function sendAcknowledgementEmail({ name, email, subject, language, receivedAt }) {
   if (!isEmailConfigured()) {
-    console.warn('Email configuration missing: skipping contact acknowledgement');
+    logEvent('warn', 'mail.not_configured', { kind: 'contact-acknowledgement' });
     return;
   }
 

@@ -3,7 +3,7 @@
 // that shipped once and failed silently. Behaviour that CAN be exercised
 // belongs in the suite for its module, not here.
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import test from 'node:test';
 import { sliceBetween } from './helpers.mjs';
 
@@ -167,4 +167,24 @@ test('handler refusal codes and the client code lists agree', async () => {
   }
   for (const code of API_ERROR_CODES) assert.ok(used.has(code), `API_ERROR_CODES lists ${code}, but no handler sends it`);
   for (const code of MEDIA_ERROR_CODES) assert.ok(usedByMedia.has(code), `MEDIA_ERROR_CODES lists ${code}, but media.js never sends it`);
+});
+
+// OBS-004. Lines written with console.* carried no event name, level or
+// request id, and a bad token was logged at error level on every request.
+test('the API writes its lines through logEvent, apart from the documented ones', () => {
+  const files = ['api', 'api/_shared', 'api/cron'].flatMap((dir) => readdirSync(new URL(`../${dir}`, import.meta.url))
+    .filter((name) => name.endsWith('.js')).map((name) => `${dir}/${name}`));
+  const allowed = [
+    'api/_shared/log.js',
+    // A stack is multi-line and would break the one-JSON-object line.
+    "console.error('API Error stack:'", "console.error('cron.stage_failed stack:'",
+    // logCronRun writes its own line (see its comment).
+    '(troubled || untidy ? console.error : console.log)',
+  ];
+  for (const file of files) {
+    const source = read(file);
+    for (const line of source.split('\n').filter((text) => /console\.(log|warn|error|info)\(/.test(text) || /console\.error : console\.log/.test(text))) {
+      assert.ok(allowed.some((ok) => file === ok || line.includes(ok)), `${file}: ${line.trim()}`);
+    }
+  }
 });

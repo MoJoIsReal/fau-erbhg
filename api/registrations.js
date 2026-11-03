@@ -25,6 +25,7 @@ import {
   osloToday,
   registrationCancelUrl
 } from './_shared/registration-cancel.js';
+import { logEvent } from './_shared/log.js';
 
 const REGISTRATION_WINDOW_SECONDS = 10 * 60;
 const REGISTRATION_MAX_ATTEMPTS = 10;
@@ -646,7 +647,7 @@ export default withApiHandler(async function handler(req, res) {
           language: sanitizedLanguage,
           photoSlots: photoSlots
         })
-          .then(() => console.log('Event confirmation email sent successfully'))
+          .then(() => logEvent('info', 'mail.sent', { kind: 'registration-confirmation' }))
           .catch((emailError) => {
             reportProviderError('Failed to send event confirmation email', emailError);
           })
@@ -805,7 +806,7 @@ export default withApiHandler(async function handler(req, res) {
 // The text lives in api/_shared/registration-emails.js, where it is tested.
 async function sendEventConfirmationEmail({ registration, event, language, photoSlots }) {
   if (!isEmailConfigured()) {
-    console.warn('Email configuration missing: GMAIL_USER and GMAIL_APP_PASSWORD must be set');
+    logEvent('warn', 'mail.not_configured', { kind: 'registration-confirmation' });
     throw new Error('Email configuration not available');
   }
   const { subject, text } = registrationConfirmationEmail({ registration, event, language, photoSlots });

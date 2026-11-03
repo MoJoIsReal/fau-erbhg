@@ -19,6 +19,7 @@ import {
   previewFor,
   renderLinkPreview,
 } from './_shared/link-preview.js';
+import { logEvent } from './_shared/log.js';
 
 // All event endpoints return rows with the same camelCase shape so the
 // client (and any cache merge) sees one schema. `mapEvent` is the single
@@ -132,10 +133,10 @@ async function respondWithCalendarFeed(req, res, sql) {
   // sees the event, and nothing else in the system notices.
   const unrenderable = events.filter((event) => !isValidEventTime(event.time));
   if (unrenderable.length > 0) {
-    console.warn(
-      'Calendar feed: skipping events with an unusable time',
-      unrenderable.map((event) => ({ id: event.id, time: event.time })),
-    );
+    logEvent('warn', 'calendar_feed.events_skipped', {
+      count: unrenderable.length,
+      eventIds: unrenderable.map((event) => event.id).join(','),
+    });
   }
 
   const feed = buildCalendarFeed({
