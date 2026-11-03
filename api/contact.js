@@ -13,6 +13,7 @@ import { confirmationEmail, NEWSLETTER_CONFIRM_DAYS, newsletterToken } from './_
 import { contactAcknowledgementEmail, contactSubjectLabel } from './_shared/contact-emails.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
+import { TEXT_LIMITS } from '../shared/constants.js';
 
 const CONTACT_WINDOW_SECONDS = 10 * 60;
 const CONTACT_MAX_ATTEMPTS = 3;
@@ -97,10 +98,10 @@ export default withApiHandler(async function handler(req, res) {
   }
 
   // Sanitize inputs
-  const sanitizedName = isAnonymous ? '' : sanitizeText(name, 100);
+  const sanitizedName = isAnonymous ? '' : sanitizeText(name, TEXT_LIMITS.name);
   const sanitizedEmail = isAnonymous ? '' : sanitizeEmail(email);
   const sanitizedPhone = sanitizePhone(phone);
-  const sanitizedMessage = sanitizeText(message, 5000);
+  const sanitizedMessage = sanitizeText(message, TEXT_LIMITS.contactMessage);
 
   if (!isAnonymous && (!sanitizedName || !sanitizedEmail)) {
     return res.status(400).json({

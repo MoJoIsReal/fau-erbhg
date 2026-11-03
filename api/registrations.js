@@ -18,7 +18,7 @@ import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 import { reportProviderError } from './_shared/provider-errors.js';
 import { registrationConfirmationEmail } from './_shared/registration-emails.js';
-import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION } from '../shared/constants.js';
+import { COUNCIL_ROLES, MAX_ATTENDEES_PER_REGISTRATION, TEXT_LIMITS } from '../shared/constants.js';
 import {
   isCancelToken,
   isCancellationOpen,
@@ -59,10 +59,10 @@ export function validateSignupBody(body = {}) {
   const sanitizedLanguage = ['no', 'en'].includes(body.language) ? body.language : 'no';
   const values = {
     eventIdNum: sanitizeInteger(body.eventId, 1, MAX_INT_ID),
-    sanitizedName: sanitizeText(body.name, 100),
+    sanitizedName: sanitizeText(body.name, TEXT_LIMITS.name),
     sanitizedEmail: sanitizeEmail(body.email),
     sanitizedPhone: sanitizePhone(body.phone),
-    sanitizedComments: body.comments ? sanitizeText(body.comments, 1000) : null,
+    sanitizedComments: body.comments ? sanitizeText(body.comments, TEXT_LIMITS.signupComment) : null,
     sanitizedAttendeeCount: normalizeAttendeeCount(body.attendeeCount),
     sanitizedLanguage,
   };

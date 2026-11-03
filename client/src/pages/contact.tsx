@@ -18,12 +18,13 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormDescription,
   FormMessage,
 } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { contactFormBaseSchema, isValidEmail } from "@/lib/form-schemas";
-import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER } from "@shared/constants";
+import { FAU_EMAIL, KINDERGARTEN_ADDRESS, PHONE_PLACEHOLDER, TEXT_LIMITS } from "@shared/constants";
 import {
   GraduationCap,
   Info,
@@ -302,7 +303,7 @@ export default function Contact() {
                       <FormItem>
                         <FormLabel>{t.contact.name} *</FormLabel>
                         <FormControl>
-                          <Input autoComplete="name" {...field} />
+                          <Input autoComplete="name" maxLength={TEXT_LIMITS.name} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -355,8 +356,11 @@ export default function Contact() {
                   <FormItem>
                     <FormLabel>{t.contact.message} *</FormLabel>
                     <FormControl>
-                      <Textarea rows={6} {...field} />
+                      <Textarea rows={6} maxLength={TEXT_LIMITS.contactMessage} {...field} />
                     </FormControl>
+                    <FormDescription className="text-right tabular-nums">
+                      {field.value.length} / {TEXT_LIMITS.contactMessage}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

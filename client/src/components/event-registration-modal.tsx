@@ -8,11 +8,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, getApiErrorBody, invalidateEventRegistrations } from "@/lib/queryClient";
 import { isValidEmail, registrationFormBaseSchema } from "@/lib/form-schemas";
-import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, type SignupErrorCode } from "@shared/constants";
+import { MAX_ATTENDEES_PER_REGISTRATION, PHONE_PLACEHOLDER, TEXT_LIMITS, type SignupErrorCode } from "@shared/constants";
 import type { Event } from "@shared/schema";
 import { useLanguage } from "@/contexts/LanguageContext";
 import PotluckContributions from "@/components/potluck-contributions";
@@ -312,7 +312,7 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                 <FormItem>
                   <FormLabel>{isFotoEvent ? t.events.parentGuardianName : t.events.signupFullName}</FormLabel>
                   <FormControl>
-                    <Input autoComplete="name" placeholder={isFotoEvent ? t.events.parentGuardianName2 : t.events.signupFullNamePlaceholder} {...field} />
+                    <Input autoComplete="name" maxLength={TEXT_LIMITS.name} placeholder={isFotoEvent ? t.events.parentGuardianName2 : t.events.signupFullNamePlaceholder} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -481,10 +481,14 @@ export default function EventRegistrationModal({ event, isOpen, onClose }: Event
                     <Textarea
                       rows={3}
                       placeholder={t.events.signupCommentsPlaceholder}
+                      maxLength={TEXT_LIMITS.signupComment}
                       {...field}
                       value={field.value || ""}
                     />
                   </FormControl>
+                  <FormDescription className="text-right tabular-nums">
+                    {(field.value || "").length} / {TEXT_LIMITS.signupComment}
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

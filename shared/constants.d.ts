@@ -34,6 +34,7 @@ export const DOCUMENT_CATEGORIES: readonly ['protokoll', 'vedtekter', 'budsjett'
 
 export const MAX_EVENT_ATTENDEES: number;
 export const MAX_ATTENDEES_PER_REGISTRATION: number;
+export const TEXT_LIMITS: Readonly<{ name: number; signupComment: number; contactMessage: number }>;
 
 export const SIGNUP_ERROR_CODES: readonly [
   'INVALID_SIGNUP',
