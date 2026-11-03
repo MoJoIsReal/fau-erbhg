@@ -634,6 +634,11 @@ export interface Translations {
     required: string;
     fieldRequired: string;
     emailInvalid: string;
+    crashTitle: string;
+    crashBody: string;
+    crashDetails: string;
+    crashReload: string;
+    crashBack: string;
     file: string;
     cancel: string;
     upload: string;
@@ -1821,6 +1826,11 @@ export const translations: Record<Language, Translations> = {
       required: "påkrevd",
       fieldRequired: "Fyll ut dette feltet.",
       emailInvalid: "Skriv en gyldig e-postadresse, for eksempel navn@eksempel.no.",
+      crashTitle: "Noe gikk galt",
+      crashBody: "Beklager, det oppstod en uventet feil. Vi har blitt varslet om problemet.",
+      crashDetails: "Tekniske detaljer",
+      crashReload: "Last inn siden på nytt",
+      crashBack: "Gå tilbake",
       file: "Fil",
       cancel: "Avbryt",
       upload: "Last opp",
@@ -3004,6 +3014,11 @@ export const translations: Record<Language, Translations> = {
       required: "required",
       fieldRequired: "Please fill in this field.",
       emailInvalid: "Enter a valid email address, for example name@example.com.",
+      crashTitle: "Something went wrong",
+      crashBody: "Sorry, an unexpected error occurred. We have been notified of the problem.",
+      crashDetails: "Technical details",
+      crashReload: "Reload the page",
+      crashBack: "Go back",
       file: "File",
       cancel: "Cancel",
       upload: "Upload",

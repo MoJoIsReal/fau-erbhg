@@ -28,7 +28,7 @@ const PATTERN = /language\s*===\s*(['"])no\1\s*\?/g;
 // A string or JSX text holding æ, ø or å outside i18n.ts is Norwegian copy
 // (or a data value, such as a room name, which the budget allows for).
 // Comments are skipped.
-const NORWEGIAN_BUDGET = 60;
+const NORWEGIAN_BUDGET = 58;
 const NORWEGIAN_TEXT = /(["'`])(?:(?!\1)[^\\\n])*[æøåÆØÅ](?:(?!\1)[^\\\n])*\1|>[^<>{}]*[æøåÆØÅ][^<>{}]*</g;
 const withoutComments = (source) => source
   .replace(/\{\/\*[\s\S]*?\*\/\}/g, '')

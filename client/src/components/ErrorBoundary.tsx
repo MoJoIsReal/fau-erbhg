@@ -4,6 +4,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 import * as Sentry from '@sentry/react';
 import { isStaleChunkError, reloadForStaleChunk } from '@/lib/stale-chunk';
+import { translations, type Language } from '@/lib/i18n';
+
+// The boundary sits above LanguageProvider, so it reads the saved language
+// itself (the provider's own source), falling back to Norwegian.
+function savedLanguage(): Language {
+  try {
+    return localStorage.getItem('fau-language') === 'en' ? 'en' : 'no';
+  } catch {
+    return 'no';
+  }
+}
 
 interface Props {
   children: ReactNode;
@@ -39,32 +50,46 @@ class ErrorBoundary extends Component<Props, State> {
     }
   }
 
+  // Back and forward leave the broken page, so they clear the error screen:
+  // "Go back" used to change the address and keep showing the error.
+  private handlePopState = () => {
+    if (this.state.hasError) this.setState({ hasError: false, error: null });
+  };
+
+  public componentDidMount() {
+    window.addEventListener('popstate', this.handlePopState);
+  }
+
+  public componentWillUnmount() {
+    window.removeEventListener('popstate', this.handlePopState);
+  }
+
+  // Reloads the page the visitor was on; it used to go to the home page.
   private handleReload = () => {
-    window.location.href = '/';
+    window.location.reload();
   };
 
   public render() {
     if (this.state.hasError) {
+      const copy = translations[savedLanguage()].common;
       return (
         <div className="min-h-screen flex items-center justify-center p-4 bg-sand">
           <Card className="max-w-md w-full">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-600">
-                <AlertTriangle className="h-5 w-5" />
-                Noe gikk galt
+              <CardTitle className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+                {copy.crashTitle}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-subtle">
-                Beklager, det oppstod en uventet feil. Vi har blitt varslet om problemet.
-              </p>
+              <p className="text-subtle">{copy.crashBody}</p>
 
               {process.env.NODE_ENV === 'development' && this.state.error && (
-                <details className="bg-red-50 p-3 rounded text-xs">
-                  <summary className="cursor-pointer font-medium text-red-900">
-                    Tekniske detaljer
+                <details className="bg-muted p-3 rounded text-xs">
+                  <summary className="cursor-pointer font-medium text-ink">
+                    {copy.crashDetails}
                   </summary>
-                  <pre className="mt-2 whitespace-pre-wrap text-red-800">
+                  <pre className="mt-2 whitespace-pre-wrap text-destructive">
                     {this.state.error.toString()}
                   </pre>
                 </details>
@@ -72,14 +97,14 @@ class ErrorBoundary extends Component<Props, State> {
 
               <div className="flex gap-2">
                 <Button onClick={this.handleReload} className="flex-1">
-                  Last inn siden på nytt
+                  {copy.crashReload}
                 </Button>
                 <Button
                   onClick={() => window.history.back()}
                   variant="outline"
                   className="flex-1"
                 >
-                  Gå tilbake
+                  {copy.crashBack}
                 </Button>
               </div>
             </CardContent>
