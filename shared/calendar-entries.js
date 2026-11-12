@@ -244,7 +244,7 @@ export function normalizeEvent(event, now = new Date()) {
     description: event.description ?? '',
     date: event.date,
     startTime: event.time ?? null,
-    endTime: null,
+    endTime: event.endTime || null,
     location: event.customLocation || event.location || '',
     week,
     weekEnd: week,

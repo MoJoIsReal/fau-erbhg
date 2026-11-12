@@ -14,12 +14,19 @@ export interface StructuredDataEvent {
   description?: string | null;
   date: string;
   time?: string | null;
+  endTime?: string | null;
   location?: string | null;
   customLocation?: string | null;
   status?: string | null;
+  type?: string | null;
+  maxAttendees?: number | null;
+  currentAttendees?: number | null;
+  registrationDeadline?: string | null;
+  vigiloSignup?: boolean | null;
+  noSignup?: boolean | null;
 }
 
-export function eventJsonLd(event: StructuredDataEvent, baseUrl: string): JsonLd | null;
+export function eventJsonLd(event: StructuredDataEvent, baseUrl: string, options?: { now?: Date }): JsonLd | null;
 
 export function upcomingEventsJsonLd(
   events: StructuredDataEvent[] | null | undefined,

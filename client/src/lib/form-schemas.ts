@@ -18,6 +18,7 @@ export const eventFormBaseSchema = z.object({
   description: z.string(),
   date: z.string(),
   time: z.string(),
+  endTime: z.string().nullable().optional(),
   location: z.string(),
   customLocation: z.string().nullable().optional(),
   maxAttendees: z.number().int().nullable().optional(),

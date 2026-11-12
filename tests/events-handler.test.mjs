@@ -119,6 +119,37 @@ test('a new event is stored sanitized, with strict flags and a normalized deadli
   assert.deepEqual([vigilo, noSignup, notify], [false, false, false], 'only a real true opts in to the newsletter');
 });
 
+test('an end time is optional, and only one after the start is stored', async (t) => {
+  for (const [change, expected] of [
+    [{}, null],
+    [{ endTime: '' }, null],
+    [{ endTime: null }, null],
+    [{ endTime: '19:30' }, '19:30'],
+    [{ time: '9:30', endTime: ' 10:00 ' }, '10:00'],
+  ]) {
+    const sql = useDatabase(scriptedSql({ respond: () => [row({ end_time: expected })] }));
+    const res = await call(t, handler, write('POST', { ...VALID, ...change }));
+    assert.equal(res.statusCode, 201, JSON.stringify(change));
+    assert.equal(fields(sql.writes()[0]).end_time, expected, JSON.stringify(change));
+    assert.equal(res.body.endTime, expected);
+  }
+
+  for (const change of [{ endTime: '17:00' }, { endTime: '16:00' }, { endTime: '19.30' }, { endTime: 1930 }]) {
+    for (const [method, query] of [['POST', {}], ['PUT', { id: '7' }]]) {
+      const sql = useDatabase(scriptedSql());
+      const res = await call(t, handler, write(method, { ...VALID, ...change }, query));
+      assert.equal(res.statusCode, 400, `${method} ${JSON.stringify(change)}`);
+      assert.equal(res.body.code, 'INVALID_EVENT_END_TIME');
+      assert.deepEqual(sql.writes(), []);
+    }
+  }
+
+  const sql = useDatabase(scriptedSql({ respond: () => [row({ end_time: '20:00' })] }));
+  const res = await call(t, handler, write('PUT', { ...VALID, endTime: '20:00' }, { id: '7' }));
+  assert.equal(res.statusCode, 200);
+  assert.equal(fields(sql.writes()[0]).end_time, '20:00', 'an update writes the end too');
+});
+
 test('only an event with signup on this site can be a potluck', async (t) => {
   for (const [change, expected] of [
     [{}, false],

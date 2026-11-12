@@ -64,6 +64,42 @@ test('upcoming events are marked up soonest first, past ones and deleted ones le
   assert.equal(upcomingEventsJsonLd([event(), event({ id: 5 })], BASE, { now: NOW, limit: 1 }).length, 1);
 });
 
+test('an event ends at its entered end time, or on its own day when it has no clock time', () => {
+  const [timed, open, allDay, backwards] = upcomingEventsJsonLd([
+    event({ id: 1, endTime: '20:30' }),
+    event({ id: 2, date: '2026-11-06' }),
+    event({ id: 3, date: '2026-11-07', time: '' }),
+    event({ id: 4, date: '2026-11-08', endTime: '17:00' }),
+  ], BASE, { now: NOW });
+  assert.equal(timed.endDate, '2026-11-05T20:30:00+01:00');
+  assert.equal('endDate' in open, false, 'no end is invented');
+  assert.equal(allDay.startDate, '2026-11-07');
+  assert.equal(allDay.endDate, '2026-11-07');
+  assert.equal('endDate' in backwards, false, 'an end before the start is not an end');
+});
+
+test('every public event is free, sold out once its signup is full or closed, and run by the council', () => {
+  const [open, full, closed, vigilo, internal] = upcomingEventsJsonLd([
+    event({ id: 1, maxAttendees: 20, currentAttendees: 3 }),
+    event({ id: 2, date: '2026-11-06', maxAttendees: 20, currentAttendees: 20 }),
+    event({ id: 3, date: '2026-11-07', registrationDeadline: '2026-10-29T12:00:00.000Z' }),
+    event({ id: 4, date: '2026-11-08', vigiloSignup: true, maxAttendees: 1, currentAttendees: 1 }),
+    event({ id: 5, date: '2026-11-09', type: 'internal' }),
+  ], BASE, { now: NOW });
+  assert.deepEqual(open.offers, {
+    '@type': 'Offer',
+    price: 0,
+    priceCurrency: 'NOK',
+    availability: 'https://schema.org/InStock',
+    url: `${BASE}/kalender?vis=event-1`,
+  });
+  assert.equal(full.offers.availability, 'https://schema.org/SoldOut');
+  assert.equal(closed.offers.availability, 'https://schema.org/SoldOut');
+  assert.equal(vigilo.offers.availability, 'https://schema.org/InStock', 'a count here says nothing about a signup elsewhere');
+  assert.equal('offers' in internal, false);
+  assert.deepEqual(open.performer, open.organizer);
+});
+
 test('an event elsewhere or online names where it is', () => {
   const [elsewhere, online] = upcomingEventsJsonLd([
     event({ id: 1, location: 'Annet', customLocation: 'Erdal kirke' }),
