@@ -237,6 +237,8 @@ test('an event normalizes onto its ISO week with the custom location preferred',
   assert.equal(normalized.location, 'Samfunnshuset');
   assert.equal(normalized.cancelled, false);
   assert.equal(normalized.entry, null);
+  assert.equal(normalized.endTime, null, 'no end entered, none shown');
+  assert.equal(normalizeEvent(event({ endTime: '20:00' })).endTime, '20:00');
 });
 
 test('a cancelled event is kept, flagged rather than dropped', () => {

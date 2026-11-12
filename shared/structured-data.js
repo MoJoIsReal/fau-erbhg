@@ -6,7 +6,7 @@
 // Shared because the browser renders the JSON-LD (usePageMeta) and the server
 // builds the sitemap (api/secure-settings.js), and both name the same URLs.
 import { htmlToPlainText, truncatePlainText } from './html-text.js';
-import { calendarEntryPath, eventEntryId } from './calendar-entries.js';
+import { calendarEntryPath, describeEventSignup, eventEntryId } from './calendar-entries.js';
 import { osloLocalDateTimeToUtc, toIcsLocalDateTime } from './calendar-feed.js';
 
 export const SITE_NAME = 'FAU Erdal Barnehage';
@@ -66,17 +66,46 @@ function eventLocation(event, url) {
   return { '@type': 'Place', name: 'Erdal barnehage', address: KINDERGARTEN_POSTAL_ADDRESS };
 }
 
-export function eventJsonLd(event, baseUrl) {
+// Only an end that was entered, and that comes after the start, is used:
+// nothing invents a duration (the calendar feed holds to the same rule). An
+// event without a clock time is the whole of its one day.
+function eventEndDate(event, startDate) {
+  if (!startDate.includes('T')) return startDate;
+  const endTime = String(event.endTime || '').trim();
+  const endDate = endTime ? eventStartDate(event.date, endTime) : null;
+  return endDate && endDate.includes('T') && endDate > startDate ? endDate : null;
+}
+
+// Every FAU event is free to attend (the council's decision; events have no
+// price field). Availability follows the signup on this site: sold out once
+// it is full or closed. An internal event is not open to the public at all.
+function eventOffers(event, url, now) {
+  const signup = describeEventSignup(event, now);
+  if (signup.mode === 'internal') return null;
+  const available = signup.mode !== 'registration' || signup.isOpen;
+  return {
+    '@type': 'Offer',
+    price: 0,
+    priceCurrency: 'NOK',
+    availability: available ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+    url,
+  };
+}
+
+export function eventJsonLd(event, baseUrl, { now = new Date() } = {}) {
   const startDate = eventStartDate(event.date, event.time);
   if (!startDate || !event.title) return null;
   const url = `${baseUrl}${calendarEntryPath(eventEntryId(event.id))}`;
   const description = plainDescription(event.description, 500);
+  const endDate = eventEndDate(event, startDate);
+  const offers = eventOffers(event, url, now);
   return {
     '@context': 'https://schema.org',
     '@type': 'Event',
     name: event.title,
     ...(description ? { description } : {}),
     startDate,
+    ...(endDate ? { endDate } : {}),
     eventStatus: event.status === 'cancelled' ? 'https://schema.org/EventCancelled' : 'https://schema.org/EventScheduled',
     eventAttendanceMode: event.location === 'Digitalt'
       ? 'https://schema.org/OnlineEventAttendanceMode'
@@ -84,6 +113,9 @@ export function eventJsonLd(event, baseUrl) {
     location: eventLocation(event, url),
     image: [`${baseUrl}/og-calendar.jpg`],
     organizer: organizationJsonLd(baseUrl),
+    // The parents' council runs its own events: a meeting, a dugnad, a party.
+    performer: organizationJsonLd(baseUrl),
+    ...(offers ? { offers } : {}),
     url,
   };
 }
@@ -95,7 +127,7 @@ export function upcomingEventsJsonLd(events, baseUrl, { now = new Date(), limit 
   return (events ?? [])
     .filter((event) => (event.status === 'active' || event.status === 'cancelled') && String(event.date).slice(0, 10) >= today)
     .sort((a, b) => String(a.date).localeCompare(String(b.date)))
-    .map((event) => eventJsonLd(event, baseUrl))
+    .map((event) => eventJsonLd(event, baseUrl, { now }))
     .filter(Boolean)
     .slice(0, limit);
 }

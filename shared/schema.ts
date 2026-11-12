@@ -27,6 +27,9 @@ export const events = pgTable("events", {
   description: text("description").notNull(),
   date: text("date").notNull(),
   time: text("time").notNull(),
+  // Migration 0028. "HH:MM", after `time`; NULL when no end was entered, and
+  // nothing invents one (calendar feed, JSON-LD).
+  endTime: text("end_time"),
   location: text("location").notNull(),
   customLocation: text("custom_location"), // For "Annet" locations
   maxAttendees: integer("max_attendees"),

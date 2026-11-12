@@ -173,8 +173,11 @@ function signupEventLines(event, { dtstamp, baseUrl }) {
     `UID:event-${event.id}@${UID_DOMAIN}`,
     `DTSTAMP:${dtstamp}`,
     `DTSTART:${osloLocalDateTimeToUtc(start)}`,
-    `SUMMARY:${escapeIcsText(event.title)}`,
   ];
+  // Only an end that was entered; without one DTEND stays out (see below).
+  const end = toIcsLocalDateTime(event.date, event.endTime);
+  if (end && end > start) lines.push(`DTEND:${osloLocalDateTimeToUtc(end)}`);
+  lines.push(`SUMMARY:${escapeIcsText(event.title)}`);
 
   const description = eventDescription(event, baseUrl);
   if (description) lines.push(`DESCRIPTION:${escapeIcsText(description)}`);

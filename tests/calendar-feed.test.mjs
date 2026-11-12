@@ -51,6 +51,17 @@ test('a signup event encodes Oslo wall-clock time as unambiguous UTC with a stab
   assert.equal(feedLines.includes('STATUS:CONFIRMED'), true);
 });
 
+test('a signup event ends when its entered end time says, and never at an invented one', () => {
+  const ended = lines(buildCalendarFeed({ events: [signupEvent({ endTime: '20:00' })], now: NOW }));
+  assert.equal(ended.includes('DTSTART:20260329T160000Z'), true);
+  assert.equal(ended.includes('DTEND:20260329T180000Z'), true);
+
+  for (const endTime of [null, '', '17:00', '18:00', 'kveld']) {
+    const feedLines = lines(buildCalendarFeed({ events: [signupEvent({ endTime })], now: NOW }));
+    assert.equal(feedLines.some((line) => line.startsWith('DTEND')), false, String(endTime));
+  }
+});
+
 test('a cancelled event stays in the feed as cancelled', () => {
   const feed = buildCalendarFeed({ events: [signupEvent({ status: 'cancelled' })], now: NOW });
   assert.equal(lines(feed).includes('STATUS:CANCELLED'), true);

@@ -250,8 +250,9 @@ on the release/PR. Remove completed items from this list.
 
 - [ ] Before the code that needs them reaches `main`, apply in the Neon SQL
   editor, in order: `0025_username_case_unique.sql`,
-  `0026_seat_counts_not_null.sql`, `0027_single_registration_event_fk.sql`.
-  Each stops without changing anything if existing rows break its rule, and
+  `0026_seat_counts_not_null.sql`, `0027_single_registration_event_fk.sql`,
+  `0028_event_end_time.sql` (additive; event saves fail without it). The first
+  three each stop without changing anything if existing rows break its rule, and
   says how to find them (see the comment at the top of each file).
 - [ ] Run both hosted CI jobs on Node 22, including the PostgreSQL service job.
   Local verification passed on Node 24; it does not establish Node 22 results.

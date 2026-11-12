@@ -32,6 +32,7 @@ contents of each migration file. The current migrations are:
 25. `0025_username_case_unique.sql`
 26. `0026_seat_counts_not_null.sql`
 27. `0027_single_registration_event_fk.sql`
+28. `0028_event_end_time.sql`
 
 Important: the unique registration index can fail if existing data already has
 duplicate `(event_id, lower(email))` rows. If that happens, merge/remove the
@@ -172,3 +173,16 @@ WHERE (table_name = 'events' AND column_name = 'potluck')
 ```
 
 Both rows must be returned.
+
+## Event end time
+
+`0028_event_end_time.sql` adds the nullable `events.end_time`. Existing events
+keep `NULL`, which means what it always did: no end is known. Apply it
+**before** deploying: the events API writes `end_time` on every save, so
+creating or editing an event fails until the column exists. Verify with:
+
+```sql
+SELECT column_name FROM information_schema.columns
+WHERE table_name = 'events' AND column_name = 'end_time';
+```
+

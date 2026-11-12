@@ -560,6 +560,8 @@ export interface Translations {
       descriptionPlaceholder: string;
       dateLabel: string;
       timeLabel: string;
+      endTimeLabel: string;
+      endTimeAfterStart: string;
       locationLabel: string;
       locationPlaceholder: string;
       maxAttendeesLabel: string;
@@ -1166,6 +1168,7 @@ export const translations: Record<Language, Translations> = {
       EVENT_FIELDS_REQUIRED: "Tittel, dato og klokkeslett må fylles ut.",
       INVALID_EVENT_DATE: "Datoen må være en ekte dato.",
       INVALID_EVENT_TIME: "Klokkeslett må skrives som TT:MM (24 timer).",
+      INVALID_EVENT_END_TIME: "Sluttid må skrives som TT:MM (24 timer) og være etter starttid.",
       INVALID_MAX_ATTENDEES: "Maks antall deltakere må være et heltall, eller tomt for ingen grense.",
       INVALID_REGISTRATION_DEADLINE: "Påmeldingsfristen er ikke gyldig.",
       INVALID_EVENT_TYPE: "Ugyldig type arrangement.",
@@ -1743,6 +1746,8 @@ export const translations: Record<Language, Translations> = {
         descriptionPlaceholder: "Beskriv arrangementet...",
         dateLabel: "Dato",
         timeLabel: "Klokkeslett",
+        endTimeLabel: "Sluttid (valgfritt)",
+        endTimeAfterStart: "Sluttid må være etter starttid.",
         locationLabel: "Sted",
         locationPlaceholder: "Velg sted",
         maxAttendeesLabel: "Maks deltakere",
@@ -2354,6 +2359,7 @@ export const translations: Record<Language, Translations> = {
       EVENT_FIELDS_REQUIRED: "Title, date and time are required.",
       INVALID_EVENT_DATE: "The date must be a real calendar date.",
       INVALID_EVENT_TIME: "The time must be written as HH:MM (24-hour).",
+      INVALID_EVENT_END_TIME: "The end time must be written as HH:MM (24-hour) and come after the start time.",
       INVALID_MAX_ATTENDEES: "Max attendees must be a whole number, or empty for no limit.",
       INVALID_REGISTRATION_DEADLINE: "The registration deadline is not valid.",
       INVALID_EVENT_TYPE: "Invalid event type.",
@@ -2931,6 +2937,8 @@ export const translations: Record<Language, Translations> = {
         descriptionPlaceholder: "Describe the event...",
         dateLabel: "Date",
         timeLabel: "Time",
+        endTimeLabel: "End time (optional)",
+        endTimeAfterStart: "The end time must be after the start time.",
         locationLabel: "Location",
         locationPlaceholder: "Select location",
         maxAttendeesLabel: "Max attendees",

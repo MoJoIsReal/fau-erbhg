@@ -42,6 +42,7 @@ function mapEvent(row) {
     description: row.description,
     date: row.date,
     time: row.time,
+    endTime: row.end_time ?? null,
     location: row.location,
     customLocation: row.custom_location,
     maxAttendees: row.max_attendees,
@@ -192,6 +193,12 @@ function isValidEventTime(value) {
   return typeof value === 'string' && EVENT_TIME_RE.test(value.trim());
 }
 
+// "9:30" and "09:30" are the same time, so they are compared as numbers.
+function minutesOfDay(value) {
+  const [hours, minutes] = value.trim().split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
 // events.date is `text NOT NULL`, and the client drops an event whose date it
 // cannot parse (normalizeEvent in shared/calendar-entries.js). The only check
 // used to be truthiness, so "neste fredag" or 2026-02-31 was stored and the
@@ -236,6 +243,7 @@ function validateEventBody(body = {}) {
     description,
     date,
     time,
+    endTime,
     location,
     customLocation,
     maxAttendees,
@@ -256,6 +264,7 @@ function validateEventBody(body = {}) {
     description: sanitizeHtml(description, EVENT_DESCRIPTION_MAX),
     date,
     time,
+    endTime: endTime === undefined || endTime === null || endTime === '' ? null : endTime,
     location: sanitizeText(location, 200),
     customLocation: customLocation ? sanitizeText(customLocation, 200) : null,
     maxAttendees: normalizeMaxAttendees(maxAttendees),
@@ -276,6 +285,14 @@ function validateEventBody(body = {}) {
   }
   if (!isValidEventTime(time)) {
     return { error: { error: 'Time must be written as HH:MM (24-hour), for example 17:00', code: 'INVALID_EVENT_TIME' } };
+  }
+  // Optional. Refused rather than dropped when it is malformed or not after
+  // the start, so the council is told instead of the end vanishing.
+  if (values.endTime !== null) {
+    if (!isValidEventTime(values.endTime) || minutesOfDay(values.endTime) <= minutesOfDay(time)) {
+      return { error: { error: 'End time must be written as HH:MM (24-hour) and come after the start time', code: 'INVALID_EVENT_END_TIME' } };
+    }
+    values.endTime = values.endTime.trim();
   }
   if (values.maxAttendees === undefined) {
     return {
@@ -363,8 +380,8 @@ export default withApiHandler(async function handler(req, res) {
     if (error) return res.status(400).json(error);
 
     const inserted = await sql`
-      INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup, notify_newsletter, potluck)
-      VALUES (${values.title}, ${values.description}, ${values.date}, ${values.time}, ${values.location}, ${values.customLocation}, ${values.maxAttendees}, ${values.registrationDeadline}, ${values.type}, ${values.vigiloSignup}, ${values.noSignup}, ${values.notifyNewsletter}, ${values.potluck})
+      INSERT INTO events (title, description, date, time, location, custom_location, max_attendees, registration_deadline, type, vigilo_signup, no_signup, notify_newsletter, potluck, end_time)
+      VALUES (${values.title}, ${values.description}, ${values.date}, ${values.time}, ${values.location}, ${values.customLocation}, ${values.maxAttendees}, ${values.registrationDeadline}, ${values.type}, ${values.vigiloSignup}, ${values.noSignup}, ${values.notifyNewsletter}, ${values.potluck}, ${values.endTime})
       RETURNING *
     `;
 
@@ -396,6 +413,7 @@ export default withApiHandler(async function handler(req, res) {
             description = ${values.description},
             date = ${values.date},
             time = ${values.time},
+            end_time = ${values.endTime},
             location = ${values.location},
             custom_location = ${values.customLocation},
             max_attendees = ${values.maxAttendees},

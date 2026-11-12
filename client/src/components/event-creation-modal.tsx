@@ -27,10 +27,15 @@ import { enGB, nb } from "date-fns/locale";
 import { z } from "zod";
 import RichTextEditor from "@/components/RichTextEditor";
 
+function minutesOfDay(value: string) {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
+  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
+}
+
 // Built per language so the capacity message is translated. The API enforces
-// the same MAX_EVENT_ATTENDEES limit; checking it here names the problem on the
-// field instead of in an English error toast after submitting.
-const createFormSchema = (maxAttendeesRange: string) => eventFormBaseSchema.extend({
+// the same MAX_EVENT_ATTENDEES limit and end-after-start rule; checking them
+// here names the problem on the field instead of in a toast after submitting.
+const createFormSchema = (maxAttendeesRange: string, endTimeAfterStart: string) => eventFormBaseSchema.extend({
   maxAttendees: z.number({ error: maxAttendeesRange })
     .int(maxAttendeesRange)
     .min(1, maxAttendeesRange)
@@ -50,7 +55,15 @@ const createFormSchema = (maxAttendeesRange: string) => eventFormBaseSchema.exte
   noSignup: z.boolean().default(false),
   notifyNewsletter: z.boolean().default(false),
   potluck: z.boolean().default(false)
-});
+}).refine(
+  ({ time, endTime }) => {
+    if (!endTime) return true;
+    const start = minutesOfDay(time);
+    const end = minutesOfDay(endTime);
+    return start !== null && end !== null && end > start;
+  },
+  { message: endTimeAfterStart, path: ["endTime"] },
+);
 
 // The four `.default(false)` fields above make zod 4 distinguish the two
 // sides of the schema: on the way in those booleans are optional, on the way
@@ -198,7 +211,10 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
   const { t, language } = useLanguage();
 
   const formSchema = useMemo(
-    () => createFormSchema(t.modals.eventCreation.maxAttendeesRange.replace("{max}", String(MAX_EVENT_ATTENDEES))),
+    () => createFormSchema(
+      t.modals.eventCreation.maxAttendeesRange.replace("{max}", String(MAX_EVENT_ATTENDEES)),
+      t.modals.eventCreation.endTimeAfterStart,
+    ),
     [t],
   );
 
@@ -209,6 +225,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       description: event.description || "",
       date: event.date || "",
       time: event.time || "",
+      endTime: event.endTime || "",
       location: event.location || "",
       type: event.type || "meeting",
       maxAttendees: event.maxAttendees || null,
@@ -223,6 +240,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
       description: "",
       date: "",
       time: "",
+      endTime: "",
       location: "",
       type: "event",
       maxAttendees: null,
@@ -242,6 +260,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         description: event.description || "",
         date: event.date || "",
         time: event.time || "",
+        endTime: event.endTime || "",
         location: event.location || "",
         type: event.type || "meeting",
         maxAttendees: event.maxAttendees || null,
@@ -258,6 +277,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         description: "",
         date: "",
         time: "",
+        endTime: "",
         location: "",
         type: "event",
         maxAttendees: null,
@@ -296,6 +316,7 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
         noSignup: registrationMode === "none",
         vigiloSignup: registrationMode === "vigilo",
         potluck: canAskFood && data.potluck,
+        endTime: data.endTime || null,
         customLocation: data.location === "Annet" ? data.customLocation : null
       };
 
@@ -437,6 +458,25 @@ export default function EventCreationModal({ isOpen, onClose, event }: EventCrea
                       <FormControl>
                         <TimeInput24h
                           value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="endTime"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t.modals.eventCreation.endTimeLabel}</FormLabel>
+                      <FormControl>
+                        <TimeInput24h
+                          value={field.value ?? ""}
                           onChange={field.onChange}
                           onBlur={field.onBlur}
                           name={field.name}
