@@ -180,6 +180,15 @@ export default {
           "info-tint": "var(--cat-info-tint)",
         },
       },
+      /**
+       * A bare `slide-in-from-right` (the sheets use them) moves a whole
+       * width, as tailwindcss-animate means it to. Since Tailwind 4.3.4,
+       * `theme("translate")` hands plugins its DEFAULT too, the 0.25rem
+       * spacing step, and the plugin spreads that over its own 100%.
+       */
+      animationTranslate: {
+        DEFAULT: "100%",
+      },
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
