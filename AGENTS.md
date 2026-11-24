@@ -21,6 +21,7 @@ npm test           # every offline suite in tests/ (node:test)
 npm run build      # production frontend build (Vite → dist/public)
 npm run verify     # check + offline tests + build (CI's verify job)
 npm run test:integration # isolated PostgreSQL gate; see docs/database-testing.md
+npm run test:e2e   # build + the browser form suites in tests/e2e/ (Playwright)
 ```
 
 There is **no local backend**. `api/*.js` only executes on Vercel (or under
@@ -50,6 +51,7 @@ attached_assets/    Uploaded source material, never served — including
                     the `-dark` night version of each
 migrations/*.sql    Hand-applied SQL, run through the Neon SQL editor
 tests/*.test.mjs    node:test suites, one per module or contract
+tests/e2e/          Playwright suites for the client's form flows
 docs/               Architecture, subsystem rules, deployment and database testing
 docs/design/        The UI Design & Style Guide (PDF + text transcription)
 ```
@@ -306,6 +308,19 @@ which fails when a marker is gone. Add a guard only for a bug that would
 otherwise fail silently; never to pin copy, class names or anything
 `npm run check` already catches.
 
+**Browser tests.** `tests/e2e/*.spec.mjs` drive the client's form flows
+(event signup, contact, saving a post) in Chromium with Playwright, against
+the production build under `vite preview`. They are the one place a browser
+runs and are not part of `npm test`: `npm run test:e2e` builds and runs them,
+and CI runs them in their own job. There is no backend there either — the
+fixture in `tests/e2e/stubs.mjs` aborts every request to another origin,
+answers any unstubbed `/api/` call with a 404, and each test stubs the routes
+it uses with `stubApi()`, which records what the page sent. Labels and
+messages come from `translations.no` in `i18n.ts`, so a test never pins copy.
+Add a flow here only for behaviour that needs a real page — focus, a disabled
+button, a field error after a refusal; validation rules belong in
+`form-schemas`, request logic in a handler suite.
+
 ```bash
 node --test tests/calendar-feed.test.mjs   # one suite while iterating
 node --test --experimental-test-module-mocks tests/auth-handler.test.mjs  # a handler suite
@@ -318,7 +333,8 @@ Before calling a change done:
 1. `npm run check` — always (type errors and untranslated copy are the two most
    common breakages).
 2. The suite(s) covering what you touched, then `npm test`.
-3. `npm run build` if you changed anything under `client/` or the Vite config.
+3. `npm run build` if you changed anything under `client/` or the Vite config,
+   and `npm run test:e2e` if you changed a form flow it covers.
 4. For a visual change, check it against the style guide's checklist
    (`docs/design/style-guide.md`) — both themes, 375–1440px widths.
 
