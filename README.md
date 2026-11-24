@@ -36,14 +36,17 @@ npm run check      # TypeScript, the backend type gate and the i18n ratchet
 npm test           # every offline suite in tests/ (node:test)
 npm run build      # production frontend build
 npm run verify     # check + test + build: the gate CI runs
+npm run test:e2e   # build + the browser form tests (Playwright, Chromium)
 ```
 
 `npm run dev` serves the frontend only; `api/*.js` runs on Vercel (or under
 `vercel dev`). The offline suites run the real handlers in-process against a
 scripted database and need no network or credentials. The SQL itself is tested
 against a disposable PostgreSQL by `npm run test:integration`; see
-[`docs/database-testing.md`](docs/database-testing.md). Never point a test at
-the production database.
+[`docs/database-testing.md`](docs/database-testing.md). The form flows are
+driven in a real browser by `npm run test:e2e` against the built site, with the
+API stubbed (run `npx playwright install chromium` once first). Never point a
+test at the production database.
 
 ## Deployment
 

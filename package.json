@@ -13,6 +13,7 @@
     "check": "tsc && node scripts/check-backend-types.mjs && node scripts/check-i18n.mjs",
     "test": "node --test --experimental-test-module-mocks tests/*.test.mjs",
     "test:integration": "node --test --test-concurrency=1 tests/integration/*.test.mjs",
+    "test:e2e": "vite build && playwright test",
     "verify": "npm run check && npm test && npm run build",
     "check:i18n": "node scripts/check-i18n.mjs"
   },
@@ -72,6 +73,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@tailwindcss/typography": "0.5.20",
     "@tailwindcss/vite": "4.3.5",
     "@types/jsonwebtoken": "^9.0.10",

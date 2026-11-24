@@ -26,6 +26,8 @@ npm run verify
 ratchet, the offline `node:test` suites and the frontend production build.
 The separate CI PostgreSQL job runs `npm run test:integration`; see
 [database-testing.md](./database-testing.md). It uses no production credentials.
+A third job, `browser-forms`, runs `npm run test:e2e`: the signup, contact and
+post-editor flows in Chromium against the built site, with the API stubbed.
 
 `npm run dev` serves the frontend on port 5000. It does not execute `api/*.js`.
 Use a separately configured Vercel preview or `vercel dev` when testing actual

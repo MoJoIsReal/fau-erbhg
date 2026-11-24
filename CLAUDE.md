@@ -38,6 +38,9 @@ Run the cheapest step that covers the change; escalate only as needed.
 5. `npm run build` only for `client/`, Vite or Tailwind changes.
 6. `npm run verify` for the offline CI gate; `npm run test:integration` is the
    separate isolated PostgreSQL gate described in `docs/database-testing.md`.
+7. `npm run test:e2e` for a change to the signup, contact or post-editor flow
+   (a separate CI job). In a cloud session Chromium is preinstalled; elsewhere
+   run `npx playwright install chromium` once.
 
 Documentation-only changes need none of these. `api/` handlers do not run as
 a server locally. The handler harness in `tests/helpers.mjs` runs them in-process

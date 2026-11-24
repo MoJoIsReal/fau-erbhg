@@ -43,6 +43,23 @@ jobs:
       - name: Build
         run: npm run build
 
+  # The client's form flows in a real browser, against the built site with the
+  # API stubbed per test (tests/e2e/). No secrets and no network beyond npm and
+  # the browser download.
+  browser-forms:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser form tests
+        run: npm run test:e2e
+
   postgres-integration:
     runs-on: ubuntu-latest
     services:
