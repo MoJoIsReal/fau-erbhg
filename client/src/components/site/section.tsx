@@ -38,23 +38,6 @@ export function SectionHeader({
   );
 }
 
-interface SectionProps {
-  children: ReactNode;
-  className?: string;
-  as?: ElementType;
-  "aria-labelledby"?: string;
-  "aria-label"?: string;
-}
-
-/** A top-level band of a page. Spacing between them comes from the parent. */
-export function Section({ children, className = "", as: Tag = "section", ...rest }: SectionProps) {
-  return (
-    <Tag className={className} {...rest}>
-      {children}
-    </Tag>
-  );
-}
-
 interface SurfaceProps {
   children: ReactNode;
   className?: string;

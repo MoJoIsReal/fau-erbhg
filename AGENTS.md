@@ -92,7 +92,7 @@ return raw rows and map through it. Add fields there, not ad hoc per endpoint.
 **The `shared/` boundary.** `api/` runs unbundled, so shared runtime code is
 plain `.js` with a hand-written `.d.ts` sibling for the typed client
 (`constants`, `photo-slots`, `yearly-calendar-*`, `calendar-entries`,
-`html-text`, `media`, `structured-data`, `video-embed`). `calendar-feed.js` is
+`html-text`, `media`, `structured-data`, `time-of-day`, `video-embed`). `calendar-feed.js` is
 used by `api/` only and has none.
 `shared/schema.ts` is the one TypeScript file — it is types/schema only and is
 **never imported by `api/`**. If you add shared runtime code, write `.js` + a
@@ -162,7 +162,7 @@ there are no breakpoint-swapped font sizes to keep in sync. Weight stays a
 separate utility, and a page uses at most three of 400/600/700.
 
 **Reach for `components/site/` before writing markup.** `PageHero`,
-`Section`/`SectionHeader`/`Surface`/`EmptyState`, `FilterChip`/
+`SectionHeader`/`Surface`/`EmptyState`/`StatusCard`, `FilterChip`/
 `SegmentedControl`/`StatusPill`, `InfoBanner`/`IllustrationBanner`,
 `EditorSurface`, and `Artwork` + the illustration library. Cards are
 not the default container — the guide asks for spacing and typography first —

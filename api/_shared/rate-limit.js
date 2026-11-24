@@ -119,6 +119,16 @@ export async function checkRateLimit(sql, { key, limit, windowSeconds }) {
   };
 }
 
+// The answer to a request a limiter refused: 429, with a Retry-After for the
+// longest window among `limits` (one checkRateLimit result or several). The
+// body is the handler's own { error, code }, so every refusal still names its
+// code where the handler is read.
+export function refuseRateLimited(res, limits, body) {
+  const windows = Array.isArray(limits) ? limits : [limits];
+  res.setHeader('Retry-After', String(Math.max(...windows.map((limit) => limit.retryAfter))));
+  return res.status(429).json(body);
+}
+
 // Give back an attempt counted by checkRateLimit. A limit that should count
 // only failures still has to count every attempt *before* the slow check:
 // looking first and recording the failure afterwards lets a burst of

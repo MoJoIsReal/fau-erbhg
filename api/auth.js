@@ -15,6 +15,7 @@ import {
   clearRateLimit,
   identityRateLimitKey,
   rateLimitKey,
+  refuseRateLimited,
   sendPublicMail,
 } from './_shared/rate-limit.js';
 import { isPasswordChangeRequired, isTemporaryPasswordExpired } from './_shared/password-policy.js';
@@ -178,8 +179,7 @@ async function handleLogin(req, res, sql) {
       : null,
   ].filter(Boolean));
   if (limits.some((limit) => !limit.allowed)) {
-    res.setHeader('Retry-After', String(Math.max(...limits.map((limit) => limit.retryAfter))));
-    return res.status(429).json({ error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, limits, { error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
   }
 
   // An unknown browser's attempt is counted against the account before the
@@ -194,8 +194,7 @@ async function handleLogin(req, res, sql) {
       windowSeconds: LOGIN_ACCOUNT_WINDOW_SECONDS
     });
     if (!accountLimit.allowed) {
-      res.setHeader('Retry-After', String(accountLimit.retryAfter));
-      return res.status(429).json({ error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
+      return refuseRateLimited(res, accountLimit, { error: 'Too many login attempts. Try again later.', code: 'RATE_LIMITED' });
     }
   }
 
@@ -349,8 +348,7 @@ async function handleChangePassword(req, res, sql, decoded) {
     windowSeconds: LOGIN_WINDOW_SECONDS
   });
   if (!attempts.allowed) {
-    res.setHeader('Retry-After', String(attempts.retryAfter));
-    return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, attempts, { error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
   }
 
   const passwordIsValid = await bcryptjs.compare(currentPassword, existingUser.password);
@@ -457,8 +455,7 @@ async function handleForgotPassword(req, res, sql) {
     }),
   ]);
   if (limits.some((limit) => !limit.allowed)) {
-    res.setHeader('Retry-After', String(Math.max(...limits.map((limit) => limit.retryAfter))));
-    return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, limits, { error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
   }
 
   const users = await sql`
@@ -514,8 +511,7 @@ async function handleResetPassword(req, res, sql) {
     windowSeconds: LOGIN_WINDOW_SECONDS
   });
   if (!limit.allowed) {
-    res.setHeader('Retry-After', String(limit.retryAfter));
-    return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, limit, { error: 'Too many attempts. Try again later.', code: 'RATE_LIMITED' });
   }
 
   let claims;

@@ -1,38 +1,14 @@
 import { useRef, useState } from "react";
 import { useSearch } from "wouter";
-import { Loader2, CheckCircle2, XCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { apiErrorText, apiRequest, getApiErrorBody } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import NewsletterSignup from "@/components/newsletter-signup";
 import PageHero from "@/components/site/page-hero";
 import { Surface } from "@/components/site/section";
+import { StatusCard, type StatusCardTone } from "@/components/site/status-card";
 
-type Status = "ready" | "pending" | "success" | "error";
-
-function StatusCard({
-  status,
-  title,
-  description,
-  action,
-}: {
-  status: Status;
-  title: string;
-  description?: string;
-  action?: { label: string; onClick: () => void };
-}) {
-  return (
-    <Surface className="space-y-4 p-8 text-center" role={status === "error" ? "alert" : "status"}>
-      {status === "pending" && <Loader2 className="mx-auto h-10 w-10 animate-spin text-brand" />}
-      {status === "success" && <CheckCircle2 className="mx-auto h-10 w-10 text-brand" />}
-      {status === "error" && <XCircle className="mx-auto h-10 w-10 text-destructive" />}
-      <h2 className="text-h3 font-bold tracking-tight text-ink">{title}</h2>
-      {description && <p className="text-copy">{description}</p>}
-      {action && <Button onClick={action.onClick}>{action.label}</Button>}
-    </Surface>
-  );
-}
+type Status = StatusCardTone;
 
 export default function Newsletter() {
   const { language, t } = useLanguage();
@@ -85,7 +61,7 @@ export default function Newsletter() {
   if (confirmToken) {
     content = (
       <StatusCard
-        status={status}
+        tone={status}
         title={
           status === "ready"
             ? t.newsletter.confirmReadyTitle
@@ -114,7 +90,7 @@ export default function Newsletter() {
   } else if (unsubscribeToken) {
     content = (
       <StatusCard
-        status={status}
+        tone={status}
         title={
           status === "ready"
             ? t.newsletter.unsubReadyTitle

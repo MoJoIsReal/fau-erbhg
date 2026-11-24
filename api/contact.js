@@ -7,7 +7,7 @@ import {
   sanitizePhone,
   findOversizedField,
 } from './_shared/middleware.js';
-import { checkRateLimit, rateLimitKey, sendPublicMail } from './_shared/rate-limit.js';
+import { checkRateLimit, rateLimitKey, refuseRateLimited, sendPublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { confirmationEmail, NEWSLETTER_CONFIRM_DAYS, newsletterToken } from './_shared/newsletter.js';
 import { contactAcknowledgementEmail, contactSubjectLabel } from './_shared/contact-emails.js';
@@ -94,8 +94,7 @@ export default withApiHandler(async function handler(req, res) {
     windowSeconds: CONTACT_WINDOW_SECONDS
   });
   if (!ipRateLimit.allowed) {
-    res.setHeader('Retry-After', String(ipRateLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, ipRateLimit, { error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
   }
 
   // Sanitize inputs
@@ -128,8 +127,7 @@ export default withApiHandler(async function handler(req, res) {
   });
 
   if (!rateLimit.allowed) {
-    res.setHeader('Retry-After', String(rateLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, rateLimit, { error: 'Too many messages. Try again later.', code: 'RATE_LIMITED' });
   }
 
   if (!(await verifyTurnstile(req, req.body?.turnstileToken, 'contact'))) {
@@ -278,8 +276,7 @@ async function handleNewsletterSubscribe(req, res) {
   ]);
 
   if (!emailLimit.allowed || !ipLimit.allowed) {
-    res.setHeader('Retry-After', String(Math.max(emailLimit.retryAfter, ipLimit.retryAfter)));
-    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, [emailLimit, ipLimit], { error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
   if (!(await verifyTurnstile(req, req.body?.turnstileToken, 'newsletter'))) {
@@ -333,23 +330,32 @@ async function handleNewsletterSubscribe(req, res) {
   return res.status(200).json({ success: true });
 }
 
-// POST /api/contact?action=newsletter-confirm  { token }
-async function handleNewsletterConfirm(req, res) {
+// The opening both newsletter links share: a well-formed token, and the
+// per-IP limit that keeps the token space from being walked. Answers the
+// refusal itself and returns null, or returns the token.
+async function acceptNewsletterToken(req, res) {
   const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
   if (!TOKEN_RE.test(token)) {
-    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
+    res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
+    return null;
   }
-
-  const sql = getDb();
-  const ipLimit = await checkRateLimit(sql, {
+  const ipLimit = await checkRateLimit(getDb(), {
     key: rateLimitKey(req, 'newsletter-token-ip', ''),
     limit: 30,
     windowSeconds: CONTACT_WINDOW_SECONDS,
   });
   if (!ipLimit.allowed) {
-    res.setHeader('Retry-After', String(ipLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
+    refuseRateLimited(res, ipLimit, { error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
+    return null;
   }
+  return token;
+}
+
+// POST /api/contact?action=newsletter-confirm  { token }
+async function handleNewsletterConfirm(req, res) {
+  const token = await acceptNewsletterToken(req, res);
+  if (!token) return;
+  const sql = getDb();
 
   // A confirmation link works for NEWSLETTER_CONFIRM_DAYS after it was sent;
   // an old mail must not opt someone in months later. Opening it again after
@@ -375,21 +381,9 @@ async function handleNewsletterConfirm(req, res) {
 
 // POST /api/contact?action=newsletter-unsubscribe  { token }
 async function handleNewsletterUnsubscribe(req, res) {
-  const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
-  if (!TOKEN_RE.test(token)) {
-    return res.status(400).json({ error: 'Invalid token', code: 'LINK_EXPIRED' });
-  }
-
+  const token = await acceptNewsletterToken(req, res);
+  if (!token) return;
   const sql = getDb();
-  const ipLimit = await checkRateLimit(sql, {
-    key: rateLimitKey(req, 'newsletter-token-ip', ''),
-    limit: 30,
-    windowSeconds: CONTACT_WINDOW_SECONDS,
-  });
-  if (!ipLimit.allowed) {
-    res.setHeader('Retry-After', String(ipLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
-  }
 
   const now = new Date().toISOString();
   await sql`

@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   CALENDAR_DAYS_PER_WEEK,
-  getYearlyCalendarMonthGroups,
-  getYearlyCalendarTodayMarker,
   isWeekendIndex,
   weeksOfMonth,
 } from '../shared/yearly-calendar-display.js';
@@ -79,23 +77,4 @@ test('the kindergarten year turns over on 1 August', () => {
   assert.equal(isMonthInSchoolYear(2028, 7, 2027), true);
   assert.equal(isMonthInSchoolYear(2028, 8, 2027), false);
   assert.equal(isMonthInSchoolYear(2027, 7, 2027), false);
-});
-
-test('month groups split the current month from past months, newest first', () => {
-  const groups = getYearlyCalendarMonthGroups(2025, new Date(2026, 6, 1, 12));
-  assert.deepEqual(groups.currentAndUpcoming, [{ year: 2026, month: 7 }]);
-  assert.deepEqual(groups.past.slice(0, 3), [
-    { year: 2026, month: 6 },
-    { year: 2026, month: 5 },
-    { year: 2026, month: 4 },
-  ]);
-  assert.deepEqual(groups.past.at(-1), { year: 2025, month: 8 });
-});
-
-test('the today marker carries the date, ISO week and a sortable month value', () => {
-  assert.deepEqual(getYearlyCalendarTodayMarker(new Date(2026, 6, 1, 12)), {
-    date: '2026-07-01',
-    weekNumber: 27,
-    monthValue: 2026 * 12 + 7,
-  });
 });

@@ -45,7 +45,7 @@ provider credentials for previews; do not copy production secrets into tests.
 
 | Variable | Consumer and purpose |
 |---|---|
-| `DATABASE_URL` | `api/_shared/database.js`: Neon connection; also `drizzle.config.ts` for explicitly requested schema operations. |
+| `DATABASE_URL` | `api/_shared/database.js`: Neon connection. |
 | `SESSION_SECRET` | `api/_shared/jwt-config.js`: non-placeholder secret of at least 32 characters for signed sessions. |
 | `CRON_SECRET` | Cron handler: requires an exact `Authorization: Bearer …` match in every environment; missing secret fails closed. |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD` | `api/_shared/email.js`: Gmail SMTP and sender account; contact mail is sent to `GMAIL_USER`. Use a Gmail app password. No SendGrid adapter exists. |
@@ -73,10 +73,12 @@ For a **new isolated database**, apply
 [`tests/integration/baseline.sql`](../tests/integration/baseline.sql) (the base
 tables no migration creates), then every SQL file in numeric order according to
 [`migrations/README.md`](../migrations/README.md) — exactly what the CI
-integration job does. There is no `db:push` script any more: pushing the Drizzle
-declaration reconciled a database to `shared/schema.ts`, and at the time that
-dropped indexes and checks only the migrations created, among them the unique
-`(event_id, lower(email))` index that stops duplicate signups.
+integration job does. There is no `db:push` script and no `drizzle.config.ts`
+any more: pushing the Drizzle declaration reconciled a database to
+`shared/schema.ts`, and at the time that dropped indexes and checks only the
+migrations created, among them the unique `(event_id, lower(email))` index that
+stops duplicate signups. The integration suite still uses drizzle-kit's API to
+compare the declaration with what the migrations build.
 
 For an **existing deployment**, review and apply only outstanding numbered SQL
 migrations through the Neon SQL editor before the dependent code is deployed.

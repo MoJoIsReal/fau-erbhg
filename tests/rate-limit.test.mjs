@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  checkRateLimit, clientNetwork, getClientIp, identityRateLimitKey, rateLimitDigest, rateLimitKey, releaseRateLimit, reservePublicMail,
+  checkRateLimit, clientNetwork, getClientIp, identityRateLimitKey, rateLimitDigest, rateLimitKey, refuseRateLimited, releaseRateLimit,
+  reservePublicMail,
 } from '../api/_shared/rate-limit.js';
+import { mockResponse } from './helpers.mjs';
 
 // Models what actually reaches a Vercel function: the platform sets x-real-ip
 // itself and overwrites any incoming copy, while everything to the left of the
@@ -67,6 +69,17 @@ test('retryAfter never reports zero, so a Retry-After header is always meaningfu
   assert.equal((await checkRateLimit(expiring.sql, { key: 'k', limit: 1, windowSeconds: 60 })).retryAfter, 60);
   const negative = stubSql({ count: 9, retryAfter: -3 });
   assert.equal((await checkRateLimit(negative.sql, { key: 'k', limit: 1, windowSeconds: 60 })).retryAfter, 1);
+});
+
+test('a refusal is a 429 that waits out the longest of the windows it names', () => {
+  const one = refuseRateLimited(mockResponse(), { allowed: false, retryAfter: 42 }, { error: 'x', code: 'RATE_LIMITED' });
+  assert.equal(one.statusCode, 429);
+  assert.equal(one.headers['retry-after'], '42');
+  assert.deepEqual(one.body, { error: 'x', code: 'RATE_LIMITED' });
+
+  const several = refuseRateLimited(mockResponse(), [{ retryAfter: 60 }, { retryAfter: 900 }], { error: 'x', code: 'PIN_LOCKED' });
+  assert.equal(several.headers['retry-after'], '900');
+  assert.equal(several.body.code, 'PIN_LOCKED');
 });
 
 // A limit that counts only failures reserves each attempt with

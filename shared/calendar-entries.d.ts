@@ -68,7 +68,6 @@ export type CalendarWeekGroup = {
 
 export function calendarKindForEventType(type: unknown): CalendarEntryKind;
 export function calendarKindForEntryType(entryType: unknown): CalendarEntryKind;
-export function calendarKindSource(kind: CalendarEntryKind): CalendarEntrySource;
 export function calendarKindForEntry(entry: unknown): CalendarEntryKind;
 
 export function parseCalendarDate(value: unknown): Date | null;
@@ -101,17 +100,6 @@ export function groupCalendarEntriesByWeek(
   entries: CalendarEntry[],
   options?: { fromWeekKey?: number | null },
 ): CalendarWeekGroup[];
-
-export type SchoolYearWeek = {
-  week: number;
-  weekYear: number;
-  /** 1-12, the month this week's Thursday falls in. */
-  month: number;
-  year: number;
-  monday: Date;
-};
-
-export function schoolYearWeeks(schoolYear: number): SchoolYearWeek[];
 
 export function mondayOfIsoWeek(weekYear: number, weekNumber: number): Date;
 export function isoWeekRange(weekYear: number, weekNumber: number): { start: Date; end: Date };

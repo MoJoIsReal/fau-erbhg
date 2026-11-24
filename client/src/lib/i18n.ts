@@ -106,7 +106,6 @@ export interface Translations {
     news: string;
     by: string;
     readMore: string;
-    loadingInformation: string;
     title: string;
     welcomeDescription: string;
     valuesTitle: string;
@@ -413,8 +412,6 @@ export interface Translations {
     unsubPendingTitle: string;
     unsubSuccessTitle: string;
     unsubSuccessDesc: string;
-    unsubErrorTitle: string;
-    unsubErrorDesc: string;
     linkInvalidTitle: string;
     transientTitle: string;
     footerLink: string;
@@ -1167,6 +1164,7 @@ export const translations: Record<Language, Translations> = {
       MESSAGE_REQUIRED: "Velg emne og skriv en melding.",
       EVENT_FIELDS_REQUIRED: "Tittel, dato og klokkeslett må fylles ut.",
       INVALID_EVENT_DATE: "Datoen må være en ekte dato.",
+      INVALID_PUBLISHED_DATE: "Publiseringsdatoen må være en ekte dato.",
       INVALID_EVENT_TIME: "Klokkeslett må skrives som TT:MM (24 timer).",
       INVALID_EVENT_END_TIME: "Sluttid må skrives som TT:MM (24 timer) og være etter starttid.",
       INVALID_MAX_ATTENDEES: "Maks antall deltakere må være et heltall, eller tomt for ingen grense.",
@@ -1301,7 +1299,6 @@ export const translations: Record<Language, Translations> = {
       news: "Nyheter",
       by: "av",
       readMore: "Les mer",
-      loadingInformation: "Laster informasjon...",
       title: "Velkommen til FAU Erdal Barnehage",
       welcomeDescription: "FAU Erdal Barnehage er foreldrenes egen frivillige forening. Vi jobber for å ivareta foreldrenes interesser og bidra til et godt miljø for barna.",
       valuesTitle: "Våre verdier",
@@ -1603,8 +1600,6 @@ export const translations: Record<Language, Translations> = {
       unsubPendingTitle: "Melder deg av...",
       unsubSuccessTitle: "Du er nå avmeldt",
       unsubSuccessDesc: "Du vil ikke lenger motta nyhetsbrev fra FAU Erdal Barnehage.",
-      unsubErrorTitle: "Noe gikk galt",
-      unsubErrorDesc: "Kunne ikke melde deg av. Prøv igjen senere.",
       linkInvalidTitle: "Lenken virker ikke",
       transientTitle: "Det gikk ikke akkurat nå",
       footerLink: "Meld deg på nyhetsbrev",
@@ -2358,6 +2353,7 @@ export const translations: Record<Language, Translations> = {
       MESSAGE_REQUIRED: "Choose a subject and write a message.",
       EVENT_FIELDS_REQUIRED: "Title, date and time are required.",
       INVALID_EVENT_DATE: "The date must be a real calendar date.",
+      INVALID_PUBLISHED_DATE: "The publish date must be a real calendar date.",
       INVALID_EVENT_TIME: "The time must be written as HH:MM (24-hour).",
       INVALID_EVENT_END_TIME: "The end time must be written as HH:MM (24-hour) and come after the start time.",
       INVALID_MAX_ATTENDEES: "Max attendees must be a whole number, or empty for no limit.",
@@ -2492,7 +2488,6 @@ export const translations: Record<Language, Translations> = {
       news: "News",
       by: "by",
       readMore: "Read more",
-      loadingInformation: "Loading information...",
       title: "Welcome to FAU Erdal Kindergarten",
       welcomeDescription: "FAU Erdal Kindergarten is the parents' own voluntary association. We work to safeguard parents' interests and contribute to a good environment for the children.",
       valuesTitle: "Our values",
@@ -2794,8 +2789,6 @@ export const translations: Record<Language, Translations> = {
       unsubPendingTitle: "Unsubscribing...",
       unsubSuccessTitle: "You have been unsubscribed",
       unsubSuccessDesc: "You will no longer receive newsletters from FAU Erdal Kindergarten.",
-      unsubErrorTitle: "Something went wrong",
-      unsubErrorDesc: "Could not unsubscribe you. Please try again later.",
       linkInvalidTitle: "The link does not work",
       transientTitle: "That did not work just now",
       footerLink: "Subscribe to newsletter",
