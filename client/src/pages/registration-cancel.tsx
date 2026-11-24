@@ -1,12 +1,13 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { useSearch } from "wouter";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, CheckCircle2, XCircle, CalendarDays, Clock, MapPin } from "lucide-react";
+import { Loader2, CalendarDays, Clock, MapPin } from "lucide-react";
 import { ApiError, apiErrorText, apiRequest, invalidateEventRegistrations } from "@/lib/queryClient";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { usePageMeta } from "@/hooks/usePageMeta";
 import PageHero from "@/components/site/page-hero";
 import { Surface } from "@/components/site/section";
+import { StatusCard } from "@/components/site/status-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,29 +120,6 @@ function FoodSection({ token, registration }: { token: string; registration: Loo
         {status === "saving" ? copy.foodSaving : copy.foodSave}
       </Button>
     </form>
-  );
-}
-
-function StatusCard({
-  tone,
-  title,
-  description,
-  action,
-}: {
-  tone: "pending" | "success" | "error";
-  title: string;
-  description?: string;
-  action?: { label: string; onClick: () => void };
-}) {
-  return (
-    <Surface className="space-y-4 p-8 text-center" role={tone === "error" ? "alert" : "status"}>
-      {tone === "pending" && <Loader2 className="mx-auto h-10 w-10 animate-spin text-brand" />}
-      {tone === "success" && <CheckCircle2 className="mx-auto h-10 w-10 text-brand" />}
-      {tone === "error" && <XCircle className="mx-auto h-10 w-10 text-destructive" />}
-      <h2 className="text-h3 font-bold tracking-tight text-ink">{title}</h2>
-      {description && <p className="text-copy">{description}</p>}
-      {action && <Button onClick={action.onClick}>{action.label}</Button>}
-    </Surface>
   );
 }
 
