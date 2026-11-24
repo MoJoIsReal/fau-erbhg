@@ -106,7 +106,6 @@ export interface Translations {
     news: string;
     by: string;
     readMore: string;
-    loadingInformation: string;
     title: string;
     welcomeDescription: string;
     valuesTitle: string;
@@ -413,8 +412,6 @@ export interface Translations {
     unsubPendingTitle: string;
     unsubSuccessTitle: string;
     unsubSuccessDesc: string;
-    unsubErrorTitle: string;
-    unsubErrorDesc: string;
     linkInvalidTitle: string;
     transientTitle: string;
     footerLink: string;
@@ -1301,7 +1298,6 @@ export const translations: Record<Language, Translations> = {
       news: "Nyheter",
       by: "av",
       readMore: "Les mer",
-      loadingInformation: "Laster informasjon...",
       title: "Velkommen til FAU Erdal Barnehage",
       welcomeDescription: "FAU Erdal Barnehage er foreldrenes egen frivillige forening. Vi jobber for å ivareta foreldrenes interesser og bidra til et godt miljø for barna.",
       valuesTitle: "Våre verdier",
@@ -1603,8 +1599,6 @@ export const translations: Record<Language, Translations> = {
       unsubPendingTitle: "Melder deg av...",
       unsubSuccessTitle: "Du er nå avmeldt",
       unsubSuccessDesc: "Du vil ikke lenger motta nyhetsbrev fra FAU Erdal Barnehage.",
-      unsubErrorTitle: "Noe gikk galt",
-      unsubErrorDesc: "Kunne ikke melde deg av. Prøv igjen senere.",
       linkInvalidTitle: "Lenken virker ikke",
       transientTitle: "Det gikk ikke akkurat nå",
       footerLink: "Meld deg på nyhetsbrev",
@@ -2492,7 +2486,6 @@ export const translations: Record<Language, Translations> = {
       news: "News",
       by: "by",
       readMore: "Read more",
-      loadingInformation: "Loading information...",
       title: "Welcome to FAU Erdal Kindergarten",
       welcomeDescription: "FAU Erdal Kindergarten is the parents' own voluntary association. We work to safeguard parents' interests and contribute to a good environment for the children.",
       valuesTitle: "Our values",
@@ -2794,8 +2787,6 @@ export const translations: Record<Language, Translations> = {
       unsubPendingTitle: "Unsubscribing...",
       unsubSuccessTitle: "You have been unsubscribed",
       unsubSuccessDesc: "You will no longer receive newsletters from FAU Erdal Kindergarten.",
-      unsubErrorTitle: "Something went wrong",
-      unsubErrorDesc: "Could not unsubscribe you. Please try again later.",
       linkInvalidTitle: "The link does not work",
       transientTitle: "That did not work just now",
       footerLink: "Subscribe to newsletter",

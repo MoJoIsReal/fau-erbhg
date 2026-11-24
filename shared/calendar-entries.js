@@ -5,7 +5,8 @@
 //
 // Only pure functions live here, so tests/calendar-entries.test.mjs can reach
 // them — the same reason yearly-calendar-display.js sits in shared/ rather
-// than in client/src/lib/. Nothing in api/ imports this file.
+// than in client/src/lib/. api/ uses it too: the yearly-calendar categories
+// and the link previews (api/_shared/link-preview.js).
 import { isoWeek } from './yearly-calendar-display.js';
 
 // The kinds a merged entry can have. The event kinds come from `events` and
@@ -74,17 +75,6 @@ export function calendarKindForEventType(type) {
 
 export function calendarKindForEntryType(entryType) {
   return ENTRY_TYPE_TO_KIND[entryType] ?? 'beskjed';
-}
-
-/**
- * Which table a kind is *native* to, for grouping the filter chips.
- *
- * It is not a permission check and never was: a yearly entry may now carry an
- * event-native category such as `internt`, and who may edit a row is decided
- * by `entry.source`, which says where the row actually came from.
- */
-export function calendarKindSource(kind) {
-  return EVENT_CALENDAR_KINDS.includes(kind) ? 'event' : 'yearly';
 }
 
 /**
@@ -429,46 +419,6 @@ export function groupCalendarEntriesByWeek(entries, { fromWeekKey = null } = {})
       spanning: group.spanning.sort(compareSpanningEntries),
       dated: group.dated.sort((a, b) => a.sortKey - b.sortKey || a.title.localeCompare(b.title, 'no')),
     }));
-}
-
-/**
- * Every ISO week of a kindergarten year (1 August through 31 July), each
- * tagged with the month it belongs to.
- *
- * A week is normally assigned by its Thursday, the ISO rule, which is the
- * only one that puts a week straddling two months in exactly one of them.
- * The two edge weeks are the exception: 1 August 2026 falls on a Saturday, so
- * that week's Thursday sits in July and the year would open by dropping its
- * own first two days. A week that overlaps the year keeps its place and is
- * clamped to August or July instead.
- */
-export function schoolYearWeeks(schoolYear) {
-  const yearStart = new Date(schoolYear, 7, 1);
-  const yearEnd = new Date(schoolYear + 1, 6, 31);
-
-  const cursor = new Date(yearStart);
-  cursor.setDate(yearStart.getDate() - ((yearStart.getDay() + 6) % 7));
-
-  const weeks = [];
-  while (cursor <= yearEnd) {
-    const monday = new Date(cursor);
-    const thursday = new Date(cursor);
-    thursday.setDate(cursor.getDate() + 3);
-
-    let month = thursday.getMonth() + 1;
-    let year = thursday.getFullYear();
-    if (thursday < yearStart) {
-      month = 8;
-      year = schoolYear;
-    } else if (thursday > yearEnd) {
-      month = 7;
-      year = schoolYear + 1;
-    }
-
-    weeks.push({ week: isoWeek(monday), weekYear: isoWeekYear(monday), month, year, monday });
-    cursor.setDate(cursor.getDate() + 7);
-  }
-  return weeks;
 }
 
 /** Monday of a given ISO week, for labelling a week with its date range. */

@@ -61,7 +61,3 @@ export function isPasswordChangeRequired(user, now = new Date()) {
   expiresAt.setUTCDate(expiresAt.getUTCDate() + PASSWORD_EXPIRY_DAYS);
   return expiresAt <= now;
 }
-
-export function isUndefinedColumnError(error) {
-  return error?.code === '42703' || /column .* does not exist/i.test(String(error?.message || ''));
-}

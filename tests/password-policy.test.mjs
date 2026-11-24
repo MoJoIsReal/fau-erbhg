@@ -6,7 +6,6 @@ import {
   generateTemporaryPassword,
   isPasswordChangeRequired,
   isTemporaryPasswordExpired,
-  isUndefinedColumnError,
   temporaryPasswordExpiry,
 } from '../api/_shared/password-policy.js';
 
@@ -29,12 +28,6 @@ test('a password must be changed when flagged, missing a timestamp, or a year ol
   assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: null }, now), true);
   assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: '2025-06-30T11:59:59Z' }, now), true);
   assert.equal(isPasswordChangeRequired({ mustChangePassword: false, passwordChangedAt: '2025-07-02T12:00:00Z' }, now), false);
-});
-
-test('only a missing-column error is treated as a pre-migration database', () => {
-  assert.equal(isUndefinedColumnError({ code: '42703' }), true);
-  assert.equal(isUndefinedColumnError({ message: 'column "must_change_password" does not exist' }), true);
-  assert.equal(isUndefinedColumnError({ code: '23505' }), false);
 });
 
 // A temporary password travels in clear text by e-mail: it works for a week.
