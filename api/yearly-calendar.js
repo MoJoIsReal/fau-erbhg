@@ -167,6 +167,25 @@ function hasRequiredEntryFields(payload) {
   return Boolean(payload.entryType && payload.title && payload.schoolYear && payload.year && payload.month);
 }
 
+// The checks a create and an update both run before writing. Answers the
+// refusal itself and returns null, or returns the placed payload.
+function acceptEntryPayload(req, res) {
+  if (isHtmlTooLong(req.body?.description, ENTRY_DESCRIPTION_MAX)) {
+    res.status(400).json({ error: 'Description is too long', code: 'FIELD_TOO_LARGE' });
+    return null;
+  }
+  const payload = sanitizeEntryPayload(req.body || {});
+  if (!hasRequiredEntryFields(payload)) {
+    res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
+    return null;
+  }
+  if (!placeEntry(payload)) {
+    res.status(400).json({ error: INVALID_PLACEMENT_ERROR, code: 'INVALID_ENTRY_PLACEMENT' });
+    return null;
+  }
+  return payload;
+}
+
 function sanitizeImportTextValue(value, maxLength) {
   if (value === null || value === undefined || value === '') return value;
   return sanitizeText(String(value), maxLength);
@@ -455,16 +474,8 @@ export default withApiHandler(async function handler(req, res) {
       return res.status(200).json(summary);
     }
 
-    if (isHtmlTooLong(req.body?.description, ENTRY_DESCRIPTION_MAX)) {
-      return res.status(400).json({ error: 'Description is too long', code: 'FIELD_TOO_LARGE' });
-    }
-    const payload = sanitizeEntryPayload(req.body || {});
-    if (!hasRequiredEntryFields(payload)) {
-      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
-    }
-    if (!placeEntry(payload)) {
-      return res.status(400).json({ error: INVALID_PLACEMENT_ERROR, code: 'INVALID_ENTRY_PLACEMENT' });
-    }
+    const payload = acceptEntryPayload(req, res);
+    if (!payload) return;
     const now = new Date().toISOString();
     const created = await sql`
       INSERT INTO yearly_calendar_entries (
@@ -484,16 +495,8 @@ export default withApiHandler(async function handler(req, res) {
   if (req.method === 'PUT') {
     const id = requireIntId(req, res);
     if (!id) return;
-    if (isHtmlTooLong(req.body?.description, ENTRY_DESCRIPTION_MAX)) {
-      return res.status(400).json({ error: 'Description is too long', code: 'FIELD_TOO_LARGE' });
-    }
-    const payload = sanitizeEntryPayload(req.body || {});
-    if (!hasRequiredEntryFields(payload)) {
-      return res.status(400).json({ error: REQUIRED_ENTRY_FIELDS_ERROR, code: 'ENTRY_FIELDS_REQUIRED' });
-    }
-    if (!placeEntry(payload)) {
-      return res.status(400).json({ error: INVALID_PLACEMENT_ERROR, code: 'INVALID_ENTRY_PLACEMENT' });
-    }
+    const payload = acceptEntryPayload(req, res);
+    if (!payload) return;
     const now = new Date().toISOString();
     // The version the editor opened. Every column is rewritten, so without it
     // a second editor's older copy silently replaced the first one's save.

@@ -151,6 +151,15 @@ function roleDescription(role) {
   return '';
 }
 
+// What a board member's POST and PUT both carry, sanitized; null when the
+// name or the role is missing.
+function readBoardMember(body) {
+  const name = sanitizeText(body?.name, 100);
+  const role = sanitizeText(body?.role, 100);
+  if (!name || !role) return null;
+  return { name, role, sortOrder: sanitizeInteger(body?.sortOrder, 0, 1000) ?? 0 };
+}
+
 // Handle FAU Board Members operations
 async function handleBoardMembers(req, res, sql) {
   // GET - Public access to view board members
@@ -187,19 +196,14 @@ async function handleBoardMembers(req, res, sql) {
 
   // POST - Create new board member
   if (req.method === 'POST') {
-    const { name, role, sortOrder } = req.body;
-
-    const sanitizedName = sanitizeText(name, 100);
-    const sanitizedRole = sanitizeText(role, 100);
-    const sanitizedSortOrder = sanitizeInteger(sortOrder, 0, 1000) ?? 0;
-
-    if (!sanitizedName || !sanitizedRole) {
+    const member = readBoardMember(req.body);
+    if (!member) {
       return res.status(400).json({ error: 'Valid name and role are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
       INSERT INTO fau_board_members (name, role, sort_order, created_at, updated_at)
-      VALUES (${sanitizedName}, ${sanitizedRole}, ${sanitizedSortOrder}, ${now}, ${now})
+      VALUES (${member.name}, ${member.role}, ${member.sortOrder}, ${now}, ${now})
       RETURNING *
     `;
 
@@ -210,21 +214,16 @@ async function handleBoardMembers(req, res, sql) {
   if (req.method === 'PUT') {
     const id = requireIntId(req, res);
     if (!id) return;
-    const { name, role, sortOrder } = req.body;
-
-    const sanitizedName = sanitizeText(name, 100);
-    const sanitizedRole = sanitizeText(role, 100);
-    const sanitizedSortOrder = sanitizeInteger(sortOrder, 0, 1000) ?? 0;
-
-    if (!sanitizedName || !sanitizedRole) {
+    const member = readBoardMember(req.body);
+    if (!member) {
       return res.status(400).json({ error: 'Valid name and role are required', code: 'REQUIRED_FIELDS' });
     }
 
     const result = await sql`
       UPDATE fau_board_members
-      SET name = ${sanitizedName},
-          role = ${sanitizedRole},
-          sort_order = ${sanitizedSortOrder},
+      SET name = ${member.name},
+          role = ${member.role},
+          sort_order = ${member.sortOrder},
           updated_at = ${now}
       WHERE id = ${id}
       RETURNING *
@@ -285,6 +284,27 @@ async function refuseMissingOrChangedPost(res, sql, id, expectedUpdatedAt) {
     }
   }
   return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
+}
+
+// The fields a post's POST and PUT both write, sanitized: { post }, or
+// { refusal } with the 400 body when the text is too long or missing.
+function readBlogPost(body) {
+  if (isHtmlTooLong(body?.content, BLOG_CONTENT_MAX)) {
+    return { refusal: { error: 'Content is too long', code: 'FIELD_TOO_LARGE' } };
+  }
+  const title = sanitizeText(body?.title, 200);
+  const content = sanitizeHtml(body?.content, BLOG_CONTENT_MAX);
+  if (!title || !content) {
+    return { refusal: { error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' } };
+  }
+  return {
+    post: {
+      title,
+      content,
+      author: body.author ? sanitizeText(body.author, 100) : null,
+      category: ['news', 'tips'].includes(body.category) ? body.category : 'news',
+    },
+  };
 }
 
 async function handleBlogPosts(req, res, sql) {
@@ -375,25 +395,15 @@ async function handleBlogPosts(req, res, sql) {
 
   // POST - Create new blog post
   if (req.method === 'POST') {
-    const { title, content, publishedDate, author, category, notifyNewsletter } = req.body;
-
-    const sanitizedTitle = sanitizeText(title, 200);
-    if (isHtmlTooLong(content, BLOG_CONTENT_MAX)) {
-      return res.status(400).json({ error: 'Content is too long', code: 'FIELD_TOO_LARGE' });
-    }
-    const sanitizedContent = sanitizeHtml(content, BLOG_CONTENT_MAX);
-    const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
-    const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
-
-    if (!sanitizedTitle || !sanitizedContent) {
-      return res.status(400).json({ error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' });
-    }
+    const { publishedDate, notifyNewsletter } = req.body;
+    const { post, refusal } = readBlogPost(req.body);
+    if (refusal) return res.status(400).json(refusal);
 
     const pubDate = publishedDate || now;
 
     const result = await sql`
       INSERT INTO blog_posts (title, content, status, category, published_date, author, notify_newsletter, created_by, created_at, updated_at)
-      VALUES (${sanitizedTitle}, ${sanitizedContent}, 'published', ${sanitizedCategory}, ${pubDate}, ${sanitizedAuthor}, ${notifyNewsletter === true}, ${user.username}, ${now}, ${now})
+      VALUES (${post.title}, ${post.content}, 'published', ${post.category}, ${pubDate}, ${post.author}, ${notifyNewsletter === true}, ${user.username}, ${now}, ${now})
       RETURNING *
     `;
 
@@ -404,34 +414,24 @@ async function handleBlogPosts(req, res, sql) {
   if (req.method === 'PUT') {
     const id = requireIntId(req, res);
     if (!id) return;
-    const { title, content, status, publishedDate, author, showOnHomepage, category, notifyNewsletter, updatedAt } = req.body;
-
-    const sanitizedTitle = sanitizeText(title, 200);
-    if (isHtmlTooLong(content, BLOG_CONTENT_MAX)) {
-      return res.status(400).json({ error: 'Content is too long', code: 'FIELD_TOO_LARGE' });
-    }
-    const sanitizedContent = sanitizeHtml(content, BLOG_CONTENT_MAX);
-    const sanitizedAuthor = author ? sanitizeText(author, 100) : null;
+    const { status, publishedDate, showOnHomepage, notifyNewsletter, updatedAt } = req.body;
+    const { post, refusal } = readBlogPost(req.body);
+    if (refusal) return res.status(400).json(refusal);
     const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
     // The version the editor started from. A save rewrites every column, so
     // without it a member whose copy was older overwrote whatever someone
     // else had saved in between. An editor that sends no version keeps the
     // old last-write-wins behaviour.
     const expectedUpdatedAt = typeof updatedAt === 'string' && updatedAt ? updatedAt.slice(0, 64) : null;
-    const sanitizedCategory = ['news', 'tips'].includes(category) ? category : 'news';
-
-    if (!sanitizedTitle || !sanitizedContent) {
-      return res.status(400).json({ error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' });
-    }
 
     const result = await sql`
       UPDATE blog_posts
-      SET title = ${sanitizedTitle},
-          content = ${sanitizedContent},
+      SET title = ${post.title},
+          content = ${post.content},
           status = ${sanitizedStatus},
-          category = ${sanitizedCategory},
+          category = ${post.category},
           published_date = ${publishedDate || now},
-          author = ${sanitizedAuthor},
+          author = ${post.author},
           show_on_homepage = ${showOnHomepage !== undefined ? showOnHomepage : true},
           notify_newsletter = COALESCE(${notifyNewsletter === undefined ? null : notifyNewsletter === true}::boolean, notify_newsletter),
           updated_at = ${now}
