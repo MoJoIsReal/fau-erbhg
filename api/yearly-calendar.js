@@ -14,6 +14,7 @@ import { YEARLY_CALENDAR_EDITORS } from '../shared/constants.js';
 import { YEARLY_CALENDAR_CATEGORIES } from '../shared/calendar-entries.js';
 import { resolveYearlyCalendarPlacement } from '../shared/yearly-calendar-placement.js';
 import { htmlToPlainText, plainTextToHtml } from '../shared/html-text.js';
+import { normalizeTimeOfDay } from '../shared/time-of-day.js';
 import {
   buildImportPreview,
   supportsYearlyCalendarNewsletter,
@@ -35,16 +36,6 @@ function sanitizeColor(value) {
   return null;
 }
 
-const TIME_RE = /^([01]?[0-9]|2[0-3]):([0-5][0-9])$/;
-
-// "HH:MM" in Norwegian local time, normalized to a leading zero so string
-// comparison orders times correctly.
-function sanitizeTimeOfDay(value) {
-  if (!value || typeof value !== 'string') return null;
-  const match = TIME_RE.exec(value.trim());
-  if (!match) return null;
-  return `${match[1].padStart(2, '0')}:${match[2]}`;
-}
 
 function mapEntry(row) {
   return {
@@ -111,8 +102,8 @@ function sanitizeEntryPayload(body) {
   // Only a day_event carries a clock time; every other type is a whole day or
   // a whole week. An end that isn't after the start is dropped rather than
   // rejected, the same way weekNumberEnd is handled above.
-  const startTime = entryType === 'day_event' ? sanitizeTimeOfDay(body.startTime) : null;
-  const endTimeRaw = entryType === 'day_event' ? sanitizeTimeOfDay(body.endTime) : null;
+  const startTime = entryType === 'day_event' ? normalizeTimeOfDay(body.startTime) : null;
+  const endTimeRaw = entryType === 'day_event' ? normalizeTimeOfDay(body.endTime) : null;
   const endTime = startTime && endTimeRaw && endTimeRaw > startTime ? endTimeRaw : null;
   // Only day_event entries can be flagged for the homepage. Force false on
   // every other type so a stale flag can't survive a type change.

@@ -11,6 +11,7 @@ import {
 } from './_shared/middleware.js';
 import { COUNCIL_ROLES, EVENT_TYPES, MAX_EVENT_ATTENDEES } from '../shared/constants.js';
 import { buildCalendarFeed } from '../shared/calendar-feed.js';
+import { endsAfterStart, isTimeOfDay } from '../shared/time-of-day.js';
 import { osloToday } from './_shared/registration-cancel.js';
 import { publicBaseUrl } from './_shared/newsletter.js';
 import {
@@ -132,7 +133,7 @@ async function respondWithCalendarFeed(req, res, sql) {
   // An event the feed cannot represent is skipped by buildCalendarFeed. That is
   // the right behaviour, but it must not be silent: a subscriber simply never
   // sees the event, and nothing else in the system notices.
-  const unrenderable = events.filter((event) => !isValidEventTime(event.time));
+  const unrenderable = events.filter((event) => !isTimeOfDay(event.time));
   if (unrenderable.length > 0) {
     logEvent('warn', 'calendar_feed.events_skipped', {
       count: unrenderable.length,
@@ -186,18 +187,8 @@ async function respondWithLinkPreview(req, res, sql) {
 // was truthiness. shared/calendar-feed.js can only render "H:MM", so an event
 // whose time was typed the Norwegian way ("17.00") rendered fine on the site
 // but was silently dropped from the public /kalender.ics feed — no log, no
-// counter, nobody finds out.
-const EVENT_TIME_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
-
-function isValidEventTime(value) {
-  return typeof value === 'string' && EVENT_TIME_RE.test(value.trim());
-}
-
-// "9:30" and "09:30" are the same time, so they are compared as numbers.
-function minutesOfDay(value) {
-  const [hours, minutes] = value.trim().split(':').map(Number);
-  return hours * 60 + minutes;
-}
+// counter, nobody finds out. Times are now checked by shared/time-of-day.js,
+// which the event form uses too.
 
 // events.date is `text NOT NULL`, and the client drops an event whose date it
 // cannot parse (normalizeEvent in shared/calendar-entries.js). The only check
@@ -283,13 +274,13 @@ function validateEventBody(body = {}) {
   if (!isValidEventDate(date)) {
     return { error: { error: 'Date must be a real calendar date written as YYYY-MM-DD, for example 2026-06-12', code: 'INVALID_EVENT_DATE' } };
   }
-  if (!isValidEventTime(time)) {
+  if (!isTimeOfDay(time)) {
     return { error: { error: 'Time must be written as HH:MM (24-hour), for example 17:00', code: 'INVALID_EVENT_TIME' } };
   }
   // Optional. Refused rather than dropped when it is malformed or not after
   // the start, so the council is told instead of the end vanishing.
   if (values.endTime !== null) {
-    if (!isValidEventTime(values.endTime) || minutesOfDay(values.endTime) <= minutesOfDay(time)) {
+    if (!endsAfterStart(time, values.endTime)) {
       return { error: { error: 'End time must be written as HH:MM (24-hour) and come after the start time', code: 'INVALID_EVENT_END_TIME' } };
     }
     values.endTime = values.endTime.trim();

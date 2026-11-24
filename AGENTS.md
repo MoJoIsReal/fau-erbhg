@@ -92,7 +92,7 @@ return raw rows and map through it. Add fields there, not ad hoc per endpoint.
 **The `shared/` boundary.** `api/` runs unbundled, so shared runtime code is
 plain `.js` with a hand-written `.d.ts` sibling for the typed client
 (`constants`, `photo-slots`, `yearly-calendar-*`, `calendar-entries`,
-`html-text`, `media`, `structured-data`, `video-embed`). `calendar-feed.js` is
+`html-text`, `media`, `structured-data`, `time-of-day`, `video-embed`). `calendar-feed.js` is
 used by `api/` only and has none.
 `shared/schema.ts` is the one TypeScript file — it is types/schema only and is
 **never imported by `api/`**. If you add shared runtime code, write `.js` + a

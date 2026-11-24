@@ -26,11 +26,7 @@ import { CalendarIcon } from "lucide-react";
 import { enGB, nb } from "date-fns/locale";
 import { z } from "zod";
 import RichTextEditor from "@/components/RichTextEditor";
-
-function minutesOfDay(value: string) {
-  const match = /^(\d{1,2}):(\d{2})$/.exec(value.trim());
-  return match ? Number(match[1]) * 60 + Number(match[2]) : null;
-}
+import { endsAfterStart } from "@shared/time-of-day";
 
 // Built per language so the capacity message is translated. The API enforces
 // the same MAX_EVENT_ATTENDEES limit and end-after-start rule; checking them
@@ -56,12 +52,7 @@ const createFormSchema = (maxAttendeesRange: string, endTimeAfterStart: string) 
   notifyNewsletter: z.boolean().default(false),
   potluck: z.boolean().default(false)
 }).refine(
-  ({ time, endTime }) => {
-    if (!endTime) return true;
-    const start = minutesOfDay(time);
-    const end = minutesOfDay(endTime);
-    return start !== null && end !== null && end > start;
-  },
+  ({ time, endTime }) => !endTime || endsAfterStart(time, endTime),
   { message: endTimeAfterStart, path: ["endTime"] },
 );
 
