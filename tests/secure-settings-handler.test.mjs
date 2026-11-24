@@ -469,3 +469,41 @@ test('a post longer than the field allows is refused, not truncated', async (t) 
   assert.deepEqual([res.statusCode, res.body.code], [400, 'FIELD_TOO_LARGE']);
   assert.deepEqual(statementsOf(sql, 'INSERT INTO blog_posts'), []);
 });
+
+// published_date was stored as sent, so any string or object became the
+// post's date; and a save without one reset it to today.
+test('a post date must be a real day, and a save without one keeps the stored date', async (t) => {
+  const post = (body) => ({ method: 'POST', query: { resource: 'blog-posts' }, as: 'member', body: { title: 'Dugnad', content: '<p>Hei</p>', ...body } });
+  const put = (body) => ({ method: 'PUT', query: { resource: 'blog-posts', id: '4' }, as: 'member', body: { title: 'Dugnad', content: '<p>Hei</p>', ...body } });
+
+  for (const publishedDate of ['neste uke', '2026-02-31', '2026-9-1', { day: 1 }, 20260901, '2026-09-01T25:00:00Z']) {
+    for (const request of [post, put]) {
+      const sql = useDatabase(database());
+      const res = await call(t, handler, request({ publishedDate }));
+      assert.deepEqual([res.statusCode, res.body.code], [400, 'INVALID_PUBLISHED_DATE'], JSON.stringify(publishedDate));
+      assert.deepEqual(statementsOf(sql, 'blog_posts').filter(({ statement }) => !/^\s*SELECT/.test(statement)), []);
+    }
+  }
+
+  for (const [publishedDate, stored] of [['2026-09-01', '2026-09-01'], [' 2026-09-01T08:30:00.000Z ', '2026-09-01T08:30:00.000Z']]) {
+    const sql = useDatabase(database());
+    assert.equal((await call(t, handler, post({ publishedDate }))).statusCode, 201);
+    // Not fields(): the INSERT writes status as a literal, which shifts its columns.
+    assert.ok(statementsOf(sql, 'INSERT INTO blog_posts')[0].values.includes(stored), stored);
+  }
+
+  const sql = useDatabase(database());
+  const before = Date.now();
+  assert.equal((await call(t, handler, post({}))).statusCode, 201);
+  const dated = statementsOf(sql, 'INSERT INTO blog_posts')[0].values
+    .filter((value) => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value));
+  assert.ok(dated.length > 0 && dated.every((value) => Date.parse(value) >= before - 1000), 'a new post without a date is dated now');
+
+  for (const [publishedDate, stored] of [[undefined, null], ['', null], ['2026-10-05', '2026-10-05']]) {
+    const sql = useDatabase(database());
+    assert.equal((await call(t, handler, put({ publishedDate }))).statusCode, 200, String(publishedDate));
+    const [update] = statementsOf(sql, 'UPDATE blog_posts');
+    assert.match(update.statement, /published_date = COALESCE\(\?::text, published_date\)/);
+    assert.ok(update.values.includes(stored), `${publishedDate} → ${stored}`);
+  }
+});

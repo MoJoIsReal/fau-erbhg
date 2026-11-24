@@ -286,8 +286,28 @@ async function refuseMissingOrChangedPost(res, sql, id, expectedUpdatedAt) {
   return res.status(404).json({ error: 'Blog post not found', code: 'NOT_FOUND' });
 }
 
+// published_date is text: the editor's date field sends YYYY-MM-DD, and a
+// post saved without one got an ISO timestamp. Whatever arrived used to be
+// stored as sent, so "neste uke", 2026-02-31 or an object became the post's
+// date, and the news list, its sort order and the sitemap's lastmod showed
+// it. Only a real calendar day, optionally with an ISO time, is accepted.
+const PUBLISHED_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})(T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2}))?$/;
+
+function readPublishedDate(value) {
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  const match = PUBLISHED_DATE_RE.exec(text);
+  if (!match) return null;
+  const [year, month, day] = match.slice(1, 4).map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  if (match[4] && Number.isNaN(Date.parse(text))) return null;
+  return text;
+}
+
 // The fields a post's POST and PUT both write, sanitized: { post }, or
-// { refusal } with the 400 body when the text is too long or missing.
+// { refusal } with the 400 body when the text is too long or missing, or the
+// date is not one. `publishedDate` is null when none was sent.
 function readBlogPost(body) {
   if (isHtmlTooLong(body?.content, BLOG_CONTENT_MAX)) {
     return { refusal: { error: 'Content is too long', code: 'FIELD_TOO_LARGE' } };
@@ -297,10 +317,16 @@ function readBlogPost(body) {
   if (!title || !content) {
     return { refusal: { error: 'Valid title and content are required', code: 'REQUIRED_FIELDS' } };
   }
+  const sentDate = body.publishedDate;
+  const publishedDate = sentDate === undefined || sentDate === null || sentDate === '' ? null : readPublishedDate(sentDate);
+  if (publishedDate === null && !(sentDate === undefined || sentDate === null || sentDate === '')) {
+    return { refusal: { error: 'Publish date must be a real date written as YYYY-MM-DD', code: 'INVALID_PUBLISHED_DATE' } };
+  }
   return {
     post: {
       title,
       content,
+      publishedDate,
       author: body.author ? sanitizeText(body.author, 100) : null,
       category: ['news', 'tips'].includes(body.category) ? body.category : 'news',
     },
@@ -395,11 +421,11 @@ async function handleBlogPosts(req, res, sql) {
 
   // POST - Create new blog post
   if (req.method === 'POST') {
-    const { publishedDate, notifyNewsletter } = req.body;
+    const { notifyNewsletter } = req.body;
     const { post, refusal } = readBlogPost(req.body);
     if (refusal) return res.status(400).json(refusal);
 
-    const pubDate = publishedDate || now;
+    const pubDate = post.publishedDate ?? now;
 
     const result = await sql`
       INSERT INTO blog_posts (title, content, status, category, published_date, author, notify_newsletter, created_by, created_at, updated_at)
@@ -414,7 +440,7 @@ async function handleBlogPosts(req, res, sql) {
   if (req.method === 'PUT') {
     const id = requireIntId(req, res);
     if (!id) return;
-    const { status, publishedDate, showOnHomepage, notifyNewsletter, updatedAt } = req.body;
+    const { status, showOnHomepage, notifyNewsletter, updatedAt } = req.body;
     const { post, refusal } = readBlogPost(req.body);
     if (refusal) return res.status(400).json(refusal);
     const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
@@ -430,7 +456,9 @@ async function handleBlogPosts(req, res, sql) {
           content = ${post.content},
           status = ${sanitizedStatus},
           category = ${post.category},
-          published_date = ${publishedDate || now},
+          -- A save without a date keeps the one the post has; it used to
+          -- become today, moving the post to the top of the news list.
+          published_date = COALESCE(${post.publishedDate}::text, published_date),
           author = ${post.author},
           show_on_homepage = ${showOnHomepage !== undefined ? showOnHomepage : true},
           notify_newsletter = COALESCE(${notifyNewsletter === undefined ? null : notifyNewsletter === true}::boolean, notify_newsletter),
