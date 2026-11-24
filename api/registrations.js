@@ -13,7 +13,7 @@ import {
   MAX_INT_ID,
 } from './_shared/middleware.js';
 import { assignPhotoSlots } from '../shared/photo-slots.js';
-import { checkRateLimit, rateLimitKey, reservePublicMail } from './_shared/rate-limit.js';
+import { checkRateLimit, rateLimitKey, refuseRateLimited, reservePublicMail } from './_shared/rate-limit.js';
 import { sendEmail, isEmailConfigured } from './_shared/email.js';
 import { turnstileFailure, verifyTurnstile } from './_shared/turnstile.js';
 import { reportProviderError } from './_shared/provider-errors.js';
@@ -50,6 +50,16 @@ function normalizeAttendeeCount(value) {
 // language for any other caller.
 function refuseSignup(res, status, code, error, extra = {}) {
   return res.status(status).json({ code, error, ...extra });
+}
+
+// Both signup limiters, per IP and per (IP, event, address), answer alike.
+function refuseTooManySignups(res, limit, english) {
+  return refuseRateLimited(res, limit, {
+    code: 'RATE_LIMITED',
+    error: english
+      ? 'Too many registrations from this device. Try again later.'
+      : 'For mange påmeldinger fra denne enheten. Prøv igjen senere.',
+  });
 }
 
 // What a signup body must hold before anything is looked up. Pure, like
@@ -208,8 +218,7 @@ export async function handleCancel(req, res, sql, action) {
     windowSeconds: CANCEL_WINDOW_SECONDS
   });
   if (!ipLimit.allowed) {
-    res.setHeader('Retry-After', String(ipLimit.retryAfter));
-    return res.status(429).json({ error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
+    return refuseRateLimited(res, ipLimit, { error: 'Too many requests. Try again later.', code: 'RATE_LIMITED' });
   }
 
   if (action === 'cancel-lookup') {
@@ -404,13 +413,10 @@ export default withApiHandler(async function handler(req, res) {
       windowSeconds: REGISTRATION_WINDOW_SECONDS
     });
     if (!registrationIpRateLimit.allowed) {
-      res.setHeader('Retry-After', String(registrationIpRateLimit.retryAfter));
       // `language` is still raw here — sanitization happens below, after the
       // limiter. Only an exact 'en' switches language; anything else falls
       // back to Norwegian, same as sanitizedLanguage would.
-      return refuseSignup(res, 429, 'RATE_LIMITED', language === 'en'
-        ? 'Too many registrations from this device. Try again later.'
-        : 'For mange påmeldinger fra denne enheten. Prøv igjen senere.');
+      return refuseTooManySignups(res, registrationIpRateLimit, language === 'en');
     }
 
     const body = validateSignupBody(req.body);
@@ -470,10 +476,7 @@ export default withApiHandler(async function handler(req, res) {
     });
 
     if (!registrationRateLimit.allowed) {
-      res.setHeader('Retry-After', String(registrationRateLimit.retryAfter));
-      return refuseSignup(res, 429, 'RATE_LIMITED', sanitizedLanguage === 'no'
-        ? 'For mange påmeldinger fra denne enheten. Prøv igjen senere.'
-        : 'Too many registrations from this device. Try again later.');
+      return refuseTooManySignups(res, registrationRateLimit, sanitizedLanguage === 'en');
     }
 
     // Check if event exists and is active

@@ -14,6 +14,7 @@ import {
   clearRateLimit,
   identityRateLimitKey,
   rateLimitKey,
+  refuseRateLimited,
   releaseRateLimit,
 } from './_shared/rate-limit.js';
 import {
@@ -183,8 +184,7 @@ async function handleView(req, res, sql) {
     windowSeconds: VIEW_WINDOW_SECONDS,
   });
   if (!limit.allowed) {
-    res.setHeader('Retry-After', String(limit.retryAfter));
-    return refuse(res, 429, 'RATE_LIMITED', 'Too many requests');
+    return refuseRateLimited(res, limit, { error: 'Too many requests', code: 'RATE_LIMITED' });
   }
 
   const { token, pin, grant } = body;
@@ -215,14 +215,12 @@ async function handleView(req, res, sql) {
     // within its own limit, so one address cannot run it up on its own.
     const ipLock = await checkRateLimit(sql, { key: ipKey, limit: PIN_IP_MAX_FAILURES, windowSeconds: PIN_IP_WINDOW_SECONDS });
     if (!ipLock.allowed) {
-      res.setHeader('Retry-After', String(ipLock.retryAfter));
-      return refuse(res, 429, 'PIN_LOCKED', 'Too many attempts');
+      return refuseRateLimited(res, ipLock, { error: 'Too many attempts', code: 'PIN_LOCKED' });
     }
     const shareLock = await checkRateLimit(sql, { key: shareKey, limit: PIN_SHARE_MAX_FAILURES, windowSeconds: PIN_SHARE_WINDOW_SECONDS });
     if (!shareLock.allowed) {
       await releaseRateLimit(sql, ipKey);
-      res.setHeader('Retry-After', String(shareLock.retryAfter));
-      return refuse(res, 429, 'PIN_LOCKED', 'Too many attempts');
+      return refuseRateLimited(res, shareLock, { error: 'Too many attempts', code: 'PIN_LOCKED' });
     }
     const correct = MEDIA_PIN_PATTERN.test(pin) && await verifyPin(pin, share.pin_hash);
     if (!correct) return refuse(res, 401, 'PIN_INVALID', 'Wrong PIN');
