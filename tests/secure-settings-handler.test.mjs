@@ -507,3 +507,27 @@ test('a post date must be a real day, and a save without one keeps the stored da
     assert.ok(update.values.includes(stored), `${publishedDate} → ${stored}`);
   }
 });
+
+// show_on_homepage was written as sent: a non-boolean failed in the database
+// as a 500, and a save without it put the post back on the homepage.
+test('a post save keeps or sets its homepage flag, and refuses one that is not a boolean', async (t) => {
+  const put = (showOnHomepage) => ({ method: 'PUT', query: { resource: 'blog-posts', id: '4' }, as: 'member',
+    body: { title: 'Dugnad', content: '<p>Hei</p>', showOnHomepage } });
+
+  for (const showOnHomepage of ['false', 1, {}]) {
+    const sql = useDatabase(database());
+    const res = await call(t, handler, put(showOnHomepage));
+    assert.deepEqual([res.statusCode, res.body.code], [400, 'REQUIRED_FIELDS'], JSON.stringify(showOnHomepage));
+    assert.deepEqual(statementsOf(sql, 'UPDATE blog_posts'), []);
+  }
+
+  for (const [showOnHomepage, stored] of [[undefined, null], [null, null], [true, true], [false, false]]) {
+    const sql = useDatabase(database());
+    assert.equal((await call(t, handler, put(showOnHomepage))).statusCode, 200, String(showOnHomepage));
+    const [update] = statementsOf(sql, 'UPDATE blog_posts');
+    assert.match(update.statement, /show_on_homepage = COALESCE\(\?::boolean, show_on_homepage\)/);
+    // The value bound to the flag's own placeholder, counted from the statement.
+    const index = update.statement.slice(0, update.statement.indexOf('show_on_homepage')).split('?').length - 1;
+    assert.equal(update.values[index], stored, `${showOnHomepage} → ${stored}`);
+  }
+});

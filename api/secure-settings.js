@@ -443,6 +443,13 @@ async function handleBlogPosts(req, res, sql) {
     const { status, showOnHomepage, notifyNewsletter, updatedAt } = req.body;
     const { post, refusal } = readBlogPost(req.body);
     if (refusal) return res.status(400).json(refusal);
+    // Written as sent, anything but a boolean reached the boolean column and
+    // failed there as a 500; refused like the PATCH below refuses it. Unsent
+    // keeps what the post has: it used to become true, putting a post the
+    // council had taken off the homepage back on it.
+    if (showOnHomepage !== undefined && showOnHomepage !== null && typeof showOnHomepage !== 'boolean') {
+      return res.status(400).json({ error: 'showOnHomepage must be true or false', code: 'REQUIRED_FIELDS' });
+    }
     const sanitizedStatus = ['published', 'archived'].includes(status) ? status : 'published';
     // The version the editor started from. A save rewrites every column, so
     // without it a member whose copy was older overwrote whatever someone
@@ -460,7 +467,7 @@ async function handleBlogPosts(req, res, sql) {
           -- become today, moving the post to the top of the news list.
           published_date = COALESCE(${post.publishedDate}::text, published_date),
           author = ${post.author},
-          show_on_homepage = ${showOnHomepage !== undefined ? showOnHomepage : true},
+          show_on_homepage = COALESCE(${typeof showOnHomepage === 'boolean' ? showOnHomepage : null}::boolean, show_on_homepage),
           notify_newsletter = COALESCE(${notifyNewsletter === undefined ? null : notifyNewsletter === true}::boolean, notify_newsletter),
           updated_at = ${now}
       WHERE id = ${id}
