@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
-import { BrowserClient, createTransport } from '@sentry/browser';
+import { BrowserClient, createTransport } from '@sentry/react';
 import { importBundle } from './helpers.mjs';
 
 const privacy = await importBundle({ entryPoints: ['client/src/lib/telemetry-privacy.ts'] });
